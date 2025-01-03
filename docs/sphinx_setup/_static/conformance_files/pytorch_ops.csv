@@ -1,3 +1,4 @@
+Operation Name,Limitation
 aten::__and__,
 aten::__derive_index,
 aten::__getitem__,
@@ -39,7 +40,7 @@ aten::amax,
 aten::amin,
 aten::aminmax,
 aten::any,
-aten::append                                , Supported in limited set of patterns
+aten::append,Supported in limited set of patterns
 aten::arange,
 aten::argmax,
 aten::argmin,
@@ -65,7 +66,7 @@ aten::bitwise_or,
 aten::bitwise_xor,
 aten::bmm,
 aten::Bool,
-aten::broadcast_tensors                     , Supported in limited set of patterns
+aten::broadcast_tensors,Supported in limited set of patterns
 aten::broadcast_to,
 aten::bucketize,
 aten::cat,
@@ -75,7 +76,7 @@ aten::ceil_,
 aten::celu,
 aten::celu_,
 aten::channel_shuffle,
-aten::chunk                                 , Supported in limited set of patterns
+aten::chunk,Supported in limited set of patterns
 aten::clamp,
 aten::clamp_,
 aten::clamp_max,
@@ -86,7 +87,7 @@ aten::clip,
 aten::clip_,
 aten::clone,
 aten::col2im,
-aten::complex                               , Supported in limited set of patterns
+aten::complex,Supported in limited set of patterns
 aten::concat,
 aten::contiguous,
 aten::conv1d,
@@ -112,7 +113,7 @@ aten::div_,
 aten::dot,
 aten::dropout,
 aten::dropout_,
-aten::einsum                                , Supported in limited set of patterns
+aten::einsum,Supported in limited set of patterns
 aten::elu,
 aten::elu_,
 aten::embedding,
@@ -134,8 +135,8 @@ aten::eye,
 aten::fake_quantize_per_channel_affine,
 aten::fake_quantize_per_tensor_affine,
 aten::feature_dropout,
-aten::fft_irfftn                            , Supported in limited set of patterns
-aten::fft_rfftn                             , Supported in limited set of patterns
+aten::fft_irfftn,Supported in limited set of patterns
+aten::fft_rfftn,Supported in limited set of patterns
 aten::fill,
 aten::fill_,
 aten::fill_diagonal_,
@@ -167,8 +168,8 @@ aten::hardswish_,
 aten::hardtanh,
 aten::hardtanh_,
 aten::im2col,
-aten::imag                                  , Supported in limited set of patterns
-aten::index                                 , Supported in limited set of patterns
+aten::imag,Supported in limited set of patterns
+aten::index,Supported in limited set of patterns
 aten::index_add,
 aten::index_add_,
 aten::index_copy_,
@@ -250,7 +251,7 @@ aten::new_full,
 aten::new_ones,
 aten::new_zeros,
 aten::nonzero,
-aten::nonzero_numpy                         , Supported in limited set of patterns
+aten::nonzero_numpy,Supported in limited set of patterns
 aten::norm,
 aten::normal,
 aten::normal_,
@@ -276,10 +277,10 @@ aten::rand_like,
 aten::randint,
 aten::randn,
 aten::randn_like,
-aten::real                                  , Supported in limited set of patterns
+aten::real,Supported in limited set of patterns
 aten::reciprocal,
 aten::reciprocal_,
-aten::reflection_pad2d                      , Supported in limited set of patterns
+aten::reflection_pad2d,Supported in limited set of patterns
 aten::relu,
 aten::relu6,
 aten::relu6_,
@@ -323,13 +324,13 @@ aten::slice,
 aten::softmax,
 aten::softplus,
 aten::sort,
-aten::split                                 , Supported in limited set of patterns
-aten::split_with_sizes                      , Supported in limited set of patterns
+aten::split,Supported in limited set of patterns
+aten::split_with_sizes,Supported in limited set of patterns
 aten::sqrt,
 aten::sqrt_,
 aten::square,
 aten::squeeze,
-aten::stack                                 , Supported in limited set of patterns
+aten::stack,Supported in limited set of patterns
 aten::std,
 aten::std_mean,
 aten::sub,
@@ -344,7 +345,7 @@ aten::tan_,
 aten::tanh,
 aten::tanh_,
 aten::tensor,
-aten::tensor_split                          , Supported in limited set of patterns
+aten::tensor_split,Supported in limited set of patterns
 aten::tile,
 aten::to,
 aten::topk,
@@ -354,7 +355,7 @@ aten::tril_,
 aten::triu,
 aten::triu_,
 aten::type_as,
-aten::unbind                                , Supported in limited set of patterns
+aten::unbind,Supported in limited set of patterns
 aten::unflatten,
 aten::unfold,
 aten::unsqueeze,
@@ -379,21 +380,21 @@ ov_ext::embedding,
 ov_ext::linear,
 prim::Constant,
 prim::device,
-prim::DictConstruct                         , Supported in limited set of patterns
+prim::DictConstruct,Supported in limited set of patterns
 prim::GetAttr,
 prim::If,
 prim::is_cuda,
 prim::ListConstruct,
 prim::ListUnpack,
 prim::Loop,
-prim::max                                   , Supported in limited set of patterns
-prim::min                                   , Supported in limited set of patterns
+prim::max,Supported in limited set of patterns
+prim::min,Supported in limited set of patterns
 prim::NumToTensor,
 prim::PythonOp,
 prim::requires_grad,
-prim::TupleConstruct                        , Supported in limited set of patterns
+prim::TupleConstruct,Supported in limited set of patterns
 prim::TupleIndex,
-prim::TupleUnpack                           , Supported in limited set of patterns
+prim::TupleUnpack,Supported in limited set of patterns
 prim::type,
 quantized::add,
 quantized::add_relu,
