@@ -132,7 +132,7 @@ protected:
     //   2. This number can be changed and updated during whole pipeline, so its absolute values are meaningless.
     //   3. This number can be negative, positive and zero.
     double m_exec_num = 0;
-    std::set<Reg> m_live_regs;
+    std::set<Reg> m_live_regs{};
 };
 
 } // namespace lowered

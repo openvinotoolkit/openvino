@@ -5,9 +5,6 @@
 #include "jit_reg_spill_emitters.hpp"
 
 #include "emitters/plugin/x64/utils.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/x64/utils.hpp"
-#include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

@@ -106,7 +106,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         case emitter_in_out_map::vec_to_vec:
             return {snippets::RegType::vec, snippets::RegType::vec};
         default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported emitter_in_ou_map instance");
+            OV_CPU_JIT_EMITTER_THROW("Unsupported emitter_in_out_map instance");
         }
     };
     std::vector<Xbyak::Reg64> aux_tmp_regs{};

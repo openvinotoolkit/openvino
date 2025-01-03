@@ -45,9 +45,9 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             manually_assigned[out_reg] = assigned;
             // Buffer abstract registers validation:
             bool all_equal = true;
-            for (const auto& pd : expr->get_input_port_descriptors())
+            for (const auto& pd : buffer->get_input_port_descriptors())
                 all_equal &= pd->get_reg() == out_reg;
-            for (const auto& pd : expr->get_output_port_descriptors())
+            for (const auto& pd : buffer->get_output_port_descriptors())
                 all_equal &= pd->get_reg() == out_reg;
             OPENVINO_ASSERT(all_equal, "Buffer must have same register on all inputs and outputs");
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
@@ -109,7 +109,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
     };
 
-    // A variable live LiveInterval - is a range (start, stop) of op indexes, such that
+    // A variable LiveInterval - is a range (start, stop) of op indexes, such that
     // the variable is alive within this range (defined but not used by the last user)
     std::map<LiveInterval, Reg, by_starting> live_intervals_vec, live_intervals_gpr;
     for (const auto& regint : m_reg_manager.get_live_range_map()) {

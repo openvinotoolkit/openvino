@@ -36,7 +36,8 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
         if (pass_through_expr(expr)) {
-            expr->set_live_regs(std::prev(expr_it)->get()->get_live_regs());
+            if(expr_it != linear_ir.begin())
+                expr->set_live_regs(std::prev(expr_it)->get()->get_live_regs());
             continue;
         }
         const double start = expr->get_exec_num();
@@ -66,6 +67,8 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
                     consumer.get_descriptor_ptr()->set_reg(reg);
                     const auto& consumer_expr = consumer.get_expr();
                     stop = std::max(stop, consumer_expr->get_exec_num());
+                    // Note: pass_through expression don't affect registers' life times,
+                    // so we should examine their consumers to understand when the register will actually be used
                     if (pass_through_expr(consumer_expr)) {
                         for (const auto& connector : consumer_expr->get_output_port_connectors())
                             to_visit.push(connector);
