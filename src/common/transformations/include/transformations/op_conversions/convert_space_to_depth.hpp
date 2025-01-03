@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertSpaceToDepth;
 
 class ov::pass::ConvertSpaceToDepth : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSpaceToDepth", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSpaceToDepth");
     ConvertSpaceToDepth();
 };

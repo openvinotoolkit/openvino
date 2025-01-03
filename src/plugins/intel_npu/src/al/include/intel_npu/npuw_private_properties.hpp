@@ -414,6 +414,14 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 
 /**
  * @brief
+ * Type: ov::AnyMap.
+ * Tell NPUW the configuration for compilation of prefill model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
  * Type: std::string.
  * Tell NPUW the preferrable hint for generation stage, that leads to usage of optimal configuration for it.
  * Possible values: "FAST_COMPILE", "BEST_PERF".
@@ -421,6 +429,13 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
  */
 static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT"};
 
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Tell NPUW the configuration for compilation of generate model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
 }  // namespace llm
 
 }  // namespace npuw

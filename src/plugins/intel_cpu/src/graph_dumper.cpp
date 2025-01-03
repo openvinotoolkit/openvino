@@ -357,6 +357,10 @@ void average_counters(const Graph& graph) {
      * - <nesting-level>_<graph-name>.csv
      * For example: 0_MyModel.csv
      */
+    if (!graph.getGraphContext()) {
+        DEBUG_LOG("graph.m_context is null. Don't dump average_counters.");
+        return;
+    }
 
     const std::string& path = graph.getConfig().debugCaps.averageCountersPath;
 
