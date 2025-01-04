@@ -59,6 +59,8 @@ std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Outp
 
 Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& input_node);
 
+Output<Node> create_flip(const Output<Node>& x, const Output<Node>& axis);
+
 std::shared_ptr<Node> numel(const NodeContext& context,
                             const Output<Node>& x,
                             element::Type output_type = element::i32);

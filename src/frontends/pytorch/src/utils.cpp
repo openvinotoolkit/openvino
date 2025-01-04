@@ -167,6 +167,15 @@ Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis
     }
 }
 
+Output<Node> create_flip(const Output<Node>& x, const Output<Node>& axis) {
+        auto minus_one = v0::Constant::create(element::i32, Shape{}, {-1});
+        auto minimum_int = v0::Constant::create(element::i32, Shape{}, {std::numeric_limits<int>::min()});
+        auto axis_shape = std::make_shared<v3::ShapeOf>(axis, element::i32);
+        auto start = std::make_shared<v3::Broadcast>(minus_one, axis_shape);
+        auto stop = std::make_shared<v3::Broadcast>(minimum_int, axis_shape);
+        return std::make_shared<v8::Slice>(x, start, stop, start, axis);
+};
+
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x, element::Type output_type) {
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, output_type));
     auto axes = context.mark_node(v0::Constant::create(output_type, Shape({1}), {0}));
