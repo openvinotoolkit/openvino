@@ -150,6 +150,7 @@ protected:
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
     void apply_debug_options(const cldnn::device_info& info);
+    void update_specific_default_properties(const cldnn::device_info& info);
 
     template <typename T, PropertyMutability mutability>
     void apply_rt_info_property(const ov::Property<T, mutability>& property, const ov::RTMap& rt_info) {
@@ -167,6 +168,8 @@ private:
 
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
+
+    bool specific_default_properties_is_set = false;
 };
 
 }  // namespace intel_gpu

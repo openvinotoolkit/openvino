@@ -70,7 +70,7 @@ private:
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
 
     static uint64_t getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
-    uint8_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
+    uint32_t getBroadcastingMask(const std::vector<VectorDims>& input_shapes);
 
     using DataFlowPasses = std::vector<ov::snippets::pass::Manager::PositionedPassBase>;
     using ControlFlowPasses = std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>;
