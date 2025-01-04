@@ -219,9 +219,9 @@ class TestReflectionPad(PytorchLayerTest):
                 if ndim == 1:
                     self.pad = torch.nn.ReflectionPad1d(pads)
                 elif ndim == 2:
-                    self.pad = torch.nn.ReflectionPad1d(pads)
+                    self.pad = torch.nn.ReflectionPad2d(pads)
                 elif ndim == 3:
-                    self.pad = torch.nn.ReflectionPad1d(pads)
+                    self.pad = torch.nn.ReflectionPad3d(pads)
                 else:
                     raise Exception("Unsupported pads")
 
@@ -242,5 +242,46 @@ class TestReflectionPad(PytorchLayerTest):
     def test_reflection_padnd(self, pads, dtype, ie_device, precision, ir_version):
         ndim = len(pads) // 2 + 2
         print(ndim)
+        self._test(*self.create_model(pads), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})
+
+class TestReplicatePad(PytorchLayerTest):
+    def _prepare_input(self, ndim=4, dtype="float32"):
+        import numpy as np
+        input_5d_shape = [5,9,1,1,2,4]
+        return (np.random.randn(*input_5d_shape[:ndim]).astype(dtype),)
+
+    def create_model(self, pads):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_pad(torch.nn.Module):
+            def __init__(self, pads):
+                super().__init__()
+                ndim = len(pads) / 2
+                if ndim == 1:
+                    self.pad = torch.nn.ReplicationPad1d(pads)
+                elif ndim == 2:
+                    self.pad = torch.nn.ReplicationPad2d(pads)
+                elif ndim == 3:
+                    self.pad = torch.nn.ReplicationPad3d(pads)
+                else:
+                    raise Exception("Unsupported pads")
+
+            def forward(self, x):
+                return self.pad(x)
+            
+        return aten_pad(pads), None, "aten::pad"
+
+    @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
+    @pytest.mark.parametrize("pads", [
+        (1, 2),
+        (1, 2, 3, 4),
+        (1, 2, 3, 4, 3, 2),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
+    def test_replicate_padnd(self, pads, dtype, ie_device, precision, ir_version):
+        ndim = len(pads) // 2 + 2
         self._test(*self.create_model(pads), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})

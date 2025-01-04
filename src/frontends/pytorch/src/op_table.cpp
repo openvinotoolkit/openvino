@@ -297,6 +297,7 @@ OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
+OP_CONVERTER(translate_replicate_pad_nd_fx);
 OP_CONVERTER(translate_reshape_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
@@ -930,6 +931,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
         {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd_fx},
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd_fx},
+        {"aten.replicate_pad1d.default", op::translate_replicate_pad_nd_fx},
+        {"aten.replicate_pad2d.default", op::translate_replicate_pad_nd_fx},
+        {"aten.replicate_pad3d.default", op::translate_replicate_pad_nd_fx},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_1to1_match_2_inputs<opset10::Tile>},

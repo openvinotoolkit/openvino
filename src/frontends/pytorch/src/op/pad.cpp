@@ -134,6 +134,14 @@ OutputVector translate_reflection_pad_nd_fx(const NodeContext& context) {
     return translate_pad_common(context, data, paddings, pad_value, "reflect");
 }
 
+OutputVector translate_replicate_pad_nd_fx{const NodeContext & context} {
+    num_inputs_check(context, 2, 2);
+    auto data = context.get_input(0);
+    auto paddings = context.const_input<std::vector<int64_t>>(1);
+    Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    return translate_pad_common(context, data, paddings, pad_value, "replicate");
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
