@@ -173,6 +173,12 @@ CoordinateDiff NodeContext::const_named_param<CoordinateDiff>(const std::string&
 }
 
 template <>
+ov::element::Type NodeContext::const_named_param<ov::element::Type>(const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    return c->get_element_type();
+}
+
+template <>
 std::shared_ptr<v0::Constant> NodeContext::const_named_param<std::shared_ptr<v0::Constant>>(
     const std::string& name) const {
     auto c = get_constant_from_params(*this, name);
