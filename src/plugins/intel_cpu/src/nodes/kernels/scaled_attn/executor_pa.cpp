@@ -930,7 +930,11 @@ void transpose_16NxK(TDST* dst,
         size_t dst_offset = 0;
         while (dst_offset < K) {
             auto f = reinterpret_cast<float*>(s + src_offset);
-            attn_dequant_u8_kernel(s + src_offset + sizeof(float) * 2, t + dst_offset, group_size, f[0], f[1]);
+            attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * 2,
+                                                t + dst_offset,
+                                                group_size,
+                                                f[0],
+                                                f[1]);
             src_offset += group_size + sizeof(float) * 2;
             dst_offset += group_size;
         }
@@ -958,71 +962,25 @@ static inline void dequant(float* dst, ov::float16* src, const size_t N, const s
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+          typename std::enable_if<SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8, bool>::type = true>
 void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = src;
     const size_t params_offset = sizeof(float) * 2;
-    const size_t src_stride = K / group_size * (group_size + params_offset);
-
-    for (size_t n = 0; n < N; n++) {
-        size_t group_offset = 0;
-        size_t dst_offset = 0;
-        while (dst_offset < K) {
-            auto f = reinterpret_cast<float*>(s + group_offset);
-            attn_dequant_u8_kernel(s + group_offset + params_offset, dst + dst_offset, group_size, f[0], f[1]);
-            group_offset += group_size + params_offset;
-            dst_offset += group_size;
-        }
-        s += src_stride;
-        dst += K;
-    }
-}
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
-void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = src;
-    const size_t params_offset = sizeof(float) * 2;
-    const size_t sub_byte_mulitplier = 2;
+    const size_t sub_byte_mulitplier = get_sub_byte_multiplier(SRC_PREC);
 
     for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
             auto f = reinterpret_cast<float*>(s + src_offset);
-            attn_dequant_u4_kernel(s + src_offset + params_offset, dst + dst_offset, group_size, f[0], f[1]);
-            src_offset += group_size / sub_byte_mulitplier + params_offset;
-            dst_offset += group_size;
-        }
-        s += src_offset;
-        dst += K;
-    }
-}
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
-void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = src;
-    const size_t params_offset = sizeof(float);
-    const size_t sub_byte_mulitplier = 2;
-
-    for (size_t n = 0; n < N; n++) {
-        size_t src_offset = 0;
-        size_t dst_offset = 0;
-        while (dst_offset < K) {
-            auto f = reinterpret_cast<float*>(s + src_offset);
-            attn_dequant_s4_kernel(s + src_offset + params_offset, dst + dst_offset, group_size, f[0]);
+            attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
+                                                dst + dst_offset,
+                                                group_size,
+                                                f[0],
+                                                f[1]);
             src_offset += group_size / sub_byte_mulitplier + params_offset;
             dst_offset += group_size;
         }
@@ -1132,40 +1090,8 @@ static void pack_32NxK(TDST* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && SRC_PREC == ov::element::u8,
-                                  bool>::type = true>
-static void pack_32NxK(TDST* dst,
-                       void* src,
-                       TDST* tmp,
-                       const size_t N,
-                       const size_t K,
-                       const size_t dst_stride,
-                       const size_t src_stride,
-                       const size_t group_size) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
-    auto t = tmp;
-    // if group_size not set, the whole row is used as a group
-    for (size_t n = 0; n < N; n++) {
-        size_t src_offset = 0;
-        size_t dst_offset = 0;
-        while (dst_offset < K) {
-            auto f = reinterpret_cast<float*>(s + src_offset);
-            attn_dequant_u8_kernel(s + src_offset + sizeof(float) * 2, t + dst_offset, group_size, f[0], f[1]);
-            src_offset += group_size + sizeof(float) * 2;
-            dst_offset += group_size;
-        }
-        s += src_offset;
-        t += src_stride;
-    }
-    pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride, 0);
-}
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::u4),
+          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
+                                      (SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8),
                                   bool>::type = true>
 static void pack_32NxK(TDST* dst,
                        void* src,
@@ -1181,13 +1107,17 @@ static void pack_32NxK(TDST* dst,
     auto s = reinterpret_cast<uint8_t*>(src);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
-    const size_t sub_byte_mulitplier = 2;
+    const size_t sub_byte_mulitplier = get_sub_byte_multiplier(SRC_PREC);
     for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
             auto f = reinterpret_cast<float*>(s + src_offset);
-            attn_dequant_u4_kernel(s + (src_offset + sizeof(float) * 2), t + dst_offset, group_size, f[0], f[1]);
+            attn_dequant_kernel<TDST, SRC_PREC>(s + (src_offset + sizeof(float) * 2),
+                                                t + dst_offset,
+                                                group_size,
+                                                f[0],
+                                                f[1]);
             src_offset += group_size / sub_byte_mulitplier + sizeof(float) * 2;
             dst_offset += group_size;
         }

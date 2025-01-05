@@ -429,7 +429,7 @@ void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float
 }
 
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
-    attn_dequant_u8_kernel(src, dst, n, scale, zp);
+    attn_dequant_kernel<float, ov::element::u8>(src, dst, n, scale, zp);
 }
 
 }  // namespace XARCH
