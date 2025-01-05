@@ -84,6 +84,6 @@ Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ toolkit `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
-- :doc:`Convert a Model <legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+- :doc:`Convert a Model <../openvino-workflow/model-preparation/convert-model-to-ir>`.
 - :doc:`OpenVINO™ Runtime User Guide <../openvino-workflow/running-inference>`.
 - For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../learn-openvino/openvino-samples>`

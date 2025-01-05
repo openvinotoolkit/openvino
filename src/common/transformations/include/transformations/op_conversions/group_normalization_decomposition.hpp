@@ -18,6 +18,6 @@ class TRANSFORMATIONS_API GroupNormalizationDecomposition;
 // This transformation expresses GroupNormalization with a sub-graph of OpenVINO operations
 class ov::pass::GroupNormalizationDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GroupNormalizationDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GroupNormalizationDecomposition");
     GroupNormalizationDecomposition();
 };
