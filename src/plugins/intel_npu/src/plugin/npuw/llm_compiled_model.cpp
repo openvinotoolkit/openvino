@@ -321,6 +321,15 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
 }
 
+std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
+    if (auto it = config.find(option_name); it != config.end()) {
+        std::optional<ov::Any> found = std::make_optional(it->second);
+        config.erase(it);
+        return found;
+    }
+    return std::nullopt;
+}
+
 ov::AnyMap get_baseline_common_config() {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
@@ -418,6 +427,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     std::map<std::string, ov::Any> npuw_llm_props;
     std::map<std::string, ov::Any> other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+
+    // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
+    // to not pass them into ::intel_npu::Config object, as we don't need to
+    // preserve them somewhere.
+    auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+
     m_cfg.update(any_copy(npuw_llm_props));
 
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
@@ -455,17 +471,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
-    ov::AnyMap properties_copy = other_props;
-    auto prefill_config = get_default_prefill_config(model, npudesc);
+    auto prefill_config =
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
-    // NB: GENERATE_HINT is only applicable for default generate config!
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    LOG_DEBUG(
-        "10. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
-    auto generate_config = get_default_generate_config(model, npudesc, generate_hint);
+    LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
+    // NB: GENERATE_HINT is only applicable for default generate config!
+    if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
+        OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
+    }
+    auto generate_config =
+        generate_config_opt.value_or(get_default_generate_config(model, npudesc, generate_hint)).as<ov::AnyMap>();
 
-    merge_config_with(prefill_config, properties_copy);
-    merge_config_with(generate_config, properties_copy);
+    merge_config_with(prefill_config, other_props);
+    merge_config_with(generate_config, other_props);
 
     m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
     m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
@@ -488,6 +507,11 @@ void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
+    if (name == ov::intel_npu::npuw::llm::prefill_config.name() ||
+        name == ov::intel_npu::npuw::llm::generate_config.name()) {
+        OPENVINO_THROW(name, " is write-only option!");
+    }
+
     auto&& configIterator = m_prop_to_opt.find(name);
     if (configIterator != m_prop_to_opt.cend()) {
         return std::get<1>(configIterator->second)(m_cfg);
@@ -504,7 +528,7 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr, m_kvcache_desc);
+    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {

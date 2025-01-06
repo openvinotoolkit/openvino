@@ -230,7 +230,27 @@ void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
     apply_debug_options(info);
 }
 
+void ExecutionConfig::update_specific_default_properties(const cldnn::device_info& info) {
+    // These default properties should be set once.
+    if (specific_default_properties_is_set)
+        return;
+    specific_default_properties_is_set = true;
+
+    // Enable KV-cache compression by default for non-systolic platforms
+    if (get_property(ov::hint::kv_cache_precision) == ov::element::undefined && !info.supports_immad) {
+        set_property(ov::hint::kv_cache_precision(ov::element::i8));
+    }
+
+    // Enable dynamic quantization by default for non-systolic platforms
+    if (get_property(ov::hint::dynamic_quantization_group_size) == 0 && !info.supports_immad) {
+        set_property(ov::hint::dynamic_quantization_group_size(32));
+    }
+}
+
 void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
+    // Update specific default properties, call once before internal_properties updated.
+    update_specific_default_properties(info);
+
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
     // E.g num_streams=AUTO && hint=THROUGHPUT
@@ -258,16 +278,6 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
         if (!is_set_by_user(ov::hint::enable_cpu_pinning)) {
             set_property(ov::hint::enable_cpu_pinning(true));
         }
-    }
-
-    // Enable KV-cache compression by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
-        set_property(ov::hint::kv_cache_precision(ov::element::i8));
-    }
-
-    // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
-        set_property(ov::hint::dynamic_quantization_group_size(32));
     }
 
     user_properties.clear();
