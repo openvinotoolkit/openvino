@@ -48,6 +48,10 @@ struct Config {
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
     bool kvCachePrecisionSetExplicitly = false;
+    bool keyCachePrecisionSetExplicitly = false;
+    bool valueCachePrecisionSetExplicitly = false;
+    bool keyCacheGroupSizeSetExplicitly = false;
+    bool valueCacheGroupSizeSetExplicitly = false;
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif

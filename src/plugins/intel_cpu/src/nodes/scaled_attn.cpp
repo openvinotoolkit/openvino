@@ -1061,7 +1061,14 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
-
+    const auto& cpuConfig = context->getConfig();
+    const auto& keyCachePrecision = cpuConfig.keyCachePrecision;
+    const auto& valueCachePrecision = cpuConfig.valueCachePrecision;
+    OPENVINO_ASSERT(valueCachePrecision == keyCachePrecision,
+                    "CPU: SDPA node only supports same key/value cache precision");
+    OPENVINO_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
+                    "CPU: SDPA only supports key/value cache precision f32, f16, bf16, u8 but gets ",
+                    keyCachePrecision);
     if (const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
     } else if (const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
@@ -1835,12 +1842,16 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
 
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     ov::element::Type kvcache_precision;
+    // TODO: SDPA only supports same key/value cache precision.
     auto rtPrecision = getRuntimePrecision();
-    auto kvCachePrecisionHint = context->getConfig().kvCachePrecision;
+    auto keyCachePrecisionHint = context->getConfig().keyCachePrecision;
+    auto valueCachePrecisionHint = context->getConfig().valueCachePrecision;
     bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
-                             rtPrecision != ov::element::bf16 && kvCachePrecisionHint == ov::element::f16;
+                             rtPrecision != ov::element::bf16 &&
+                             (keyCachePrecisionHint == ov::element::f16 && valueCachePrecisionHint == ov::element::f16);
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
-    bool use_int8_kv_cache_precision = kvCachePrecisionHint == ov::element::u8;
+    bool use_int8_kv_cache_precision =
+        (keyCachePrecisionHint == ov::element::u8 && valueCachePrecisionHint == ov::element::u8);
     if (use_int8_kv_cache_precision)
         kvcache_precision = ov::element::u8;
     else
