@@ -671,10 +671,10 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
-        const size_t scale_group_size = get_scale_group_size(params);
+        // const size_t scale_group_size = get_scale_group_size(params);
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
-        if (scale_group_size % simd == 0 && !dispatchData.use_slm)
-            add_decompress_scale_post_op = true;
+        // if (scale_group_size % simd == 0 && !dispatchData.use_slm)
+        //     add_decompress_scale_post_op = true;
     }
     if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
         jit.AddConstant(MakeJitConstant("W_IDX", "fi * TILE_K + kii"));
