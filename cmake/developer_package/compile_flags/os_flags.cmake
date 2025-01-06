@@ -390,13 +390,7 @@ endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(CMAKE_CXX_STANDARD 14)
-    elseif(OV_COMPILER_IS_INTEL_LLVM)
-        set(CMAKE_CXX_STANDARD 17)
-    else()
-        set(CMAKE_CXX_STANDARD 11)
-    endif()
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
