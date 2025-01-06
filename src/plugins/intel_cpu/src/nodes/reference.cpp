@@ -3,6 +3,7 @@
 //
 
 #include "reference.h"
+
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference.hpp"
 
@@ -26,10 +27,13 @@ namespace node {
 Reference::Reference(const std::shared_ptr<ov::Node>& op,
                      const GraphContext::CPtr& context,
                      const std::string& errorMessage)
-    : Node(op, context, ReferenceShapeInferFactory(op)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
+    : Node(op, context, ReferenceShapeInferFactory(op)),
+      ovCoreNode(op),
+      additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         OPENVINO_THROW_NOT_IMPLEMENTED(
-            "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)");
+            "Cannot fallback on ngraph reference implementation. Ngraph::Node::evaluate() is not implemented for op: ",
+            *op);
     }
 
     setType(Type::Reference);
@@ -101,7 +105,9 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             auto memory = getDstMemoryAtPort(i);
             auto& tensor = outputs[i];
             if (memory->getSize() != tensor.get_byte_size()) {
-                THROW_CPU_NODE_ERR("output tensor data size mismatch occurred during the inference on output port number ", i);
+                THROW_CPU_NODE_ERR(
+                    "output tensor data size mismatch occurred during the inference on output port number ",
+                    i);
             }
             if (tensor.get_element_type() == element::string) {
                 auto srcPtr = tensor.data<StringMemory::OvString>();
@@ -130,7 +136,9 @@ ov::TensorVector Reference::prepareInputs() const {
                               ? ov::Shape{}
                               : getParentEdgeAt(i)->getMemory().getStaticDims();
 
-        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
+        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) {
+                return dim == 0lu;
+            })) {
             inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
         } else {
             CPU_NODE_ASSERT(srcDataPtr, "has empty input data on port ", i);
@@ -148,7 +156,9 @@ ov::TensorVector Reference::prepareOutputs() const {
                               ? ov::Shape{}
                               : getChildEdgeAt(i)->getMemory().getStaticDims();
 
-        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
+        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) {
+                return dim == 0lu;
+            })) {
             outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
         } else {
             CPU_NODE_ASSERT(dstDataPtr, "has empty output data on port ", i);
@@ -158,6 +168,6 @@ ov::TensorVector Reference::prepareOutputs() const {
     return outputs;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

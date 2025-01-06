@@ -9,16 +9,17 @@
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
-#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "nodes/executors/precision_matcher.hpp"
@@ -30,7 +31,8 @@
 #include "utils/debug_capabilities.h"
 
 #if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_fullyconnected.hpp"
+#    include "nodes/executors/acl/acl_fullyconnected.hpp"
+#    include "nodes/executors/acl/acl_lowp_fullyconnected.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
@@ -50,7 +52,7 @@ using LayoutConfig = std::vector<LayoutType>;
 static const LayoutConfig dnnlFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 static const LayoutConfig aclFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 
-template<dnnl::impl::cpu::x64::cpu_isa_t ISA>
+template <dnnl::impl::cpu::x64::cpu_isa_t ISA>
 struct Require {
     bool operator()() {
         return dnnl::impl::cpu::x64::mayiuse(ISA);
@@ -87,6 +89,11 @@ static const TypeMapping aclFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
     {{_f32 | _f16, _f32 | _f16, _any, _any}, pt(bypass(), bypass(), use<0>(), use<0>())},
     {{_any, _any, _any, _any},               pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())}
+};
+
+static const TypeMapping aclLowpFCTypeMapping {
+    // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
+    {{_i8, _i8, _any, _f32},                 pt(bypass(), bypass(), use<3>(), bypass())}
 };
 
 static const MappingNotation dnnlConvolutionMappingNotation {
@@ -126,6 +133,8 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // quantization configuration
     {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_undefined, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
     {{_u8 | _i8, _i8, _any, _any},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
+    // compresses int weights
+    {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -144,10 +153,10 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
             continue;
 
         if (desc->getPrecision() != type)
-            return false; // type mismatch
+            return false;  // type mismatch
 
         if (!desc->hasLayoutType(layoutConfig[i]))
-            return false; // layout mismatch
+            return false;  // layout mismatch
     }
 
     return true;
@@ -207,6 +216,8 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
     return config.postOps.empty();
 }
 
+// to keep OV_CPU_INSTANCE macros aligned
+// clang-format off
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
@@ -372,6 +383,38 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const ExecutorContext::CPtr context) {
                 return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
+        OV_CPU_INSTANCE_ACL(
+            "fullyconnected_acl_lowp",
+            ExecutorType::Acl,
+            OperationType::FullyConnected,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                return ACLLowpFullyConnectedExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return requiresFallbackCommon(config,
+                                              aclLowpFCTypeMapping,
+                                              aclFCLayoutConfig,
+                                              aclFullyConnectedMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                const auto dequantizationScales = getDeQuantizedScales(memory);
+                bool isPerChannelQuantization = dequantizationScales.size() > 1;
+                // per-channel quantization is not unsupported by ACL
+                return !isPerChannelQuantization;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
+            })
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
             ExecutorType::Shl,
@@ -402,7 +445,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return std::make_shared<ShlFCExecutor>(attrs, postOps, memory, context);
             }
         )
-        OV_CPU_INSTANCE_X64(
+        OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
             ExecutorType::Dnnl,
             OperationType::MatMul,
@@ -413,7 +456,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                        VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                         return true;
                     })
                 return false;
@@ -441,8 +483,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const ExecutorContext::CPtr context,
                         std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
                         MatMulAttrs matMulAttrs{false,
-                                                false,
-                                                attrs.dequantizationScales};
+                                                false};
                         auto primitive =
                             DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
                             memory,
@@ -493,5 +534,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
     return fullyconnectedImplementations;
 }
+// clang-format on
+
 }  // namespace intel_cpu
 }  // namespace ov

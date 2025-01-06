@@ -122,12 +122,15 @@ set(TARGET_NAME_PY "ov_integration_snippet_py")
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 11)
 
-find_package(Python3 REQUIRED)
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
-        OUTPUT_VARIABLE OpenVINO_DIR_PY
-        ERROR_QUIET
-    )
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
+            OUTPUT_VARIABLE OpenVINO_DIR_PY
+            ERROR_QUIET)
+    endif()
+endif()
 
 find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 

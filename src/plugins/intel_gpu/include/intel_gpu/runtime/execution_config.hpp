@@ -140,7 +140,7 @@ public:
 
     // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
     // So this method should be called after setting all user properties, but before apply_user_properties() call.
-    void apply_rt_info(const ov::RTMap& rt_info);
+    void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info);
 
     std::string to_string() const;
 
@@ -150,6 +150,7 @@ protected:
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
     void apply_debug_options(const cldnn::device_info& info);
+    void update_specific_default_properties(const cldnn::device_info& info);
 
     template <typename T, PropertyMutability mutability>
     void apply_rt_info_property(const ov::Property<T, mutability>& property, const ov::RTMap& rt_info) {
@@ -167,6 +168,8 @@ private:
 
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
+
+    bool specific_default_properties_is_set = false;
 };
 
 }  // namespace intel_gpu
