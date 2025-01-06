@@ -210,8 +210,9 @@ void IStreamsExecutor::Config::update_executor_config() {
             return;
         }
 
-        _threads_per_stream =
-            (_threads_per_stream > 0 && _cores_limit) ? std::min(num_cores, _streams * _threads_per_stream) / _streams : 0;
+        _threads_per_stream = (_threads_per_stream > 0 && _cores_limit)
+                                  ? std::min(num_cores, _streams * _threads_per_stream) / _streams
+                                  : 0;
         if (_threads_per_stream == 0) {
             return;
         }

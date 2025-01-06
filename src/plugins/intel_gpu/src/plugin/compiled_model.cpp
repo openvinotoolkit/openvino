@@ -34,7 +34,13 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     true});
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                    config.get_property(ov::num_streams),
+                                                    0,
+                                                    ov::hint::SchedulingCoreType::ANY_CORE,
+                                                    false,
+                                                    false,
+                                                    false});
     }
 }
 }  // namespace
