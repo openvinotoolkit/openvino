@@ -80,7 +80,11 @@ bool get_cpu_pinning(bool& input_value,
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
-    result_value = ((input_changed) && (proc_type_table.size() == 1)) ? input_value : false;
+    if (proc_type_table.size() == 1) {
+        result_value = input_changed ? input_value : cpu_reservation;
+    } else {
+        result_value = false;
+    }
 #else
     if (input_changed) {
         result_value = input_value;
