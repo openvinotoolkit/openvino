@@ -204,7 +204,7 @@ public:
 };
 
 TEST_P(FuseSDPAReshapeTransposeTest, CompareWithRefs) {
-    GTEST_SKIP() << "TODO: investigate perf-regression on ICX." << std::endl;
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     bool reshape_transpose_fused = false;
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);

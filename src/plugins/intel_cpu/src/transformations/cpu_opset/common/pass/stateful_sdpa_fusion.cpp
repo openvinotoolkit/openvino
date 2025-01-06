@@ -308,8 +308,8 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
-    // TODO: SDPAFuseTransposeReshape may cause regressions in icx.
-    // CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
+    // TODO: remove the following after snippets support patterns with dynamic shapes
+    CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
     manager.run_passes(f);
     return false;
