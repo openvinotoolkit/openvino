@@ -387,9 +387,9 @@ namespace llm {
  */
 static constexpr ov::Property<bool> enabled{"NPUW_LLM"};
 
-
 /**
  * @brief
+ * FIXME: Should be removed.
  * Type: uint32_t.
  * Dimension of the batch in input tensor shape.
  * Default value: 0.
@@ -398,6 +398,7 @@ static constexpr ov::Property<uint32_t> batch_dim{"NPUW_LLM_BATCH_DIM"};
 
 /**
  * @brief
+ * FIXME: Should be removed.
  * Type: uint32_t.
  * Dimension of KV-Cache size in input tensor shape.
  * Default value: 2.
@@ -422,6 +423,7 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 
 /**
  * @brief
+ * FIXME: Should be removed.
  * Type: bool.
  * Tell NPUW to apply values transpose optimization for the model.
  * Default value: false.
