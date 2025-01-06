@@ -50,9 +50,9 @@ public:
         return res;
     }
 
-    inline const LiveInterval& get_live_range(const Reg& reg) {
+    inline const LiveInterval& get_live_range(const Reg& reg) const {
         OPENVINO_ASSERT(m_reg_live_range.count(reg), "Live range for this reg was not set");
-        return m_reg_live_range[reg];
+        return m_reg_live_range.at(reg);
     }
     inline const std::map<Reg, LiveInterval>& get_live_range_map() const {
         return m_reg_live_range;

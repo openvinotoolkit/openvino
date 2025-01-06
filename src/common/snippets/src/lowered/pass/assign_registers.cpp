@@ -41,7 +41,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             OPENVINO_ASSERT(gpr_pool.size() > static_cast<size_t>(max_buffer_group),
                             "Not enough gp registers in the pool to perform manual assignment");
             const auto& assigned = *std::next(gpr_pool.begin(), reg_group);
-            const auto& out_reg = expr->get_output_port_descriptor(0)->get_reg();
+            const auto& out_reg = buffer->get_output_port_descriptor(0)->get_reg();
             manually_assigned[out_reg] = assigned;
             // Buffer abstract registers validation:
             bool all_equal = true;

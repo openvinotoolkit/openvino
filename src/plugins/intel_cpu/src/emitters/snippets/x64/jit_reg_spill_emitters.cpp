@@ -21,7 +21,7 @@ jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::j
     : jit_emitter(h, isa) {
     const auto& reg_spill_node = ov::as_type_ptr<snippets::op::RegSpillBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(reg_spill_node, "expects RegSpillBegin expression");
-    const auto& rinfo =  expr->get_reg_info();
+    const auto& rinfo = expr->get_reg_info();
     m_regs_to_spill = std::set<snippets::Reg>(rinfo.second.begin(), rinfo.second.end());
     m_abi_reg_spiller = std::make_shared<EmitABIRegSpills>(h);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;

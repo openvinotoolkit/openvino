@@ -19,13 +19,10 @@ namespace pass {
 bool InsertRegSpills::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertRegSpills")
 
-    auto needs_reg_spill = [](const ExpressionPtr& expr) {
-        return ov::is_type<snippets::op::Brgemm>(expr->get_node());
-    };
     bool modified = false;
     for (auto it = linear_ir.begin(); it != linear_ir.end(); it++) {
         const auto& expr = *it;
-        if (!needs_reg_spill(expr))
+        if (!m_needs_reg_spill(expr))
             continue;
         auto start_it = std::prev(it);
         auto stop_it = std::next(it);

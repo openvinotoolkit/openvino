@@ -25,7 +25,6 @@ public:
     RegSpillBase() = default;
     virtual const std::set<Reg>& get_regs_to_spill() const = 0;
     bool visit_attributes(AttributeVisitor& visitor) override;
-protected:
 };
 class RegSpillEnd;
 /**
