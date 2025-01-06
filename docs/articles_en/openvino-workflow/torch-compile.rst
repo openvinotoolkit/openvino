@@ -5,7 +5,8 @@ PyTorch Deployment via "torch.compile"
 
 The ``torch.compile`` feature enables you to use OpenVINO for PyTorch-native applications.
 It speeds up PyTorch code by JIT-compiling it into optimized kernels.
-By default, Torch code runs in eager-mode, but with the use of ``torch.compile`` it goes through the following steps:
+By default, Torch code runs in eager-mode, but with the use of ``torch.compile`` it goes
+through the following steps:
 
 1. **Graph acquisition** - the model is rewritten as blocks of subgraphs that are either:
 
