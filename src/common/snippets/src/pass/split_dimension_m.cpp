@@ -285,6 +285,12 @@ bool SplitDimensionM::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgr
     if (!subgraph->has_domain_sensitive_ops())
         return false;
 
+    // The pass supports only static shapes on Subgraph inputs due to static `Reshape` insertion around Subgraph.
+    const auto& params = subgraph->body_ptr()->get_parameters();
+    const auto is_dynamic = [](const std::shared_ptr<ov::Node>& p) { return p->get_output_partial_shape(0).is_dynamic(); };
+    if (std::any_of(params.cbegin(), params.cend(), is_dynamic))
+        return false;
+
     if (const auto matmul0 = get_matmul(subgraph)) {
         const auto mm_shape = matmul0->get_shape();
         size_t batch_m_dim, new_m_dim;
