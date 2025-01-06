@@ -389,17 +389,26 @@ static constexpr ov::Property<bool> enabled{"NPUW_LLM"};
 
 /**
  * @brief
- * Type: std::map<std::string, std::string>.
- * Tell NPUW about your LLM model. Use following structure for that:
- * "type:<type>,name_or_path:<name_or_path>,num_key_value_heads:<number>".
- * Default value: empty structure defined above.
+ * FIXME: Should be removed.
+ * Type: uint32_t.
+ * Dimension of the batch in input tensor shape.
+ * Default value: 0.
  */
-static constexpr ov::Property<std::string> model_desc{"NPUW_LLM_MODEL_DESC"};
+static constexpr ov::Property<uint32_t> batch_dim{"NPUW_LLM_BATCH_DIM"};
+
+/**
+ * @brief
+ * FIXME: Should be removed.
+ * Type: uint32_t.
+ * Dimension of KV-Cache size in input tensor shape.
+ * Default value: 2.
+ */
+static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 
 /**
  * @brief
  * Type: uint32_t.
- * Tell NPUW your desirable max prompt length.
+ * Desirable max prompt length.
  * Default value: 1024.
  */
 static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
@@ -407,15 +416,24 @@ static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"
 /**
  * @brief
  * Type: uint32_t.
- * Tell NPUW your desirable min response length.
+ * Desirable min response length.
  * Default value: 128.
  */
 static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
 
 /**
  * @brief
+ * FIXME: Should be removed.
+ * Type: bool.
+ * Tell NPUW to apply values transpose optimization for the model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENSORS"};
+
+/**
+ * @brief
  * Type: ov::AnyMap.
- * Tell NPUW the configuration for compilation of prefill model.
+ * Configuration for compilation of prefill model.
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
@@ -423,7 +441,8 @@ static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFI
 /**
  * @brief
  * Type: std::string.
- * Tell NPUW the preferrable hint for generation stage, that leads to usage of optimal configuration for it.
+ * Hint for generation stage. NPUW will use optimal configuration based on the passed preference via hint.
+ * Hint is ignored if used with "NPUW_LLM_GENERATE_CONFIG".
  * Possible values: "FAST_COMPILE", "BEST_PERF".
  * Default value: "FAST_COMPILE".
  */
@@ -432,7 +451,7 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
 /**
  * @brief
  * Type: ov::AnyMap.
- * Tell NPUW the configuration for compilation of generate model.
+ * Configuration for compilation of generate model.
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
