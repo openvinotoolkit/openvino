@@ -35,7 +35,23 @@ private:
     std::mutex m_mutex;
 };
 
-ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
+std::size_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
+    const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
+
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    auto& device_bank = m_device_banks[device_for_alloc];
+    if (device_bank.registered_tensors.find(tensor) == device_bank.registered_tensors.end()) {
+        auto uid = uid_count++;
+        device_bank.registered_tensors[tensor] = uid;
+        device_bank.storage[uid] = {tensor, ov::Tensor()};
+        return uid;
+    }
+
+    return device_bank.registered_tensors[tensor];
+}
+
+ov::Tensor Bank::get(std::size_t uid, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::lock_guard<std::mutex> guard(m_mutex);
@@ -43,30 +59,15 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     auto& device_bank = m_device_banks[device_for_alloc];
 
     std::unique_lock<std::mutex> dev_guard(device_bank.mutex);
-    auto iter_device = device_bank.storage.find(tensor);
+    auto iter_device = device_bank.storage.find(uid);
 
-    if (iter_device != device_bank.storage.end() && iter_device->second) {
-        // Already allocated
-        // tensor (the key) may be coming from a 2nd (3rd, ...) model
-        // detach it here just in case
-        const_cast<LazyTensor&>(tensor).detach();
-        return iter_device->second;
-    }
-    dev_guard.unlock();
+    NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
+                "Tensor should be registered and allocated first!");
 
-    // Allocation and evaluation needed
-    return eval_and_alloc(tensor, device_bank, device_for_alloc);
-}
-
-void Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
-    const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
-
-    std::lock_guard<std::mutex> guard(m_mutex);
-
-    auto& device_bank = m_device_banks[device_for_alloc];
-    if (device_bank.storage.find(tensor) == device_bank.storage.end()) {
-        device_bank.storage[tensor] = ov::Tensor();
-    }
+    // uid may be coming from a 2nd (3rd, ...) model
+    // detach the tensor here just in case
+    const_cast<LazyTensor&>(iter_device->second.lt).detach();
+    return iter_device->second.tensor;
 }
 
 void Bank::evaluate_and_allocate() {
@@ -79,13 +80,15 @@ void Bank::evaluate_and_allocate() {
         std::vector<LazyTensor> vec;
         vec.reserve(device_bank.storage.size());
         for (const auto& el : device_bank.storage) {
-            vec.push_back(el.first);
+            vec.push_back(el.second.lt);
         }
         ov::parallel_for(vec.size(), [&](std::size_t idx) {
             const auto& lt = vec[idx];
             std::unique_lock dev_guard(device_bank.mutex);
-            auto iter_device = device_bank.storage.find(lt);
-            if (iter_device != device_bank.storage.end() && iter_device->second) {
+            auto iter_device_registered = device_bank.registered_tensors.find(lt);
+            NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
+                        "Tensor should be registered first!");
+            if (device_bank.storage[iter_device_registered->second].tensor) {
                 // Already allocated
                 return;
             }
@@ -106,7 +109,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
 
     std::unique_lock<std::mutex> guard(dbank.mutex);
     if (device_for_alloc == "CPU") {
-        dbank.storage[tensor] = transformed_tensor;
+        dbank.storage[dbank.registered_tensors[tensor]].tensor = transformed_tensor;
         return transformed_tensor;
     }
 
@@ -117,7 +120,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     remote_tensor =
         remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     allocated_tensor = ov::make_tensor(remote_tensor);
-    dbank.storage[tensor] = allocated_tensor;
+    dbank.storage[dbank.registered_tensors[tensor]].tensor = allocated_tensor;
     guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
     transformed_tensor.copy_to(allocated_tensor);
@@ -130,14 +133,14 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     return allocated_tensor;
 }
 
-bool Bank::is_remote(const LazyTensor& tensor) const {
+bool Bank::is_remote(std::size_t uid) const {
     // FIXME: make generic
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto npu_bank = m_device_banks.find("NPU");
     if (npu_bank != m_device_banks.end()) {
         std::lock_guard<std::mutex> dev_guard(npu_bank->second.mutex);
-        if (npu_bank->second.storage.find(tensor) != npu_bank->second.storage.end()) {
+        if (npu_bank->second.storage.find(uid) != npu_bank->second.storage.end()) {
             // Found in NPU bank so considered remote (utterly wrong for the generic case)
             return true;
         }
