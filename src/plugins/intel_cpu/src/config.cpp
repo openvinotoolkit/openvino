@@ -529,7 +529,7 @@ void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
     // if user sets explicitly, it will be higher priority than rt_info
     if (!kvCachePrecisionSetExplicitly &&
         model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
-        this->kvCachePrecision =
+        this->kvCachePrecision = this->keyCachePrecision = this->valueCachePrecision =
             model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
     }
     if (!fcDynamicQuantizationGroupSizeSetExplicitly &&
