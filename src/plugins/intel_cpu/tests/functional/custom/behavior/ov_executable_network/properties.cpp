@@ -24,7 +24,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::model_name.name()),
         RO_property(ov::optimal_number_of_infer_requests.name()),
         RO_property(ov::num_streams.name()),
-        RO_property(ov::affinity.name()),
         RO_property(ov::inference_num_threads.name()),
         RO_property(ov::enable_profiling.name()),
         RO_property(ov::hint::inference_precision.name()),

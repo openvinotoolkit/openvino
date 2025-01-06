@@ -21,7 +21,6 @@ const char* ov_property_key_max_batch_size = "MAX_BATCH_SIZE";
 const char* ov_property_key_cache_dir = "CACHE_DIR";
 const char* ov_property_key_cache_mode = "CACHE_MODE";
 const char* ov_property_key_num_streams = "NUM_STREAMS";
-const char* ov_property_key_affinity = "AFFINITY";
 const char* ov_property_key_inference_num_threads = "INFERENCE_NUM_THREADS";
 const char* ov_property_key_hint_performance_mode = "PERFORMANCE_HINT";
 const char* ov_property_key_hint_enable_cpu_pinning = "ENABLE_CPU_PINNING";

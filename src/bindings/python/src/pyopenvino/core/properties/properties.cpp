@@ -14,13 +14,6 @@ void regmodule_properties(py::module m) {
     // Top submodule
     py::module m_properties = m.def_submodule("properties", "openvino.properties submodule");
 
-    // Submodule properties - enums
-    py::enum_<ov::Affinity>(m_properties, "Affinity", py::arithmetic())
-        .value("NONE", ov::Affinity::NONE)
-        .value("CORE", ov::Affinity::CORE)
-        .value("NUMA", ov::Affinity::NUMA)
-        .value("HYBRID_AWARE", ov::Affinity::HYBRID_AWARE);
-
     py::enum_<ov::WorkloadType>(m_properties, "WorkloadType", py::arithmetic())
         .value("DEFAULT", ov::WorkloadType::DEFAULT)
         .value("EFFICIENT", ov::WorkloadType::EFFICIENT);
@@ -38,9 +31,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    wrap_property_RW(m_properties, ov::affinity, "affinity");
-    OPENVINO_SUPPRESS_DEPRECATED_END
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
     wrap_property_RW(m_properties, ov::weights_path, "weights_path");

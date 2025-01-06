@@ -414,10 +414,6 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     else if (value.is<int>()) {
         return Napi::Number::New(info.Env(), value.as<int>());
     }
-    // Check for ov::Affinity
-    else if (value.is<ov::Affinity>()) {
-        return Napi::String::New(info.Env(), value.as<std::string>());
-    }
     // Check for ov::element::Type
     else if (value.is<ov::element::Type>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());

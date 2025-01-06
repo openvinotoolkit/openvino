@@ -124,13 +124,6 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_num_streams;
 
 /**
- * @brief Read-write property to set/get the name for setting CPU affinity per thread option.
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_affinity;
-
-/**
  * @brief Read-write property<int32_t string> to set/get the maximum number of threads that can be used
  * for inference tasks.
  * @ingroup ov_property_c_api

@@ -288,11 +288,6 @@ def main():
                 return
 
             def set_nthreads_pin(property_name, property_value):
-                if property_name == properties.affinity():
-                    if property_value == "YES":
-                        property_value = properties.Affinity.CORE
-                    elif property_value == "NO":
-                        property_value = properties.Affinity.NONE
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
@@ -309,7 +304,7 @@ def main():
 
             if is_flag_set_in_command_line('pin'):
                 ## set for CPU to user defined value
-                set_nthreads_pin(properties.affinity(), args.infer_threads_pinning)
+                set_nthreads_pin(properties.hint.enable_cpu_pinning(), args.infer_threads_pinning)
 
             set_throughput_streams()
             set_infer_precision()
