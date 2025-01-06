@@ -1081,10 +1081,7 @@ void Transformations::MainSnippets(void) {
         // Only FP32 dynamic MHA is supported
         if (matmul->is_dynamic())
             return false;
-        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
-        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of
-        // brgemm_copy_b kernel
-        if (matmul->get_transpose_a() || matmul->get_transpose_b())
+        if (matmul->get_transpose_a())
             return false;
         // [150842] The execution of Brgemm INT8/BF16/FP16 on AMX platforms depends on the value of "K % VNNIFactor".
         //          For more details, please teake a look at the ticket 150842
