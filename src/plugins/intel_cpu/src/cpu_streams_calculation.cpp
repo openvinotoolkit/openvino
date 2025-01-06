@@ -557,11 +557,7 @@ int get_model_prefer_threads(const int num_streams,
     if (-1 == config.modelPreferThreads) {
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
         config.modelPreferThreads = 8;
-        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::isa_all) ||
-            dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_512) ||
-            dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_384) ||
-            dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_256) ||
-            dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_128)) {
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_128)) {
             config.modelPreferThreads = 16;
         }
 #else
