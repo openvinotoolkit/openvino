@@ -478,7 +478,7 @@ void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
             svbool_t pg_rem = svwhilelt_b32(0, static_cast<int>(group_size - i));
             svfloat32_t a0 = svld1_f32(pg_rem, a + offset + i);
             sum0 = svadd_f32_m(pg_rem, sum0, a0);
-            i = n;
+            i = group_size;
         }
         float32_t sum_0 = svaddv_f32(pg, sum0);
         float32_t sum_1 = svaddv_f32(pg, sum1);
