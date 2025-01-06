@@ -169,6 +169,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+        // TODO: POC: Remove zeropoints preventing following matcher to work
+        rewr.add_matcher<ov::npuw::patterns::opt::UneffectiveZP>();
         rewr.run_on_model(model);
     }
 

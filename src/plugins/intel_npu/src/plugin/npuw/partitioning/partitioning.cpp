@@ -21,6 +21,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
+#include "openvino/op/ops.hpp"
 
 namespace ov {
 namespace npuw {
@@ -1516,9 +1517,39 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 LOG_DEBUG("Handling a Constant input " << prod_output);
                 LOG_BLOCK();
 
-                auto new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(),
-                                                                         prod_output.get_partial_shape());
-                input_desc.replace_source_output(new_param);  // (n)/1/i/a
+                // TODO: tricky part when const of 4d became a parameter it is no long batch friendly
+                // lets squeese this shape
+                auto partial_sh = prod_output.get_partial_shape();
+                std::shared_ptr<ov::op::v0::Parameter> new_param;
+                std::shared_ptr<ov::Node> new_param_or_reshape;
+
+                if (partial_sh.all_non_negative()) {
+                    auto static_shape = prod_output.get_shape();
+                    std::vector<size_t> dims;
+                    bool needReshape = false;
+                    for (auto s : static_shape) {
+                        if (s != 1) {
+                            dims.push_back(s);
+                            needReshape = true;
+                        }
+                    }
+                    new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(), ov::Shape{dims});
+                    // dont need 2 reshapes
+                    if (needReshape && !ov::as_type<ov::op::v1::Reshape>(input_desc.get_node())) {
+                        auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{static_shape.size()}, static_shape);
+                        new_param_or_reshape = std::make_shared<ov::op::v1::Reshape>(new_param, new_const, false);
+                    } else {
+                        new_param_or_reshape = new_param;
+                    }
+                    LOG_DEBUG("PARTITIONER: a new Constant shape: input " << new_param);
+                    LOG_DEBUG("PARTITIONER: a new reshape inserted: " << new_param_or_reshape);
+
+                } else {
+                    new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(),
+                                                                        prod_output.get_partial_shape());
+                    new_param_or_reshape = new_param;
+                }
+                input_desc.replace_source_output(new_param_or_reshape);  // (n)/1/i/a
                 function._model->add_parameters({std::move(new_param)});
                 LOG_DEBUG("Register Parameter[" << new_param_idx << "] as input to " << iport.first << " / "
                                                 << iport.second);
