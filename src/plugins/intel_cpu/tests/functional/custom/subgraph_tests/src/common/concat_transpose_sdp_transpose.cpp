@@ -71,7 +71,7 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType << "_";
-        result << "HasShapeOf=" << hasShapeof;
+        result << "HasShapeOf=" << hasShapeof << "_";
         result << "TransposeOrder=";
         result << "(";
         for (const auto& itr : transposeOrder) {
@@ -85,7 +85,6 @@ public:
     void SetUp() override {
         ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool hasShapeOf;
         std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         transposeOrder = inputShapeAndOrders.second;
@@ -124,6 +123,10 @@ public:
         // pre SDPA transpose
         auto preOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, transposeOrder);
         auto transposeQ = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
+        std::shared_ptr<ov::Node> transposeQ_shapeof;
+        if (hasShapeOf) {
+            transposeQ_shapeof = std::make_shared<ov::op::v0::ShapeOf>(transposeQ);
+        }
 
         auto concat_axis = transposeOrder[2];
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
@@ -166,6 +169,7 @@ public:
         if (hasShapeOf) {
             results.push_back(pastk_shapeof);
             results.push_back(pastv_shapeof);
+            results.push_back(transposeQ_shapeof);
         }
         ov::SinkVector sinks{pastk_assign, pastv_assign};
         function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatTranposeSDP");
@@ -237,6 +241,7 @@ public:
         }
     }
     std::vector<size_t> transposeOrder;
+    bool hasShapeOf;
 };
 
 class ConcatSDPTransposeTest : public ConcatSDPTransposeTestBase {
@@ -287,7 +292,10 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    // Transformation TSShapeOfForward will change:
+    // ?->transpose->shapeof ==> ?-->shapeof->gather
+    //                            |->transpose
+    CheckNumberOfNodesWithType(compiledModel, "Gather", hasShapeOf ? 1 : 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
