@@ -852,8 +852,30 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     return batch;
 }
 
+class PluginSentry {
+public:
+    PluginSentry() {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // touch oneDNN mutex for correct static objects destruction
+        auto capacity = dnnl::get_primitive_cache_capacity();
+        dnnl::set_primitive_cache_capacity(0);
+        dnnl::set_primitive_cache_capacity(capacity);
+#endif
+    }
+
+    ~PluginSentry() {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // reset the capacity when plugin deleted
+        auto capacity = dnnl::get_primitive_cache_capacity();
+        dnnl::set_primitive_cache_capacity(0);
+        dnnl::set_primitive_cache_capacity(capacity);
+#endif
+    }
+};
+
 }  // namespace intel_gpu
 }  // namespace ov
 
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
+static ov::intel_gpu::PluginSentry sentry;
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
