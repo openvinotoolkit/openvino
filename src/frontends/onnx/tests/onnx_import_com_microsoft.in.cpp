@@ -1488,3 +1488,50 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
+    const auto model = convert_model("com.microsoft/q_linear_sigmoid.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.2f};
+    const std::vector<int8_t> y_zero_point{0};
+
+    const std::vector<int8_t> expected_output{0, 0, 2, 4, 4, 4};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearleakyrelu) {
+    const auto model = convert_model("com.microsoft/q_linear_leaky_relu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.2f};
+    const std::vector<int8_t> y_zero_point{0};
+
+    const std::vector<int8_t> expected_output{-2, -1, 0, 12, 25, 37};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+
+    test_case.run();
+}
