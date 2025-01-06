@@ -64,11 +64,11 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         if (past_node->get_variable_id() != present_node->get_variable_id())
             return false;
 
-        // // TODO: Support conversion internally
-	if (ov::is_type<ov::opset8::Gather>(concat_past_input)) {
+        // TODO: Support conversion internally
+        if (ov::is_type<ov::opset8::Gather>(concat_past_input)) {
             if (!concat_node || concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
                 return false;
-	}
+        }
 
         auto variable = past_node->get_variable();
         auto concat_axis = concat_node->get_axis();
