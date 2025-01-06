@@ -213,7 +213,10 @@ void IStreamsExecutor::Config::update_executor_config() {
         _threads_per_stream = (_threads_per_stream > 0 && _cores_limit)
                                   ? std::min(num_cores, _streams * _threads_per_stream) / _streams
                                   : 0;
+        // _threads_per_stream = 0: not use tbb to create threads
         if (_threads_per_stream == 0) {
+            _cpu_reservation = false;
+            _cpu_pinning = false;
             return;
         }
 
