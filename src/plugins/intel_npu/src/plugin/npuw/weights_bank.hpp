@@ -27,25 +27,25 @@ public:
           m_alloc_device(alloc_device) {}
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
-    std::size_t registerLT(const LazyTensor& tensor, const std::string& device);
+    int64_t registerLT(const LazyTensor& tensor, const std::string& device);
 
     // Allocate and evaluate a registered tensor on a specified device (if needed) and return it from the bank
-    ov::Tensor get(std::size_t uid, const std::string& device);
+    ov::Tensor get(int64_t uid, const std::string& device);
 
     // Evaluate and allocate all LazyTensors in the bank
     void evaluate_and_allocate();
 
-    bool is_remote(std::size_t uid) const;
+    bool is_remote(int64_t uid) const;
 
 private:
-    struct StorageValue {
+    struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
     };
     // Bank for specified device and their allocated memory
     struct DeviceBank {
-        std::unordered_map<std::size_t, StorageValue> storage;
-        std::unordered_map<LazyTensor, std::size_t, LazyTensor::Hash> registered_tensors;
+        std::unordered_map<int64_t, StoredTensor> storage;
+        std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
         mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
@@ -55,7 +55,7 @@ private:
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
-    std::size_t uid_count = 0;
+    int64_t uid_count = 0;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

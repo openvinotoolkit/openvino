@@ -35,23 +35,24 @@ private:
     std::mutex m_mutex;
 };
 
-std::size_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
+int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto& device_bank = m_device_banks[device_for_alloc];
-    if (device_bank.registered_tensors.find(tensor) == device_bank.registered_tensors.end()) {
+    auto iter_registered = device_bank.registered_tensors.find(tensor);
+    if (iter_registered == device_bank.registered_tensors.end()) {
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
         return uid;
     }
 
-    return device_bank.registered_tensors[tensor];
+    return iter_registered->second;
 }
 
-ov::Tensor Bank::get(std::size_t uid, const std::string& device) {
+ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::lock_guard<std::mutex> guard(m_mutex);
@@ -109,7 +110,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
 
     std::unique_lock<std::mutex> guard(dbank.mutex);
     if (device_for_alloc == "CPU") {
-        dbank.storage[dbank.registered_tensors[tensor]].tensor = transformed_tensor;
+        dbank.storage[dbank.registered_tensors.at(tensor)].tensor = transformed_tensor;
         return transformed_tensor;
     }
 
@@ -120,7 +121,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     remote_tensor =
         remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     allocated_tensor = ov::make_tensor(remote_tensor);
-    dbank.storage[dbank.registered_tensors[tensor]].tensor = allocated_tensor;
+    dbank.storage[dbank.registered_tensors.at(tensor)].tensor = allocated_tensor;
     guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
     transformed_tensor.copy_to(allocated_tensor);
@@ -133,7 +134,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     return allocated_tensor;
 }
 
-bool Bank::is_remote(std::size_t uid) const {
+bool Bank::is_remote(int64_t uid) const {
     // FIXME: make generic
     std::lock_guard<std::mutex> guard(m_mutex);
 
