@@ -191,7 +191,7 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     auto dstStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     // unified strides array
-    const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);
+    const ptrdiff_t tailDimsOffset = (isTailCFmt ? -1 : 0);
     const size_t inStrides[5] = {srcStrides[0],
                                  (isTailCFmt ? 1 : srcStrides[1]),
                                  (spatialDimsCount == 3 ? srcStrides[2 + tailDimsOffset] : 0),
