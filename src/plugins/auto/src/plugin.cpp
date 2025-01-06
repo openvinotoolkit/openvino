@@ -435,10 +435,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
-    std::shared_ptr<ov::Model> cloned_model;
     if (model_path.empty()) {
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
-        cloned_model = model->clone();
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -461,8 +459,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
-    // clone the model, in case of reshape conflict
-    auto_s_context->m_model = cloned_model;
+    auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
+    auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    // clone the model if HW plugin loading is in a background thread
+    bool if_model_cloned =
+        (meta_devices.size() != 1 && (auto_s_context->m_startup_fallback || auto_s_context->m_runtime_fallback))
+            ? true
+            : false;
+    // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
+    auto_s_context->m_model = if_model_cloned ? model->clone() : std::const_pointer_cast<ov::Model>(model);
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
@@ -472,8 +477,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
-    auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
-    auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     auto_s_context->m_mtx = m_mtx;
@@ -493,16 +496,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         LOG_INFO_TAG("underlying hardware does not support hardware context");
     }
     if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), device_context, auto_s_context, scheduler);
+        impl = std::make_shared<AutoCumuCompiledModel>(auto_s_context->m_model,
+                                                       shared_from_this(),
+                                                       device_context,
+                                                       auto_s_context,
+                                                       scheduler);
     } else {
-        auto model = auto_s_context->m_model;
         if (std::static_pointer_cast<AutoSchedule>(scheduler)->m_compile_context[ACTUALDEVICE].m_is_already) {
-            // release cloned model here if actual device finish compiling model.
-            model.reset();
+            // release all the models here if actual device finish compiling model.
             auto_s_context->m_model.reset();
         }
-        impl =
-            std::make_shared<AutoCompiledModel>(model, shared_from_this(), device_context, auto_s_context, scheduler);
+        impl = std::make_shared<AutoCompiledModel>(auto_s_context->m_model,
+                                                   shared_from_this(),
+                                                   device_context,
+                                                   auto_s_context,
+                                                   scheduler);
     }
     return impl;
 }

@@ -299,6 +299,9 @@ void AutoSchedule::init() {
         // only one device need to compile model, do not need to compile it async
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
+        m_worker_requests.clear();
+        m_idle_worker_requests.clear();
+        m_infer_pipeline_tasks_device_specific.clear();
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
