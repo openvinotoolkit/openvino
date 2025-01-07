@@ -66,7 +66,11 @@ else()
   message(WARNING "Unknown C++ build setup - No explicit filesystem linker setting set")
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml $<WIN32:Shlwapi> ${STD_FS_LIB})
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} PUBLIC openvino::pugixml ${STD_FS_LIB})
+if (WIN32)
+    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+endif()
+
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

@@ -30,14 +30,6 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
                       "${PROGRAMFILES}/Windows Kits/10/bin/x64")
     endif()
 
-    # check UniversalCRTSdkDir env variable
-    if(DEFINED ENV{WindowsSdkBinPath})
-        file(TO_CMAKE_PATH $ENV{WindowsSdkBinPath} UNIVERSAL_SDK_BIN_PATH)
-
-        list(APPEND WDK_PATHS "${UNIVERSAL_SDK_BIN_PATH}/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
-                              "${UNIVERSAL_SDK_BIN_PATH}/x64")
-    endif()
-
     if(WDK_PATHS)
         message(STATUS "Trying to find apivalidator in: ")
         foreach(wdk_path IN LISTS WDK_PATHS)
