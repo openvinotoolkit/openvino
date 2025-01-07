@@ -109,7 +109,7 @@ struct MHAKernel {
     }
 
     PlainTensor causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
@@ -526,7 +526,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     }
 
     PlainTensor causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
@@ -674,7 +674,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     }
 
     PlainTensor causal_mask;
-    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
