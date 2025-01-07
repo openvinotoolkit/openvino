@@ -240,15 +240,17 @@ void Unique::flattenTensorExec() {
 
         for (size_t i = 0, j = 0; i < inputLen; ++i) {
             auto it = uniq.emplace(srcDataPtr[i], j);
-            inToOutTmpPtr[i] = it.first->second;
-            if (it.second) {
-                if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                    firstTmpPtr[j] = i;
-                }
-                ++j;
-            } else {
-                if (definedOutputs[OCCURRENCES_NUM]) {
-                    occurTmpPtr[inToOutTmpPtr[i]]++;
+            if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
+                inToOutTmpPtr[i] = it.first->second;
+                if (it.second) {
+                    if (definedOutputs[FIRST_UNIQUE_IDX]) {
+                        firstTmpPtr[j] = i;
+                    }
+                    ++j;
+                } else {
+                    if (definedOutputs[OCCURRENCES_NUM]) {
+                        occurTmpPtr[inToOutTmpPtr[i]]++;
+                    }
                 }
             }
         }
