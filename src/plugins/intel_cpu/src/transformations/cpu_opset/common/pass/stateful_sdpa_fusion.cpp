@@ -12,6 +12,7 @@
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/gen_pattern.hpp>
@@ -20,7 +21,12 @@
 #include "itt.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
+#include "transformations/defs.hpp"
+#include "transformations/op_conversions/convert_broadcast3.hpp"
+#include "transformations/transpose_sinking/ts_shape_of.hpp"
 using namespace ov::gen_pattern;
 
 namespace ov {
@@ -56,8 +62,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     std::shared_ptr<Node> reshape_k, reshape_v, unsqueeze_k, unsqueeze_v;
     std::shared_ptr<Node> computed_bcst_k, computed_bcst_v, multiply_k, multiply_v;
     std::shared_ptr<Node> mq_reshape_k, mq_reshape_v;
+    std::shared_ptr<Node> computed_bcst3_k, computed_bcst3_v;
     auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
-        auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
+        auto reshape_kv = makePattern<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
         auto check_one = [](Output<Node> output) -> bool {
@@ -73,13 +80,17 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one), any_input(), any_input()},
                                            {{"mode", "numpy"}});
 
-        auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        auto result = wrap_type<opset6::Reshape>({multiply_kv, any_input()});
-        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv);
+        auto multiply_kv = makePattern<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+        auto computed_bcst3 = makePattern<opset3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
+
+        auto result = makePattern<opset6::Reshape>({multiply_kv | computed_bcst3, any_input()});
+        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
     };
 
-    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k) = multi_query_bcst(concat_k);
-    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v) = multi_query_bcst(concat_v);
+    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
+        multi_query_bcst(concat_k);
+    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
+        multi_query_bcst(concat_v);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 
@@ -178,15 +189,19 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         opset6::Assign *assign_k_node = nullptr, *assign_v_node = nullptr;
         opset1::Convert *assign_cvt_k_node = nullptr, *assign_cvt_v_node = nullptr;
-        if (!find_assign(concat_k_node, assign_k_node, assign_cvt_k_node))
+        if (!find_assign(concat_k_node, assign_k_node, assign_cvt_k_node)) {
             return false;
-        if (past_k_node->get_variable_id() != assign_k_node->get_variable_id())
+        }
+        if (past_k_node->get_variable_id() != assign_k_node->get_variable_id()) {
             return false;
+        }
 
-        if (!find_assign(concat_v_node, assign_v_node, assign_cvt_v_node))
+        if (!find_assign(concat_v_node, assign_v_node, assign_cvt_v_node)) {
             return false;
-        if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
+        }
+        if (past_v_node->get_variable_id() != assign_v_node->get_variable_id()) {
             return false;
+        }
 
         auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
             for (auto&& node : nodes) {
@@ -212,7 +227,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                                     computed_bcst_v,
                                     multiply_v,
                                     mq_reshape_k,
-                                    mq_reshape_v})) {
+                                    mq_reshape_v,
+                                    computed_bcst3_k,
+                                    computed_bcst3_v})) {
             return false;
         }
 
@@ -282,6 +299,20 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sdp, matcher_name);
     this->register_matcher(m, callback);
+}
+
+bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
+    ov::pass::Manager manager("SDPASubgraphFusion");
+
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
+    CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
+    // TODO: remove the following after snippets support patterns with dynamic shapes
+    CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
+
+    manager.run_passes(f);
+    return false;
 }
 
 }  // namespace intel_cpu
