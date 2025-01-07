@@ -41,7 +41,7 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
  * @param aux_gpr_idxs pool of available gp register indexes
  * @param regs_to_spill set of live registers to be spilled before ABI call
  */
-Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& mem_ptr_reg_idxs,
+Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
                                         const std::vector<size_t>& aux_gpr_idxs,
                                         std::set<snippets::Reg>& regs_to_spill);
 

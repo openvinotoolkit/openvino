@@ -59,13 +59,13 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
 }
 
-Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& mem_ptr_reg_idxs,
+Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
                                         const std::vector<size_t>& aux_gpr_idxs,
                                         std::set<snippets::Reg>& regs_to_spill) {
     if (!aux_gpr_idxs.empty()) {
         return Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
     }
-    const auto aux_reg = ov::intel_cpu::utils::get_aux_gpr(mem_ptr_reg_idxs);
+    const auto aux_reg = ov::intel_cpu::utils::get_aux_gpr(used_gpr_reg_idxs);
     regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
     return aux_reg;
 }

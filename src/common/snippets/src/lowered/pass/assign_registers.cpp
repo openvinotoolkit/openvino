@@ -8,6 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
+#include "snippets/op/kernel.hpp"
 
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
@@ -93,6 +94,10 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     std::set<Reg> gpr_pool = vec2set(m_reg_manager.get_gp_regs_except_kernel_call(kernel));
     std::set<Reg> vec_pool = vec2set(m_reg_manager.get_vec_reg_pool());
     auto assigned_reg_map = assign_regs_manually(linear_ir, gpr_pool, vec_pool);
+    // Note: this is register-usage optimization for static kernels. It takes advantage of the fact that
+    // the second runtime arg is used for indexes that are not needed anymore once kernel emitter is executed.
+    if (ov::is_type<snippets::op::KernelStatic>(kernel))
+        gpr_pool.insert(m_reg_manager.get_kernel_call_regs(kernel).back());
 
     for (const auto& item : assigned_reg_map)
         global_regs.insert(item.second);
