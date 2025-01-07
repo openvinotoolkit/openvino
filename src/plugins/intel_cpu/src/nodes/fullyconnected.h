@@ -72,6 +72,8 @@ public:
                                                size_t OC,
                                                size_t G,
                                                ov::element::Type inferencePrecision) noexcept;
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes();
+    static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
     bool isExecutable() const override {
         return !isInputTensorAtPortEmpty(0);

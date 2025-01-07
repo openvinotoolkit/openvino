@@ -4,6 +4,7 @@
 
 include(options)
 include(target_flags)
+include(compile_flags/os_flags)
 
 if(WIN32)
     set (CPACK_GENERATOR "ZIP" CACHE STRING "Cpack generator for OpenVINO")
@@ -49,7 +50,9 @@ ov_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR (X86 
 
 ov_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
-ov_dependent_option(ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH64" OFF)
+ov_dependent_option (ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH64" OFF)
+
+ov_dependent_option (ENABLE_SVE "Enable SVE optimizations" ON "AARCH64" OFF)
 
 # Type of build, we add this as an explicit option to default it to ON
 get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
@@ -102,5 +105,13 @@ if(ENABLE_AVX512F)
     endif()
     if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
         set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
+    endif()
+endif()
+
+if(ENABLE_SVE)
+    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+
+    if(NOT CXX_HAS_SVE)
+        set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
     endif()
 endif()

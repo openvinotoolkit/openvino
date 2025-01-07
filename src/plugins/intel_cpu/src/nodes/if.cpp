@@ -86,11 +86,9 @@ void If::getSupportedDescriptors() {
     subGraphThen.CreateGraph(thenBody, context);
     subGraphElse.CreateGraph(elseBody, context);
 
-    const auto& inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto& param : ifOp->get_then_body()->get_parameters()) {
-        auto inNode = inMapThen.find(ifOp->get_then_body()->get_parameter_index(param));
-        if (inNode != inMapThen.end()) {
-            inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
+        if (auto inNode = subGraphThen.getInputNodeByIndex(ifOp->get_then_body()->get_parameter_index(param))) {
+            inputMemThen.push_back(getToMemories(inNode.get(), 0));
         } else {
             OPENVINO_THROW("Then body of node If with name ",
                            getName(),
@@ -99,11 +97,9 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto& inMapElse = subGraphElse.GetInputNodesMap();
     for (const auto& param : ifOp->get_else_body()->get_parameters()) {
-        auto inNode = inMapElse.find(ifOp->get_else_body()->get_parameter_index(param));
-        if (inNode != inMapElse.end()) {
-            inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
+        if (auto inNode = subGraphElse.getInputNodeByIndex(ifOp->get_else_body()->get_parameter_index(param))) {
+            inputMemElse.push_back(getToMemories(inNode.get(), 0));
         } else {
             OPENVINO_THROW("Else body of node If with name ",
                            getName(),
@@ -112,11 +108,9 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto& outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
-        auto outNode = outMapThen.find(ifOp->get_then_body()->get_result_index(out));
-        if (outNode != outMapThen.end()) {
-            auto outMem = outNode->second->getSrcMemoryAtPort(0);
+        if (auto outNode = subGraphThen.getOutputNodeByIndex(ifOp->get_then_body()->get_result_index(out))) {
+            auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
             OPENVINO_THROW("Then body of node If with name ",
@@ -126,11 +120,9 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto& outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
-        auto outNode = outMapElse.find(ifOp->get_else_body()->get_result_index(out));
-        if (outNode != outMapElse.end()) {
-            auto outMem = outNode->second->getSrcMemoryAtPort(0);
+        if (auto outNode = subGraphElse.getOutputNodeByIndex(ifOp->get_else_body()->get_result_index(out))) {
+            auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
             OPENVINO_THROW("Else body of node If with name ",

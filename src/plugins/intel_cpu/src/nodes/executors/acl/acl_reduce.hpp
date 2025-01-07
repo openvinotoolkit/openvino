@@ -20,10 +20,10 @@ public:
     bool init(const ReduceAttrs& reduceAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void* post_ops_data_) override;
 
     impl_desc_type getImplType() const override {
         return implType;
@@ -46,33 +46,38 @@ public:
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
         if (reduceAttrs.operation == Algorithm::ReduceMean) {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
-               (srcDescs[0]->getPrecision() != ov::element::f32 &&
-                srcDescs[0]->getPrecision() != ov::element::f16)) {
+                (srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16)) {
                 DEBUG_LOG("NEReduceMean does not support precisions:",
-                        " src[0]=", srcDescs[0]->getPrecision(),
-                        " dst[0]=", dstDescs[0]->getPrecision());
+                          " src[0]=",
+                          srcDescs[0]->getPrecision(),
+                          " dst[0]=",
+                          dstDescs[0]->getPrecision());
                 return false;
             }
         } else {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
-               (srcDescs[0]->getPrecision() != ov::element::f32 &&
-                srcDescs[0]->getPrecision() != ov::element::f16 &&
-                srcDescs[0]->getPrecision() != ov::element::i32)) {
+                (srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16 &&
+                 srcDescs[0]->getPrecision() != ov::element::i32)) {
                 DEBUG_LOG("NEReductionOperation does not support precisions:",
-                        " src[0]=", srcDescs[0]->getPrecision(),
-                        " dst[0]=", dstDescs[0]->getPrecision());
+                          " src[0]=",
+                          srcDescs[0]->getPrecision(),
+                          " dst[0]=",
+                          dstDescs[0]->getPrecision());
                 return false;
             }
         }
         if (srcDescs[0]->getShape().getRank() >= arm_compute::MAX_DIMS) {
-            DEBUG_LOG("ACL supports ", arm_compute::MAX_DIMS,
-                      " dimensions maximum. src[0] shape rank is ", srcDescs[0]->getShape().getRank());
+            DEBUG_LOG("ACL supports ",
+                      arm_compute::MAX_DIMS,
+                      " dimensions maximum. src[0] shape rank is ",
+                      srcDescs[0]->getShape().getRank());
             return false;
         }
         auto srcShapeRank = srcDescs[0]->getShape().getRank();
         bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc);
         for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-            int axis = axisCast(reduceAttrs.axes[i], srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+            int axis =
+                axisCast(reduceAttrs.axes[i], srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
             if (axis == -1) {
                 DEBUG_LOG("Layout conversion to NHWC has failed");
                 return false;
@@ -82,14 +87,12 @@ public:
                 return false;
             }
         }
-        if ((reduceAttrs.operation == Algorithm::ReduceSum ||
-             reduceAttrs.operation == Algorithm::ReduceMax ||
-             reduceAttrs.operation == Algorithm::ReduceMin ||
-             reduceAttrs.operation == Algorithm::ReduceProd) &&
-             reduceAttrs.axes.size() != 1) {
-                DEBUG_LOG("ACL supports single axes reduce only. Number of axes: ", reduceAttrs.axes.size());
-                return false;
-             }
+        if ((reduceAttrs.operation == Algorithm::ReduceSum || reduceAttrs.operation == Algorithm::ReduceMax ||
+             reduceAttrs.operation == Algorithm::ReduceMin || reduceAttrs.operation == Algorithm::ReduceProd) &&
+            reduceAttrs.axes.size() != 1) {
+            DEBUG_LOG("ACL supports single axes reduce only. Number of axes: ", reduceAttrs.axes.size());
+            return false;
+        }
 
         return true;
     }
@@ -99,5 +102,5 @@ public:
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
