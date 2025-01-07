@@ -42,6 +42,8 @@ ov_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitiz
 
 ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
 
+ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
+
 # Defines CPU capabilities
 
 ov_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
