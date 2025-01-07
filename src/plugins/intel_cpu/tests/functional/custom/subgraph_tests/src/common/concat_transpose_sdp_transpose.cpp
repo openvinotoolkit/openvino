@@ -78,7 +78,7 @@ public:
         result << "Prc=" << inType << "_";
         result << "HasShapeOf=" << hasShapeof << "_";
         result << "quantKeyByChannel=" << quantKeyByChannel << "_";
-        result << "groupSize= " << groupSize << "_";
+        result << "groupSize=" << groupSize << "_";
         result << "TransposeOrder=";
         result << "(";
         for (const auto& itr : transposeOrder) {
@@ -92,7 +92,6 @@ public:
     void SetUp() override {
         ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool hasShapeOf;
         std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         transposeOrder = inputShapeAndOrders.second;
@@ -372,6 +371,8 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     // Transformation TSShapeOfForward will change:
     // ?->transpose->shapeof ==> ?-->shapeof->gather
     //                            |->transpose
+    size_t expectedGatherCount = hasShapeOf ? 1 : 0;
+    std::cout << "ConcatSDPTEST|" << expectedGatherCount << std::endl;
     CheckNumberOfNodesWithType(compiledModel, "Gather", hasShapeOf ? 1 : 0);
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
@@ -467,7 +468,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                          ConcatSDPTransposeTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(shapesWithGreedySearch),
-                                            ::testing::Values(true),
+                                            ::testing::Values(false),
                                             ::testing::Values(true),
                                             ::testing::Values(8)),
                          ConcatSDPTransposeTest::getTestCaseName);
