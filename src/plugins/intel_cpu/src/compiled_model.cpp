@@ -21,8 +21,6 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
-#include "transformations/transformation_pipeline.h"
-#include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/serialize.hpp"
 
