@@ -1068,21 +1068,20 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     const auto valueDims = getInputShapeAtPort(2).getDims();
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
-    if (keyS % cpuConfig.keyCacheGroupSize != 0) {
-        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +
-                       " cannot be divided by group size " + std::to_string(cpuConfig.keyCacheGroupSize));
-    }
-
-    if (valueS % cpuConfig.valueCacheGroupSize != 0) {
-        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails value state " +
-                       std::to_string(keyS) + " cannot be divided by group size " +
-                       std::to_string(cpuConfig.valueCacheGroupSize));
-    }
     OPENVINO_ASSERT(valueCachePrecision == keyCachePrecision,
                     "CPU: SDPA node only supports same key/value cache precision");
     OPENVINO_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
                     "CPU: SDPA only supports key/value cache precision f32, f16, bf16, u8 but gets ",
                     keyCachePrecision);
+    m_key_quant_param.groupSize = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
+                                      ? keyS
+                                      : cpuConfig.keyCacheGroupSize;
+    m_key_quant_param.precision = keyCachePrecision;
+    m_value_quant_param.groupSize = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
+                                        ? valueS
+                                        : cpuConfig.valueCacheGroupSize;
+    m_key_quant_param.precision = valueCachePrecision;
+
     if (const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
     } else if (const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
