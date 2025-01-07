@@ -345,7 +345,7 @@ bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     return value_1_num >= sz - 1;
 }
 
-bool Node::isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::MemoryDescPtr desc2) {
+bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2) {
     bool samePrec = desc1->getPrecision() == desc2->getPrecision();
     bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
     bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
@@ -383,7 +383,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
                 const bool isCompatible = curDesc->isCompatible(*parentDesc);
                 if (!isCompatible) {
-                    if (!isReorderRequired(std::move(parentDesc), curDesc)) {
+                    if (!isReorderRequired(parentDesc, curDesc)) {
                         estimate += 1;
                     } else {
                         estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
