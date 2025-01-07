@@ -149,6 +149,7 @@
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
+#include "transformations/cpu_opset/x64/pass/mlp_fuse_convert.hpp"
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
 #include "utils/precision_support.h"
 
@@ -535,17 +536,21 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     if (config.inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        type_to_fuse_map fuse_map = {};
+        type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
+        const bool store_original_precision_as_rt_attribute = false;
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
+        const bool store_original_precision_as_rt_attribute = true;
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
+        const bool need_convert_input_output_precision = false;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
                                  fp_convert_precision_map,
                                  fuse_map,
                                  keep_precision_sensitive_in_fp32,
-                                 false);
+                                 need_convert_input_output_precision,
+                                 store_original_precision_as_rt_attribute);
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(
@@ -1114,6 +1119,7 @@ void Transformations::PostLpt() {
                 return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
             MLPFusionPass);
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFuseConvert);
 
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0) {
@@ -1145,6 +1151,7 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, true);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(

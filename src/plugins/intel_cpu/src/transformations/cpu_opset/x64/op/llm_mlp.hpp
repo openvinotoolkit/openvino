@@ -39,7 +39,9 @@ public:
     //      1: gate_proj
     //      2: up_proj
     //      3: down_proj
-    LLMMLPNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
+    LLMMLPNode(const OutputVector& args, const Config& cfg, const ov::element::Type output_type = ov::element::undefined)
+        : Op(args), m_config(cfg), m_output_type(output_type) {
+        m_args = args;
         validate_and_infer_types();
     }
 
@@ -53,8 +55,22 @@ public:
         return m_config;
     }
 
+    void set_config(const Config& config) {
+        m_config = config;
+    }
+
+    const OutputVector& get_args() {
+        return m_args;
+    }
+
+    ov::element::Type get_output_type() const {
+        return m_output_type;
+    }    
+
 private:
     Config m_config{};
+    OutputVector m_args;
+    ov::element::Type m_output_type;
 };
 
 }  // namespace intel_cpu

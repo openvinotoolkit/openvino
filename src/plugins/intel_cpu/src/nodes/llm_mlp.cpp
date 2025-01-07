@@ -54,7 +54,7 @@ namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-template <typename T>
+template <typename T, typename U>
 class LinearKsplit2 {
 public:
     std::vector<Work> works;
@@ -147,12 +147,13 @@ public:
     void run(uint8_t* pA,
              int strideA,
              int M,
-             T* dstC,
+             U* dstC,
              int strideC,
              const LLMMLPNode::Config& config,
              MatrixDynQuantPerRow& src_dq,
-             float* w_scale) {
-        static ReduceAdd2bh jit_reduce2cvt(true, std::is_same_v<T, ov::float16>);
+             float* w_scale,
+             ov::element::Type output_type) {
+        static ReduceAdd2bh jit_reduce2cvt(true, output_type);
 
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
@@ -339,7 +340,7 @@ private:
     int m_threads_num = 0;
 };
 
-template <typename T>
+template <typename T, typename U>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     LLMMLP* m_pnode;
     const LLMMLPNode::Config m_config;
@@ -348,7 +349,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     uint8_t* m_scratch_base = nullptr;
 
     LinearGateUp<T> gate_up;
-    LinearKsplit2<T> down;
+    LinearKsplit2<T, U> down;
     int m_N;
     int m_M = 0;
 
@@ -467,9 +468,10 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
         auto output = m_pnode->getDstMemoryAtPort(0);
-        auto* dstC = output->getDataAs<T>();
+        auto outPrecision = output->getPrecision();
+        auto* dstC = output->getDataAs<U>();
         const auto& dstStrides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
-        int strideC = dstStrides[dstStrides.size() - 2] * sizeof(T);
+        int strideC = dstStrides[dstStrides.size() - 2] * sizeof(U);
 
         float* p_w_scale_down = nullptr;
         if (m_config.down_quantized) {
@@ -507,11 +509,11 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
                 stride_up_act = m_quant_up_act.stride();
             }
 
-            down.run(p_up_act, stride_up_act, BM, dstC, strideC, m_config, m_quant_up_act, p_w_scale_down);
+            down.run(p_up_act, stride_up_act, BM, dstC, strideC, m_config, m_quant_up_act, p_w_scale_down, outPrecision);
 
             m += BM;
             pA += BM * strideA_in_bytes;
-            dstC += BM * strideC / sizeof(T);
+            dstC += BM * strideC / sizeof(U);
         }
     }
 
@@ -519,7 +521,7 @@ private:
     size_t m_threads_num = 0LU;
 };
 #else
-template <typename T>
+template <typename T, typename U>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     Executor(LLMMLP* node, const LLMMLPNode::Config& config, const DnnlScratchPadPtr& scratchPad) {
         (void)node;
@@ -551,6 +553,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outPortConfigs;
 
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    auto outPrecision = getOriginalOutputPrecisionAtPort(0);
 
     if (rtPrecision == ov::element::f32) {
         // fallback to supported precision if possible
@@ -594,7 +597,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         }
 
         // initialize output port
-        outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
+        outPortConfigs.emplace_back(LayoutType::ncsp, outPrecision, getOutputShapeAtPort(0), false, -1);
     } else {
         auto weightPrecision = ov::element::f16;
 
@@ -605,22 +608,31 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(3), false, -1);  // down
 
         // initialize output port
-        outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
+        outPortConfigs.emplace_back(LayoutType::ncsp, outPrecision, getOutputShapeAtPort(0), false, -1);
     }
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
 void LLMMLP::createPrimitive() {
     auto rtPrecision = getInputPrecisions()[0];
+    auto outPrecision = getOutputPrecisions()[0];
 #ifdef OPENVINO_ARCH_X86_64
     if (rtPrecision == ov::element::bf16) {
-        m_executor = std::make_shared<Executor<ov::bfloat16>>(this, m_mlp_config, context->getScratchPad());
+        if (outPrecision == ov::element::f32) {
+            m_executor = std::make_shared<Executor<ov::bfloat16, float>>(this, m_mlp_config, context->getScratchPad());
+        } else if (outPrecision == ov::element::bf16) {
+            m_executor = std::make_shared<Executor<ov::bfloat16, ov::bfloat16>>(this, m_mlp_config, context->getScratchPad());
+        }
     } else if (rtPrecision == ov::element::f16) {
-        m_executor = std::make_shared<Executor<ov::float16>>(this, m_mlp_config, context->getScratchPad());
+        if (outPrecision == ov::element::f32) {
+            m_executor = std::make_shared<Executor<ov::float16, float>>(this, m_mlp_config, context->getScratchPad());
+        } else if (outPrecision == ov::element::f16) {
+            m_executor = std::make_shared<Executor<ov::float16, ov::float16>>(this, m_mlp_config, context->getScratchPad());
+        }
     }
 #endif
     if (!m_executor) {
-        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string() + ", output precision " + outPrecision.to_string());
     }
 }
 

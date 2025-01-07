@@ -665,14 +665,20 @@ void ReduceAdd2bh::generate() {
             vmovups(zmm3, ptr[src1 + loop_i * 4 + 16 * 4]);
             vaddps(zmm0, zmm0, zmm1);
             vaddps(zmm2, zmm2, zmm3);
-            if (m_to_f16) {
+            if (m_output_type == ov::element::f32) {
+                vmovups(ptr[dst + loop_i * 4], zmm0);
+                vmovups(ptr[dst + loop_i * 4 + 64], zmm2);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);                
+            } else if (m_output_type == ov::element::f16) {
                 vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
                 vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
                 prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-            } else {
+            } else if (m_output_type == ov::element::bf16) {
                 vcvtne2ps2bf16(zmm4, zmm2, zmm0);
                 prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
                 vmovups(ptr[dst + loop_i * 2], zmm4);
+            } else {
+                OPENVINO_THROW("ReduceAdd2hb cannot be generated with precision " + m_output_type.to_string());
             }
         }
         add(loop_i, 32);
@@ -702,14 +708,20 @@ void ReduceAdd2bh::generate() {
         {
             vmovups(zmm0, ptr[src0 + loop_i * 4]);
             vmovups(zmm2, ptr[src0 + loop_i * 4 + 16 * 4]);
-            if (m_to_f16) {
+            if (m_output_type == ov::element::f32) {
+                vmovups(ptr[dst + loop_i * 4], zmm0);
+                vmovups(ptr[dst + loop_i * 4 + 64], zmm2);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+            } else if (m_output_type == ov::element::f16) {
                 vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
                 vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
                 prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-            } else {
+            } else if (m_output_type == ov::element::bf16) {
                 vcvtne2ps2bf16(zmm4, zmm2, zmm0);
                 prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
                 vmovups(ptr[dst + loop_i * 2], zmm4);
+            } else {
+                OPENVINO_THROW("ReduceAdd2hb cannot be generated with precision " + m_output_type.to_string());
             }
         }
         add(loop_i, 32);

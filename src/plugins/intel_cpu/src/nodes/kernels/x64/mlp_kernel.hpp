@@ -541,51 +541,71 @@ public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(ReduceAdd2bh)
 
     const bool m_do_reduce2;
-    const bool m_to_f16;
-    ReduceAdd2bh(bool do_reduce2, bool to_f16)
+    const ov::element::Type m_output_type;
+    ReduceAdd2bh(bool do_reduce2, const ov::element::Type output_type = ov::element::undefined)
         : jit_generator_t(jit_name()),
           m_do_reduce2(do_reduce2),
-          m_to_f16(to_f16) {
+          m_output_type(output_type) {
         create_kernel();
     }
 
     void generate() override;
 
+    template <typename D>
     struct CallArgs {
         float* src0;
         float* src1;
-        int16_t* dst;
+        D* dst;
         int16_t* prefetch_dst;
         int64_t num_cols;
     };
     // add two float input eltwise and convert to bf16 : ConvertFP32toBF16(src0 + src1)
     void
-    call(float* src0, float* src1, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        CallArgs args{};
-        args.src0 = src0;
-        args.src1 = src1;
-        args.dst = reinterpret_cast<int16_t*>(pf16_dst);
-        args.num_cols = num_cols;
-        for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.src1 += src_stride, args.dst += dst_stride) {
-            // the prefetch distance is increased to ensure by the time store happens
-            // prefetch has done and no HW prefetcher is triggered
-            args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
-
-            (*this)(&args);
+    call(float* src0, float* src1, size_t src_stride, void* out_dst, size_t dst_stride, int num_rows, int num_cols) {
+        if (m_output_type == ov::element::f32) {
+            CallArgs<float> args;
+            args.src0 = src0;
+            args.src1 = src1;
+            args.dst = reinterpret_cast<float*>(out_dst);
+            args.num_cols = num_cols;
+            for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.src1 += src_stride, args.dst += dst_stride) {
+                // the prefetch distance is increased to ensure by the time store happens
+                // prefetch has done and no HW prefetcher is triggered
+                auto* prefetch_dst = (m + 2 < num_rows) ? (dst + 2 * dst_stride) : (dst);
+                (*this)(&args);
+            }
+        } else if (one_of(m_output_type, ov::element::bf16, ov::element::f16)) {
+            CallArgs<int16_t> args;
+            args.src0 = src0;
+            args.src1 = src1;
+            args.dst = reinterpret_cast<int16_t*>(pf16_dst);
+            args.num_cols = num_cols;
+            for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.src1 += src_stride, args.dst += dst_stride) {
+                // the prefetch distance is increased to ensure by the time store happens
+                // prefetch has done and no HW prefetcher is triggered
+                args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
+                (*this)(&args);
+            }
+        } else {
+            OPENVINO_THROW("ReduceAdd2bh call with precision " + m_output_type.to_string());
         }
     }
 
     // convert tensor to bf16: ConvertFP32toBF16(src0)
     void call(float* src0, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        CallArgs args{};
+        CallArgs<int16_t> args;
         args.src0 = src0;
         args.dst = reinterpret_cast<int16_t*>(pf16_dst);
         args.num_cols = num_cols;
-        for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.dst += dst_stride) {
-            // the prefetch distance is increased to ensure by the time store happens
-            // prefetch has done and no HW prefetcher is triggered
-            args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
-            (*this)(&args);
+        if (one_of(m_output_type, ov::element::bf16, ov::element::f16)) {
+            for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.dst += dst_stride) {
+                // the prefetch distance is increased to ensure by the time store happens
+                // prefetch has done and no HW prefetcher is triggered
+                args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
+                (*this)(&args);
+            }
+        } else {
+            OPENVINO_THROW("ReduceAdd2bh call with precision " + m_output_type.to_string());
         }
     }
 };

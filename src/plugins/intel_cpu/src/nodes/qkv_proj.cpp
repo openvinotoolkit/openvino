@@ -90,10 +90,20 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
     WeightBuffer wbuffer;
 
+    ov::element::Type output_type = ov::element::undefined;
+
     Executor(QKVProjection* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(std::move(scrachPad)) {
         PlainTensor w0(pnode->getSrcMemoryAtPort(1));
         PlainTensor w1(pnode->getSrcMemoryAtPort(2));
         PlainTensor w2(pnode->getSrcMemoryAtPort(3));
+
+        if (std::is_same<T, ov::float16>::value) {
+            output_type = ov::element::f16;
+        } else if (std::is_same<T, ov::bfloat16>::value) {
+            output_type = ov::element::bf16;
+        } else {
+            OPENVINO_THROW("QKVProjection Executor creation fails with output precision " + std::string(typeid(T).name()));
+        }
 
         // in quantized mode, weights are already quantized in per-OC mode into INT8
         // and activations will be dynamically per-token quantized and using AMX-INT8 to get the result
@@ -225,7 +235,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     }
 
     void execute() override {
-        static ReduceAdd2bh jit_cvt(false, std::is_same_v<T, ov::float16>);
+        static ReduceAdd2bh jit_cvt(false, output_type);
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
