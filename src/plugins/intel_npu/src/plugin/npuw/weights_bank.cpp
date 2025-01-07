@@ -41,6 +41,8 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto& device_bank = m_device_banks[device_for_alloc];
+    std::unique_lock dev_guard(device_bank.mutex);
+
     auto iter_registered = device_bank.registered_tensors.find(tensor);
     if (iter_registered == device_bank.registered_tensors.end()) {
         auto uid = uid_count++;
@@ -79,10 +81,14 @@ void Bank::evaluate_and_allocate() {
         auto& device_bank = bank.second;
 
         std::vector<LazyTensor> vec;
+
+        std::unique_lock storage_guard(device_bank.mutex);
         vec.reserve(device_bank.storage.size());
         for (const auto& el : device_bank.storage) {
             vec.push_back(el.second.lt);
         }
+        storage_guard.unlock();
+
         ov::parallel_for(vec.size(), [&](std::size_t idx) {
             const auto& lt = vec[idx];
             std::unique_lock dev_guard(device_bank.mutex);

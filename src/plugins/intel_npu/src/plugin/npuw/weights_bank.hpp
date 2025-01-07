@@ -29,7 +29,7 @@ public:
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
 
-    // Allocate and evaluate a registered tensor on a specified device (if needed) and return it from the bank
+    // Get registered, allocated and evaluated tensor on a specified device
     ov::Tensor get(int64_t uid, const std::string& device);
 
     // Evaluate and allocate all LazyTensors in the bank
