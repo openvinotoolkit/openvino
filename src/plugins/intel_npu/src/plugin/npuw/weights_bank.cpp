@@ -240,8 +240,7 @@ void Bank::add_element(int64_t uid, const ov::Tensor& tensor, const std::string&
     ov::Tensor allocated_tensor;
 
     auto remote_ctx = m_core->get_default_context(device)._ptr;
-    remote_tensor =
-        remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
+    remote_tensor = remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
     allocated_tensor = ov::make_tensor(remote_tensor);
     device_bank.storage[uid] = {LazyTensor(), allocated_tensor};
 

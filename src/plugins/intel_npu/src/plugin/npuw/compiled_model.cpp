@@ -540,7 +540,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     std::vector<ov::Tensor> cpu_closures;
     std::vector<std::size_t> cpu_closure_ids;
     for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-        if (closure_uid[cidx] == std::numeric_limits<std::size_t>::max()) {  // CPU closure, not in the bank
+        if (closure_uid[cidx] == -1) {  // CPU closure, not in the bank
             cpu_closure_ids.push_back(cidx);
             cpu_closures.push_back(closure[cidx]);
         }
@@ -793,7 +793,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             continue;
         }
 
-        comp_model_desc.closure_uid.resize(comp_model_desc.closure.size(), std::numeric_limits<std::size_t>::max());
+        comp_model_desc.closure_uid.resize(comp_model_desc.closure.size(), -1);
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
@@ -859,7 +859,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
                 continue;
             }
-            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != std::numeric_limits<std::size_t>::max());
+            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != -1);
             comp_model_desc.closure[cidx] =
                 m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
         }
