@@ -17,6 +17,14 @@
 // DISPATCH_FSV - output coordinates for each sub-group are calculated from linearized coordinates
 // DISPATCH_BSV   as if they laid in bs_fs_bsv_fsv format, these macros describe fsv and bsv factors;
 
+#if INPUT0_TYPE_SIZE == 2
+    #define SCALE_HALF_ONE 0.5h
+    #define SCALE_TWO 2.0h
+#else
+    #define SCALE_HALF_ONE 0.5f
+    #define SCALE_TWO 2.0f
+#endif
+
 #if FC_KERNEL_DYNAMIC_QUANTIZE
 KERNEL(quantize_input)(
     const __global INPUT0_TYPE* input,
@@ -542,7 +550,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 const uint total_k = ki * TILE_K + kii;
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+#if DECOMPRESSION_SCALE_POST_OP
+                    INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD) * SCALE_HALF_ONE;
+#else
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
+#endif
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
 #if DECOMPRESSION_SCALE_POST_OP
                     half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
@@ -576,10 +588,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                     #endif
                     #if TILE_OFM > 1
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds * SCALE_TWO;
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += acc_tmp[bi] * ds;
+                    acc[bi] += acc_tmp[bi] * ds * SCALE_TWO;
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -599,10 +611,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds * SCALE_TWO;
                 acc_tmp[bi][fi] = 0;
                 #else
-                acc[bi] += acc_tmp[bi] * ds;
+                acc[bi] += acc_tmp[bi] * ds * SCALE_TWO;
                 acc_tmp[bi] = 0;
                 #endif
             }
