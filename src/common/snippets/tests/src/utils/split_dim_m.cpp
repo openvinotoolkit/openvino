@@ -63,6 +63,7 @@ const std::vector<SplitDimensionMParams> split_dimension_cases = {
     {InputData{48, 6600, 32}, ReferenceData{true, 200, 33}},
     {InputData{12, 128, 16}, ReferenceData{true, 4, 32}},
     {InputData{16, 384, 60}, ReferenceData{true, 12, 32}},
+    {InputData{16, 384, 24}, ReferenceData{true, 12, 32}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SplitDimensionM,
