@@ -110,7 +110,7 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
         }
         const auto& loop_port = *it;
         const auto& dim_idx = loop_port.get_dim_idx();
-        if (loop_port.is_incremented() && dim_idx < rank) {
+        if (loop_port.get_type() != LoopPort::Type::NotProcessed && dim_idx < rank) {
             if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info))
                 m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, unified_loop_info->get_work_amount());
             else if (const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info))

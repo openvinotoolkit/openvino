@@ -68,7 +68,7 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
         // Validate that iteration dimnsion is broadcastable
         std::set<size_t> unique_dimensions;
         loop_info->iterate_through_ports([&unique_dimensions](const LoopPort& loop_port) {
-            if (loop_port.is_incremented()) {
+            if (loop_port.get_type() != LoopPort::Type::NotProcessed) {
                 const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
                 const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.get_expr_port())
                                                    : ov::snippets::utils::get_preordered_vdims(*loop_port.get_expr_port());

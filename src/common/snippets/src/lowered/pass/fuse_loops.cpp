@@ -35,7 +35,7 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper,
         const auto upper_exit_port_it = found_port(upper_exit_ports, src_port);
         if (upper_exit_port_it != upper_exit_ports.cend()) {
             const auto& upper_exit_port = *upper_exit_port_it;
-            if (!lower_entry_port.is_incremented() || !upper_exit_port.is_incremented())
+            if (!utils::everyone_is(LoopPort::Type::Incremented, lower_entry_port.get_type(), upper_exit_port.get_type()))
                 return false;
             if (lower_entry_port.get_dim_idx() != upper_exit_port.get_dim_idx())
                 return false;

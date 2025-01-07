@@ -19,7 +19,7 @@ namespace {
 inline void init_is_incremented(LoopPort& port) {
     const auto& expr = port.get_expr_port()->get_expr();
     if (!std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node())) {
-        port.set_is_incremented(false);
+        port.set_type(LoopPort::Type::NotIncremented);
     }
 }
 

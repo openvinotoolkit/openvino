@@ -31,7 +31,7 @@ bool LoopInfo::is_dynamic() const {
 size_t LoopInfo::get_dim_idx() const {
     OPENVINO_ASSERT(!m_input_ports.empty(), "Loop info must have at least one input port");
     auto equal_dim_idxes = [&](const LoopPort& p) {
-        return !p.is_incremented() || p.get_dim_idx() == m_input_ports[0].get_dim_idx();
+        return p.get_type() == LoopPort::Type::NotProcessed || p.get_dim_idx() == m_input_ports[0].get_dim_idx();
     };
     if (std::all_of(m_input_ports.begin(), m_input_ports.end(), equal_dim_idxes) &&
         std::all_of(m_output_ports.begin(), m_output_ports.end(), equal_dim_idxes)) {
@@ -60,7 +60,7 @@ size_t LoopInfo::get_increment() const {
 std::vector<bool> LoopInfo::get_is_incremented() const {
     std::vector<bool> values;
     values.reserve(get_input_count() + get_output_count());
-    iterate_through_ports([&values](const LoopPort& port) { values.push_back(port.is_incremented()); });
+    iterate_through_ports([&values](const LoopPort& port) { values.push_back(port.get_type() == LoopPort::Type::Incremented); });
     return values;
 }
 
@@ -81,7 +81,10 @@ void LoopInfo::set_increment(size_t increment) {
 }
 
 void LoopInfo::set_dim_idx(size_t dim_idx) {
-    auto setter = [dim_idx](LoopPort& port) { port.set_dim_idx(dim_idx); };
+    auto setter = [dim_idx](LoopPort& port) {
+        if (port.get_type() != LoopPort::Type::NotProcessed)
+            port.set_dim_idx(dim_idx);
+    };
     std::for_each(m_input_ports.begin(), m_input_ports.end(), setter);
     std::for_each(m_output_ports.begin(), m_output_ports.end(), setter);
 }

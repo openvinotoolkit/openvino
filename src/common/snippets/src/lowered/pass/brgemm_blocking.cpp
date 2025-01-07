@@ -53,7 +53,7 @@ void BrgemmBlockingBase::mark_m_blocking(const snippets::lowered::LoopManagerPtr
                                          size_t block_size_m) {
     const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[0].get_expr_port());
     const auto m = *++planar_dims.rbegin();
-    const auto id = loop_manager->mark_loop(loop_begin, loop_end, m, block_size_m, 1, entries, exits, false);
+    const auto id = loop_manager->mark_loop(loop_begin, loop_end, m, block_size_m, entries, exits, false);
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_m_loop_handlers(m, block_size_m));
 }
 
@@ -65,7 +65,7 @@ void BrgemmBlockingBase::mark_n_blocking(const snippets::lowered::LoopManagerPtr
                                          size_t block_size_n) {
     const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[1].get_expr_port());
     const auto n = *planar_dims.rbegin();
-    const auto id = loop_manager->mark_loop(loop_begin, loop_end, n, block_size_n, 0, entries, exits, false);
+    const auto id = loop_manager->mark_loop(loop_begin, loop_end, n, block_size_n, entries, exits, false);
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_n_loop_handlers(n, block_size_n));
 }
 
@@ -146,21 +146,21 @@ bool BrgemmBlockingBase::mark_blocking_loops(snippets::lowered::LinearIR& linear
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     if (!ov::snippets::utils::is_full_dim_value(k_block)) {
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
-                                            LoopPort(brgemm_expr->get_input_port(1), true, 1)};
-        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
+        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), 0),
+                                            LoopPort(brgemm_expr->get_input_port(1), 1)};
+        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), LoopInfo::UNDEFINED_DIM_IDX, LoopPort::Type::NotProcessed)};
         mark_k_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, k_block);
     }
     if (!ov::snippets::utils::is_full_dim_value(n_block)) {
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
-                                            LoopPort(brgemm_expr->get_input_port(1), true)};
-        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
+        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), LoopInfo::UNDEFINED_DIM_IDX, LoopPort::Type::NotProcessed),
+                                            LoopPort(brgemm_expr->get_input_port(1))};
+        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0))};
         mark_n_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, n_block);
     }
     if (!ov::snippets::utils::is_full_dim_value(m_block)) {
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true),
-                                            LoopPort(brgemm_expr->get_input_port(1), false)};
-        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
+        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), 1),
+                                            LoopPort(brgemm_expr->get_input_port(1), LoopInfo::UNDEFINED_DIM_IDX, LoopPort::Type::NotProcessed)};
+        const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), 1)};
         mark_m_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, m_block);
     }
     return true;

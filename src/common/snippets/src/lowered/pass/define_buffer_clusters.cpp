@@ -134,7 +134,9 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
             const auto out_path = MarkInvariantShapePath::getInvariantPortShapePath(*output_buffer_port_info.port.get_expr_port());
             //  - Memory can be reused if there are the same loop pointer increments (data size, final offsets, ptr increments).
             //    For that, loop ports with buffers should be on the same shape-path and have the same value of `is_incremented`.
-            if (in_path != out_path || input_buffer_port_info.port.is_incremented() != output_buffer_port_info.port.is_incremented())
+            const auto in_is_incremented = input_buffer_port_info.port.get_type() == LoopPort::Type::Incremented;
+            const auto out_is_incremented = output_buffer_port_info.port.get_type() == LoopPort::Type::Incremented;
+            if (in_path != out_path || in_is_incremented != out_is_incremented)
                 continue;
 
             //  - Memory can be shared if Buffer has the same allocation size.
@@ -174,7 +176,8 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
     auto can_be_data_ptr_proportionally_shifted = [](const LoopPortInfo& outer_port_info, const LoopPortInfo& inner_port_info) {
         // Outer Buffer ptr should be shifted to emulate "window" sliding
         const auto& outer_desc = outer_port_info.desc;
-        if (!outer_port_info.port.is_incremented() || (!utils::is_dynamic_value(outer_desc.ptr_increment) && outer_desc.ptr_increment == 0))
+        if (outer_port_info.port.get_type() != LoopPort::Type::Incremented ||
+            (!utils::is_dynamic_value(outer_desc.ptr_increment) && outer_desc.ptr_increment == 0))
             return false;
 
         OPENVINO_ASSERT(inner_port_info.port.get_expr_port() && outer_port_info.port.get_expr_port(), "Expression ports are nullptr!");

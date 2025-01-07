@@ -89,7 +89,7 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
         if (is_loop_port) {
             // stride is not 1 after move to outside, then should not extract.
             const auto& loop_port = inner_loop_info->get_loop_port(expr_input_ports[i]);
-            if (get_stride_after_move_outer(loop_port) != 1) {
+            if (loop_port.get_type() == LoopPort::Type::NotProcessed || get_stride_after_move_outer(loop_port) != 1) {
                 return false;
             }
         }
