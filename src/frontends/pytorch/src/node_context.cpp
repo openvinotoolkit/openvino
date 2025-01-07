@@ -203,7 +203,7 @@ Output<Node> NodeContext::get_input(const std::string& name) const {
 OutputVector NodeContext::inputs() const {
     OutputVector res;
     for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-        res.push_back(get_input(i));
+        res.push_back(get_input(static_cast<int>(i)));
     }
     return res;
 }
