@@ -76,8 +76,6 @@ void ConcatSDPTest::SetUp() {
     auto v_ps = inputDynamicShapes[0];
     if (m_isDiffKVHeadSize) {
         v_ps[3] += m_diffKVHeadSize;
-        // v_ps[3] must be divisible by value_cache_group_size
-        configuration[ov::value_cache_group_size.name()] = "16";
     }
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, v_ps));
     inputParams[0]->set_friendly_name("q");
