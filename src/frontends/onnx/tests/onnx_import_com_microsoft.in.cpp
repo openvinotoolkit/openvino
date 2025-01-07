@@ -1496,8 +1496,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range_with_delta) {
     test_case.add_input<float>({0.f});
     test_case.add_input<float>({10.f});
     test_case.add_input<float>({1.f});
-    test_case.add_expected_output<float>(Shape{10},
-                                         {0.f,1.f,2.f,3.f,4.f,5.f,6.f,7.f,8.f,9.f});
+    test_case.add_expected_output<float>(Shape{10}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
 
     test_case.run();
 }
@@ -1508,8 +1507,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range_without_delta) {
 
     test_case.add_input<float>({0.f});
     test_case.add_input<float>({10.f});
-    test_case.add_expected_output<float>(Shape{10},
-                                         {0.f,1.f,2.f,3.f,4.f,5.f,6.f,7.f,8.f,9.f});
+    test_case.add_expected_output<float>(Shape{10}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
 
     test_case.run();
 }
