@@ -150,8 +150,7 @@ private:
         //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
         std::vector<weights::LazyTensor> lazy_closure;
-        // NB: closure_uid is used to get closure from bank during full flow deserialization
-        std::vector<std::size_t> closure_uid;  // Note: value -1 is considered uninitialized
+        std::vector<int64_t> closure_uid; // Note: value -1 is considered uninitialized
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;

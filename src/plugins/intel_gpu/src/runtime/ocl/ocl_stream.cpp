@@ -125,7 +125,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     switch (scalar.t) {
                         case scalar_t::UINT8:
                             status = kernel.setArg(i, scalar.v.u8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << scalar.v.u8 << "\n";
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << static_cast<int>(scalar.v.u8) << "\n";
                             break;
                         case scalar_t::UINT16:
                             status = kernel.setArg(i, scalar.v.u16);
@@ -141,7 +141,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                             break;
                         case scalar_t::INT8:
                             status = kernel.setArg(i, scalar.v.s8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << scalar.v.s8 << "\n";
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << static_cast<int>(scalar.v.s8) << "\n";
                             break;
                         case scalar_t::INT16:
                             status = kernel.setArg(i, scalar.v.s16);

@@ -196,19 +196,19 @@ Settings: Including path to the serialized model files and input data files
 
 .. parsed-literal::
 
-    data/kg_training_entids.txt:   0%|          | 0.00/3.79k [00:00<?, ?B/s]
+    kg_training_entids.txt:   0%|          | 0.00/3.79k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    data/kg_training_relids.txt:   0%|          | 0.00/62.0 [00:00<?, ?B/s]
+    kg_training_relids.txt:   0%|          | 0.00/62.0 [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    data/e1rel_to_e2_ranking_test.json:   0%|          | 0.00/19.1k [00:00<?, ?B/s]
+    e1rel_to_e2_ranking_test.json:   0%|          | 0.00/19.1k [00:00<?, ?B/s]
 
 
 Download Model Checkpoint
@@ -226,14 +226,14 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    models/conve.pt:   0%|          | 0.00/18.8M [00:00<?, ?B/s]
+    conve.pt:   0%|          | 0.00/18.8M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -395,8 +395,14 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 1.2128651142120361 ms
+    Average time taken for inference: 0.6722708543141683 ms
     Mean accuracy of the model on the test dataset: 0.875
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_2201076/1344641649.py:6: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      model.load_state_dict(torch.load(modelpath))
 
 
 Prediction on the Knowledge graph.
@@ -534,7 +540,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.8927186330159506 ms
+    Average time taken for inference: 1.1297861735026042 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -553,7 +559,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 1.36 X
+    Speedup with OpenVINO optimizations: 0.6 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -598,7 +604,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 4.44 ms
+    [ INFO ] Read model took 4.36 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -614,7 +620,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 49.21 ms
+    [ INFO ] Compile model took 75.51 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -653,17 +659,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 2.26 ms
+    [ INFO ] First inference took 1.67 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            95532 iterations
-    [ INFO ] Duration:         10001.76 ms
+    [ INFO ] Count:            95148 iterations
+    [ INFO ] Duration:         10001.87 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.06 ms
+    [ INFO ]    Median:        1.07 ms
     [ INFO ]    Average:       1.08 ms
-    [ INFO ]    Min:           0.73 ms
-    [ INFO ]    Max:           29.28 ms
-    [ INFO ] Throughput:   9551.52 FPS
+    [ INFO ]    Min:           0.79 ms
+    [ INFO ]    Max:           8.58 ms
+    [ INFO ] Throughput:   9513.02 FPS
 
 
 Conclusions

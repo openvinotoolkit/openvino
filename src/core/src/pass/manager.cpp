@@ -5,6 +5,7 @@
 #include "openvino/pass/manager.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -104,8 +105,8 @@ public:
 
     void stop() {
         if (m_active) {
-            auto end_time = m_clock.now();
-            m_last_time = end_time - m_start_time;
+            m_end_time = m_clock.now();
+            m_last_time = m_end_time - m_start_time;
             m_active = false;
         }
     }
@@ -122,9 +123,17 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(get_timer_value()).count();
     }
 
+    std::chrono::nanoseconds get_start_time() const {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(m_start_time.time_since_epoch());
+    }
+
+    std::chrono::nanoseconds get_end_time() const {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(m_end_time.time_since_epoch());
+    }
+
 private:
     std::chrono::high_resolution_clock m_clock;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time, m_end_time;
     bool m_active = false;
     std::chrono::nanoseconds m_last_time = std::chrono::high_resolution_clock::duration::zero();
 };
@@ -221,6 +230,8 @@ public:
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
                            << std::endl;
+                    m_file << "m_start;" << name << ";" << stopwatch.get_start_time().count() << std::endl;
+                    m_file << "m_end;" << name << ";" << stopwatch.get_end_time().count() << std::endl;
                 } else {
                     m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
                            << (applied ? "1" : "0") << std::endl;

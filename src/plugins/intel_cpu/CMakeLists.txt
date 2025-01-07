@@ -242,7 +242,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              ADD_CLANG_FORMAT)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
@@ -277,6 +278,24 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,
 # is not (yet) needed.
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
 
+# ARCH lists for softmax.cpp and mha_single_token.cpp
+# Based on result of above calls, decide whether to add SVE
+set(SOFTMAX_ARCH_LIST           AVX512F AVX2)
+set(MHA_SINGLE_TOKEN_ARCH_LIST  AVX512F AVX2)
+
+if(ENABLE_SVE)
+    list(APPEND SOFTMAX_ARCH_LIST SVE)
+    list(APPEND MHA_SINGLE_TOKEN_ARCH_LIST SVE)
+endif()
+
+if(ENABLE_NEON_FP16)
+    list(APPEND SOFTMAX_ARCH_LIST NEON_FP16)
+    list(APPEND MHA_SINGLE_TOKEN_ARCH_LIST NEON_FP16)
+endif()
+
+list(APPEND SOFTMAX_ARCH_LIST ANY)
+list(APPEND MHA_SINGLE_TOKEN_ARCH_LIST ANY)
+
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
@@ -287,14 +306,14 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH ${SOFTMAX_ARCH_LIST}
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH ${MHA_SINGLE_TOKEN_ARCH_LIST}
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token

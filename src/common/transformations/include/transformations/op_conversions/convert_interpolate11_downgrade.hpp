@@ -16,7 +16,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertInterpolate11ToInterpolate4 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertInterpolate11ToInterpolate4", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertInterpolate11ToInterpolate4");
     ConvertInterpolate11ToInterpolate4();
 };
 

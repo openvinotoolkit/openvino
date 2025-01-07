@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertSoftMax8ToSoftMax1;
  */
 class ov::pass::ConvertSoftMax8ToSoftMax1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSoftMax8ToSoftMax1", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSoftMax8ToSoftMax1");
     ConvertSoftMax8ToSoftMax1();
 };

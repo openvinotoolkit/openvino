@@ -4,19 +4,19 @@
 
 #include "config.h"
 
+#include <algorithm>
+#include <map>
+#include <string>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
-#include "utils/cpu_utils.hpp"
-
-#include <algorithm>
-#include <map>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -25,29 +25,6 @@ using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
-    // this is default mode
-#if defined(__APPLE__) || defined(_WIN32)
-    threadBindingType = IStreamsExecutor::NONE;
-#else
-    threadBindingType = IStreamsExecutor::CORES;
-#endif
-
-// for the TBB code-path, additional configuration depending on the OS and CPU types
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-#    if defined(__APPLE__) || defined(_WIN32)
-    // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
-    auto numaNodes = get_available_numa_nodes();
-    if (numaNodes.size() > 1) {
-        threadBindingType = IStreamsExecutor::NUMA;
-    } else {
-        threadBindingType = IStreamsExecutor::NONE;
-    }
-#    endif
-
-    if (get_available_cores_types().size() > 1 /*Hybrid CPU*/) {
-        threadBindingType = IStreamsExecutor::HYBRID_AWARE;
-    }
-#endif
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
     updateProperties();
@@ -61,9 +38,7 @@ Config::Config() {
  */
 void Config::applyDebugCapsProperties() {
     // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() ||
-        !debugCaps.summaryPerf.empty() ||
-        !debugCaps.averageCountersPath.empty()) {
+    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty() || !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
     }
 }
@@ -95,47 +70,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     streamsChanged = true;
                 }
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key == ov::affinity.name()) {
-            try {
-                changedCpuPinning = true;
-                ov::Affinity affinity = val.as<ov::Affinity>();
-#if defined(__APPLE__)
-                enableCpuPinning = false;
-                threadBindingType = affinity == ov::Affinity::NONE ? IStreamsExecutor::ThreadBindingType::NONE
-                                                                   : IStreamsExecutor::ThreadBindingType::NUMA;
-#else
-                enableCpuPinning =
-                    (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
-                switch (affinity) {
-                case ov::Affinity::NONE:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
-                    break;
-                case ov::Affinity::CORE: {
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
-                } break;
-                case ov::Affinity::NUMA:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-                    break;
-                case ov::Affinity::HYBRID_AWARE:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
-                    break;
-                default:
-                    OPENVINO_THROW("Wrong value ",
-                                   val.as<std::string>(),
-                                   "for property key ",
-                                   key,
-                                   ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
-                }
-#endif
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               key,
-                               ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
-            }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::performance_mode.name()) {
             try {
                 hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;
@@ -151,10 +85,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 logLevel = val.as<ov::log::Level>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                        val.as<std::string>(),
-                        " for property key ",
-                        key,
-                        ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
+                               val.as<std::string>(),
+                               " for property key ",
+                               key,
+                               ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
             }
         } else if (key == ov::hint::num_requests.name()) {
             try {
@@ -243,8 +177,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
-                                ov::hint::dynamic_quantization_group_size.name(),
-                                ". Expected only unsinged integer numbers");
+                               ov::hint::dynamic_quantization_group_size.name(),
+                               ". Expected only unsinged integer numbers");
             }
         } else if (key == ov::enable_profiling.name()) {
             try {
@@ -366,7 +300,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
                 } else {
-                     OPENVINO_THROW("invalid value");
+                    OPENVINO_THROW("invalid value");
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -462,10 +396,13 @@ void Config::updateProperties() {
 
 void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
     // if user sets explicitly, it will be higher priority than rt_info
-    if (!kvCachePrecisionSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
-        this->kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
+    if (!kvCachePrecisionSetExplicitly &&
+        model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
+        this->kvCachePrecision =
+            model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
     }
-    if (!fcDynamicQuantizationGroupSizeSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
+    if (!fcDynamicQuantizationGroupSizeSetExplicitly &&
+        model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
         this->fcDynamicQuantizationGroupSize =
             model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
     }

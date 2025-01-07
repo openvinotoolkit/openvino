@@ -29,25 +29,29 @@ public:
         : m_core(core),
           m_alloc_device(alloc_device) {}
 
-    // Allocate a new tensor (if needed) on a specified device. LazyTensor needs to be registered and evaluated first
-    ov::Tensor get(const LazyTensor& tensor, const std::string& device);
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
-    std::size_t registerLT(const LazyTensor& tensor, const std::string& device);
+    int64_t registerLT(const LazyTensor& tensor, const std::string& device);
+
+    // Get registered, allocated and evaluated tensor on a specified device
+    ov::Tensor get(int64_t uid, const std::string& device);
+
     // Evaluate and allocate all LazyTensors in the bank
     void evaluate_and_allocate();
-    bool is_remote(const LazyTensor& tensor) const;
+
+    bool is_remote(int64_t uid) const;
 
 private:
     friend class ov::npuw::LLMCompiledModel;
     friend class ov::npuw::CompiledModel;
 
+    struct StoredTensor {
+        LazyTensor lt;
+        ov::Tensor tensor;
+    };
     // Bank for specified device and their allocated memory
     struct DeviceBank {
-        // As value additionally uid for serialization
-        std::unordered_map<LazyTensor, std::pair<ov::Tensor, std::size_t>, LazyTensor::Hash> storage;
-        // This simplified storage is only used if the bank has been deserialized. bool specifies if the tensor has
-        // already been allocated on the device
-        std::unordered_map<std::size_t, std::pair<ov::Tensor, bool>> deserialized_storage;
+        std::unordered_map<int64_t, StoredTensor> storage;
+        std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
         mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
@@ -57,14 +61,12 @@ private:
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<Bank> deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core);
     // Used during deserialization
-    void add_element(std::size_t uid, const ov::Tensor& tensor, const std::string& device);
-    // Used with deserialized bank only. Always allocate on the device and copy data
-    ov::Tensor get(std::size_t uid, const std::string& device);
+    void add_element(int64_t uid, const ov::Tensor& tensor, const std::string& device);
 
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
-    std::size_t uid_count = 0;
+    int64_t uid_count = 0;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

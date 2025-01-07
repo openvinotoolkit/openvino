@@ -14,7 +14,8 @@ torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
 # transformers 4.45.1 is available
 # but optimum still requires <4.45.0
 transformers==4.44.2
-pytest==7.0.1
+pytest==7.0.1; python_version < '3.10'
+pytest==7.2.0; python_version >= '3.10'
 pytest-html==4.1.1
 pytest-xdist[psutil]==3.6.1
 defusedxml==0.7.1
@@ -44,7 +45,7 @@ super-image==0.1.7
 huggingface-hub==0.25.2
 
 # use latest released version once it's available
-git+https://github.com/huggingface/optimum-intel.git@main; python_version < "3.12"
+git+https://github.com/huggingface/optimum-intel.git@5c735487d4bd3dd8d7dccb242d8d5988e7dd4069; python_version < "3.12"
 # set 'export HF_HUB_ENABLE_HF_TRANSFER=1' to benefits from hf_transfer
 hf_transfer==0.1.8
 

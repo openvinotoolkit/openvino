@@ -4,25 +4,24 @@
 
 #include "paged_attn.h"
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "common/arbitrary_order_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "dnnl_extension_utils.h"
+#include "kernels/scaled_attn/attn_memcpy.hpp"
+#include "kernels/scaled_attn/attn_quant.hpp"
+#include "kernels/scaled_attn/executor_pa.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/util/common_util.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-
 #include "utils/plain_tensor.hpp"
-#include "kernels/scaled_attn/executor_pa.hpp"
-#include "kernels/scaled_attn/attn_memcpy.hpp"
-#include "kernels/scaled_attn/attn_quant.hpp"
-
-#include <algorithm>
-#include <string>
-#include <vector>
 
 using namespace ov::Extensions::Cpu;
 using namespace ov::Extensions::Cpu::XARCH;
@@ -73,49 +72,62 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     auto orgInputNumber = getOriginalInputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
-    config.inConfs[PagedAttentionExecutor::ID_Q].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_Q)));
-    config.inConfs[PagedAttentionExecutor::ID_K].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_K)));
-    config.inConfs[PagedAttentionExecutor::ID_V].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
+    config.inConfs[PagedAttentionExecutor::ID_Q].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_Q)));
+    config.inConfs[PagedAttentionExecutor::ID_K].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_K)));
+    config.inConfs[PagedAttentionExecutor::ID_V].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
     OPENVINO_ASSERT(orgInputNumber == 13, "The input number of PagedAttention should be 13.");
     // kvcache, float, []
     auto past_kv_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-    config.inConfs[PagedAttentionExecutor::ID_KCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
-    config.inConfs[PagedAttentionExecutor::ID_VCACHE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
+    config.inConfs[PagedAttentionExecutor::ID_KCACHE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
+    config.inConfs[PagedAttentionExecutor::ID_VCACHE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
     // past_lens, int, [b_seq]
-    config.inConfs[PagedAttentionExecutor::ID_PAST_LENS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_PAST_LENS)));
+    config.inConfs[PagedAttentionExecutor::ID_PAST_LENS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_PAST_LENS)));
     // subsequence_begins, int, [b_seq]
-    config.inConfs[PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS)));
+    config.inConfs[PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SUBSEQUENCE_BEGINS)));
     // block_indices, int, [num_blocks]
-    config.inConfs[PagedAttentionExecutor::ID_BLOCK_INDICES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_INDICES)));
+    config.inConfs[PagedAttentionExecutor::ID_BLOCK_INDICES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_INDICES)));
     // block_indices_begins, int, [b_seq]
-    config.inConfs[PagedAttentionExecutor::ID_BLOCK_INDICES_BEGINS].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_INDICES_BEGINS)));
+    config.inConfs[PagedAttentionExecutor::ID_BLOCK_INDICES_BEGINS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_BLOCK_INDICES_BEGINS)));
     // scale, float, []
-    config.inConfs[PagedAttentionExecutor::ID_SCALE].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_SCALE)));
+    config.inConfs[PagedAttentionExecutor::ID_SCALE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_SCALE)));
     // sliding_window, int, []
-    config.inConfs[PagedAttentionExecutor::ID_SLIDING_WINDOW].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SLIDING_WINDOW)));
+    config.inConfs[PagedAttentionExecutor::ID_SLIDING_WINDOW].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_SLIDING_WINDOW)));
     // alibi_slopes, float, [H|0]
-    config.inConfs[PagedAttentionExecutor::ID_ALIBI_SLOPES].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ALIBI_SLOPES)));
+    config.inConfs[PagedAttentionExecutor::ID_ALIBI_SLOPES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ALIBI_SLOPES)));
     // max_context_len, int, []
-    config.inConfs[PagedAttentionExecutor::ID_MAX_CONTEXT_LEN].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_MAX_CONTEXT_LEN)));
+    config.inConfs[PagedAttentionExecutor::ID_MAX_CONTEXT_LEN].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_MAX_CONTEXT_LEN)));
 
-    config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        rtPrecision, getOutputShapeAtPort(0)));
-    config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-        ov::element::f32, getOutputShapeAtPort(1)));
+    config.outConfs[0].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getOutputShapeAtPort(0)));
+    config.outConfs[1].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(1)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -177,7 +189,7 @@ void PagedAttention::execute(dnnl::stream strm) {
         VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
     } else {
-        redefineOutputMemory(0, outDims);
+        redefineOutputMemory({outDims, {0}});
     }
 
     outputs[0] = getDstMemoryAtPort(0);
@@ -187,10 +199,12 @@ void PagedAttention::execute(dnnl::stream strm) {
     m_executor->execute(inputs, outputs);
 }
 
-bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                          std::string& errorMessage) noexcept {
     try {
         int orgInput = static_cast<int>(op->get_input_size());
-        if (op->get_type_name() == std::string("PagedAttentionExtension") && orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
+        if (op->get_type_name() == std::string("PagedAttentionExtension") &&
+            orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
             return true;
         }
     } catch (...) {
