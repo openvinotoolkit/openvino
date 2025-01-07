@@ -195,7 +195,7 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
-            return p.dim_idx == 1;
+            return p.get_dim_idx() == 1;
         };
         OPENVINO_ASSERT(in_ports.size() > 1 && std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) &&
                             out_ports.size() == 1 && check_port(out_ports.back()),
@@ -216,9 +216,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
-            return p.dim_idx == 0;
+            return p.get_dim_idx() == 0;
         };
-        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_incremented &&
+        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_incremented() &&
                             std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) && out_ports.size() == 1 &&
                             check_port(out_ports.back()),
                         "Incorrect Loop by Brgemm dimension N");
@@ -242,8 +242,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         // Quick validation check: Should we check that port is really Brgemm port?
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
-        OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().dim_idx == 0 && in_ports.back().dim_idx == 1 &&
-                            out_ports.size() == 1 && !out_ports.front().is_incremented,
+        OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
+                            in_ports.back().get_dim_idx() == 1 && out_ports.size() == 1 &&
+                            !out_ports.front().is_incremented(),
                         "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);

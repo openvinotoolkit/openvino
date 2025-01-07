@@ -99,7 +99,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
         if (resetting_data_indexes.count(loop_port_idx)) {
             shifts.ptr_increment = 0;
             shifts.finalization_offset = 0;
-            loop_port.is_incremented = false;
+            loop_port.set_is_incremented(false);
         }
         ++loop_port_idx;
     });

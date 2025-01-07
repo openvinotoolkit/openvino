@@ -24,11 +24,20 @@ struct LoopPort {
     friend bool operator!=(const LoopPort& lhs, const LoopPort& rhs);
     friend bool operator<(const LoopPort& lhs, const LoopPort& rhs);
 
-    std::shared_ptr<ExpressionPort> expr_port = {};
+    const std::shared_ptr<ExpressionPort>& get_expr_port() const { return m_expr_port; }
+    bool is_incremented() const { return m_is_incremented; }
+    size_t get_dim_idx() const { return m_dim_idx; }
+
+    void set_expr_port(std::shared_ptr<ExpressionPort> p);
+    void set_is_incremented(bool is_inc);
+    void set_dim_idx(size_t idx);
+
+private:
+    std::shared_ptr<ExpressionPort> m_expr_port = {};
     // True if after each Loop iteration the corresponding data pointer should be incremented.
     // Otherwise, the data pointer shift is skipped
-    bool is_incremented = true;
-    size_t dim_idx = 0; // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
+    bool m_is_incremented = true;
+    size_t m_dim_idx = 0; // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
 };
 
 } // namespace lowered

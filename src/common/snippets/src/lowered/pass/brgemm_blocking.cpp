@@ -32,7 +32,7 @@ snippets::lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blo
 bool BrgemmBlockingBase::blocking_loop_exists(const snippets::lowered::LoopManagerPtr& loop_manager,
                                               const ExpressionPtr& brgemm_expr) {
     auto check_port = [&](const LoopPort& p) {
-        return p.expr_port->get_expr() == brgemm_expr && ov::snippets::utils::one_of(p.dim_idx, 0ul, 1ul);
+        return p.get_expr_port()->get_expr() == brgemm_expr && ov::snippets::utils::one_of(p.get_dim_idx(), 0ul, 1ul);
     };
     const auto& loop_ids = brgemm_expr->get_loop_ids();
     for (const auto& id : loop_ids) {
@@ -51,7 +51,7 @@ void BrgemmBlockingBase::mark_m_blocking(const snippets::lowered::LoopManagerPtr
                                          const std::vector<snippets::lowered::LoopPort>& entries,
                                          const std::vector<snippets::lowered::LoopPort>& exits,
                                          size_t block_size_m) {
-    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[0].expr_port);
+    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[0].get_expr_port());
     const auto m = *++planar_dims.rbegin();
     const auto id = loop_manager->mark_loop(loop_begin, loop_end, m, block_size_m, 1, entries, exits, false);
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_m_loop_handlers(m, block_size_m));
@@ -63,7 +63,7 @@ void BrgemmBlockingBase::mark_n_blocking(const snippets::lowered::LoopManagerPtr
                                          const std::vector<snippets::lowered::LoopPort>& entries,
                                          const std::vector<snippets::lowered::LoopPort>& exits,
                                          size_t block_size_n) {
-    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[1].expr_port);
+    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[1].get_expr_port());
     const auto n = *planar_dims.rbegin();
     const auto id = loop_manager->mark_loop(loop_begin, loop_end, n, block_size_n, 0, entries, exits, false);
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_n_loop_handlers(n, block_size_n));
@@ -75,7 +75,7 @@ void BrgemmBlockingBase::mark_k_blocking(const snippets::lowered::LoopManagerPtr
                                          const std::vector<snippets::lowered::LoopPort>& entries,
                                          const std::vector<snippets::lowered::LoopPort>& exits,
                                          size_t block_size_k) {
-    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[0].expr_port);
+    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[0].get_expr_port());
     const auto k = *planar_dims.rbegin();
     const auto id = loop_manager->mark_loop(loop_begin, loop_end, k, block_size_k, entries, exits, false);
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_k_loop_handlers(k, block_size_k));

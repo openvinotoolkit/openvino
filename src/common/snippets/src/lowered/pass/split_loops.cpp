@@ -47,7 +47,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         const auto& loop_id = loop_ids.front();
         const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
         for (const auto& input_port : loop->get_input_ports()) {
-            const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
+            const auto& parent_port = input_port.get_expr_port()->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
             const auto& parent_loop_ids = parent_expr->get_loop_ids();
             if (parent_loop_ids.empty())

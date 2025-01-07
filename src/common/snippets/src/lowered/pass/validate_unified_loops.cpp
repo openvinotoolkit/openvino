@@ -32,7 +32,7 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
     std::vector<size_t> dim_indexes;
 
     auto validate_loop_port = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](const LoopPort& loop_port) {
-        const auto expr = loop_port.expr_port->get_expr();
+        const auto expr = loop_port.get_expr_port()->get_expr();
         const auto& loop_ids = expr->get_loop_ids();
         // If loop_ids of the current port is subsequence of already validated IDs, skip
         if (is_already_verified(loop_ids))
@@ -68,11 +68,11 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
         // Validate that iteration dimnsion is broadcastable
         std::set<size_t> unique_dimensions;
         loop_info->iterate_through_ports([&unique_dimensions](const LoopPort& loop_port) {
-            if (loop_port.is_incremented) {
-                const auto is_input = loop_port.expr_port->get_type() == ExpressionPort::Input;
-                const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.expr_port)
-                                                   : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
-                const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
+            if (loop_port.is_incremented()) {
+                const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
+                const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.get_expr_port())
+                                                   : ov::snippets::utils::get_preordered_vdims(*loop_port.get_expr_port());
+                const auto& dim = *(planar_shape.rbegin() + loop_port.get_dim_idx());
                 // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
                 if (!utils::is_dynamic_value(dim) && dim != 1)
                     unique_dimensions.insert(dim);

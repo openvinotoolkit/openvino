@@ -75,7 +75,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                               const std::vector<LoopPort>& loop_entries,
                               const std::vector<LoopPort>& loop_exits) const {
     for (const auto& input_port : loop_entries) {
-        const auto& entry_port = input_port.expr_port;
+        const auto& entry_port = input_port.get_expr_port();
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
@@ -122,7 +122,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
     }
 
     for (const auto& output_port : loop_exits) {
-        const auto& exit_port = output_port.expr_port;
+        const auto& exit_port = output_port.get_expr_port();
         const auto& expr = exit_port->get_expr();
         const auto port_idx = exit_port->get_index();
         const auto node = expr->get_node();
