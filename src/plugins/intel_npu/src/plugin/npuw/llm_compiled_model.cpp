@@ -233,6 +233,13 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
     return ppp.build();
 }
 
+void uroll_sdpa_layer(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
+    rewr.run_on_model(model);
+    ov::pass::Validate().run_on_model(model);
+}
+
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
@@ -449,6 +456,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             m_kvcache_desc.v_tensors_transposed = true;
             prefill_model = cvt_value_tensors_layout(prefill_model);
         }
+    } else {
+        uroll_sdpa_layer(kvcache_model);
     }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
