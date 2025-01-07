@@ -12,33 +12,25 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
-/// \brief      Check if the EinsumDecomposition transformation is applicable to a given Einsum.
-/// The transformation is applicable if input subscript does not have repeated labels.
-///
-/// \param      subscript          A subscript to check its format
-///
-/// \return     true - applicable, false - not applicable
-///
-bool is_subscript_applicable(const std::string& subscript) {
-    auto labels = ov::op::v7::Einsum::extract_labels(subscript);
-    auto unique_labels = std::unordered_set<std::string>(labels.begin(), labels.end());
-    return unique_labels.size() == labels.size();
-}
-
 /// \brief      Compute einsum_path for a given Einsum node meaning that the (pseudo-)optimal
 /// order of operands contraction in terms of performance and memory consumption
 ///
@@ -595,6 +587,167 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     subgraph_nodes.insert(subgraph_nodes.end(), {axes_const, reduce_sum});
 }
 
+ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
+                                    const std::vector<size_t>& repeated_label_dims,
+                                    ov::NodeVector& subgraph_nodes) {
+    OPENVINO_ASSERT(repeated_label_dims.size() > 1);
+    const auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
+    const auto repeated_label_indices =
+        ov::op::v0::Constant::create(ov::element::i64, {repeated_label_dims.size()}, repeated_label_dims);
+    const auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+    const auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    const auto repeated_dimensions = std::make_shared<ov::op::v8::Gather>(input_shape, repeated_label_indices, const_0);
+    const auto reduced_dimension = std::make_shared<ov::op::v8::Gather>(repeated_dimensions, const_0, const_0);
+    const auto reduced_dimension_min_1 = std::make_shared<ov::op::v1::Subtract>(reduced_dimension, const_1);
+
+    const auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
+    const auto reduced_size_min_1 = std::make_shared<ov::op::v1::Subtract>(reduced_size, const_1);
+    const auto step_size = std::make_shared<ov::op::v1::Divide>(reduced_size_min_1, reduced_dimension_min_1);
+    const auto range = std::make_shared<ov::op::v4::Range>(const_0, reduced_dimension, const_1, ov::element::i64);
+    const auto steps = std::make_shared<ov::op::v1::Multiply>(range, step_size);
+    const auto zeros = std::make_shared<ov::op::v1::Broadcast>(const_0, reduced_size);
+    const auto reduced_dimension_1d = std::make_shared<ov::op::v0::Unsqueeze>(reduced_dimension, const_0);
+    const auto ones = std::make_shared<ov::op::v1::Broadcast>(const_1, reduced_dimension_1d);
+    const auto eye_flattened = std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, steps, ones, const_0);
+
+    const auto identity_rank = std::make_shared<ov::op::v0::ShapeOf>(input_shape);
+    const auto ones_of_input_shape_rank = std::make_shared<ov::op::v1::Broadcast>(const_1, identity_rank);
+    const auto identity_shape = std::make_shared<ov::op::v3::ScatterElementsUpdate>(ones_of_input_shape_rank,
+                                                                                    repeated_label_indices,
+                                                                                    repeated_dimensions,
+                                                                                    const_0);
+    const auto identity = std::make_shared<ov::op::v1::Reshape>(eye_flattened, identity_shape, false);
+    const auto identity_cvt = std::make_shared<ov::op::v0::Convert>(identity, input_node.get_element_type());
+    subgraph_nodes.insert(subgraph_nodes.end(),
+                          {input_shape,
+                           repeated_label_indices,
+                           const_0,
+                           const_1,
+                           repeated_dimensions,
+                           reduced_dimension,
+                           reduced_dimension_min_1,
+                           reduced_size,
+                           reduced_size_min_1,
+                           step_size,
+                           range,
+                           steps,
+                           zeros,
+                           reduced_dimension_1d,
+                           ones,
+                           eye_flattened,
+                           identity_rank,
+                           ones_of_input_shape_rank,
+                           identity_shape,
+                           identity,
+                           identity_cvt});
+    return subgraph_nodes.back();
+}
+
+ov::Output<ov::Node> build_multi_identity(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
+                                          const ov::Output<ov::Node>& input_node,
+                                          const std::vector<std::string>& repeated_labels,
+                                          const LabelDimMap& label_dim_map,
+                                          ov::NodeVector& subgraph_nodes) {
+    OPENVINO_ASSERT(repeated_labels.size() > 0);
+
+    const auto get_identity = [&](size_t idx) {
+        const auto repeated_label_dims = label_dim_map.find(repeated_labels[idx]);
+        OPENVINO_ASSERT(repeated_label_dims != label_dim_map.end());
+        return build_identity(input_node, repeated_label_dims->second, subgraph_nodes);
+    };
+
+    // initially set multi-identity with identity for the first repeated label
+    const auto multi_identity = get_identity(0);
+    for (size_t label_ind = 1; label_ind < repeated_labels.size(); ++label_ind) {
+        const auto identity = get_identity(label_ind);
+        const auto mul =
+            std::make_shared<ov::op::v1::Multiply>(multi_identity, identity, ov::op::AutoBroadcastType::NUMPY);
+        subgraph_nodes.insert(subgraph_nodes.end(), {mul});
+    }
+
+    return subgraph_nodes.back();
+}
+
+/// \brief      Helper function to fill in the data needed for diagonal extraction  - result shape
+/// and subscript, repeated labels, axes to reduce.
+///
+void prepare_diagonal_extraction_data(const std::string& input_subscript,
+                                      const LabelDimMap& label_dim_map,
+                                      std::string& resultant_subscript,
+                                      std::vector<std::string>& repeated_labels,
+                                      ov::AxisSet& reduced_axes) {
+    static const std::string ellipsis = "...";
+    const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
+
+    for (const auto& label : labels) {
+        if (resultant_subscript.find(label) != std::string::npos) {
+            continue;
+        }
+
+        const auto dims_it = label_dim_map.find(label);
+        OPENVINO_ASSERT(dims_it != label_dim_map.end());
+
+        auto dims = dims_it->second;
+        const auto dims_size = dims.size();
+        OPENVINO_ASSERT(dims_size > 0);
+
+        if (label != ellipsis && dims_size > 1) {
+            // repeated label is found
+            for (size_t dim_ind = 1; dim_ind < dims_size; ++dim_ind) {
+                reduced_axes.insert(dims[dim_ind]);
+            }
+            // save only the first dimension corresponding to the repeated label
+            dims = {dims[0]};
+            repeated_labels.push_back(label);
+        }
+        resultant_subscript += label;
+    }
+}
+
+void extract_diagonal(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
+                      ov::OutputVector& inputs,
+                      std::vector<std::string>& input_subscripts,
+                      size_t input_ind,
+                      ov::NodeVector& subgraph_nodes) {
+    // perform sanity check for arguments
+    const auto num_inputs = inputs.size();
+    OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
+    OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
+
+    const auto& input_node = inputs[input_ind];
+    const auto& input_subscript = input_subscripts[input_ind];
+
+    const auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
+    std::string resultant_subscript;
+    std::vector<std::string> repeated_labels;
+    ov::AxisSet reduced_axes;
+    prepare_diagonal_extraction_data(input_subscript,
+                                     label_dim_map,
+                                     resultant_subscript,
+                                     repeated_labels,
+                                     reduced_axes);
+
+    if (repeated_labels.size() == 0) {
+        return;
+    }
+    const auto multi_identity =
+        build_multi_identity(einsum_decompose_ptr, input_node, repeated_labels, label_dim_map, subgraph_nodes);
+
+    // multiply both operands with broadcasting
+    const auto mul =
+        std::make_shared<ov::op::v1::Multiply>(input_node, multi_identity, ov::op::AutoBroadcastType::NUMPY);
+    subgraph_nodes.insert(subgraph_nodes.end(), {mul});
+
+    const std::vector<int64_t> reduced_axes_vec{reduced_axes.cbegin(), reduced_axes.cend()};
+    const auto axes_const =
+        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{reduced_axes.size()}, reduced_axes_vec);
+    const auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(mul->output(0), axes_const, false);
+    subgraph_nodes.insert(subgraph_nodes.end(), {axes_const, reduce_sum});
+
+    inputs[input_ind] = reduce_sum->output(0);
+    input_subscripts[input_ind] = resultant_subscript;
+}
+
 /// \brief      Contract two inputs of Einsum operation according to equation.
 /// The result of the contraction is appended into input_nodes along with its subscript.
 /// The input nodes for these two operands are removed from input_nodes along with their input
@@ -630,9 +783,8 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     const auto& input_node2 = input_nodes[input_ind2];
 
     // extract diagonals in case repeated labels in the corresponding input subscripts
-    // TODO
-    // extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind1, subgraph_nodes);
-    // extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind2, subgraph_nodes);
+    extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind1, subgraph_nodes);
+    extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind2, subgraph_nodes);
 
     // reduce dimensions for input operands if possible
     reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
@@ -772,8 +924,6 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
     auto matmul_operand1 = input_node1;
     auto matmul_operand2 = input_node2;
-    auto broadcasted_operand1 = input_node1;
-    auto broadcasted_operand2 = input_node2;
 
     size_t common_dims_begin, common_dims_end, reduced_dims_begin, reduced_dims_end, separate1_dims_begin,
         separate1_dims_end;
@@ -827,21 +977,21 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     reduced_sub_shape_prod = broadcast_merge_shapes(reduced_sub_shape_prod, reduced_sub_shape_prod2, subgraph_nodes);
     reduced_sub_shape = broadcast_merge_shapes(reduced_sub_shape, reduced_sub_shape2, subgraph_nodes);
     separate1_sub_shape = compute_sub_shape(data_shape1, separate1_dims_begin, separate1_dims_end, subgraph_nodes);
-    broadcasted_operand1 = broadcast_input(input_node1,
-                                           common_sub_shape,
-                                           separate1_sub_shape,
-                                           reduced_sub_shape,
-                                           is_separate_first1,
-                                           subgraph_nodes);
+    matmul_operand1 = broadcast_input(input_node1,
+                                      common_sub_shape,
+                                      separate1_sub_shape,
+                                      reduced_sub_shape,
+                                      is_separate_first1,
+                                      subgraph_nodes);
     separate2_sub_shape = compute_sub_shape(data_shape2, separate2_dims_begin, separate2_dims_end, subgraph_nodes);
-    broadcasted_operand2 = broadcast_input(input_node2,
-                                           common_sub_shape,
-                                           separate2_sub_shape,
-                                           reduced_sub_shape,
-                                           is_separate_first2,
-                                           subgraph_nodes);
+    matmul_operand2 = broadcast_input(input_node2,
+                                      common_sub_shape,
+                                      separate2_sub_shape,
+                                      reduced_sub_shape,
+                                      is_separate_first2,
+                                      subgraph_nodes);
     if (no_reshape_for_matmul1 == false || no_reshape_after_matmul == false) {
-        matmul_operand1 = reshape_input_for_matmul(broadcasted_operand1,
+        matmul_operand1 = reshape_input_for_matmul(matmul_operand1,
                                                    common_sub_shape,
                                                    separate1_sub_shape,
                                                    reduced_sub_shape_prod,
@@ -850,7 +1000,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     }
 
     if (no_reshape_for_matmul2 == false || no_reshape_after_matmul == false) {
-        matmul_operand2 = reshape_input_for_matmul(broadcasted_operand2,
+        matmul_operand2 = reshape_input_for_matmul(matmul_operand2,
                                                    common_sub_shape,
                                                    separate2_sub_shape,
                                                    reduced_sub_shape_prod,
@@ -926,13 +1076,6 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         std::string output_subscript;
         ov::op::v7::Einsum::parse_equation(equation, input_subscripts, output_subscript);
 
-        // check that the transformation is applicable
-        if (std::any_of(input_subscripts.cbegin(), input_subscripts.cend(), [](const std::string& subscript) {
-                return is_subscript_applicable(subscript) == false;
-            })) {
-            return false;
-        }
-
         // create a list of input nodes with preserving their order
         // and a vector of sub-graph nodes for copy_runtime_info
         ov::OutputVector input_nodes = einsum_node->input_values();
@@ -962,8 +1105,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         OPENVINO_ASSERT(input_nodes.size() == 1);
 
         // extract diagonal for the single operand
-        // TODO
-        // extract_diagonal(this, input_nodes, input_subscripts, 0, subgraph_nodes);
+        extract_diagonal(this, input_nodes, input_subscripts, 0, subgraph_nodes);
         // reduce dimensions for the remained input node
         reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
         // transpose dimensions to layout required by the output subscript
