@@ -3,7 +3,7 @@
 #
 
 # [cmake:extension]
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(TARGET_NAME "openvino_template_extension")
 

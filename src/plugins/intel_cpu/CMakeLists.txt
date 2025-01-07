@@ -175,10 +175,6 @@ if(DNNL_USE_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
 
-if(OV_CPU_WITH_ACL)
-    set(CMAKE_CXX_STANDARD 14)
-endif()
-
 if (ENABLE_SHL_FOR_CPU)
     add_definitions(-DOV_CPU_WITH_SHL)
     set(OV_CPU_WITH_SHL ON)
