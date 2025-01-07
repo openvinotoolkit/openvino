@@ -323,7 +323,7 @@ def normalize_inputs(argv: argparse.Namespace):
     argv.placeholder_data_types - dictionary where key is node name, value is node np.type,
     or list of np.types if node names were not set.
 
-    :param argv: MO arguments
+    :param argv: OVC arguments
     """
     # Parse input to list of InputCutInfo
     inputs = input_to_input_cut_info(argv.input)
@@ -514,7 +514,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             if paddle_runtime_converter:
                 paddle_runtime_converter.destroy()
 
-        # add MO meta data to model
+        # add OVC meta data to model
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])

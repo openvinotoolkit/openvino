@@ -45,7 +45,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
     if (!ftz) {
         return;
     }
-    if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
+    if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() != ov::element::f32) {
         return;
     }
     size_t offset = 0;

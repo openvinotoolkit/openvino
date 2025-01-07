@@ -61,10 +61,13 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     OPENVINO_ASSERT(alibi_const != nullptr);
     prim.has_alibi = ov::shape_size(alibi_const->get_output_shape(0)) > 0;
 
+    prim.num_outputs = 1;
     if (op->get_output_size() > 1) {
         const auto scores_output_idx = 1;
         const auto& users = op->get_output_target_inputs(scores_output_idx);
-        OPENVINO_ASSERT(users.size() == 0, "[GPU] PagedAttention implementation doesn't support scores output yet");
+        if (users.size() > 0) {
+            prim.num_outputs++; // Add scores output
+        }
     }
 
     p.add_primitive(*op, prim);

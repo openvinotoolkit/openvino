@@ -16,7 +16,7 @@ namespace pass {
 // This transformation replaces pattern prim::ListConstruct->aten::index
 class PYTORCH_API AtenIndexToSelect : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenIndexToSelect");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::AtenIndexToSelect");
     AtenIndexToSelect();
 };
 

@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API StateManagementPattern;
 
 class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("StateManagementPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
     StateManagementPattern(ParameterVector& kv_parameters,
                            ParameterVector& model_remaining_params,
                            const std::shared_ptr<ov::op::v0::Constant>& sliding_window,

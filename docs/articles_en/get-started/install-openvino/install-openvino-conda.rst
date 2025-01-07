@@ -108,7 +108,6 @@ components by using:
 - ``libopenvino-pytorch-frontend``
 - ``libopenvino-tensorflow-frontend``
 - ``libopenvino-tensorflow-lite-frontend``
-- ``libopenvino-dev``
 - ``libopenvino-python``
 - ``libopenvino-arm-cpu-plugin``
 
