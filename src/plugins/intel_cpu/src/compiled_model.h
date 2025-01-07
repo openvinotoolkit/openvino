@@ -21,15 +21,6 @@ namespace intel_cpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
-    struct GraphGuard : public Graph {
-        std::mutex _mutex;
-        struct Lock : public std::unique_lock<std::mutex> {
-            explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
-            GraphGuard& _graph;
-        };
-    };
-
-public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
     struct GraphGuard : public Graph {
