@@ -485,7 +485,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
     }
     auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(model, npudesc, generate_hint)).as<ov::AnyMap>();
+        generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
+            .as<ov::AnyMap>();
 
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
