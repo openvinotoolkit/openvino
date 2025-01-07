@@ -592,14 +592,14 @@ bool mbind_move(const dnnl::memory mem, int numaNodeID) {
 }
 
 MemoryPtr split_horizontal(const dnnl::engine& eng,
-                           const MemoryPtr src,
+                           const MemoryPtr& src,
                            int dim,
                            int w_rank,
                            int w_size,
                            bool need_fill) {
     auto desc = src->getDescPtr();
     auto shape = src->getShape();
-    auto dims = shape.getDims();
+    const auto& dims = shape.getDims();
     auto prec = src->getPrecision();
     if (dim < 0) {
         dim += dims.size();
@@ -636,7 +636,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         prec.size();
 
     // create new shape for target memory
-    VectorDims new_dims = std::move(dims);
+    VectorDims new_dims = dims;
     new_dims[dim] = splited_dim_vec[w_rank];
 
     auto new_desc = desc->cloneWithNewDims(new_dims, true);
@@ -655,14 +655,14 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
 }
 
 MemoryPtr split_vertical(const dnnl::engine& eng,
-                         const MemoryPtr src,
+                         const MemoryPtr& src,
                          int dim,
                          int w_rank,
                          int w_size,
                          bool need_fill) {
     auto desc = src->getDescPtr();
     const auto& shape = src->getShape();
-    auto dims = shape.getDims();
+    const auto& dims = shape.getDims();
     auto prec = src->getPrecision();
     if (dim < 0) {
         dim += dims.size();

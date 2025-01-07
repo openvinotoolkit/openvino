@@ -614,8 +614,8 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         } else {
             tp_cfg.cached_zeropoint =
                 attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), std::move(zeropoint_mem), 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), std::move(zeropoint_mem), 0, tp_cfg.w_rank, tp_cfg.w_size);
+                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
     }
 }

@@ -447,13 +447,13 @@ bool mbind_move(const MemoryCPtr mem, int numaNodeID);
 bool mbind_move(const dnnl::memory mem, int numaNodeID);
 
 MemoryPtr split_horizontal(const dnnl::engine& eng,
-                           const MemoryPtr src,
+                           const MemoryPtr& src,
                            int dim,
                            int w_rank,
                            int w_size,
                            bool need_fill = true);
 MemoryPtr split_vertical(const dnnl::engine& eng,
-                         const MemoryPtr src,
+                         const MemoryPtr& src,
                          int dim,
                          int w_rank,
                          int w_size,
