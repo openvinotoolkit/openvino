@@ -84,7 +84,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryBlockPtr block)
     : m_eng(eng),
       m_pMemDesc(desc),
-      m_blockHandle(block, this),
+      m_blockHandle(std::move(block), this),
       dnnlMemHandle(this) {
     if (desc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
@@ -95,7 +95,7 @@ Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryBlockPtr block
 }
 
 Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryBlockPtr block)
-    : Memory::Memory(eng, desc.clone(), block) {}
+    : Memory::Memory(eng, desc.clone(), std::move(block)) {}
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -636,7 +636,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         prec.size();
 
     // create new shape for target memory
-    VectorDims new_dims = dims;
+    VectorDims new_dims = std::move(dims);
     new_dims[dim] = splited_dim_vec[w_rank];
 
     auto new_desc = desc->cloneWithNewDims(new_dims, true);
@@ -661,7 +661,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int w_size,
                          bool need_fill) {
     auto desc = src->getDescPtr();
-    auto shape = src->getShape();
+    const auto& shape = src->getShape();
     auto dims = shape.getDims();
     auto prec = src->getPrecision();
     if (dim < 0) {

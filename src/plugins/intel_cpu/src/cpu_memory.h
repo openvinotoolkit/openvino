@@ -122,7 +122,7 @@ using MemoryBlockCPtr = std::shared_ptr<const IMemoryBlockObserver>;
 
 class DnnlMemBlockHandle {
 public:
-    DnnlMemBlockHandle(MemoryBlockPtr pBlock, Memory* pMem) : m_pMemBlock(pBlock), m_pMem(pMem) {
+    DnnlMemBlockHandle(MemoryBlockPtr pBlock, Memory* pMem) : m_pMemBlock(std::move(pBlock)), m_pMem(pMem) {
         if (m_pMemBlock) {
             m_pMemBlock->registerMemory(m_pMem);
         }

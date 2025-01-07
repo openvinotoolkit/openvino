@@ -296,7 +296,7 @@ void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const Dnn
     // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
     // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
     if (srcDesc->hasLayoutType(LayoutType::ncsp) && srcDesc->getShape().getRank() != dstDesc->getShape().getRank()) {
-        const auto newDims = dstDesc->getShape().getStaticDims();
+        const auto& newDims = dstDesc->getShape().getStaticDims();
         const auto newFormat = DnnlExtensionUtils::GetPlainFormatByRank(newDims.size());
 
         src_desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(newDims),
@@ -309,7 +309,7 @@ void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const Dnn
                     "OneDNN doesn't support reorder with different ranks.");
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     CPU_NODE_ASSERT(result, "could not create reorder primitive: unsupported reorder case.");
-    prim = result;
+    prim = std::move(result);
 
     selectedPD->setImplementationType(
         parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));

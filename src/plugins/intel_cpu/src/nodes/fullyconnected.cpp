@@ -220,7 +220,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         };
 
         int dim = -1;
-        auto dst_shape = dstMemoryBuffer->getShape();
+        const auto& dst_shape = dstMemoryBuffer->getShape();
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
@@ -614,8 +614,8 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         } else {
             tp_cfg.cached_zeropoint =
                 attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+                    ? split_vertical(context->getEngine(), std::move(zeropoint_mem), 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), std::move(zeropoint_mem), 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
     }
 }
@@ -625,7 +625,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 1. weight shape is dynamic
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
-        auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
+        const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
         if (shape.isDynamic()) {
             tp_cfg.enable_tensor_parallel = false;
         } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
