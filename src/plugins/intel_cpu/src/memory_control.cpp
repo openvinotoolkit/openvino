@@ -16,7 +16,9 @@ namespace {
 
 class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
 public:
-    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset) : m_pBlock(pBlock), m_offset(offset) {
+    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
+        : m_pBlock(std::move(pBlock)),
+          m_offset(offset) {
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
@@ -410,7 +412,7 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
 }
 
 MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
-    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
+    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(std::move(syncInds))));
     return *(m_controlUnits.back());
 }
 

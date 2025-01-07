@@ -1030,7 +1030,7 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
         res_ptr = create();
     }
 
-    internalBlobMemory[idx] = res_ptr;
+    internalBlobMemory[idx] = std::move(res_ptr);
 }
 
 void RNN::copyWeightsData() {

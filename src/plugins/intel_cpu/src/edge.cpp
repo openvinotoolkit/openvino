@@ -300,7 +300,7 @@ void Edge::allocate(MemoryBlockPtr memBlock) {
 
     auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
-        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memBlock);
+        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, std::move(memBlock));
     };
 
     allocateCommon(allocateFunc);

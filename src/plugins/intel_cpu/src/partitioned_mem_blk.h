@@ -19,7 +19,7 @@ public:
                            size_t total_chunks = 1,
                            ptrdiff_t offset_chunks = 0,
                            size_t size_chunks = 1)
-        : m_pBlock(pBlock),
+        : m_pBlock(std::move(pBlock)),
           m_total_chunks(total_chunks),
           m_offset_chunks(offset_chunks),
           m_size_chunks(size_chunks) {

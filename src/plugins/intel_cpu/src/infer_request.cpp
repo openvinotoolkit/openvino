@@ -273,7 +273,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                                                            :  // then swap internal buffer to avoid data corruption
                         controlBlock.currentMemBlock();       // else reuse the existing buffer
 
-                outputMemBlock->setMemBlockResize(memBlock);
+                outputMemBlock->setMemBlockResize(std::move(memBlock));
                 DEBUG_LOG("reset proxy ",
                           outputMemBlock,
                           ", actual ",

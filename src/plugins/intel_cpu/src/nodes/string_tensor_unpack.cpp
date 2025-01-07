@@ -64,7 +64,7 @@ void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
         totalCharLength += srcData[i].length();
     }
     redefineOutputMemory({srcDataDims, srcDataDims, {totalCharLength}});
-    execute(strm);
+    execute(std::move(strm));
 }
 
 void StringTensorUnpack::execute(dnnl::stream strm) {

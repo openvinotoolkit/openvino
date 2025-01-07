@@ -132,7 +132,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                                     false,
                                                                     true,
-                                                                    sub_streams_table,
+                                                                    std::move(sub_streams_table),
                                                                     sub_cfg.streamsRankTable[i]};
             m_sub_compiled_models.push_back(
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));

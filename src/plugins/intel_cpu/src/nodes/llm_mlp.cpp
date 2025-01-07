@@ -224,9 +224,8 @@ public:
                 blkN++;
             }
             if (blkN) {
-                auto shared_atomic = std::make_shared<std::atomic_int>(0);
                 auto& work = works[ithr];
-                work.sync_flag = shared_atomic;
+                work.sync_flag = std::make_shared<std::atomic_int>(0);
                 work.blk_K_size = cache_blk_k_size;
 
                 work.n0 = (start_blkN)*REG_BLK_N_SIZE;

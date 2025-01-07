@@ -192,7 +192,7 @@ void Pad::createPrimitive() {
         prepareParams();
         if (padValue) {
             // restore original memory object
-            srcMemory[PAD_VALUE_ID] = padValue;
+            srcMemory[PAD_VALUE_ID] = std::move(padValue);
         }
 
         updateLastInputDims();

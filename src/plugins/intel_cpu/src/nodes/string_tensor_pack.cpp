@@ -55,7 +55,7 @@ bool StringTensorPack::needPrepareParams() const {
 }
 
 void StringTensorPack::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
+    execute(std::move(strm));
 }
 
 template <class T_idx>
