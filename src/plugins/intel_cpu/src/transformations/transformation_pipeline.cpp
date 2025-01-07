@@ -12,6 +12,9 @@
 #include <ov_ops/gather_compressed.hpp>
 
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
@@ -37,6 +40,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -79,6 +83,7 @@
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -429,6 +434,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
+    CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstsPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
@@ -652,16 +658,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_COMMON(
-        manager,
-        [this](const_node_ptr& node) -> bool {
-            std::string errorMsg;
-            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf
-            // regression. Matching the pattern is a little complicated, so we just check if there is any state nodes.
-            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) &&
-                   model->get_variables().size() > 0;
-        },
-        ov::pass::ScaledDotProductAttentionDecomposition);
 
     // List of enabled/disabled transformations
 
@@ -695,6 +691,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -942,9 +939,6 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
@@ -1117,16 +1111,20 @@ void Transformations::MainSnippets(void) {
     auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type<ov::op::v0::Abs>(n) || ov::is_type<ov::op::v1::Add>(n) ||
-                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Convert>(n) ||
-                ov::is_type<ov::op::v1::Divide>(n) || ov::is_type<ov::op::v0::Elu>(n) ||
-                ov::is_type<ov::op::v0::Exp>(n) || ov::is_type<ov::op::v0::Floor>(n) ||
-                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
-                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
+                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
+                ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
+                ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::Floor>(n) ||
+                ov::is_type<ov::op::v1::FloorMod>(n) || ov::is_type<ov::op::v0::Gelu>(n) ||
+                ov::is_type<ov::op::v7::Gelu>(n) || ov::is_type<ov::op::v1::Greater>(n) ||
+                ov::is_type<ov::op::v1::GreaterEqual>(n) || ov::is_type<ov::op::v4::HSwish>(n) ||
+                ov::is_type<ov::op::v1::LessEqual>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
                 ov::is_type<ov::op::v1::Minimum>(n) || ov::is_type<ov::op::v4::Mish>(n) ||
                 ov::is_type<ov::op::v1::Mod>(n) || ov::is_type<ov::op::v1::Multiply>(n) ||
-                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
-                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
-                ov::is_type<ov::op::v0::Tanh>(n));
+                ov::is_type<ov::op::v0::PRelu>(n) || ov::is_type<ov::op::v0::Relu>(n) ||
+                ov::is_type<ov::op::v5::Round>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
+                ov::is_type<ov::op::v0::Sqrt>(n) || ov::is_type<ov::op::v1::Subtract>(n) ||
+                ov::is_type<ov::op::v4::Swish>(n) || ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1290,6 +1288,7 @@ void Transformations::PostSnippets(void) {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
+    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
     postSnippetsManager.run_passes(model);
 }

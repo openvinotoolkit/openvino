@@ -267,6 +267,7 @@ REGISTER_FACTORY(v13, ScaledDotProductAttention);
 REGISTER_FACTORY(v13, BitwiseAnd);
 REGISTER_FACTORY(v13, BitwiseOr);
 REGISTER_FACTORY(v13, BitwiseXor);
+REGISTER_FACTORY(v13, FakeConvert);
 
 // ------------------------------ Supported v15 ops ----------------------------- //
 REGISTER_FACTORY(v15, ROIAlignRotated);

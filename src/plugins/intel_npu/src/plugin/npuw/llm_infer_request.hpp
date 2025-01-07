@@ -15,8 +15,7 @@ namespace npuw {
 
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
-                             const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc);
+    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
     void infer() override;
 
@@ -44,7 +43,7 @@ private:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
-    LLMCompiledModel::KVCacheDesc m_kvcache_desc;
+    std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
 

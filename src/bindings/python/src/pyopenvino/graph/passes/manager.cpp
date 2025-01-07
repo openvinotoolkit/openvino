@@ -35,10 +35,14 @@ void regclass_passes_Manager(py::module m) {
                 :type new_state: bool
     )");
 
-    manager.def("run_passes",
-                &ov::pass::Manager::run_passes,
-                py::arg("model"),
-                R"(
+    manager.def(
+        "run_passes",
+        [](ov::pass::Manager& self, const py::object& ie_api_model) {
+            const auto model = Common::utils::convert_to_model(ie_api_model);
+            self.run_passes(model);
+        },
+        py::arg("model"),
+        R"(
                 Executes sequence of transformations on given Model.
 
                 :param model: openvino.runtime.Model to be transformed.
