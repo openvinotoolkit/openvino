@@ -1798,12 +1798,11 @@ struct MHAHelper {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        auto sub_byte_multiplier = get_sub_byte_multiplier(present_value.get_precision());
-                        size_t v_stride =
-                            (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) *
-                            present_value.get_precision().size() / sub_byte_multiplier;
+                        auto sub_byte_multiplier = get_sub_byte_multiplier(value_cache.get_precision());
+                        size_t v_stride = (block_number * value_cache.m_strides[0] + hk * value_cache.m_strides[1]) *
+                                          value_cache.get_precision().size() / sub_byte_multiplier;
                         auto* v_ptr = reinterpret_cast<typename element_type_traits<VALUE_PREC>::value_type*>(
-                            present_value.m_ptr.get() + v_stride);
+                            value_cache.m_ptr.get() + v_stride);
                         attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                             _output_bhl.ptr<float>(ithr, b, pq, h),
                             _weight_bhl.ptr<float>(b, h, pq) + pv,
@@ -2379,11 +2378,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score);
 
         if (rotated_block_indices) {
-            rotate_kv_cache<KVCACHE_TYPE>(k_cache,
-                                          rotated_block_indices,
-                                          rotation_deltas,
-                                          rotation_trig_lut,
-                                          _helper._block_rotation_coefficient_scratch);
+            rotate_kv_cache<KEY_CACHE_TYPE>(k_cache,
+                                            rotated_block_indices,
+                                            rotation_deltas,
+                                            rotation_trig_lut,
+                                            _helper._block_rotation_coefficient_scratch);
         }
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
