@@ -339,9 +339,10 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * Type: std::string.
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for dumping last subgraph without specifying it by specific index.
- * E.g. "0,1" or "0,1,last" or "YES".
+ * subgraphs, "REPR_SUBSET" for representative subgraph subset (all non-repeated
+ * and one instance of repeated block), "NO" or just empty value to turn option
+ * off. Keyword "last" can be used for dumping last subgraph without specifying
+ * it by specific index. E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
@@ -351,8 +352,9 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for dumping last subgraph. E.g. "0,1" or "0,1,last" or "YES".
+ * subgraphs, "REPR_SUBSET" for representative subgraph subset, "NO" or just
+ * empty value to turn option off. Keyword "last" can be used for dumping last
+ * subgraph. E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
@@ -362,8 +364,9 @@ static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_
  * Type: std::string.
  * Dump input & output tensors for subgraph(s).
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
- * be used for last subgraph. E.g. "0,1" or "0,1,last" or "YES".
+ * subgraphs, "REPR_SUBSET" for representative subgraph subset, "NO" or just
+ * empty value to turn option off. Keyword "last" can be used for last subgraph.
+ * E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
