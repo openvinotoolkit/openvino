@@ -33,7 +33,7 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
 
 class ov::pass::ConvertBatchToSpace : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBatchToSpace", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBatchToSpace");
     explicit ConvertBatchToSpace(bool convert_by_elements = true) : MatcherPass() {
         if (convert_by_elements)
             convert_batch_to_space_by_elements();
