@@ -31,6 +31,13 @@ const std::vector<std::vector<InputShape>> inputShapes = {
         // B, H, L0, S
         {{-1, 8, -1, 64}, {{4, 8, 0, 64}, {4, 8, 10, 64}, {4, 8, 11, 64}, {4, 8, 12, 64}, {4, 8, 13, 64}}},
     },
+    // big batch to check cvt_copy fast-path inside mha_single_token_kernel
+    {
+        // B, H, L1, S
+        {{-1, 8, -1, 64}, {{129, 8, 10, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}}},
+        // B, H, L0, S
+        {{-1, 8, -1, 64}, {{129, 8, 0, 64}, {129, 8, 10, 64}, {129, 8, 11, 64}, {129, 8, 12, 64}, {129, 8, 13, 64}}},
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
