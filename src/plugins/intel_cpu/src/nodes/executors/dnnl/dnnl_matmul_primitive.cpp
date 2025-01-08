@@ -150,25 +150,42 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer
-        dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
-
     const auto maxRank =
         std::max({srcDesc->getShape().getRank(), weiDesc->getShape().getRank(), dstDesc->getShape().getRank()});
     const auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-        auto dstPrc = ov::element::f32;
-        dnnlpoc.appendDecompressionScales(memory.at(ARG_WEI | ARG_ATTR_SCALES),
-                                          !weightsNonTransposed,
-                                          dstPrc,
-                                          normWeiDims);
+
+    DnnlPostOpsComposer
+        dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType, srcDesc->getShape().getStaticDims(), normWeiDims, weightsNonTransposed);
+
+
+    // if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+    //     auto dstPrc = ov::element::f32;
+    //     dnnlpoc.appendDecompressionScales(memory.at(ARG_WEI | ARG_ATTR_SCALES),
+    //                                       !weightsNonTransposed,
+    //                                       dstPrc,
+    //                                       normWeiDims);
+    // }
+    // if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    //     // TODO: clarify oneDNN requirements on ZP precision
+    //     auto zp = memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS);
+    //     auto zpPrc = zp->getPrecision();
+    //     auto dstPrc = one_of(zpPrc, i32, i8, u8, i4, u4) ? zpPrc : i32;
+    //     dnnlpoc.appendDecompressionZeroPoints(zp, !weightsNonTransposed, dstPrc, normWeiDims);
+    // }
+
+    // TODO: implement more convinient way to check if input really exists
+    if (memory.count(ARG_SRC | ARG_ATTR_SCALES) && memory.at(ARG_SRC | ARG_ATTR_SCALES)->getData()) {
+        dnnlpoc.appendScales(ARG_SRC, memory.at(ARG_SRC | ARG_ATTR_SCALES));
     }
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
-        // TODO: clarify oneDNN requirements on ZP precision
-        auto zp = memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS);
-        auto zpPrc = zp->getPrecision();
-        auto dstPrc = one_of(zpPrc, i32, i8, u8, i4, u4) ? zpPrc : i32;
-        dnnlpoc.appendDecompressionZeroPoints(zp, !weightsNonTransposed, dstPrc, normWeiDims);
+    if (memory.count(ARG_SRC | ARG_ATTR_ZERO_POINTS) && memory.at(ARG_SRC | ARG_ATTR_ZERO_POINTS)->getData()) {
+        dnnlpoc.appendZeroPoints(ARG_SRC, memory.at(ARG_SRC | ARG_ATTR_ZERO_POINTS));
+    }
+
+    if (memory.count(ARG_WEI | ARG_ATTR_SCALES) && memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData()) {
+        dnnlpoc.appendScales(ARG_WEI, memory.at(ARG_WEI | ARG_ATTR_SCALES));
+    }
+    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) && memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS)->getData()) {
+        dnnlpoc.appendZeroPoints(ARG_WEI, memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS));
     }
 
     auto primAttrs = dnnlpoc.compose();

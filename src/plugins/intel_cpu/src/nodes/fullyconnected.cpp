@@ -155,6 +155,21 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #endif
 }
 
+
+bool FullyConnected::isSupportedDynamicQuantization(const std::shared_ptr<const ov::Node>& op) noexcept {
+    try {
+        if (!ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+            return false;
+        }
+
+        // TODO: add target specific conditions
+    } catch (...) {
+        return false;
+    }
+
+    return true;
+}
+
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) {
     if (context->getCPUStreamExecutor()) {
         if (!context->getCPUStreamExecutor()->get_rank().empty()) {
@@ -180,9 +195,9 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     m_atoi[ARG_BIAS] = BIAS;
 
     auto mapArgToInput = [&op](std::unordered_map<size_t, size_t>& argToInput, size_t argId, size_t inputId) {
-        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::undefined) {
+        // if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::undefined) {
             argToInput[argId] = inputId;
-        }
+        // }
     };
 
     if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
@@ -193,8 +208,13 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
         mapArgToInput(m_atoi, ARG_DST_DEQ_SCALE, 3);
         algorithm = Algorithm::FullyConnectedQuantizedLegacy;
     } else if (ov::is_type<const ov::op::internal::FullyConnectedQuantized>(op)) {
+        mapArgToInput(m_atoi, ARG_SRC | ARG_ATTR_SCALES, INPUT_SCALES);
+        mapArgToInput(m_atoi, ARG_SRC | ARG_ATTR_ZERO_POINTS, INPUT_ZERO_POINTS);
+        mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_SCALES, WEIGHT_SCALES);
+        mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_ZERO_POINTS, WEIGHT_ZERO_POINTS);
+        mapArgToInput(m_atoi, ARG_DST | ARG_ATTR_SCALES, OUTPUT_SCALES);
+        mapArgToInput(m_atoi, ARG_DST | ARG_ATTR_ZERO_POINTS, OUTPUT_ZERO_POINTS);
         algorithm = Algorithm::FullyConnectedQuantized;
-        OPENVINO_THROW_NOT_IMPLEMENTED("FullyConnectedQuantized is not implemented yet");
     } else {
         algorithm = Algorithm::FullyConnectedCommon;
     }
@@ -537,12 +557,21 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         dstDescs.push_back(dstDesc);
     }
 
-    MemoryDescArgs descs{
-        {ARG_SRC, srcDescs[DATA]},
-        {ARG_WEI, srcDescs[WEIGHTS]},
-        {ARG_BIAS, srcDescs[BIAS]},
-        {ARG_DST, dstDescs[0]},
-    };
+    MemoryDescArgs descs;
+    for (const auto& entry : m_atoi) {
+        const auto argumentId = entry.first;
+        const auto inputId = entry.second;
+        descs[argumentId] = srcDescs[inputId];
+    }
+
+    descs[ARG_DST] = dstDescs[0];
+
+    // MemoryDescArgs descs{
+    //     {ARG_SRC, srcDescs[DATA]},
+    //     {ARG_WEI, srcDescs[WEIGHTS]},
+    //     {ARG_BIAS, srcDescs[BIAS]},
+    //     {ARG_DST, dstDescs[0]},
+    // };
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
@@ -554,15 +583,15 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     for (const auto& desc : nodeDescriptors) {
         if (m_atoi.count(desc.first)) {
             nodeConfig.inConfs[m_atoi[desc.first]] = desc.second;
-        }
+        } 
     }
 
-    // add extra inputs bypassing proper memory descriptors
-    // @todo pass all the input descriptors to getProperMemoryDescriptors and allow
-    // to ignore extra input descriptors if necessery
-    for (size_t i = 3; i < srcDescs.size(); i++) {
-        nodeConfig.inConfs[i] = srcDescs[i];
-    }
+    // // add extra inputs bypassing proper memory descriptors
+    // // @todo pass all the input descriptors to getProperMemoryDescriptors and allow
+    // // to ignore extra input descriptors if necessery
+    // for (size_t i = 3; i < srcDescs.size(); i++) {
+    //     nodeConfig.inConfs[i] = srcDescs[i];
+    // }
 
     const int inPlace = canBeInPlace() ? 0 : -1;
     nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
@@ -640,6 +669,7 @@ void FullyConnected::createPrimitive() {
     for (const auto& entry : m_atoi) {
         const auto argumentId = entry.first;
         const auto inputId = entry.second;
+        auto mem = getSrcMemoryAtPort(inputId);
         memory[argumentId] = getSrcMemoryAtPort(inputId);
     }
 

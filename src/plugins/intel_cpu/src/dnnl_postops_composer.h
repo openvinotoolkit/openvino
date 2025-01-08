@@ -28,7 +28,10 @@ public:
                         const bool isINT8,
                         const int weiScaleMaskPerChannel,
                         const MemoryArgs& memory,
-                        const dnnl::memory::data_type outDataType);
+                        const dnnl::memory::data_type outDataType,
+                        const VectorDims& srcDims = {},
+                        const VectorDims& weiDims = {},
+                        bool weightsNonTransposed = false);
     DnnlPrimitiveAttrs compose();
 
     void appendDecompressionScales(const MemoryCPtr& scales_ptr,
@@ -47,6 +50,9 @@ public:
                                              ov::element::Type dstPrecision);
     void setDynamicQuantizationParams(uint64_t groupSize);
 
+    void appendScales(int port, const MemoryCPtr& scales_ptr, ov::element::Type dstPrecision = ov::element::undefined);
+    void appendZeroPoints(int port, const MemoryCPtr& zero_points_ptr, ov::element::Type dstPrecision = ov::element::undefined);
+
 private:
     bool appendAttrPostOps(const ActivationPostOp& postOp, bool isLastPostOp, bool allowBinary = true);
     bool appendAttrPostOps(const ScaleShiftPostOp& postOp, bool isLastPostOp, bool allowBinary = true);
@@ -64,6 +70,11 @@ private:
                       bool isLastPostOp,
                       bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
+
+    template <class Function>
+    void appendWeightParams(int type, Function&& func, const MemoryCPtr& params_ptr, ov::element::Type dstPrecision);
+    template <class Function>
+    void appendSrcParams(int type, Function&& func, const MemoryCPtr& params_ptr, ov::element::Type dstPrecision);
 
     const dnnl::engine& engine;
     const PostOps& postOps;
@@ -85,6 +96,10 @@ private:
     std::vector<float> wei_scale_values;
     float dst_scale_val;
     dnnl::post_ops ops;
+
+    const VectorDims srcDims;
+    const VectorDims weiDims;
+    bool weightsNonTransposed;
 
     void updateWeiScales();
     void updateDestScales();

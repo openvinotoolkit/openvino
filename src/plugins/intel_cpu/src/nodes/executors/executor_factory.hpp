@@ -33,7 +33,10 @@ public:
         : m_attrs(attrs),
           m_postOps(postOps),
           m_context(context),
-          m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)) {}
+          m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)) {
+            if (m_suitableImplementations.empty())
+                OPENVINO_THROW("No suitable implementation found");
+          }
 
     /**
      * @brief Retrieves the proper memory descriptors based on the provided memory descriptors.

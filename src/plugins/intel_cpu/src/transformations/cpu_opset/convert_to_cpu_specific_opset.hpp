@@ -24,6 +24,7 @@
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
+#include "transformations/op_conversions/fc_dynamic_quantization.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -49,6 +50,18 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
                                                                                        G,
                                                                                        config.inferencePrecision);
         });
+
+    CPU_REGISTER_PASS_COMMON(
+        manager,
+        pass::FullyConnectedDynamicQuantization,
+        config.fcDynamicQuantizationGroupSize,
+        ov::element::i8);
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            return !ov::intel_cpu::node::FullyConnected::isSupportedDynamicQuantization(node);
+        },
+        pass::FullyConnectedDynamicQuantization);
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);

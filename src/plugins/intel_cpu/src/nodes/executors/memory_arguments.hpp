@@ -31,5 +31,12 @@ using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 // zero points provided at execution time
 #define ARG_ATTR_ZERO_POINTS 8192
 
+#define ARG_SRC_SCALES  ARG_SRC | ARG_ATTR_SCALES
+#define ARG_WEI_SCALES  ARG_WEI | ARG_ATTR_SCALES
+#define ARG_DST_SCALES  ARG_DST | ARG_ATTR_SCALES
+#define ARG_SRC_ZERO_POINTS  ARG_SRC | ARG_ATTR_ZERO_POINTS
+#define ARG_WEI_ZERO_POINTS  ARG_WEI | ARG_ATTR_ZERO_POINTS
+#define ARG_DST_ZERO_POINTS  ARG_DST | ARG_ATTR_ZERO_POINTS
+
 }  // namespace intel_cpu
 }  // namespace ov

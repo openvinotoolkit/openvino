@@ -85,6 +85,33 @@ static const TypeMapping dnnlFCTypeMapping {
     // @todo explicitly cover configuration limitations for oneDNN on ARM
 };
 
+namespace fc_quantized {
+constexpr auto bias_t = _u8 | _i8 | _i32 | _bf16 | _f32 | _undefined;
+constexpr auto dst_t = _u8 | _i8 | _i32 | _bf16 | _f32;
+constexpr auto src_sc_t = _f32 | _bf16 | _f16;
+constexpr auto wei_sc_t = _f32 | _bf16 | _f16;
+// constexpr auto src_zp_t = _f32 | _bf16 | _f16;
+
+static const LayoutConfig dnnlFCQuantizedLayoutConfig{
+    LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp,
+    LayoutType::ncsp, LayoutType::ncsp,
+    LayoutType::ncsp, LayoutType::ncsp,
+    LayoutType::ncsp, LayoutType::ncsp};
+
+static const MappingNotation dnnlFcQunatizedMappingNotation {
+    ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST,
+    ARG_SRC_SCALES, ARG_SRC_ZERO_POINTS,
+    ARG_WEI_SCALES, ARG_WEI_ZERO_POINTS,
+    ARG_DST_SCALES, ARG_DST_ZERO_POINTS
+};
+
+// clang-format off
+static const TypeMapping dnnlFCQuantizedTypeMapping {
+    {{_i8, _i8, bias_t, dst_t, src_sc_t, _i8 | _undefined, wei_sc_t, _i8 | _undefined, _undefined, _undefined}, 
+      pt(bypass(), bypass(), bypass(), bypass(), bypass(), bypass(), bypass(), bypass(), bypass(), bypass())},
+};
+} // namespace fc_quantized
+
 static const TypeMapping aclFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
     {{_f32 | _f16, _f32 | _f16, _any, _any}, pt(bypass(), bypass(), use<0>(), use<0>())},
@@ -216,6 +243,18 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
     return config.postOps.empty();
 }
 
+OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noScales(const FCConfig& config) {
+    return !config.descs.count(ARG_SRC | ARG_ATTR_SCALES) && 
+           !config.descs.count(ARG_WEI | ARG_ATTR_SCALES) &&
+           !config.descs.count(ARG_DST | ARG_ATTR_SCALES);
+}
+
+OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noZeroPoints(const FCConfig& config) {
+    return !config.descs.count(ARG_SRC | ARG_ATTR_ZERO_POINTS) && 
+           !config.descs.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) &&
+           !config.descs.count(ARG_DST | ARG_ATTR_ZERO_POINTS);
+}
+
 // to keep OV_CPU_INSTANCE macros aligned
 // clang-format off
 template <>
@@ -233,6 +272,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noScales(config), UNSUPPORTED_SCALES);
+                VERIFY(noZeroPoints(config), UNSUPPORTED_ZERO_POINTS);
                 VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
 
                 return MlasGemmExecutor::supports(config);
@@ -266,6 +307,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noScales(config), UNSUPPORTED_SCALES);
+                VERIFY(noZeroPoints(config), UNSUPPORTED_ZERO_POINTS);
                 auto getOffset0 = [](const MemoryDescPtr& desc) {
                     DnnlMemoryDescCPtr dnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(desc);
                     dnnl::impl::memory_desc_wrapper wrapped(dnnlDesc->getDnnlDesc().get());
@@ -362,6 +405,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noScales(config), UNSUPPORTED_SCALES);
+                VERIFY(noZeroPoints(config), UNSUPPORTED_ZERO_POINTS);
                 return ACLFullyConnectedExecutor::supports(config);
             },
             // requiresFallback
@@ -392,6 +437,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noScales(config), UNSUPPORTED_SCALES);
+                VERIFY(noZeroPoints(config), UNSUPPORTED_ZERO_POINTS);
                 return ACLLowpFullyConnectedExecutor::supports(config);
             },
             // requiresFallback
@@ -425,6 +472,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noScales(config), UNSUPPORTED_SCALES);
+                VERIFY(noZeroPoints(config), UNSUPPORTED_ZERO_POINTS);
                 VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
 
                 return ShlFCExecutor::supports(config);
@@ -462,10 +511,17 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // requiresFallback
             [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
-                return requiresFallbackCommon(config,
-                                              dnnlMatMulTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlFCMappingNotation);
+                if (!noScales(config) || !noZeroPoints(config)) {
+                    return requiresFallbackCommon(config,
+                                fc_quantized::dnnlFCQuantizedTypeMapping,
+                                fc_quantized::dnnlFCQuantizedLayoutConfig,
+                                fc_quantized::dnnlFcQunatizedMappingNotation); 
+                } else {
+                    return requiresFallbackCommon(config,
+                                                dnnlMatMulTypeMapping,
+                                                dnnlFCLayoutConfig,
+                                                dnnlFCMappingNotation);
+                }
             },
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
@@ -514,9 +570,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             // requiresFallback
             [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
                 return requiresFallbackCommon(config,
-                                              dnnlFCTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlConvolutionMappingNotation);
+                                            dnnlFCTypeMapping,
+                                            dnnlFCLayoutConfig,
+                                            dnnlConvolutionMappingNotation);
             },
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {

@@ -19,6 +19,8 @@
 #define UNSUPPORTED_DST_STRIDES              " unsupported dst strides"
 #define HEURISTICS_MISMATCH                  " heuristics mismatch"
 #define UNSUPPORTED_PER_CHANNEL_QUANTIZATION " unsupported per-channel quantization"
+#define UNSUPPORTED_SCALES                   " scales are not supported"
+#define UNSUPPORTED_ZERO_POINTS              " zero points are not supported"
 
 #define VERIFY(condition, ...)      \
     do {                            \

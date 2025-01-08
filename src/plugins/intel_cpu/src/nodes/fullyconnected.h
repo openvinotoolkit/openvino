@@ -72,6 +72,7 @@ public:
                                                size_t OC,
                                                size_t G,
                                                ov::element::Type inferencePrecision) noexcept;
+    static bool isSupportedDynamicQuantization(const std::shared_ptr<const ov::Node>& op) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes();
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
