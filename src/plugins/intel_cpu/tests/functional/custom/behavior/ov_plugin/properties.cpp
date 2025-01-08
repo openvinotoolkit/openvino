@@ -55,6 +55,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
         RW_property(ov::hint::kv_cache_precision.name()),
+        RW_property(ov::key_cache_precision.name()),
+        RW_property(ov::value_cache_precision.name()),
+        RW_property(ov::key_cache_group_size.name()),
+        RW_property(ov::value_cache_group_size.name()),
     };
 
     ov::Core ie;

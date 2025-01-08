@@ -257,6 +257,18 @@ def test_properties_ro(ov_property_ro, expected_value):
             "WEIGHTS_PATH",
             (("./model.bin", "./model.bin"),),
         ),
+        (
+            props.key_cache_group_size,
+            "KEY_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (
+            props.value_cache_group_size,
+            "VALUE_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (props.key_cache_precision, "KEY_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (props.value_cache_precision, "VALUE_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             hints.model_priority,
