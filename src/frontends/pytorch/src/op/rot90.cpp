@@ -34,24 +34,14 @@ OutputVector translate_rot90(const NodeContext& context) {
         ndims = input.get_partial_shape().rank().get_length();
     }
 
+    PYTORCH_OP_CONVERSION_CHECK(ndims >= 2, "Expected total dims >= 2, but got total dims = ", ndims);
+
     std::shared_ptr<ov::Node> rank =
         std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                ov::Shape{},
                                                std::vector<int32_t>{static_cast<int32_t>(ndims)});
 
     auto dims_norm = normalize_axis(context, dims, rank);
-    auto dims_const = std::dynamic_pointer_cast<v0::Constant>(dims_norm.get_node_shared_ptr());
-    auto dims_values = dims_const->cast_vector<int32_t>();
-
-    PYTORCH_OP_CONVERSION_CHECK(dims_values.size() == 2,
-                                "Expected total rotation dims == 2, but got dims = ",
-                                dims_values.size());
-
-    PYTORCH_OP_CONVERSION_CHECK(ndims >= 2, "Expected total dims >= 2, but got total dims = ", ndims);
-
-    PYTORCH_OP_CONVERSION_CHECK(dims_values[0] != dims_values[1],
-                                "Rotation dimensions must be different, but got dim0 = " +
-                                    std::to_string(dims_values[0]) + " and dim1 = " + std::to_string(dims_values[1]));
 
     auto start = v0::Constant::create(element::i32, {}, {0});
     auto step = v0::Constant::create(element::i32, {}, {1});
