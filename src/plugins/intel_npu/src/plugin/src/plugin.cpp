@@ -454,6 +454,15 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
           }}},
+        {ov::intel_npu::compiler_api_version.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              /// create dummy compiler
+              CompilerAdapterFactory compilerAdapterFactory;
+              auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), config);
+              return dummyCompiler->getApiVersion();
+          }}},
         {ov::intel_npu::compilation_mode_params.name(),
          {true,
           ov::PropertyMutability::RW,
