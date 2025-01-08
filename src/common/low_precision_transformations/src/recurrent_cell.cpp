@@ -228,7 +228,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
                 propagateSkipCleanupAttribute(deq_multiply);
 
                 this->register_new_node(new_fq);
-                updateOutput(context, deq_multiply, new_fq);
+                updateOutput(deq_multiply, new_fq);
             } else {
                 continue;
             }

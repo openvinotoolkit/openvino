@@ -174,7 +174,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
-    updateOutput(context, newMultiply, newMatMul);
+    updateOutput(newMultiply, newMatMul);
 
     OPENVINO_DEBUG("LPT: done: ", newMatMul);
     return true;

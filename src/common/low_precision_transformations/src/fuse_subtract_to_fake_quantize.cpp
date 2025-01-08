@@ -81,7 +81,7 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     replace_node(subtract, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
-    updateOutput(context, newFakeQuantize, subtract);
+    updateOutput(newFakeQuantize, subtract);
     return true;
 }
 

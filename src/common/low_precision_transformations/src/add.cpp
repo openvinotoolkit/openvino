@@ -229,7 +229,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
         ov::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
 
-    updateOutput(context, newMultiply, newAddOrSubtract);
+    updateOutput(newMultiply, newAddOrSubtract);
 
     if (fullPathIndex != -1) {
         std::shared_ptr<Node> node = add;

@@ -167,7 +167,7 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
 
     NetworkHelper::insertDequantizationAfter(mvn, newMultiply, newMVN);
 
-    updateOutput(context, newMultiply, newMVN);
+    updateOutput(newMultiply, newMVN);
 
     OPENVINO_DEBUG("LPT: done: ", newMVN);
     return true;

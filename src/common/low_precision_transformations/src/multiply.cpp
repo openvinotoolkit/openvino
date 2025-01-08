@@ -100,7 +100,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
                 ov::op::TemporaryReplaceOutputType(in2, deqPrecision).get());
 
         replace_node(multiply, new_multiply);
-        updateOutput(context, new_multiply, multiply);
+        updateOutput(new_multiply, multiply);
 
         return true;
     }
@@ -128,7 +128,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
             multiply->get_output_element_type(0));
 
     replace_node(multiply, new_scales);
-    const auto was_updated = updateOutput(context, new_scales, multiply);
+    const auto was_updated = updateOutput(new_scales, multiply);
     NetworkHelper::copyInfo(multiply, new_multiply, !was_updated);
 
     return true;

@@ -292,8 +292,6 @@ public:
     virtual ~LayerTransformation() = default;
     virtual bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) = 0;
 
-    void setContext(TransformationContext* context) noexcept;
-
     void setUpdatePrecisions(const bool updatePrecisions);
 
     void setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions);
@@ -364,12 +362,9 @@ protected:
         const FakeQuantizeDequantization& dequantization,
         const bool moveSubtract = true) const;
 
-    bool updateOutput(
-        TransformationContext &context,
-        std::shared_ptr<ov::Node> lastNode,
-        std::shared_ptr<ov::Node> originalNode) const;
+    bool updateOutput(const std::shared_ptr<ov::Node>& lastNode, const std::shared_ptr<ov::Node>& originalNode) const;
 
-    //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
+    // TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
     bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 };
 

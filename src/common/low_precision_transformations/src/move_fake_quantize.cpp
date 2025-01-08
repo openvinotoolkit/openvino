@@ -160,7 +160,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
         return true;
     }
     replace_node(fq, newConcat);
-    updateOutput(context, newConcat, fq);
+    updateOutput(newConcat, fq);
 
     return true;
 }

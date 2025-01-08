@@ -46,7 +46,7 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ov::pa
         assert(ov::is_type<ov::opset1::Constant>(resultConstant));
 
         replace_node(convert, resultConstant);
-        updateOutput(context, resultConstant, convert);
+        updateOutput(resultConstant, convert);
     };
 
     foldConvert(0ul);

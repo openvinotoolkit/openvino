@@ -86,7 +86,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
         newFakeQuantize->set_levels(intervalAlignment.as<IntervalsAlignmentAttribute>().levels);
     }
 
-    updateOutput(context, newFakeQuantize, multiply);
+    updateOutput(newFakeQuantize, multiply);
     return true;
 }
 

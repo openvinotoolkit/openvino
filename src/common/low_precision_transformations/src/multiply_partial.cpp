@@ -168,7 +168,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
     }
 
     replace_node(multiply, newMultiply);
-    updateOutput(context, newMultiply, multiply);
+    updateOutput(newMultiply, multiply);
 
     if (fullPathIndex != -1) {
         NetworkHelper::foldDequantization(newMultiply, fullPathIndex, defaultPrecisions);

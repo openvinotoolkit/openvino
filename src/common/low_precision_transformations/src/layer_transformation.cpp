@@ -48,10 +48,6 @@ LayerTransformation::LayerTransformation(const Params& params) :
     scalingMode(params.scalingMode),
     context(nullptr) {}
 
-void LayerTransformation::setContext(TransformationContext* context) noexcept {
-    this->context = context;
-}
-
 void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
 }
@@ -408,7 +404,7 @@ std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(
         updateOutputPrecision,
         moveSubtract,
         defaultPrecisions);
-    updateOutput(context, result.lastDequantization, result.newOperation);
+    updateOutput(result.lastDequantization, result.newOperation);
     return result.newOperation;
 }
 
@@ -420,19 +416,17 @@ std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationBefore(
     const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation,
         dequantization,
         moveSubtract);
-    updateOutput(context, result.newOperation, result.lastDequantization);
+    updateOutput(result.newOperation, result.lastDequantization);
     return result.newOperation;
 }
 
-bool LayerTransformation::updateOutput(
-    TransformationContext &context,
-    std::shared_ptr<ov::Node> lastNode,
-    std::shared_ptr<ov::Node> originalNode) const {
+bool LayerTransformation::updateOutput(const std::shared_ptr<ov::Node>& lastNode,
+                                       const std::shared_ptr<ov::Node>& originalNode) const {
     bool was_updated = false;
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
             if (ov::is_type<ov::opset1::Result>(input.get_node())) {
-                const std::string originalName = originalNode->get_friendly_name();
+                const auto originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);
                 was_updated = true;

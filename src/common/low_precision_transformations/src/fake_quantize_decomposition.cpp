@@ -427,7 +427,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         return rewritten;
     }
 
-    updateOutput(context, dequantize, newFakeQuantize);
+    updateOutput(dequantize, newFakeQuantize);
 
     if (precisionsAttribute.value().size() != 1ul) {
         precisionsAttribute.value() = { dataPrecision.precision };

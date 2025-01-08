@@ -149,7 +149,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         auto newFQ = std::get<1>(res_tuple);
         auto dequantize = std::get<2>(res_tuple);
         if (newFQ != nullptr && dequantize != nullptr)
-            updateOutput(context, dequantize, newFQ);
+            updateOutput(dequantize, newFQ);
 
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, defaultPrecisions, 1ul);
 
@@ -225,7 +225,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolutionBackpropData, finalDequantization }, finalDequantization);
-    updateOutput(context, finalDequantization, convolutionBackpropData);
+    updateOutput(finalDequantization, convolutionBackpropData);
 
     const auto onActiviation = convolutionBackpropData->get_input_node_shared_ptr(0);
     if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {

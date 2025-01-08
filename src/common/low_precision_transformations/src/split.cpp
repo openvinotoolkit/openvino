@@ -131,9 +131,8 @@ void SplitTransformation::updateOutputs(
     TransformationContext& context,
     std::vector<std::shared_ptr<ov::Node>> lastNodes,
     std::shared_ptr<ov::Node> originalNode) const {
-    //TODO: LPT: during refactoring update is not tested
     if (lastNodes.size() == 1ul) {
-        updateOutput(context, lastNodes[0], originalNode);
+        updateOutput(lastNodes[0], originalNode);
     } else {
         const std::string originalName = originalNode->get_friendly_name();
         for (size_t i = 0; i < lastNodes.size(); ++i) {

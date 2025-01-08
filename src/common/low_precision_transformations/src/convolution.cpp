@@ -97,7 +97,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
     auto newFQ = std::get<1>(res_tuple);
     auto dequantize = std::get<2>(res_tuple);
     if (newFQ != nullptr && dequantize != nullptr)
-        updateOutput(context, dequantize, newFQ);
+        updateOutput(dequantize, newFQ);
 
     if (updatePrecisions && !fqOnWeightsWasDecomposed) {
         return false;
@@ -338,7 +338,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
     ov::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
-    updateOutput(context, finalDequantization, convolution);
+    updateOutput(finalDequantization, convolution);
 
     const auto onActiviation = convolution->get_input_node_shared_ptr(0);
     if (ov::is_type<ov::opset1::Subtract>(onActiviation)) {

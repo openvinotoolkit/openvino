@@ -146,7 +146,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ov::pa
     NetworkHelper::insertDequantizationAfter(normalize, newMultiply, newNormalize);
     ov::copy_runtime_info({ normalize, newMultiply }, newMultiply);
 
-    updateOutput(context, newMultiply, newNormalize);
+    updateOutput(newMultiply, newNormalize);
 
     OPENVINO_DEBUG("LPT: done: ", newNormalize);
     return true;

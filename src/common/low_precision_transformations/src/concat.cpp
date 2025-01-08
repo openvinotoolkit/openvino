@@ -193,7 +193,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
 
     NetworkHelper::insertDequantizationAfter(concat, lastDequantization, newConcat);
     NetworkHelper::copyInfo(concat, newConcat);
-    updateOutput(context, lastDequantization, newConcat);
+    updateOutput(lastDequantization, newConcat);
 
     OPENVINO_DEBUG("LPT: done: ", newConcat);
     return true;
