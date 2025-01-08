@@ -84,8 +84,10 @@ public:
 TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
     auto dummyMeta = MetadataVersionTestFixture(0, ov::get_openvino_version().buildNumber);
     auto metaVersion = GetParam();
+
     dummyMeta.set_version(metaVersion);
-    dummyMeta.write(blob);
+
+    OV_ASSERT_NO_THROW(dummyMeta.write(blob));
 
     ASSERT_ANY_THROW(read_metadata_from(blob));
 }
