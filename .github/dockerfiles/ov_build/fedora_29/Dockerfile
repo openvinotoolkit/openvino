@@ -39,7 +39,7 @@ RUN cd /usr/src && \
     tar xvf Python-3.9.9.tar.xz
 RUN cd /usr/src/Python-3.9.9 && \
     ./configure --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+    make altinstall && ldconfig
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
