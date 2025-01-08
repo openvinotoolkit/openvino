@@ -449,6 +449,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Build with multiple processes
     ov_add_compiler_flags(/MP)
 
+    message(WARNING "***************** JUST TEST CI PRE COMMIT FOR WINDOW ***************************")
+
     # Workaround for an MSVC compiler issue in some versions of Visual Studio 2022.
     # The issue involves a null dereference to a mutex. For details, refer to link https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
     if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930 AND MSVC_VERSION LESS 1941)
