@@ -544,7 +544,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
-        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }

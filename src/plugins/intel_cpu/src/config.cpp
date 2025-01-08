@@ -311,7 +311,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
-                auto encryption_callbacks = val.as<EncryptionCallbacks>();
+                const auto& encryption_callbacks = val.as<EncryptionCallbacks>();
                 cacheEncrypt = encryption_callbacks.encrypt;
                 cacheDecrypt = encryption_callbacks.decrypt;
             } catch (ov::Exception&) {
