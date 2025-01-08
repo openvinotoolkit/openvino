@@ -193,7 +193,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     }
 
     // Add stub output node for unused data
-    for (auto unusedOutput : unusedOutputs) {
+    for (const auto& unusedOutput : unusedOutputs) {
         auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
         const auto port = unusedOutput.get_index();
         const auto nodeName =
