@@ -297,12 +297,20 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles;
+    bool compiler_dq;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const ov::Any arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{});
-    const ov::Any max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{});
-    return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
+    const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+
+    bool compiler_dq = false;
+    const auto device_caps =
+        plugin->get_property(ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
+    if (std::find(device_caps.begin(), device_caps.end(), "COMPILER_DYNAMIC_QUANTIZATION") != device_caps.end()) {
+        compiler_dq = true;
+    }
+    return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -349,6 +357,9 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ_FULL", "NO");
+    }
     return config;
 }
 
@@ -363,6 +374,12 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
     config.emplace("NPUW_DQ", "YES");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_DPU_GROUPS", 4);
+    }
+    if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
+        config.emplace("NPUW_UNFOLD_IREQS", "YES");
+    }
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ_FULL", "NO");
     }
     return config;
 }
@@ -468,13 +485,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
     }
     auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(model, npudesc, generate_hint)).as<ov::AnyMap>();
+        generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
+            .as<ov::AnyMap>();
 
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
 
-    m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
-    m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
+    m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
+    OPENVINO_ASSERT(m_kvcache_compiled,
+                    "Can't create ov::npuw::CompiledModel for passed kvcache "
+                    "model and its config, please check passed config.");
+    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+    OPENVINO_ASSERT(m_prefill_compiled,
+                    "Can't create ov::npuw::CompiledModel for passed prefill "
+                    "model and its config, please check passed config.");
 
     implement_properties();
     LOG_DEBUG("Done");
