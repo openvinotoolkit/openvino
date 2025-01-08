@@ -19,20 +19,9 @@
 
 /*****************************************************
  * Debug capability
- *  - ORIGINAL_MODEL_PATH : Specify with existing folder name
- *    to serialize original model into it (XML & BIN extensions were added)
- *  - TRANSFORMED_MODEL_PATH : Specify with existing folder name
- *    to serialize original model into it (XML & BIN extensions were added)
- *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable
- *    dequantization layers printing
- *  - LPT_DISPLAY_PRECISION : Define it to to display precision info
- *    during low precision transformations
- *
+ *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable dequantization info printing: scales, shifts, etc.
  *****************************************************/
-// #define LPT_ORIGINAL_MODEL_PATH "/localdisk/orig.model"
-// #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/transformed.model"
 // #define LPT_PRINT_DEQUANTIZATION_INFO
-// #define LPT_DISPLAY_PRECISION
 
 namespace ov {
 namespace pass {
@@ -380,30 +369,9 @@ protected:
         std::shared_ptr<ov::Node> lastNode,
         std::shared_ptr<ov::Node> originalNode) const;
 
-    void updateOutput(
-        TransformationContext& context,
-        std::shared_ptr<ov::Node> lastNode,
-        std::string originalName) const;
-
-    void addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
-
     //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
     bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-
-    template <typename Operation>
-    void addSingleNodePattern(ov::pass::GraphRewrite& pass, TransformationContext& context) const {
-        using namespace ov;
-
-        auto is_op_type = [](std::shared_ptr<Node> n) {
-            return !!as_type_ptr<Operation>(n);
-        };
-        auto p_node = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{}, is_op_type);
-
-        addPattern(pass, context, p_node);
-    }
 };
-
-typedef std::shared_ptr<LayerTransformation> LayerTransformationPtr;
 
 }  // namespace low_precision
 }  // namespace pass
