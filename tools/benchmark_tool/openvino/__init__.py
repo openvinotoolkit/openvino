@@ -58,6 +58,7 @@ from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
 
 # Import opsets
+from openvino import op
 from openvino import opset1
 from openvino import opset2
 from openvino import opset3
