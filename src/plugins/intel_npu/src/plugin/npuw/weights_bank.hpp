@@ -61,7 +61,7 @@ private:
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<Bank> deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core);
     // Used during deserialization
-    void add_element(int64_t uid, const ov::Tensor& tensor, const std::string& device);
+    void read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

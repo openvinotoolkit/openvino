@@ -544,7 +544,16 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     }
 
     write(stream, cpu_closure_ids);
-    write(stream, cpu_closures);
+
+    // FIXME: make a function
+    for (const auto& tensor : cpu_closures) {
+        NPUW_ASSERT(tensor.is_continuous());
+        write(stream, tensor.get_element_type().to_string());
+        write(stream, tensor.get_shape());
+        // FIXME: should we write strides as well?
+        write(stream, tensor.get_byte_size());
+        stream.write(reinterpret_cast<const char*>(tensor.data()), tensor.get_byte_size());
+    }
 
     // FIXME: support weightless flow!
 
@@ -601,16 +610,23 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     // Some tensors might be present in CPU closure already - need to deserialize as is
     std::size_t closure_size = 0;
     read(stream, closure_size);
-    std::vector<ov::Tensor> cpu_closures;
     std::vector<std::size_t> cpu_closure_ids;
     read(stream, cpu_closure_ids);
-    read(stream, cpu_closures);
     desc.closure.resize(closure_size);
-    std::size_t cpu_cidx = 0;
     for (const auto& cidx : cpu_closure_ids) {
-        const auto& t = cpu_closures[cpu_cidx++];
-        desc.closure[cidx] = ov::Tensor(t.get_element_type(), t.get_shape());
-        t.copy_to(desc.closure[cidx]);  // get data ownership
+        // Read tensor type, shape and byte size
+        std::string type_str;
+        read(stream, type_str);
+        ov::element::Type type(type_str);
+
+        ov::Shape shape;
+        read(stream, shape);
+
+        std::size_t byte_size = 0;
+        read(stream, byte_size);
+
+        desc.closure[cidx] = ov::Tensor(type, shape);
+        stream.read(reinterpret_cast<char*>(desc.closure[cidx].data()), byte_size);
     }
 
     // FIXME: support weightless flow!

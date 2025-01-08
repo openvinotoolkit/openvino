@@ -177,7 +177,14 @@ void Bank::serialize(std::ostream& stream) const {
     write(stream, device_bank.storage.size());
     for (const auto& t_pair : device_bank.storage) {
         write(stream, t_pair.first);
-        write(stream, t_pair.second.tensor);
+
+        auto& tensor = t_pair.second.tensor;
+        NPUW_ASSERT(tensor.is_continuous());
+        write(stream, tensor.get_element_type().to_string());
+        write(stream, tensor.get_shape());
+        // FIXME: should we write strides as well?
+        write(stream, tensor.get_byte_size());
+        stream.write(reinterpret_cast<const char*>(tensor.data()), tensor.get_byte_size());
     }
 
     LOG_INFO("DONE.");
@@ -201,10 +208,8 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
 
     for (std::size_t i = 0; i < bank_size; ++i) {
         int64_t uid = -1;
-        ov::Tensor t;
         read(stream, uid);
-        read(stream, t);
-        bank->add_element(uid, t, device);
+        bank->read_and_add_tensor(stream, uid, device);
     }
 
     LOG_INFO("DONE.");
@@ -212,7 +217,9 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
     return bank;
 }
 
-void Bank::add_element(int64_t uid, const ov::Tensor& tensor, const std::string& device) {
+void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device) {
+    using namespace ov::npuw::s11n;
+
     // This method is supposed to be used only during deserialization
     // For now only a singular NPU or CPU device is supported
     NPUW_ASSERT(device == "NPU" || device == "CPU");
@@ -228,10 +235,21 @@ void Bank::add_element(int64_t uid, const ov::Tensor& tensor, const std::string&
         return;
     }
 
+    // Read tensor type, shape and byte size
+    std::string type_str;
+    read(stream, type_str);
+    ov::element::Type type(type_str);
+
+    ov::Shape shape;
+    read(stream, shape);
+
+    std::size_t byte_size = 0;
+    read(stream, byte_size);
+
     if (device == "CPU") {
-        // Just copy deserialized tensor to the bank
-        device_bank.storage[uid] = {LazyTensor(), ov::Tensor(tensor.get_element_type(), tensor.get_shape())};
-        tensor.copy_to(device_bank.storage[uid].tensor);
+        // Just read deserialized tensor into the bank
+        device_bank.storage[uid] = {LazyTensor(), ov::Tensor(type, shape)};
+        stream.read(reinterpret_cast<char*>(device_bank.storage[uid].tensor.data()), byte_size);
         return;
     }
 
@@ -240,11 +258,10 @@ void Bank::add_element(int64_t uid, const ov::Tensor& tensor, const std::string&
     ov::Tensor allocated_tensor;
 
     auto remote_ctx = m_core->get_default_context(device)._ptr;
-    remote_tensor = remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
+    remote_tensor = remote_ctx->create_host_tensor(type, shape);
     allocated_tensor = ov::make_tensor(remote_tensor);
     device_bank.storage[uid] = {LazyTensor(), allocated_tensor};
-
-    tensor.copy_to(allocated_tensor);
+    stream.read(reinterpret_cast<char*>(allocated_tensor.data()), byte_size);
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,

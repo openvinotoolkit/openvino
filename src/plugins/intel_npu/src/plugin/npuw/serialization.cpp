@@ -43,9 +43,7 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     auto type_str = var.get_element_type().to_string();
     write(stream, type_str);
     write(stream, var.get_shape());
-    if (type_str != "i4" && type_str != "u4") {
-        write(stream, var.get_strides());
-    }
+    // Should we write strides?
     write(stream, var.get_byte_size());
     stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
 }
@@ -96,21 +94,12 @@ void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
     ov::Shape shape;
     read(stream, shape);
 
-    ov::Strides strides;
-    if (type_str != "i4" && type_str != "u4") {
-        read(stream, strides);
-    }
-
     std::size_t byte_size = 0;
     read(stream, byte_size);
 
-    std::vector<char> vec(byte_size, 0);
-    stream.read(reinterpret_cast<char*>(&vec[0]), byte_size);
-
-    // Need to get ownership over data, thus creating a temporary tensor over temporary data first
-    auto tmp = ov::Tensor(type, shape, vec.data(), strides);
     var = ov::Tensor(type, shape);
-    tmp.copy_to(var);
+
+    stream.read(reinterpret_cast<char*>(var.data()), byte_size);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ::intel_npu::Config& var) {
