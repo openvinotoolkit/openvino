@@ -228,10 +228,10 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
         const auto output_ports = ma->get_memory_access_output_ports();
         std::vector<LoopPort> loop_entries(input_ports.size()), loop_exits(output_ports.size());
         for (const auto& p : input_ports) {
-            loop_entries[p.first] = expr->get_input_port(p.first);
+            loop_entries[p.first] = LoopPort::create(expr->get_input_port(p.first));
         }
         for (const auto& p : output_ports) {
-            loop_exits[p.first] = expr->get_output_port(p.first);
+            loop_exits[p.first] = LoopPort::create(expr->get_output_port(p.first));
         }
 
         insertion(linear_ir, expr_it, end, loop_manager, loop_entries, loop_exits);

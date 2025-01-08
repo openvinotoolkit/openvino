@@ -122,13 +122,13 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
             loop_info->replace_with_new_ports(in_ports[1], {in_ports[1], new_port});
         };
         if (!is_full_dim_value(m_block))
-            update_loop_info({compens_port, LoopInfo::UNDEFINED_DIM_IDX, LoopPort::Type::NotProcessed});
+            update_loop_info(LoopPort::create<LoopPort::Type::NotProcessed>(compens_port));
 
         if (!is_full_dim_value(n_block))
-            update_loop_info({compens_port, 0});
+            update_loop_info(LoopPort::create<LoopPort::Type::Incremented>(compens_port, 0));
 
         if (!is_full_dim_value(k_block))
-            update_loop_info({compens_port, 1, LoopPort::Type::NotIncremented});
+            update_loop_info(LoopPort::create<LoopPort::Type::NotIncremented>(compens_port, 1));
     }
     return true;
 }

@@ -34,7 +34,7 @@ void LoopPort::set_type(Type type) {
 
 void LoopPort::set_dim_idx(size_t idx) {
     if (get_type() == LoopPort::Type::NotProcessed) {
-        OPENVINO_ASSERT(idx == LoopInfo::UNDEFINED_DIM_IDX, "NotProcessed LoopPort cah have only UNDEFINED_DIM_IDX");
+        OPENVINO_ASSERT(idx == UNDEFINED_DIM_IDX, "NotProcessed LoopPort cah have only UNDEFINED_DIM_IDX");
     } else {
         OPENVINO_ASSERT(idx < m_expr_port->get_descriptor_ptr()->get_shape().size(),
                         "LoopPort dim_idx (",

@@ -45,7 +45,7 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
             const auto id = loop_ids[i];
             const auto dim_idx = loop_manager->get_loop_info(id)->get_dim_idx();
             // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
-            if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
+            if (dim_idx == LoopPort::UNDEFINED_DIM_IDX)
                 continue;
             if (i > 0) {
                 if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {

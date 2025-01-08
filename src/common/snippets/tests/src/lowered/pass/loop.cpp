@@ -42,18 +42,17 @@ static void init_linear_ir(const std::vector<ov::Shape>& in_shapes, LinearIR& li
 
     const auto loop_manager = linear_ir.get_loop_manager();
     linear_ir.get_loop_manager()->mark_loop(matmul.first, add.first, in_shapes[0].front(), block_size,
-                                            std::vector<LoopPort>{LoopPort((*matmul.first)->get_input_port(0), 1),
-                                                                  LoopPort((*matmul.first)->get_input_port(1),
-                                                                    LoopInfo::UNDEFINED_DIM_IDX, LoopPort::Type::NotProcessed)},
-                                            std::vector<LoopPort>{LoopPort((*matmul.first)->get_output_port(0), 1)});
+                                            std::vector<LoopPort>{LoopPort::create((*matmul.first)->get_input_port(0), 1),
+                                                                  LoopPort::create<LoopPort::Type::NotProcessed>((*matmul.first)->get_input_port(1))},
+                                            std::vector<LoopPort>{LoopPort::create((*matmul.first)->get_output_port(0), 1)});
     linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].back(), vector_size, 0,
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0)),
-                                                                  LoopPort((*add.first)->get_input_port(1))},
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+                                            std::vector<LoopPort>{LoopPort::create((*add.first)->get_input_port(0)),
+                                                                  LoopPort::create((*add.first)->get_input_port(1))},
+                                            std::vector<LoopPort>{LoopPort::create((*add.first)->get_output_port(0))});
     linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].front(), 1, 1,
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0)),
-                                                                  LoopPort((*add.first)->get_input_port(1))},
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+                                            std::vector<LoopPort>{LoopPort::create((*add.first)->get_input_port(0)),
+                                                                  LoopPort::create((*add.first)->get_input_port(1))},
+                                            std::vector<LoopPort>{LoopPort::create((*add.first)->get_output_port(0))});
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& config) {

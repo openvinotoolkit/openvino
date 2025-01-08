@@ -19,9 +19,9 @@ LoopInfo::LoopInfo(size_t work_amount, size_t increment, const std::vector<Expre
     m_input_ports.reserve(entries.size());
     m_output_ports.reserve(exits.size());
     for (const auto& port : entries)
-        m_input_ports.emplace_back(port);
+        m_input_ports.push_back(LoopPort::create(port));
     for (const auto& port : exits)
-        m_output_ports.emplace_back(port);
+        m_output_ports.push_back(LoopPort::create(port));
 }
 
 bool LoopInfo::is_dynamic() const {
@@ -37,7 +37,7 @@ size_t LoopInfo::get_dim_idx() const {
         std::all_of(m_output_ports.begin(), m_output_ports.end(), equal_dim_idxes)) {
         return m_input_ports[0].get_dim_idx();
     } else {
-        return UNDEFINED_DIM_IDX;
+        return LoopPort::UNDEFINED_DIM_IDX;
     }
 }
 

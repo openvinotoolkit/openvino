@@ -17,14 +17,26 @@ namespace lowered {
  */
 class LoopPort {
 public:
+    enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
     enum class Type {
         Incremented,    // Loop port which data ptr should be incremented after each Loop iteration
         NotIncremented, // Loop port which data ptr should not be to avoid double increment
-        NotProcessed,   // LoopPort which doesn't process the dim by `dim_idx` and is used only for Loop bound definition
+        NotProcessed,   // LoopPort which doesn't process the dim by `dim_idx` (UNDEFINED_DIM_IDX) and is used only for Loop bound definition
     };
 
     LoopPort() = default;
-    LoopPort(const ExpressionPort& port, size_t dim_idx = 0, Type type = Type::Incremented);
+
+    template<LoopPort::Type T = Type::Incremented,
+            typename std::enable_if<T == Type::Incremented || T == Type::NotIncremented, bool>::type = true>
+    static LoopPort create(const ExpressionPort& port, size_t dim_idx = 0) {
+        return LoopPort(port, dim_idx, T);
+    }
+
+    template<LoopPort::Type T,
+            typename std::enable_if<T == Type::NotProcessed, bool>::type = true>
+    static LoopPort create(const ExpressionPort& port) {
+        return LoopPort(port, UNDEFINED_DIM_IDX, Type::NotProcessed);
+    }
 
     std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
 
@@ -41,6 +53,8 @@ public:
     void set_dim_idx(size_t idx);
 
 private:
+    LoopPort(const ExpressionPort& port, size_t dim_idx, Type type);
+
     std::shared_ptr<ExpressionPort> m_expr_port = {};
     size_t m_dim_idx = 0; // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
     Type m_type = Type::Incremented;
