@@ -280,22 +280,6 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
     model->reshape(new_shapes);
 }
 
-KVAxesPosition get_kv_axes(const std::string& model_type) {
-    KVAxesPosition axes;
-    if (model_type == "chatglm") {
-        axes.batch = 1u;
-        axes.seq_len = 0u;
-    } else if (model_type == "qwen") {
-        // Note, qwen2 does not fall into this category and conforms to default layout
-        axes.batch = 0u;
-        axes.seq_len = 1u;
-    } else {
-        axes.batch = 0u;
-        axes.seq_len = 2u;
-    }
-    return axes;
-}
-
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "group_size"};
     if (!model->has_rt_info(rt_info_path)) {
@@ -313,12 +297,29 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles;
+    bool compiler_dq;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const ov::Any arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{});
-    const ov::Any max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{});
-    return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
+    const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+
+    bool compiler_dq = false;
+    const auto device_caps =
+        plugin->get_property(ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
+    if (std::find(device_caps.begin(), device_caps.end(), "COMPILER_DYNAMIC_QUANTIZATION") != device_caps.end()) {
+        compiler_dq = true;
+    }
+    return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
+}
+
+std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
+    if (auto it = config.find(option_name); it != config.end()) {
+        std::optional<ov::Any> found = std::make_optional(it->second);
+        config.erase(it);
+        return found;
+    }
+    return std::nullopt;
 }
 
 ov::AnyMap get_baseline_common_config() {
@@ -356,6 +357,9 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ_FULL", "NO");
+    }
     return config;
 }
 
@@ -370,6 +374,12 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
     config.emplace("NPUW_DQ", "YES");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_DPU_GROUPS", 4);
+    }
+    if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
+        config.emplace("NPUW_UNFOLD_IREQS", "YES");
+    }
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ_FULL", "NO");
     }
     return config;
 }
@@ -418,6 +428,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     std::map<std::string, ov::Any> npuw_llm_props;
     std::map<std::string, ov::Any> other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
+
+    // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
+    // to not pass them into ::intel_npu::Config object, as we don't need to
+    // preserve them somewhere.
+    auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+
     m_cfg.update(any_copy(npuw_llm_props));
 
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
@@ -428,19 +445,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
-    const ::intel_npu::npuw::llm::ModelDesc model_desc = m_cfg.get<::intel_npu::NPUW_LLM_MODEL_DESC>();
-    const uint32_t kMaxPromptLen = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
-    const uint32_t kMinResponseLen = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
-    KVAxesPosition axes = get_kv_axes(model_desc.type);
-    m_kvcache_desc = KVCacheDesc{kMaxPromptLen, kMaxPromptLen + kMinResponseLen, 0u, axes.seq_len};
+    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
+    KVAxesPosition axes{batch_dim, seq_len_dim};
+    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+
+    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
     LOG_DEBUG("6.Check and apply opt layout if applicable.");
+
+    const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     // NB: Try to apply opt transpose only for Llama-2-7b-chat-hf model
-    if (model_desc.name_or_path == "meta-llama/Llama-2-7b-chat-hf" ||
-        (model_desc.type == "llama" && model_desc.num_key_value_heads == 32)) {
+    if (optimize_v_tensors) {
         if (optimize_value_tensors(kvcache_model)) {
             // NB: Check if TransposeValueTensors transformation was applied
             m_kvcache_desc.v_tensors_transposed = true;
@@ -455,20 +475,32 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
-    ov::AnyMap properties_copy = other_props;
-    auto prefill_config = get_default_prefill_config(model, npudesc);
+    auto prefill_config =
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
-    // NB: GENERATE_HINT is only applicable for default generate config!
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    LOG_DEBUG(
-        "10. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
-    auto generate_config = get_default_generate_config(model, npudesc, generate_hint);
+    LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
+    // NB: GENERATE_HINT is only applicable for default generate config!
+    if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
+        OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
+    }
+    auto generate_config =
+        generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
+            .as<ov::AnyMap>();
 
-    merge_config_with(prefill_config, properties_copy);
-    merge_config_with(generate_config, properties_copy);
+    merge_config_with(prefill_config, other_props);
+    merge_config_with(generate_config, other_props);
 
-    m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
-    m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
+    m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
+    OPENVINO_ASSERT(m_kvcache_compiled,
+                    "Can't create ov::npuw::CompiledModel for passed kvcache "
+                    "model and its config, please check passed config.");
+    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+    OPENVINO_ASSERT(m_prefill_compiled,
+                    "Can't create ov::npuw::CompiledModel for passed prefill "
+                    "model and its config, please check passed config.");
 
     implement_properties();
     LOG_DEBUG("Done");
@@ -488,6 +520,11 @@ void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
+    if (name == ov::intel_npu::npuw::llm::prefill_config.name() ||
+        name == ov::intel_npu::npuw::llm::generate_config.name()) {
+        OPENVINO_THROW(name, " is write-only option!");
+    }
+
     auto&& configIterator = m_prop_to_opt.find(name);
     if (configIterator != m_prop_to_opt.cend()) {
         return std::get<1>(configIterator->second)(m_cfg);
@@ -504,7 +541,7 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr, m_kvcache_desc);
+    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
@@ -518,9 +555,11 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
     }
 
     m_prop_to_opt.insert({BIND(npuw::llm::enabled, NPUW_LLM, get),
-                          BIND(npuw::llm::model_desc, NPUW_LLM_MODEL_DESC, getString),
+                          BIND(npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM, get),
+                          BIND(npuw::llm::batch_dim, NPUW_LLM_SEQ_LEN_DIM, get),
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
+                          BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }

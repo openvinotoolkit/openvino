@@ -1558,30 +1558,62 @@ void program_node::create_onednn_primitive_attributes(
         } else if (desc.is_type<eltwise>()) {
             auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_input_layout(dep_idx);
-            auto in_origin = in;
-            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
-                if (is_type<fully_connected>()) {
-                    auto prim = this->as<fully_connected>().get_primitive();
-                    if (prim->input_size == 3) {
-                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+            auto fc_needs_full_tensor = [&]() {
+                for (size_t i = 0; i < cldnn_post_ops.size(); i++) {
+                    auto& desc = cldnn_post_ops[i];
+                    if (desc.is_type<eltwise>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        auto dep_idx = desc.outer_dep_start_idx;
+                        auto in = get_input_layout(dep_idx);
+                        if (prim->input_size == 3 && in.batch() > 1 && in.feature() > 1)
+                            return true;
                     }
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                            mem_desc.get_dims(), mem_desc.get_data_type());
-                } else if (is_type<gemm>()) {
+                }
+                return false;
+            };
+            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
+                if (is_type<fully_connected>() || is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
-                    if (ones_to_add > 0) {
-                        layout new_layout = in;
-                        ov::PartialShape new_input_pshape;
-                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
-                        new_input_pshape = ov::PartialShape(dims);
-                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
-                        new_layout.set_partial_shape(new_input_pshape);
-                        in = new_layout;
+                    size_t ones_to_add = 0;
+
+                    if (is_type<fully_connected>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        if (prim->input_size == in_pshape.size()) {
+                            if (prim->input_size == 3 && !fc_needs_full_tensor()) {
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                                in_pshape = in.get_partial_shape();
+                            }
+                            ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        } else {
+                            if (prim->input_size == 3)
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                            ones_to_add = std::max(in_pshape.size(), prim->input_size) - std::min(in_pshape.size(), prim->input_size);
+                        }
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            auto last = in_pshape.begin() + in_pshape.size();
+                            if (in_pshape.size() > prim->input_size)
+                                last -= ones_to_add;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), last);
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
+                    } else {
+                        ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
                     }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
