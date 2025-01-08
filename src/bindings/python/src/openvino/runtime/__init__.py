@@ -45,6 +45,7 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
 
 # Import opsets
+from openvino.runtime import op
 from openvino.runtime import opset1
 from openvino.runtime import opset2
 from openvino.runtime import opset3
