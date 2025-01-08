@@ -41,7 +41,7 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ov::pass::
 
     const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const bool updatePrecision = isPrecisionPreserved(pooling);
-    const auto newOperation = moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), updatePrecision);
+    const auto newOperation = moveDequantizationAfter(pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions), updatePrecision);
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

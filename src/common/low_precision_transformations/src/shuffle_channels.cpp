@@ -73,7 +73,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
     replace_node(dequantization.multiplyConstant, shuffledMulConst);
     dequantization.multiplyConstant = shuffledMulConst;
 
-    const auto newOperation = moveDequantizationAfter(context, shuffleChannels, dequantization);
+    const auto newOperation = moveDequantizationAfter(shuffleChannels, dequantization);
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

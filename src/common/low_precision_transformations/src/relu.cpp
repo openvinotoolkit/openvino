@@ -43,7 +43,7 @@ bool ReluTransformation::transform(TransformationContext& context, ov::pass::pat
 
     relu = NetworkHelper::separateInStandaloneBranch(relu, defaultPrecisions);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, defaultPrecisions, 0);
-    const auto newOperation = moveDequantizationAfter(context, relu, dequantization);
+    const auto newOperation = moveDequantizationAfter(relu, dequantization);
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

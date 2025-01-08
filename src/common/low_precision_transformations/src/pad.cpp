@@ -164,7 +164,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     const auto convertedZero = ov::opset1::Constant::create(dequantization.data.get_element_type(), Shape{}, { padConstantValue });
     pad->set_argument(3, convertedZero);
 
-    const auto newOperation = moveDequantizationAfter(context, pad, dequantization);
+    const auto newOperation = moveDequantizationAfter(pad, dequantization);
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

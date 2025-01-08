@@ -91,7 +91,7 @@ bool TransposeTransformation::transform(TransformationContext& context, ov::pass
 
     transpose = NetworkHelper::separateInStandaloneBranch(transpose, defaultPrecisions);
     transposeDequantizationConstant(transpose, defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0));
+    const auto newOperation = moveDequantizationAfter(transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

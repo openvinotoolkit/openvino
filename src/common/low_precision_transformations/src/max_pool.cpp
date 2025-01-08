@@ -57,7 +57,7 @@ bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::
     }
 
     const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

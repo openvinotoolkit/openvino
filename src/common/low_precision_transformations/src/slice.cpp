@@ -39,7 +39,7 @@ bool SliceTransformation::transform(TransformationContext& context, ov::pass::pa
     }
 
     const auto strided_slice = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

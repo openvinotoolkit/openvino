@@ -158,7 +158,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::
 
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
     reshapeDequantizationConstant(reshape, defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
+    const auto newOperation = moveDequantizationAfter(reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

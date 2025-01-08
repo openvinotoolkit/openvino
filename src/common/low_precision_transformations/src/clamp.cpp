@@ -45,7 +45,7 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
         return false;
     }
 
-    const auto newClamp = ov::as_type_ptr<ov::opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
+    const auto newClamp = ov::as_type_ptr<ov::opset1::Clamp>(moveDequantizationAfter(clamp, dequantization, false, moveSubtract));
 
     std::shared_ptr<ov::opset1::Clamp> replacement;
     {

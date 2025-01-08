@@ -132,7 +132,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ov::p
     replace_node(dequantization.multiplyConstant, new_mul_const);
     dequantization.multiplyConstant = new_mul_const;
 
-    const auto newOperation = moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

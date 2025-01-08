@@ -126,7 +126,7 @@ void RecurrentCellTransformation::propagate(TransformationContext& context, cons
     if (dequantization.empty()) {
         return;
     }
-    const auto& new_node = moveDequantizationAfter(context, normalized_node, dequantization);
+    const auto& new_node = moveDequantizationAfter(normalized_node, dequantization);
 
     const auto& new_dequantization = NetworkHelper::getDequantizationBelow(new_node);
     if (new_dequantization.empty()) {

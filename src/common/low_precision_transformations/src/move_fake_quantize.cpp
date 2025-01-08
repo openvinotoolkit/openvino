@@ -156,7 +156,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     newConcat->set_friendly_name(concat->get_friendly_name());
     NetworkHelper::copyInfo(concat, newConcat);
     if (!dequantization.empty()) {
-        moveDequantizationBefore(context, newConcat, dequantization);
+        moveDequantizationBefore(newConcat, dequantization);
         return true;
     }
     replace_node(fq, newConcat);

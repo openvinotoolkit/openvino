@@ -68,7 +68,7 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ov::pass
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    const auto newOperation = moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;

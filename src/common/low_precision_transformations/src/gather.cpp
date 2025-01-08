@@ -120,7 +120,7 @@ bool GatherTransformation::transform(TransformationContext& context, ov::pass::p
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    const auto newOperation = moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
