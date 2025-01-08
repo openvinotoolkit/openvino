@@ -23,6 +23,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "low_precision/multiply_partial.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -118,6 +119,32 @@ TEST_F(TransformationTestsF, ConcatTransformationTest) {
         auto new_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(concat, new_scale_const);
         auto convert = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
+        auto result = std::make_shared<ov::op::v0::Result>(convert);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
+    }
+}
+
+TEST_F(TransformationTestsF, MulMulTransformationTest) {
+    {
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
+        auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
+        auto mul0 = std::make_shared<ov::op::v1::Multiply>(input0, scale_const0);
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(input1, mul0);
+        auto convert = std::make_shared<ov::op::v0::Convert>(mul1, ov::element::f32);
+        auto result = std::make_shared<ov::op::v0::Result>(convert);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
+        manager.register_pass<ov::pass::activations_scaling::MulMulTransformation>();
+    }
+    {
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
+        auto mul0 = std::make_shared<ov::op::v1::Multiply>(input0, input1);
+        auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(mul0, scale_const0);
+        auto convert = std::make_shared<ov::op::v0::Convert>(mul1, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});

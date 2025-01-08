@@ -65,7 +65,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m), "Not found any Convolution or MatMul layer");
+        OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m),
+                        "Not found any Convolution or MatMul layer");
 
         auto insert_scale_down_layer = [&scale_factor, &scaled_prec](std::shared_ptr<ov::Node>& node,
                                                                      const size_t input_idx,
