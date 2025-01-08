@@ -760,12 +760,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     ov::AnyMap localProperties = properties;
     if (localProperties.count(useNpuwKey) && localProperties.at(useNpuwKey).as<bool>() == true) {
         auto llm_enabled = ov::intel_npu::npuw::llm::enabled.name();
-        // Only dynamic statefull models are supported for now supported
+        // Only dynamic stateful models are supported for now supported
         if (!localProperties.count(llm_enabled) || localProperties.at(llm_enabled).as<bool>() == false) {
             OPENVINO_THROW("Cannot import non-dynamic NPUW model!");
         }
         return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), localProperties);
     }
+
+    // If was exported via NPUW
+    uint64_t serialization_indicator;
+    stream.read(reinterpret_cast<char*>(&serialization_indicator), sizeof serialization_indicator);
+    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        stream.seekg(0);
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), localProperties);
+    }
+    stream.seekg(0);
 
     // Drop NPUW properties if there are any
     ov::AnyMap npu_plugin_properties;

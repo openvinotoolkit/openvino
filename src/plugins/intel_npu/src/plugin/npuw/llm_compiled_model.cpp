@@ -16,8 +16,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "serialization.hpp"
 
-const constexpr uint64_t SERIALIZATION_INDICATOR = 0x0123456789abcdef;
-
 const constexpr char* npuw_name_identifier = "NPUW_serialized_";
 
 namespace opp = ov::pass::pattern;
@@ -514,7 +512,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     // Sanity check magic number
     uint64_t serialization_indicator = 0;
     read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 
     // Deserialize general meta info
     int vmajor, vminor, vpatch;
@@ -622,7 +620,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
 
     // Serialize magic number first
-    write(stream, SERIALIZATION_INDICATOR);
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
 
     // Serialize general meta info
     write(stream, OPENVINO_VERSION_MAJOR);

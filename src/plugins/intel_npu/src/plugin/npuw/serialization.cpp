@@ -7,6 +7,10 @@
 #include "intel_npu/config/config.hpp"
 #include "spatial.hpp"
 
+void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
 void ov::npuw::s11n::write(std::ostream& stream, const std::string& var) {
     auto var_size = var.size();
     stream.write(reinterpret_cast<const char*>(&var_size), sizeof var_size);
@@ -48,6 +52,10 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
     write(stream, var.toString());
+}
+
+void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::string& var) {

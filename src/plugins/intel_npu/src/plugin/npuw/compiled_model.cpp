@@ -500,9 +500,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
                                                            const std::string& device) const {
     using namespace ov::npuw::s11n;
 
-    static std::string filename = "/home/alexeysm/npuw/tmp_subs/";
-    static std::size_t fid = 0;
-
     LOG_DEBUG("Serializing CompiledModelDesc...");
     LOG_BLOCK();
 
@@ -510,15 +507,15 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, device);
 
     write(stream, replaced_by);
-    // FIXME: is this check enough? E.g. what about FUNCALL_FOR_ALL?
+    // FIXME: is this check enough?
     if (replaced_by == idx) {
         NPUW_ASSERT(compiled_model);
-        // !!! FIXME: for some reason cannot import anything after the first submodel
-        // if it's in the same stream
-        std::ofstream fout(filename + "openvino_model" + std::to_string(fid++) + ".blob",
-                           std::ios::out | std::ios::binary);
-        compiled_model->export_model(fout);
+        // FIXME: workaround for import/export model since import model seem to reset the file pointer
+        std::stringstream ss;
+        compiled_model->export_model(ss);
+        write(stream, ss.str());
     }
+
     write(stream, param_base);
     write(stream, forced_to_fcall);
 
@@ -561,9 +558,6 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     const ov::AnyMap& properties) {
     using namespace ov::npuw::s11n;
 
-    static std::string filename = "/home/alexeysm/npuw/tmp_subs/";
-    static std::size_t fid = 0;
-
     LOG_DEBUG("Deserializing CompiledModelDesc...");
     LOG_BLOCK();
 
@@ -573,16 +567,21 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     read(stream, device);
     NPUW_ASSERT(device == "CPU" || device == "NPU");
     read(stream, desc.replaced_by);
-    // FIXME: will this check work w/o FUNCALL_FORALL?
+    // FIXME: is this check enough?
     if (desc.replaced_by == idx) {
         // Import model from either NPU or CPU plugin
-        // !!! FIXME: for some reason cannot import anything after the first submodel
-        // if it's in the same stream
-        std::ifstream fin(filename + "openvino_model" + std::to_string(fid++) + ".blob",
-                          std::ios::in | std::ios::binary);
+        // FIXME: workaround for import/export model since import model seems to reset the file pointer
+        std::string buf;
+        read(stream, buf);
+
+        // FIXME: extra copy
+        std::stringstream buffer;
+        buffer.write(&buf[0], buf.size());
+
         // No NPUW properties are present in this config
-        desc.compiled_model = plugin->get_core()->import_model(fin, device, properties);
+        desc.compiled_model = plugin->get_core()->import_model(buffer, device, properties);
     }
+
     read(stream, desc.param_base);
     read(stream, desc.forced_to_fcall);
 
