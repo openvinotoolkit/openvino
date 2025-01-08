@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
+#include "../utils.hpp"
 #include <memory>
 #include "openvino/op/ops.hpp"
+#include "strided_slice_shape_inference.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -95,6 +97,9 @@ TEST_P(StridedSliceCpuShapeInferenceTest , shape_inference_in_const_map) {
     auto output_axis = output_shapes[0].to_shape().size();
     op->set_output_type(0, element::i32, std::vector<int64_t>(output_axis, -1));
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
+    // only test if it has same result as ngraph shapeinfer, will remove it in offical PR
+    auto ngraph_shapeinfer_output_shapes = ov::intel_cpu::shape_inference(op.get(), input_shapes, constant_data);
+    ASSERT_EQ(ngraph_shapeinfer_output_shapes[0], StaticShape(output_shapes[0]));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -123,6 +128,24 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{3, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
                       std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 1, 1, 0}, std::vector<int64_t>{},
                       StaticShape({3, 1, 1, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 1, 0, 1}, std::vector<int64_t>{1, 0, 1, 0, 1}, std::vector<int64_t>{0, 1, 0, 1, 0}, std::vector<int64_t>{},
+                      StaticShape({3, 1, 2, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 0, 1, 0},
+                      std::vector<int64_t>{0, 0, 1, 0, 0},
+                      StaticShape({3, 1, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 2, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 1, 0, 0},
+                      std::vector<int64_t>{0, 0, 0, 1, 1},
+                      StaticShape({3, 1, 1})),
+           make_tuple(unit_test::ShapeVector{{3, 192}, {5}, {5}, {5}}, std::vector<std::vector<int32_t>>{{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}},
+                      std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{1, 0, 0, 0, 1}, std::vector<int64_t>{0, 1, 1, 1, 0},
+                      std::vector<int64_t>{0, 1, 1, 1, 0},
+                      StaticShape({3, 1, 1, 1, 192})),
+           make_tuple(unit_test::ShapeVector{{3, 192}, {2}, {2}, {2}}, std::vector<std::vector<int32_t>>{{0, 0}, {0, 0}, {1, 1}},
+                      std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 0}, std::vector<int64_t>{1, 0},
+                      StaticShape({192})),
            make_tuple(unit_test::ShapeVector{{1, 2, 3}, {2}, {2}, {2}}, std::vector<std::vector<int32_t>>{{0, 0}, {0, 0}, {1, 1}},
                       std::vector<int64_t>{1, 0}, std::vector<int64_t>{1, 0}, std::vector<int64_t>{0, 1}, std::vector<int64_t>{0, 0},
                       StaticShape({1, 1, 2, 3}))),

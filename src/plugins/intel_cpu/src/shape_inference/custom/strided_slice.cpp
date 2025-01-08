@@ -56,25 +56,52 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         }
     };
 
-    for (size_t in_idx = 0, out_idx = 0; in_idx < shapeIn.size(); ++in_idx) {
-        if (m_new_axis_mask_set.count(in_idx)) {
-            // deal with new_axis_mask
+    // for (size_t in_idx = 0, out_idx = 0; in_idx < shapeIn.size(); ++in_idx) {
+    //     if (m_new_axis_mask_set.count(in_idx)) {
+    //         // deal with new_axis_mask
+    //         m_outputShape[out_idx] = 1;
+    //         out_idx++;
+    //         // deal with continuous new_axis_mask
+    //         while (m_new_axis_mask_set.count(out_idx)) {
+    //             m_outputShape[out_idx] = 1;
+    //             out_idx++;
+    //         }
+    //         // deal with current axis
+    //         m_outputShape[out_idx] = gen_new_sliced_value(out_idx, in_idx);
+    //         out_idx++;
+    //     } else if (!m_shrink_axis_mask_set.count(in_idx)) {
+    //         // deal with begin_mask and end_mask
+    //         m_outputShape[out_idx] = gen_new_sliced_value(in_idx, in_idx);
+    //         out_idx++;
+    //     }
+    // }
+    const auto shapeInSize = shapeIn.size();
+    const auto newAxisMasksize = m_new_axis_mask_set.size();
+    const auto maxAxisSize = shapeInSize + newAxisMasksize;
+    const auto outputShapeSize = m_outputShape.size();
+    bool newAxis = false;
+    bool shrinkAxis = false;
+    for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
+         axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
+         axis_idx++) {
+        newAxis = m_new_axis_mask_set.count(axis_idx);
+        shrinkAxis = m_shrink_axis_mask_set.count(axis_idx);
+        if (shrinkAxis && newAxis) {
+            // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer
             m_outputShape[out_idx] = 1;
             out_idx++;
-            // deal with continuous new_axis_mask
-            while (m_new_axis_mask_set.count(out_idx)) {
-                m_outputShape[out_idx] = 1;
-                out_idx++;
-            }
-            // deal with current axis
-            m_outputShape[out_idx] = gen_new_sliced_value(out_idx, in_idx);
+        } else if (shrinkAxis) {
+            in_idx++;
+        } else if (newAxis) {
+            m_outputShape[out_idx] = 1;
             out_idx++;
-        } else if (!m_shrink_axis_mask_set.count(in_idx)) {
-            // deal with begin_mask and end_mask
-            m_outputShape[out_idx] = gen_new_sliced_value(in_idx, in_idx);
+        } else {
+            m_outputShape[out_idx] = gen_new_sliced_value(axis_idx, in_idx);
+            in_idx++;
             out_idx++;
         }
     }
+
     return {{m_outputShape}, ShapeInferStatus::success};
 }
 
