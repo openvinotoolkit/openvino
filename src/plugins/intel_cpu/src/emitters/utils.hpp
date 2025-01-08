@@ -6,9 +6,9 @@
 
 #include <string>
 
+#include "libxsmm.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "libxsmm.h"
 
 namespace ov::intel_cpu {
 
@@ -25,14 +25,19 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func);
 
 inline libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
     switch (elemet_type) {
-        case ov::element::Type_t::f32 : return LIBXSMM_DATATYPE_F32;
-        case ov::element::Type_t::bf16 : return LIBXSMM_DATATYPE_BF16;
-        case ov::element::Type_t::f16 : return LIBXSMM_DATATYPE_F16;
-        case ov::element::Type_t::i8 : return LIBXSMM_DATATYPE_I8;
-        case ov::element::Type_t::u8 : return LIBXSMM_DATATYPE_U8;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Attempt to convert unsupported ov data type");
-            return LIBXSMM_DATATYPE_IMPLICIT;
+    case ov::element::Type_t::f32:
+        return LIBXSMM_DATATYPE_F32;
+    case ov::element::Type_t::bf16:
+        return LIBXSMM_DATATYPE_BF16;
+    case ov::element::Type_t::f16:
+        return LIBXSMM_DATATYPE_F16;
+    case ov::element::Type_t::i8:
+        return LIBXSMM_DATATYPE_I8;
+    case ov::element::Type_t::u8:
+        return LIBXSMM_DATATYPE_U8;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Attempt to convert unsupported ov data type");
+        return LIBXSMM_DATATYPE_IMPLICIT;
     }
 }
 

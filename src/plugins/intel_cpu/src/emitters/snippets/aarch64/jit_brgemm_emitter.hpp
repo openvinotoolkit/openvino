@@ -20,14 +20,13 @@ public:
                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
 
     size_t get_inputs_count() const override {
-        return m_memory_offsets.size() - 1;
+        return 2;
     }
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
-    void emit_code(const std::vector<size_t> &in,
-                   const std::vector<size_t> &out) const;
+    void emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
 private:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
@@ -36,11 +35,6 @@ private:
     const uintptr_t get_execute_function_ptr() const;
     const uintptr_t get_compiled_kernel_ptr() const;
 
-    // Note: offsets order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if offset is calculated in
-    // runtime
-    std::vector<size_t> m_memory_offsets{};
-    // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
-    std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmKernelExecutor> m_kernel_executor = nullptr;
 };
 

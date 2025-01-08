@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "cpu/aarch64/jit_generator.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
+#include "cache/multi_cache.h"
 
 namespace ov::intel_cpu::aarch64 {
 

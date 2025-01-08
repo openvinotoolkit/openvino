@@ -4,12 +4,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include "emitters/plugin/x64/utils.hpp"
-#include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
-#include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
 
 using namespace Xbyak_aarch64;
@@ -33,13 +28,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, isa);
-    m_kernel_executor =
-        kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
-    // Note: Brgemm currently supports only fp32
+    // Note: Brgemm currently supports only fp32 on arm
     return {{element::f32, element::f32}};
 }
 
@@ -48,7 +42,7 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got" + std::to_string(out.size()));
 }
 
-void jit_brgemm_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_brgemm_emitter::emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
@@ -60,7 +54,6 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
     Xbyak_aarch64::XReg func_reg(9);
     h->mov(func_reg, get_execute_function_ptr());
-
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
     Xbyak_aarch64::XReg x2(2);

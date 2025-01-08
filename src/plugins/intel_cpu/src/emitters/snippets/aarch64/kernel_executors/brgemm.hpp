@@ -4,18 +4,10 @@
 
 #pragma once
 
-#include <cpu/x64/brgemm/brgemm.hpp>
-#include "libxsmm.h"
-
 #include "cpu/aarch64/cpu_isa_traits.hpp"
-#include "emitters/plugin/aarch64/jit_emitter.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
-// #include "emitters/snippets/jit_snippets_call_args.hpp"
-// #include "openvino/core/type/element_type.hpp"
-// #include "snippets/lowered/loop_info.hpp"
-// #include "snippets/lowered/loop_manager.hpp"
+#include "emitters/snippets/brgemm_base.hpp"
 #include "emitters/utils.hpp"
-#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "libxsmm.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,9 +15,10 @@ namespace aarch64 {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
-    BrgemmKernelConfig(const element::Type& in0_dtype,
-                       const element::Type& in1_dtype,
-                       dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa = dnnl::impl::cpu::aarch64::cpu_isa_t::isa_undef);
+    BrgemmKernelConfig(
+        const element::Type& in0_dtype,
+        const element::Type& in1_dtype,
+        dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa = dnnl::impl::cpu::aarch64::cpu_isa_t::isa_undef);
     BrgemmKernelConfig() = delete;
 
     std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
@@ -71,7 +64,7 @@ public:
     }
 
 private:
-    struct StaticParams : public StaticBaseParams{
+    struct StaticParams : public StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
                      dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa);
@@ -83,19 +76,19 @@ private:
         }
         size_t compute_hash(dnnl::impl::cpu::aarch64::cpu_isa_t aarch_isa);
 
-        dnnl::impl::cpu::aarch64::cpu_isa_t isa{dnnl::impl::cpu::aarch64::isa_undef};
+        dnnl::impl::cpu::aarch64::cpu_isa_t isa;
         libxsmm_datatype m_type_in0;
         libxsmm_datatype m_type_in1;
         libxsmm_datatype m_type_out0;
         libxsmm_datatype m_type_exec;
-        libxsmm_bitfield m_compile_flags {0};
-        const bool m_prefetching_flags{false};
+        libxsmm_bitfield m_compile_flags;
+        bool m_prefetching_flags;
     };
     std::shared_ptr<StaticBaseParams> get_static_params() const override {
         return m_static_params;
     }
 
-    libxsmm_bitfield m_compile_flags {0};
+    libxsmm_bitfield m_compile_flags{0};
     std::shared_ptr<StaticParams> m_static_params{nullptr};
 };
 
@@ -113,11 +106,11 @@ public:
     BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
     virtual ~BrgemmKernelExecutor() = default;
 
-    /** Function that will be called in runtime to execute the kernel */
+    // Function that will be called in runtime to execute the kernel
     static void execute(const BrgemmKernelExecutor* executor, void* in0, void* in1, void* out0);
 
 private:
-    std::shared_ptr<BrgemmTppCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const;
+    std::shared_ptr<BrgemmTppCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
 
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,

@@ -3,13 +3,11 @@
 //
 
 #include "brgemm.hpp"
+
 #include "transformations/tpp/x64/op/brgemm.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
-
-#define HASH(X)       seed = hash_combine(seed, X)
 
 namespace ov {
 namespace intel_cpu {
@@ -28,45 +26,37 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
                                        dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa)
     : BrgemmBaseKernelConfig(),
-      m_static_params(
-          std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
     m_hash = compute_hash();
 }
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                const element::Type& in1_dtype,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype, in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t::isa_undef, compute_hash(primitive_isa)),
-      m_prefetching_flags(false),
-      isa(primitive_isa) {
-        m_type_in0 = ov_to_xsmm_dtype(in0_dtype);
-        m_type_in1 = ov_to_xsmm_dtype(in1_dtype);
-        m_type_exec = LIBXSMM_DATATYPE_F32;
-        m_type_out0 = LIBXSMM_DATATYPE_F32;
-        m_compile_flags = LIBXSMM_GEMM_FLAGS('N', 'N');
-      }
+    : StaticBaseParams(in0_dtype, in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t::isa_undef, compute_hash(primitive_isa)) {
+    m_type_in0 = ov_to_xsmm_dtype(in0_dtype);
+    m_type_in1 = ov_to_xsmm_dtype(in1_dtype);
+    m_type_exec = LIBXSMM_DATATYPE_F32;
+    m_type_out0 = LIBXSMM_DATATYPE_F32;
+    m_compile_flags = LIBXSMM_GEMM_FLAGS('N', 'N');
+    m_prefetching_flags = false;
+    isa = primitive_isa;
+}
 
 size_t BrgemmKernelConfig::StaticParams::compute_hash(dnnl::impl::cpu::aarch64::cpu_isa_t aarch_isa) {
     return hash_combine(0, aarch_isa);
 }
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
-    return StaticBaseParams::operator==(rhs) &&
-           isa == rhs.isa &&
-           m_type_in0 == rhs.m_type_in0 &&
-           m_type_in1 == rhs.m_type_in1 &&
-           m_type_exec == rhs.m_type_exec &&
-           m_type_out0 == rhs.m_type_out0 &&
-           m_compile_flags == rhs.m_compile_flags &&
-           m_prefetching_flags == rhs.m_prefetching_flags;
+    return StaticBaseParams::operator==(rhs) && isa == rhs.isa && m_type_in0 == rhs.m_type_in0 &&
+           m_type_in1 == rhs.m_type_in1 && m_type_exec == rhs.m_type_exec && m_type_out0 == rhs.m_type_out0 &&
+           m_compile_flags == rhs.m_compile_flags && m_prefetching_flags == rhs.m_prefetching_flags;
 }
 
-BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache,
-                                           BrgemmKernelConfig config)
+BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config)
     : CPUKernelExecutor<BrgemmKernelConfig, BrgemmTppCompiledKernel>(std::move(kernel_cache), std::move(config)) {}
 
-std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(
-    const BrgemmKernelConfig& config) const {
+std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(const BrgemmKernelConfig& config) const {
     std::shared_ptr<BrgemmTppCompiledKernel> compiled_kernel = std::make_shared<BrgemmTppCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
@@ -84,8 +74,8 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(
                                                            config.get_type_out0(),
                                                            config.get_type_exec());
     const auto& compile_flag = config.get_compile_flags();
-    auto refreshed_compile_flag = config.get_beta() == 0 ? config.get_compile_flags() | LIBXSMM_GEMM_FLAG_BETA_0 :
-                                                           compile_flag;
+    auto refreshed_compile_flag =
+        config.get_beta() == 0 ? config.get_compile_flags() | LIBXSMM_GEMM_FLAG_BETA_0 : compile_flag;
     compiled_kernel->brgemm_kernel = std::make_shared<libxsmm_gemmfunction>(COMPILE_BRGEMM_TPP_KERNEL(
         libxsmm_dispatch_gemm(m_shape, refreshed_compile_flag, config.get_prefetching_flags())));
 
@@ -119,7 +109,13 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
             replace_full_dim(tpp_mod->get_output_stride(i), expr->get_output_port_descriptor(i)->get_shape().back());
     }
 
-    config.update(config.get_M(), config.get_N(), config.get_K(), io_strides[0], io_strides[1], io_strides[2], config.get_beta());
+    config.update(config.get_M(),
+                  config.get_N(),
+                  config.get_K(),
+                  io_strides[0],
+                  io_strides[1],
+                  io_strides[2],
+                  config.get_beta());
     // update compile flag, which is depend on beta. should be part of hash.
     config.set_compile_flags(config.get_beta() == 0);
 }

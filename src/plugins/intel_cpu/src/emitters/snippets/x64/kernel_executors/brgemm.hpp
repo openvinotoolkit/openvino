@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "brgemm_base.hpp"
+#include "emitters/snippets/brgemm_base.hpp"
 
 namespace ov::intel_cpu {
 
