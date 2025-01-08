@@ -777,6 +777,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         compiled->m_compiled_submodels.push_back(desc);
     }
 
+    compiled->implement_properties();
+    compiled->report_io();
+
     LOG_INFO("Done.");
 
     return compiled;

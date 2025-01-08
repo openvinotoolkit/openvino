@@ -15,6 +15,11 @@
 
 #include "logging.hpp"
 
+// Forward declaration
+namespace intel_npu {
+class Config;
+}  // namespace intel_npu
+
 namespace ov {
 namespace npuw {
 
@@ -30,11 +35,13 @@ void write(std::ostream& stream, const std::string& var);
 void write(std::ostream& stream, const bool& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
 void write(std::ostream& stream, const ov::Tensor& var);
+void write(std::ostream& stream, const ::intel_npu::Config& var);
 
 void read(std::istream& stream, std::string& var);
 void read(std::istream& stream, bool& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
 void read(std::istream& stream, ov::Tensor& var);
+void read(std::istream& stream, ::intel_npu::Config& var);
 
 // Forward declaration
 template <typename T1, typename T2>

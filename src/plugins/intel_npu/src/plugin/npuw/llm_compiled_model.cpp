@@ -593,8 +593,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, other_props);
     compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, other_props);
 
+    // Deserialize configs
+    read(stream, compiled->m_kvcache_compiled->m_cfg);
+    read(stream, compiled->m_prefill_compiled->m_cfg);
+
     // Deserialize weights bank (if required)
     auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core());
+
     // FIXME: support weightless option
     compiled->m_kvcache_compiled->m_weights_bank = bank;
     compiled->m_prefill_compiled->m_weights_bank = bank;
@@ -604,7 +609,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     compiled->m_prefill_compiled->reconstruct_closure();
 
     // FIXME: is it required for LLMCompiledModel or CompiledModel ???
-    // compiled->implement_properties();
+    compiled->implement_properties();
 
     LOG_INFO("Done.");
     return compiled;
@@ -654,6 +659,10 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     // Serialize CompiledModels
     m_kvcache_compiled->serialize(stream);
     m_prefill_compiled->serialize(stream);
+
+    // Serialize configs
+    write(stream, m_kvcache_compiled->m_cfg);
+    write(stream, m_prefill_compiled->m_cfg);
 
     // Serialize weights bank (if required)
     const auto& kv_bank = m_kvcache_compiled->m_weights_bank;

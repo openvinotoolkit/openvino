@@ -4,6 +4,7 @@
 
 #include "serialization.hpp"
 
+#include "intel_npu/config/config.hpp"
 #include "spatial.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::string& var) {
@@ -43,6 +44,10 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     }
     write(stream, var.get_byte_size());
     stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
+    write(stream, var.toString());
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::string& var) {
@@ -98,4 +103,31 @@ void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
     auto tmp = ov::Tensor(type, shape, vec.data(), strides);
     var = ov::Tensor(type, shape);
     tmp.copy_to(var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ::intel_npu::Config& var) {
+    std::string str_cfg;
+    read(stream, str_cfg);
+
+    // Parse cfg from string
+    std::map<std::string, std::string> config;
+
+    size_t pos = 0;
+    std::string token, key, value;
+    while ((pos = str_cfg.find(' ')) != std::string::npos) {
+        token = str_cfg.substr(0, pos);
+        auto pos_eq = token.find('=');
+        key = token.substr(0, pos_eq);
+        value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
+        config[key] = value;
+        str_cfg.erase(0, pos + 1);
+    }
+
+    // Process tail
+    auto pos_eq = str_cfg.find('=');
+    key = str_cfg.substr(0, pos_eq);
+    value = str_cfg.substr(pos_eq + 2, str_cfg.size() - pos_eq - 3);
+    config[key] = value;
+
+    var.update(config);
 }
