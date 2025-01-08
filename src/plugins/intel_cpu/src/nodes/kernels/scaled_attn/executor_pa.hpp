@@ -17,7 +17,11 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type, ov::element::Type kvcache_type);
+std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
+                                                         ov::element::Type key_cache_type,
+                                                         ov::element::Type value_cache_type,
+                                                         size_t key_group_size,
+                                                         size_t value_group_size);
 
 }  // namespace XARCH
 }  // namespace Cpu

@@ -8,6 +8,7 @@
 
 #include "common/utils.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 namespace ov {
@@ -2128,7 +2129,7 @@ size_t jit_prelu_emitter::get_aux_vecs_count() const {
 
 std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32, element::f32}};
 }
 
 void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
