@@ -61,6 +61,11 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
             // deal with new_axis_mask
             m_outputShape[out_idx] = 1;
             out_idx++;
+            // deal with continuous new_axis_mask
+            while (m_new_axis_mask_set.count(out_idx)) {
+                m_outputShape[out_idx] = 1;
+                out_idx++;
+            }
             // deal with current axis
             m_outputShape[out_idx] = gen_new_sliced_value(out_idx, in_idx);
             out_idx++;
