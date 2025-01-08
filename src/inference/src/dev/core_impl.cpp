@@ -78,8 +78,8 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 }
 
 bool is_virtual_device(const std::string& device_name) {
-    return (device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos ||
-            device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
+    return (device_name.find("AUTO") == 0 || device_name.find("MULTI") == 0 || device_name.find("HETERO") == 0 ||
+            device_name.find("BATCH") == 0);
 };
 
 /**
