@@ -70,7 +70,7 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 
 bool FuseConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     const auto op = m.get_match_root();
-    if (!canBeTransformed(context, op)) {
+    if (!canBeTransformed(op)) {
         return false;
     }
 
@@ -114,8 +114,8 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ov::pa
     return true;
 }
 
-bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!CleanupTransformation::canBeTransformed(context, op)) {
+bool FuseConvertTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!CleanupTransformation::canBeTransformed(op)) {
         return false;
     }
 

@@ -104,7 +104,7 @@ GatherTransformation::GatherTransformation(const Params& params) : LayerTransfor
 
 bool GatherTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     auto node = m.get_match_root();
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -126,8 +126,8 @@ bool GatherTransformation::transform(TransformationContext& context, ov::pass::p
     return true;
 }
 
-bool GatherTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool GatherTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 

@@ -56,7 +56,7 @@ void LayerTransformation::setDefaultPrecisions(const std::vector<ov::element::Ty
     this->defaultPrecisions = defaultPrecisions;
 }
 
-bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool LayerTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     if (!isQuantized(layer, defaultPrecisions)) {
         return false;
     }

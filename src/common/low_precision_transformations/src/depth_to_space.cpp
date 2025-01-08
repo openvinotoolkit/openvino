@@ -27,8 +27,8 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
     this->register_matcher(m, callback);
 }
 
-bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool DepthToSpaceTransformation::canBeTransformed(const std::shared_ptr<ov::Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

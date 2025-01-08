@@ -34,7 +34,7 @@ SliceTransformation::SliceTransformation(const Params& params) : LayerTransforma
 }
 
 bool SliceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!SliceTransformation::canBeTransformed(context, m.get_match_root())) {
+    if (!SliceTransformation::canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -45,8 +45,8 @@ bool SliceTransformation::transform(TransformationContext& context, ov::pass::pa
     return true;
 }
 
-bool SliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool SliceTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 

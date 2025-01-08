@@ -152,7 +152,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::
         return false;
     }
 
-    if (!canBeTransformed(context, reshape)) {
+    if (!canBeTransformed(reshape)) {
         return false;
     }
 
@@ -188,8 +188,8 @@ inline size_t getFirstChangedDimension(const PartialShape& shape1, const Partial
     return i;
 }
 
-bool ReshapeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool ReshapeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

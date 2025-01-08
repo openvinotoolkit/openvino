@@ -49,7 +49,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
 }
 
 bool AssignAndReadValueTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -104,8 +104,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     return true;
 }
 
-bool AssignAndReadValueTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool AssignAndReadValueTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

@@ -51,7 +51,7 @@ namespace {
 } // namespace
 
 bool PadTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -170,7 +170,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     return true;
 }
 
-bool PadTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool PadTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(op)) {
         return false;
     }

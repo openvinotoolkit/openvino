@@ -16,7 +16,7 @@ using namespace ov::pass::low_precision;
 
 bool TransparentBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> op = m.get_match_root();
-    if (!canBeTransformed(context, op)) {
+    if (!canBeTransformed(op)) {
         return false;
     }
 
@@ -27,7 +27,7 @@ bool TransparentBaseTransformation::transform(TransformationContext& context, ov
     return true;
 }
 
-bool TransparentBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool TransparentBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     return true;
 }
 

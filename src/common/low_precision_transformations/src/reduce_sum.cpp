@@ -30,9 +30,9 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
     this->register_matcher(m, callback);
 }
 
-bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceSumTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
-    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
+    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(reduceSum)) {
         return false;
     }
 

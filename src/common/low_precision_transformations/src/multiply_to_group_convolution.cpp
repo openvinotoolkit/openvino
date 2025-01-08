@@ -33,7 +33,7 @@ MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformati
 
 bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 
@@ -142,8 +142,8 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
         return false;
     }
 

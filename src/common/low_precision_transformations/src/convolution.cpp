@@ -65,7 +65,7 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
 bool ConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    if (!canConvolutionBeTransformed(context, convolution, defaultPrecisions)) {
+    if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {
         const auto weightInput = convolution->get_input_node_shared_ptr(1);
         const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?

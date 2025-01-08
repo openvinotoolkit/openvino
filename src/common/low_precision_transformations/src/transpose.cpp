@@ -85,7 +85,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
 
 bool TransposeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();
-    if (!canBeTransformed(context, transpose)) {
+    if (!canBeTransformed(transpose)) {
         return false;
     }
 
@@ -101,8 +101,8 @@ bool TransposeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) con
     return true;
 }
 
-bool TransposeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool TransposeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

@@ -32,7 +32,7 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
 }
 
 bool SplitTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -154,7 +154,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
     return true;
 }
 
-bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool SplitTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
 }
 

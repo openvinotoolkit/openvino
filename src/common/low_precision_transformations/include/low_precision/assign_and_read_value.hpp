@@ -16,7 +16,7 @@ public:
     OPENVINO_RTTI("AssignAndReadValueTransformation", "0", LayerTransformation);
     AssignAndReadValueTransformation(const std::shared_ptr<ov::Model> model, const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 private:
     std::shared_ptr<ov::Model> model;

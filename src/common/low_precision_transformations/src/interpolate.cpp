@@ -58,7 +58,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
 
 bool InterpolateTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> interpolate = m.get_match_root();
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
@@ -84,8 +84,8 @@ bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
     return false;
 }
 
-bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool InterpolateTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

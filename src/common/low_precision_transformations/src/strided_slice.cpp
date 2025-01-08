@@ -115,7 +115,7 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
 }
 
 bool StridedSliceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!StridedSliceTransformation::canBeTransformed(context, m.get_match_root())) {
+    if (!StridedSliceTransformation::canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -138,7 +138,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ov::p
     return true;
 }
 
-bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool StridedSliceTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
     if (!ov::is_type<ov::opset1::StridedSlice>(operation)) {
         return false;
     }

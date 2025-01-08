@@ -39,7 +39,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, o
         return false;
     }
 
-    if (!canBeTransformed(context, fakeQuantize)) {
+    if (!canBeTransformed(fakeQuantize)) {
         return false;
     }
 
@@ -76,7 +76,7 @@ bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> 
     return vecLow == vecHigh;
 }
 
-bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool FoldFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
     if (!NetworkHelper::isConstantPath(op) && !isConstantOutput(op)) {
         return false;
     }

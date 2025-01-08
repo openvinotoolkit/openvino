@@ -40,7 +40,7 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
 }
 
 bool ConcatTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -203,7 +203,7 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
     return true;
 }
 
-bool ConcatTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     std::shared_ptr<opset1::Concat> concat = ov::as_type_ptr<opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;

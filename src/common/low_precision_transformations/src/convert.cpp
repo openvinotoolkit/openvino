@@ -44,7 +44,7 @@ bool ConvertTransformation::transform(TransformationContext& context, ov::pass::
         return false;
     }
 
-    if (!canBeTransformed(context, convert)) {
+    if (!canBeTransformed(convert)) {
         return false;
     }
 

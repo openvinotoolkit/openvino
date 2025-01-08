@@ -59,8 +59,8 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
     this->register_matcher(m, callback);
 }
 
-bool MVNTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool MVNTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 
@@ -119,7 +119,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
 
 bool MVNTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
-    if (!canBeTransformed(context, operation)) {
+    if (!canBeTransformed(operation)) {
         return false;
     }
 

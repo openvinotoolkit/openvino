@@ -42,7 +42,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) :
 
 bool MultiplyTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 

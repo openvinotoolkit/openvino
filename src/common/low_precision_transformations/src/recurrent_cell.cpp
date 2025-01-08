@@ -185,7 +185,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
         }
     }
 
-    if (!canBeTransformed(context, lstm)) {
+    if (!canBeTransformed(lstm)) {
         return false;
     }
 
@@ -245,7 +245,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
     return true;
 }
 
-bool RecurrentCellTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> lstm) const {
+bool RecurrentCellTransformation::canBeTransformed(const std::shared_ptr<Node>& lstm) const {
     const auto inputs = get_supported_precisions(lstm);
     for (const auto& index : inputs) {
         const auto& input = lstm->get_input_node_ptr(index.first);

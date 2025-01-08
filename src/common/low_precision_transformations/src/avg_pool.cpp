@@ -35,7 +35,7 @@ AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransf
 }
 
 bool AvgPoolTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -47,8 +47,8 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ov::pass::
     return true;
 }
 
-bool AvgPoolTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool AvgPoolTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 

@@ -77,7 +77,7 @@ size_t ConvolutionBackpropDataTransformation::getInputChannels(const std::shared
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     auto convolutionBackpropData = m.get_match_root();
 
-    if (!canBeTransformed(context, convolutionBackpropData)) {
+    if (!canBeTransformed(convolutionBackpropData)) {
         auto weightsInput = convolutionBackpropData->get_input_node_shared_ptr(1);
         std::shared_ptr<ov::opset1::Reshape> reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightsInput);
         FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
@@ -245,8 +245,8 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     return true;
 }
 
-bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    return canConvolutionBeTransformed(context, op, defaultPrecisions);
+bool ConvolutionBackpropDataTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    return canConvolutionBeTransformed(op, defaultPrecisions);
 }
 
 } // namespace low_precision

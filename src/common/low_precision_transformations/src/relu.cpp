@@ -37,7 +37,7 @@ ReluTransformation::ReluTransformation(const Params& params) : LayerTransformati
 
 bool ReluTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> relu = m.get_match_root();
-    if (!canBeTransformed(context, relu)) {
+    if (!canBeTransformed(relu)) {
         return false;
     }
 
@@ -53,8 +53,8 @@ bool ReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const no
     return true;
 }
 
-bool ReluTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool ReluTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

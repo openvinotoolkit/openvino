@@ -43,7 +43,7 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
 
 bool SubtractTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Subtract> subtract = ov::as_type_ptr<ov::opset1::Subtract>(m.get_match_root());
-    if (!canBeTransformed(context, subtract)) {
+    if (!canBeTransformed(subtract)) {
         return false;
     }
 

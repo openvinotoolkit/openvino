@@ -34,7 +34,7 @@ SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransf
 }
 
 bool SqueezeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -76,8 +76,8 @@ bool SqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
     return true;
 }
 
-bool SqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(context, layer);
+bool SqueezeTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision

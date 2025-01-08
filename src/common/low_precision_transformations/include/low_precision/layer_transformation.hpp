@@ -296,7 +296,7 @@ public:
 
     void setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions);
 
-    virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
+    virtual bool canBeTransformed(const std::shared_ptr<Node>& layer) const;
     static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
         const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 

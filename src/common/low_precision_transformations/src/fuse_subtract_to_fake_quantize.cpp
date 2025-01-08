@@ -34,7 +34,7 @@ FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformati
 
 bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
-    if (!canBeTransformed(context, subtract)) {
+    if (!canBeTransformed(subtract)) {
         return false;
     }
 

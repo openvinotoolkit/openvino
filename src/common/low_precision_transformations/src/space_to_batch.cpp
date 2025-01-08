@@ -33,8 +33,8 @@ SpaceToBatchTransformation::SpaceToBatchTransformation(const Params& params) : L
     this->register_matcher(m, callback);
 }
 
-bool SpaceToBatchTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool SpaceToBatchTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 
@@ -47,7 +47,7 @@ bool SpaceToBatchTransformation::canBeTransformed(const TransformationContext& c
 }
 
 bool SpaceToBatchTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 

@@ -41,7 +41,7 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
 
 bool MatMulTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(m.get_match_root());
-    if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
+    if ((matMul == nullptr) || !canBeTransformed(matMul)) {
         return false;
     }
 
@@ -184,7 +184,7 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
     return false;
 }
 
-bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(layer)) {
         return false;
     }

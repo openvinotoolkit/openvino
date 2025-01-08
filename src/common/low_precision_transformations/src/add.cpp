@@ -104,7 +104,7 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 
 bool AddTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Add> op = ov::as_type_ptr<ov::opset1::Add>(m.get_match_root());
-    if ((op == nullptr) || (!canBeTransformed(context, op))) {
+    if ((op == nullptr) || (!canBeTransformed(op))) {
         return false;
     }
 
@@ -240,7 +240,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
     return true;
 }
 
-bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool AddTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 0ul);
     if (dequantization1.multiplyHasZeroOrDenormal()) {
         return false;
@@ -251,7 +251,7 @@ bool AddTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    return EltwiseBaseTransformation::canBeTransformed(context, layer);
+    return EltwiseBaseTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision

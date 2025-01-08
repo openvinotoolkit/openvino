@@ -57,7 +57,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
 
 bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto fq = m.get_match_root();
-    if (!canBeTransformed(context, fq)) {
+    if (!canBeTransformed(fq)) {
         return false;
     }
 
@@ -165,7 +165,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     return true;
 }
 
-bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool MoveFakeQuantize::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     auto operation = layer->get_input_node_shared_ptr(0);
     std::shared_ptr<ov::Node> concat;
     if (is_type<opset1::Concat>(operation)) {

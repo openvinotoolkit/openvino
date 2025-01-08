@@ -30,12 +30,12 @@ ReduceMaxTransformation::ReduceMaxTransformation(const Params& params) : ReduceB
     this->register_matcher(m, callback);
 }
 
-bool ReduceMaxTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceMaxTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     if (!ov::is_type<ov::opset1::ReduceMax>(reduce)) {
         return false;
     }
 
-    if (!ReduceBaseTransformation::canBeTransformed(context, reduce)) {
+    if (!ReduceBaseTransformation::canBeTransformed(reduce)) {
         return false;
     }
 

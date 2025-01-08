@@ -30,8 +30,8 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
     this->register_matcher(m, callback);
 }
 
-bool ReduceMeanTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    return ov::is_type<ov::opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
+bool ReduceMeanTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
+    return ov::is_type<ov::opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(reduce) : false;
 }
 
 bool ReduceMeanTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {

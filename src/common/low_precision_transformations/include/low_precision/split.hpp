@@ -27,7 +27,7 @@ public:
     SplitTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     void updateOutputs(
         TransformationContext& context,
         std::vector<std::shared_ptr<ov::Node>> lastNodes,

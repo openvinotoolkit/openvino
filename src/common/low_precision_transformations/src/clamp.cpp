@@ -32,7 +32,7 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
 }
 
 bool ClampTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -81,8 +81,8 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
     return true;
 }
 
-bool ClampTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool ClampTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

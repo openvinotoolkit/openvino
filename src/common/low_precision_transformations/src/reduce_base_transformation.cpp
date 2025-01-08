@@ -17,7 +17,7 @@ namespace low_precision {
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
 bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -35,7 +35,7 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
     return true;
 }
 
-bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.empty()) {
         return false;

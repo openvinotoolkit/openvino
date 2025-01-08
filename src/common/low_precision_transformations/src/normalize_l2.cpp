@@ -54,8 +54,8 @@ NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : Lay
     this->register_matcher(m, callback);
 }
 
-bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool NormalizeL2Transformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 
@@ -99,7 +99,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
 
 bool NormalizeL2Transformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
-    if (!canBeTransformed(context, operation)) {
+    if (!canBeTransformed(operation)) {
         return false;
     }
 

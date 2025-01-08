@@ -34,7 +34,7 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
 }
 
 bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -79,7 +79,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
     return true;
 }
 
-bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool ShuffleChannelsTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(op)) {
         return false;
     }

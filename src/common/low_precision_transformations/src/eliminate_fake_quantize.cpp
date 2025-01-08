@@ -39,7 +39,7 @@ EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const P
 
 bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto root = m.get_match_root();
-    if (!canBeTransformed(context, root)) {
+    if (!canBeTransformed(root)) {
         return false;
     }
 
@@ -115,8 +115,8 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
 }
 } // namespace
 
-bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+bool EliminateFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
         return false;
     }
 

@@ -25,7 +25,7 @@ public:
     OPENVINO_RTTI("PadTransformation", "0", LayerTransformation);
     PadTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, pattern::Matcher& m) override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

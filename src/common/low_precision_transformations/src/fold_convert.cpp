@@ -32,7 +32,7 @@ FoldConvertTransformation::FoldConvertTransformation(const Params& params) : Cle
 
 bool FoldConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
-    if (!canBeTransformed(context, subtract)) {
+    if (!canBeTransformed(subtract)) {
         return false;
     }
 
@@ -55,9 +55,9 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ov::pa
     return true;
 }
 
-bool FoldConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool FoldConvertTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
     return
-        CleanupTransformation::canBeTransformed(context, operation) &&
+        CleanupTransformation::canBeTransformed(operation) &&
         ((ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(1)) &&
         ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(1)->get_input_node_ptr(0))) ||
         (ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(0)) &&

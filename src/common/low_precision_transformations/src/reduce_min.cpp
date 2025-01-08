@@ -29,12 +29,12 @@ ReduceMinTransformation::ReduceMinTransformation(const Params& params) : ReduceB
     this->register_matcher(m, callback);
 }
 
-bool ReduceMinTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceMinTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     if (!ov::is_type<ov::opset1::ReduceMin>(reduce)) {
         return false;
     }
 
-    if (!ReduceBaseTransformation::canBeTransformed(context, reduce)) {
+    if (!ReduceBaseTransformation::canBeTransformed(reduce)) {
         return false;
     }
 

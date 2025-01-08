@@ -25,7 +25,7 @@ public:
     MatMulTransformation(const Params& params = Params());
     bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
 };
 
 }  // namespace low_precision
