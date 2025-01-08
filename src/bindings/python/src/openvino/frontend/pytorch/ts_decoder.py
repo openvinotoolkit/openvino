@@ -515,11 +515,11 @@ class TorchScriptPythonDecoder(Decoder):
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             return False
 
-    def inlined_input(self, index):
-        return []
-
     def is_input_inlined(self, index):
         return False
+
+    def get_inlined_input_decoder(self, index):
+        return None
 
     def get_attribute(self, name):
         return OVAny(None)
