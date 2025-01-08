@@ -20,7 +20,7 @@ class LP_TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransfo
 public:
     TransparentBaseTransformation(const Params& params) : LayerTransformation(params) {}
     ~TransparentBaseTransformation() override {};
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };

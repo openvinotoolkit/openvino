@@ -24,14 +24,14 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SplitTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
@@ -120,7 +120,7 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
         }
     }
 
-    updateOutputs(context, lastNodes, newSplit);
+    updateOutputs(lastNodes, newSplit);
 
     OPENVINO_DEBUG("LPT: done: ", newSplit);
     return true;
@@ -128,7 +128,6 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
 
 
 void SplitTransformation::updateOutputs(
-    TransformationContext& context,
     std::vector<std::shared_ptr<ov::Node>> lastNodes,
     std::shared_ptr<ov::Node> originalNode) const {
     if (lastNodes.size() == 1ul) {

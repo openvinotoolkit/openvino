@@ -39,7 +39,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
@@ -48,7 +48,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
     this->register_matcher(m, callback);
 }
 
-bool AssignAndReadValueTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool AssignAndReadValueTransformation::transform(ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
@@ -99,7 +99,7 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
         return true;
     }
 
-    FakeQuantizeTransformation::fuseElementwise(context, this, fakeQuantize, updatePrecisions);
+    FakeQuantizeTransformation::fuseElementwise(this, fakeQuantize, updatePrecisions);
 
     return true;
 }

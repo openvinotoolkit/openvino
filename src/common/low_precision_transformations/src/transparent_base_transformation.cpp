@@ -14,7 +14,7 @@ using namespace ov;
 using namespace ov::pass;
 using namespace ov::pass::low_precision;
 
-bool TransparentBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool TransparentBaseTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> op = m.get_match_root();
     if (!canBeTransformed(op)) {
         return false;

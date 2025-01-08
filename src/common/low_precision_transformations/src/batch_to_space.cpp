@@ -26,7 +26,7 @@ BatchToSpaceTransformation::BatchToSpaceTransformation(const Params& params) : L
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -46,7 +46,7 @@ bool BatchToSpaceTransformation::canBeTransformed(const std::shared_ptr<Node>& o
     return dequantization.isPerTensor();
 }
 
-bool BatchToSpaceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool BatchToSpaceTransformation::transform(ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }

@@ -34,14 +34,14 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(subtract, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SubtractTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool SubtractTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Subtract> subtract = ov::as_type_ptr<ov::opset1::Subtract>(m.get_match_root());
     if (!canBeTransformed(subtract)) {
         return false;

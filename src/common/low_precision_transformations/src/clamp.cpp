@@ -24,14 +24,14 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ClampTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool ClampTransformation::transform(ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }

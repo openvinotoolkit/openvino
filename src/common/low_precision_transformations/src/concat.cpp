@@ -32,14 +32,14 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
             return false;
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ConcatTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool ConcatTransformation::transform(ov::pass::pattern::Matcher &m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }

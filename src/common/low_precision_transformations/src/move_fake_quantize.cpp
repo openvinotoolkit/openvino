@@ -46,7 +46,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
             return false;
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
@@ -55,7 +55,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
     this->register_matcher(m, callback);
 }
 
-bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
     const auto fq = m.get_match_root();
     if (!canBeTransformed(fq)) {
         return false;

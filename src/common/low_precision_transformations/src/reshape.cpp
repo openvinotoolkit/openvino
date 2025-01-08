@@ -48,7 +48,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
             }
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -146,7 +146,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
 
 } // namespace
 
-bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool ReshapeTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::Reshape> reshape = ov::as_type_ptr<ov::opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;

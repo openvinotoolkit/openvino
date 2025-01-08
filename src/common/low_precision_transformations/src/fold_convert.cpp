@@ -24,13 +24,13 @@ FoldConvertTransformation::FoldConvertTransformation(const Params& params) : Cle
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     this->register_matcher(matcher, callback);
 }
 
-bool FoldConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FoldConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(subtract)) {
         return false;

@@ -21,7 +21,7 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API ConvolutionBackpropDataTransformation : public WeightableLayerTransformation {
 public:
     ConvolutionBackpropDataTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
         const std::vector<ov::element::Type>&defaultPrecisions) const override;

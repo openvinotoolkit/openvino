@@ -32,7 +32,7 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
             return false;
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -276,7 +276,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 } // namespace
 } // namespace fq_decomposition
 
-bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Matcher& m) {
     auto node = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
     if (!node || !NetworkHelper::isQuantizeSupported(node)) {
         return false;

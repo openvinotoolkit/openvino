@@ -26,7 +26,7 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -83,7 +83,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
 
 } // namespace
 
-bool TransposeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool TransposeTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();
     if (!canBeTransformed(transpose)) {
         return false;

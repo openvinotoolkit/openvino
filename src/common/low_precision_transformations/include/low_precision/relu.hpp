@@ -24,7 +24,7 @@ class LP_TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
 public:
     OPENVINO_RTTI("ReluTransformation", "0", LayerTransformation);
     ReluTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
 };

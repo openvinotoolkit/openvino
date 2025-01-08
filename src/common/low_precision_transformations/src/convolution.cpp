@@ -39,7 +39,7 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -62,7 +62,7 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
     return channels.get_length();
 }
 
-bool ConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
     if (!canConvolutionBeTransformed(convolution, defaultPrecisions)) {

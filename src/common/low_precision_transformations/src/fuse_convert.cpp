@@ -40,7 +40,7 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Cle
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     this->register_matcher(matcher, callback);
@@ -68,7 +68,7 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 
 } // namespace
 
-bool FuseConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto op = m.get_match_root();
     if (!canBeTransformed(op)) {
         return false;

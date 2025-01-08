@@ -16,7 +16,7 @@ namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool ReduceBaseTransformation::transform(ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }

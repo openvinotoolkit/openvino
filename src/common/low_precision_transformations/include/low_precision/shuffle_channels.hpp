@@ -23,7 +23,7 @@ class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransfo
 public:
     OPENVINO_RTTI("ShuffleChannelsTransformation", "0", LayerTransformation);
     ShuffleChannelsTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
+    bool transform(ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
 };

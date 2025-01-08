@@ -46,7 +46,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
@@ -56,7 +56,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
     this->register_matcher(matcher, callback);
 }
 
-bool InterpolateTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool InterpolateTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> interpolate = m.get_match_root();
     if (!canBeTransformed(m.get_match_root())) {
         return false;

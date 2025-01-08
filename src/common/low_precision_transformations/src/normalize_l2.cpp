@@ -47,7 +47,7 @@ NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -97,7 +97,7 @@ bool NormalizeL2Transformation::canBeTransformed(const std::shared_ptr<Node>& op
     return true;
 }
 
-bool NormalizeL2Transformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool NormalizeL2Transformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(operation)) {
         return false;

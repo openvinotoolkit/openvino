@@ -28,14 +28,14 @@ PReluTransformation::PReluTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool PReluTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool PReluTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> prelu = m.get_match_root();
     if (!canBeTransformed(prelu)) {
         return false;

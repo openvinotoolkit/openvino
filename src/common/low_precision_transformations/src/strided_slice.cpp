@@ -107,14 +107,14 @@ StridedSliceTransformation::StridedSliceTransformation(const Params& params) : L
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool StridedSliceTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool StridedSliceTransformation::transform(ov::pass::pattern::Matcher& m) {
     if (!StridedSliceTransformation::canBeTransformed(m.get_match_root())) {
         return false;
     }

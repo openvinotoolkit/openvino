@@ -25,13 +25,10 @@ class LP_TRANSFORMATIONS_API SplitTransformation : public LayerTransformation {
 public:
     OPENVINO_RTTI("SplitTransformation", "0", LayerTransformation);
     SplitTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
+    bool transform(ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
-    void updateOutputs(
-        TransformationContext& context,
-        std::vector<std::shared_ptr<ov::Node>> lastNodes,
-        std::shared_ptr<ov::Node> originalNode) const;
+    void updateOutputs(std::vector<std::shared_ptr<ov::Node>> lastNodes, std::shared_ptr<ov::Node> originalNode) const;
 };
 } // namespace low_precision
 } // namespace pass

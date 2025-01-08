@@ -43,7 +43,7 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
             return false;
         }
 
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
@@ -116,7 +116,7 @@ std::vector<std::pair<size_t, element::Type>> get_supported_precisions(std::shar
 
 } // namespace
 
-void RecurrentCellTransformation::propagate(TransformationContext& context, const std::shared_ptr<ov::Node> node) {
+void RecurrentCellTransformation::propagate(const std::shared_ptr<ov::Node> node) {
     if (!isSupportedForPerChannelQuantization(node)) {
         return;
     }
@@ -136,12 +136,12 @@ void RecurrentCellTransformation::propagate(TransformationContext& context, cons
     for (auto output : new_dequantization.multiply->outputs()) {
         for (auto input : output.get_target_inputs()) {
             auto child = input.get_node()->shared_from_this();
-            propagate(context, child);
+            propagate(child);
         }
     }
 }
 
-bool RecurrentCellTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
     const auto lstm = m.get_match_root();
     const auto inputs = get_supported_precisions(lstm);
     for (const auto& input : inputs) {
@@ -179,7 +179,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
             for (const auto& output : multiply->outputs()) {
                 for (const auto& input : output.get_target_inputs()) {
                     const auto input_node = input.get_node();
-                    propagate(context, input_node->shared_from_this());
+                    propagate(input_node->shared_from_this());
                 }
             }
         }

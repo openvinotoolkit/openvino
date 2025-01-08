@@ -23,7 +23,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);

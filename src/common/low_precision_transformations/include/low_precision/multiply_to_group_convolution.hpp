@@ -27,7 +27,7 @@ public:
         const Params& params = Params(),
         const PrecisionsRestriction::PrecisionsByPorts& restrictions = {});
     ~MultiplyToGroupConvolutionTransformation() override {}
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,

@@ -26,7 +26,7 @@ MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransf
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -51,7 +51,7 @@ bool MaxPoolTransformation::canBeTransformed(const std::shared_ptr<Node>& op) co
     return true;
 }
 
-bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool MaxPoolTransformation::transform(ov::pass::pattern::Matcher &m) {
     if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
