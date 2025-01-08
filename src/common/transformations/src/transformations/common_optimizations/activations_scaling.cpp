@@ -65,7 +65,28 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m));
+        OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m), "Not found any Convolution or MatMul layer");
+
+        auto insert_scale_down_layer = [&scale_factor, &scaled_prec](std::shared_ptr<ov::Node>& node,
+                                                                     const size_t input_idx,
+                                                                     const bool keep_precision) {
+            const std::vector<float> scale_down_value = {1.f / scale_factor};
+
+            auto scale_down_layer = std::make_shared<ov::op::v1::Multiply>(
+                node->input(input_idx).get_source_output(),
+                std::make_shared<ov::op::v0::Constant>(node->input(input_idx).get_element_type(),
+                                                       ov::Shape(),
+                                                       scale_down_value));
+            scale_down_layer->set_friendly_name(node->get_friendly_name() + "_scale_down");
+            ov::copy_runtime_info(node, scale_down_layer);
+
+            if (scale_down_layer->output(0).get_element_type() != scaled_prec && !keep_precision) {
+                auto convert_prec = std::make_shared<ov::op::v0::Convert>(scale_down_layer->output(0), scaled_prec);
+                node->input(input_idx).replace_source_output(convert_prec->output(0));
+            } else {
+                node->input(input_idx).replace_source_output(scale_down_layer->output(0));
+            }
+        };
 
         // scale_down and scale_up layers will be added around scaled_op
         std::shared_ptr<ov::Node> scaled_op = nullptr;
@@ -91,26 +112,11 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             keep_precision = true;
         }
 
-        const ov::Shape scale_shape = {};
-        const std::vector<float> scale_down_value = {1.f / scale_factor};
         const std::vector<float> scale_up_value = {scale_factor};
         auto output_prec = output_of_scaled_op->output(0).get_element_type();
 
         // adding a scale_down layer before the target node
-        auto scale_down = std::make_shared<ov::op::v1::Multiply>(
-            scaled_op->input(0).get_source_output(),
-            std::make_shared<ov::op::v0::Constant>(scaled_op->input(0).get_element_type(),
-                                                   scale_shape,
-                                                   scale_down_value));
-        scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
-        ov::copy_runtime_info(scaled_op, scale_down);
-
-        if (scale_down->output(0).get_element_type() != scaled_prec && !keep_precision) {
-            auto convert_prec0 = std::make_shared<ov::op::v0::Convert>(scale_down->output(0), scaled_prec);
-            scaled_op->input(0).replace_source_output(convert_prec0->output(0));
-        } else {
-            scaled_op->input(0).replace_source_output(scale_down->output(0));
-        }
+        insert_scale_down_layer(scaled_op, 0, keep_precision);
         if (scaled_op->input(1).get_element_type() != scaled_prec && !keep_precision) {
             auto convert_prec1 =
                 std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
@@ -144,19 +150,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (has_bias) {
             auto add = child_node->shared_from_this();
             target_inputs = add->get_output_target_inputs(0);
-            auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
-                add->input(bias_index).get_source_output(),
-                std::make_shared<ov::op::v0::Constant>(add->input(bias_index).get_element_type(),
-                                                       scale_shape,
-                                                       scale_down_value));
-            scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
-            ov::copy_runtime_info(add, scale_down_bias);
-            if (scale_down_bias->output(0).get_element_type() != scaled_prec && !keep_precision) {
-                auto convert_bias_prec = std::make_shared<ov::op::v0::Convert>(scale_down_bias->output(0), scaled_prec);
-                add->input(bias_index).replace_source_output(convert_bias_prec->output(0));
-            } else {
-                add->input(bias_index).replace_source_output(scale_down_bias->output(0));
-            }
+            insert_scale_down_layer(add, bias_index, keep_precision);
             add->revalidate_and_infer_types();
             if (add->output(0).get_element_type() != output_prec && !keep_precision) {
                 output_of_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
@@ -174,7 +168,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         auto scale_up = register_new_node<ov::op::v1::Multiply>(
             output_of_scaled_op->output(0),
             std::make_shared<ov::op::v0::Constant>(output_of_scaled_op->output(0).get_element_type(),
-                                                   scale_shape,
+                                                   ov::Shape(),
                                                    scale_up_value));
         scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
         ov::copy_runtime_info(scaled_op, scale_up);
@@ -255,7 +249,7 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        OPENVINO_ASSERT(pattern_map.count(concat_m));
+        OPENVINO_ASSERT(pattern_map.count(concat_m), "Not found any Concat layer");
 
         auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
 
@@ -288,8 +282,6 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             last_dep_const_type = last_dep_const.get_element_type();
         }
 
-        auto target_inputs = concat->get_output_target_inputs(0);
-
         for (auto& input : concat->inputs()) {
             auto dep_node = input.get_source_output().get_node_shared_ptr();
             auto dep_input0 = dep_node->input(0).get_source_output().get_node();
@@ -321,10 +313,7 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             ov::op::TemporaryReplaceOutputType(last_dep_const, concat_type).get());
         new_mul->set_friendly_name(concat->get_friendly_name() + "_c");
         ov::copy_runtime_info(concat, new_mul);
-
-        for (auto& in : target_inputs) {
-            in.replace_source_output(new_mul);
-        }
+        ov::replace_output_update_name(concat->output(0), new_mul->output(0));
 
         return false;
     };

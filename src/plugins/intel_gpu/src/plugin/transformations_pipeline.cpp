@@ -948,7 +948,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
             pass_config->disable<ConcatTransformation>();
-            pass_config->disable<ClampTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
