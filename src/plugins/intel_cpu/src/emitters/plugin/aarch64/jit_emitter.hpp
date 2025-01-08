@@ -4,14 +4,13 @@
 
 #pragma once
 
+#include <cpu/aarch64/jit_generator.hpp>
 #include <memory>
 #include <set>
 
-#include <cpu/aarch64/jit_generator.hpp>
-#include "snippets/snippets_isa.hpp"
-#include "snippets/generator.hpp"
 #include "node.h"
-
+#include "snippets/generator.hpp"
+#include "snippets/snippets_isa.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -29,25 +28,32 @@ public:
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
-                emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec) :
-                Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc),
-                in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
-    }
+                emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
+        : Emitter(),
+          h(host),
+          host_isa_(host_isa),
+          exec_prc_(exec_prc),
+          in_out_type_(in_out_type),
+          p_table(0),
+          l_table(new Xbyak_aarch64::Label()) {}
 
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 const std::shared_ptr<ov::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
-                emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec) :
-                Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc),
-                in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
-    }
+                emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
+        : Emitter(),
+          h(host),
+          host_isa_(host_isa),
+          exec_prc_(exec_prc),
+          in_out_type_(in_out_type),
+          p_table(0),
+          l_table(new Xbyak_aarch64::Label()) {}
 
-    void emit_code(
-        const std::vector<size_t> &in_idxs,
-        const std::vector<size_t> &out_idxs,
-        const std::vector<size_t> &pool_vec_idxs = {},
-        const std::vector<size_t> &pool_gpr_idxs = {}) const override;
+    void emit_code(const std::vector<size_t>& in_idxs,
+                   const std::vector<size_t>& out_idxs,
+                   const std::vector<size_t>& pool_vec_idxs = {},
+                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
 
     void emit_data() const override;
 
@@ -60,7 +66,8 @@ public:
      * Precisions are ordered, the first bigger bitness precision with the same type will be selected.
      * Empty collection means the emitter supports any input precisions.
      */
-    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
     size_t get_max_vecs_count() const;
@@ -78,12 +85,14 @@ protected:
     virtual void prepare_table();
     virtual void register_table_entries() {}
 
-    void load_table_addr() const { h->adr(p_table, *l_table.get()); }
+    void load_table_addr() const {
+        h->adr(p_table, *l_table.get());
+    }
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
     using table_entry_val_t = uint32_t;
-    using table_entry_offset_t = size_t; // offsets are in bytes wrt p_table
-    using table_entry_bcast_t = bool; // true => bcast value
+    using table_entry_offset_t = size_t;  // offsets are in bytes wrt p_table
+    using table_entry_bcast_t = bool;     // true => bcast value
 
     struct table_entry_t {
         table_entry_val_t val;
@@ -98,7 +107,7 @@ protected:
     mutable Xbyak_aarch64::XReg p_table;
     mutable std::shared_ptr<Xbyak_aarch64::Label> l_table;
 
-    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const = 0;
+    virtual void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const = 0;
 
     virtual void emitter_preamble(const std::vector<size_t>& in_idxs,
                                   const std::vector<size_t>& out_idxs,
@@ -128,14 +137,14 @@ protected:
     }
 
     void push_arg_entry_of(const std::string key, const table_entry_val_t val, const bool broadcast) {
-        mapped_table_entry_t te {0, val, broadcast};
+        mapped_table_entry_t te{0, val, broadcast};
         entry_map_.insert(std::make_pair(key, te));
     }
 
-    void push_entries_of(const table_t &t) {
+    void push_entries_of(const table_t& t) {
         for (auto it = t.begin(); it != t.end(); it++) {
             auto key = (*it).first;
-            auto te = (*it).second; // copy values from table
+            auto te = (*it).second;  // copy values from table
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
@@ -150,9 +159,9 @@ private:
     size_t table_off(const std::string& key, const size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also
         // share their broadcast property
-        const auto it = entry_map_.find(key); // search an entry for a key
+        const auto it = entry_map_.find(key);  // search an entry for a key
         assert(it != entry_map_.end());
-        const auto &te = (*it).second;
+        const auto& te = (*it).second;
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
@@ -176,6 +185,6 @@ private:
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 };
 
-}   // namespace aarch64
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

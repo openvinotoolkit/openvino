@@ -193,7 +193,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     }
 
     // Add stub output node for unused data
-    for (auto unusedOutput : unusedOutputs) {
+    for (const auto& unusedOutput : unusedOutputs) {
         auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
         const auto port = unusedOutput.get_index();
         const auto nodeName =
@@ -552,7 +552,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             node->createPrimitive();
         }
 
-        if (!node->isConstant()) {
+        if (!node->isConstant() || !node->isExecutable()) {
             continue;
         }
 
@@ -1940,8 +1940,23 @@ std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
-    return m_context->getMemoryStatesRegister()->getMemoryStates();
+std::vector<MemStatePtr> Graph::memoryStates() const {
+    std::vector<MemStatePtr> resultVector;
+
+    for (auto&& item : m_context->getMemoryStatesRegister()->getMemoryStates()) {
+        resultVector.emplace_back(item.second->makeState());
+    }
+    return resultVector;
+}
+
+void Graph::assignStates(const std::vector<MemStatePtr>& states) {
+    auto&& inputStateNodes = m_context->getMemoryStatesRegister()->getMemoryStates();
+    for (const auto& state : states) {
+        auto itr = inputStateNodes.find(state->get_name());
+        if (itr != inputStateNodes.end()) {
+            itr->second->assignState(state);
+        }
+    }
 }
 
 }  // namespace intel_cpu

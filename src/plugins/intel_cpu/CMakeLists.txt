@@ -175,10 +175,6 @@ if(DNNL_USE_ACL)
     set(OV_CPU_WITH_ACL ON)
 endif()
 
-if(OV_CPU_WITH_ACL)
-    set(CMAKE_CXX_STANDARD 14)
-endif()
-
 if (ENABLE_SHL_FOR_CPU)
     add_definitions(-DOV_CPU_WITH_SHL)
     set(OV_CPU_WITH_SHL ON)
@@ -288,14 +284,14 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token

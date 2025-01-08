@@ -104,4 +104,24 @@ protected:
 }  // namespace op
 }  // namespace pattern
 }  // namespace pass
+OPENVINO_API pass::pattern::op::ValuePredicate operator||(const std::function<bool(Output<Node>)>& a,
+                                                          const std::function<bool(Output<Node>)>& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::ValuePredicate& a,
+                                                          const pass::pattern::op::ValuePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::NodePredicate& a,
+                                                          const pass::pattern::op::NodePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::ValuePredicate& a,
+                                                          const pass::pattern::op::NodePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::NodePredicate& a,
+                                                          const pass::pattern::op::ValuePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator&&(const std::function<bool(Output<Node>)>& a,
+                                                          const std::function<bool(Output<Node>)>& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::ValuePredicate& a,
+                                                          const pass::pattern::op::ValuePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::NodePredicate& a,
+                                                          const pass::pattern::op::NodePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::ValuePredicate& a,
+                                                          const pass::pattern::op::NodePredicate& b);
+OPENVINO_API pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::NodePredicate& a,
+                                                          const pass::pattern::op::ValuePredicate& b);
 }  // namespace ov

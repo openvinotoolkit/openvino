@@ -14,8 +14,8 @@ using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: `person-detection-retail-0013 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-retail-0013/README.md>`__
-  models and the NCHW layout format.
+- The sample has been validated with the person-detection-retail-0013
+  model and the NCHW layout format.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
@@ -82,12 +82,12 @@ To run the sample, you need to specify a model and an image:
      order. If you trained your model to work with RGB order, you need to manually
      rearrange the default channels order in the sample or demo application or
      reconvert your model using model conversion API with ``reverse_input_channels``
-     argument specified. For more information about the argument, refer to
-     **When to Reverse Input Channels** section of
-     :doc:`Embedding Preprocessing Computation <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
+     argument specified. For more information about the argument, refer to the
+     **Color Conversion** section of
+     :doc:`Preprocessing API <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
    - Before running the sample with a trained model, make sure the model is
      converted to the intermediate representation (IR) format (\*.xml + \*.bin)
-     using :doc:`model conversion API <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+     using :doc:`model conversion API <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -204,7 +204,7 @@ Additional Resources
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
 - `Hello Reshape SSD Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_reshape_ssd/README.md>`__
 - `Hello Reshape SSD C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_reshape_ssd/README.md>`__
 

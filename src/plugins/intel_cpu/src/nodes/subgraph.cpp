@@ -236,7 +236,7 @@ struct SubgraphCodeGeneratorKey {
     bool operator==(const SubgraphCodeGeneratorKey& rhs) const;
 
     std::shared_ptr<Subgraph::SubgraphAttrs> attrs = nullptr;
-    uint8_t broadcasting_mask = 0;
+    uint32_t broadcasting_mask = 0;
 };
 
 struct SubgraphShapeInferResultKey {
@@ -458,11 +458,12 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            const auto precision = ((originalInputPrecision == ov::element::f32) &&
-                                    context->getConfig().inferencePrecision == ov::element::bf16 &&
-                                    subgraph_attrs->snippet->has_domain_sensitive_ops())
-                                       ? static_cast<ov::element::Type>(ov::element::bf16)
-                                       : originalInputPrecision;
+            const auto precision =
+                ((originalInputPrecision == ov::element::f32) &&
+                 one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
+                 subgraph_attrs->snippet->has_domain_sensitive_ops())
+                    ? context->getConfig().inferencePrecision
+                    : originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
 
@@ -653,7 +654,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::Canonicalization,
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
-    if (context->getConfig().inferencePrecision == ov::element::bf16 &&
+    if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
@@ -663,7 +664,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
                                                element::f32,
-                                               element::bf16);
+                                               context->getConfig().inferencePrecision);
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
@@ -737,8 +738,10 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     return backend_passes;
 }
 
-uint8_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
-    uint8_t mask = 0;
+uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
+    uint32_t mask = 0;
+    OPENVINO_ASSERT(broadcastable_inputs.size() <= sizeof(mask) * CHAR_BIT,
+                    "Incorrect size of broadcastable inputs of Subgraph");
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
         mask = mask << 1;

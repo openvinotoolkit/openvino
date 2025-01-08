@@ -132,7 +132,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                                     false,
                                                                     true,
-                                                                    sub_streams_table,
+                                                                    std::move(sub_streams_table),
                                                                     sub_cfg.streamsRankTable[i]};
             m_sub_compiled_models.push_back(
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
@@ -184,7 +184,6 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    m_numRequests++;
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
@@ -257,11 +256,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
+            RO_property(ov::key_cache_precision.name()),
+            RO_property(ov::value_cache_precision.name()),
+            RO_property(ov::key_cache_group_size.name()),
+            RO_property(ov::value_cache_group_size.name()),
         };
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ro_properties.insert(ro_properties.end(), RO_property(ov::affinity.name()));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         return ro_properties;
     }
@@ -278,21 +277,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == ov::affinity) {
-        const auto affinity = config.threadBindingType;
-        switch (affinity) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-        return ov::Affinity::NONE;
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig.get_threads();
         return decltype(ov::inference_num_threads)::value_type(num_threads);
@@ -333,6 +317,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::hint::dynamic_quantization_group_size)::value_type(config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(config.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(config.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(config.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(config.valueCacheGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }
@@ -344,8 +336,12 @@ void CompiledModel::export_model(std::ostream& modelStream) const {
 
 void CompiledModel::release_memory() {
     for (auto&& graph : m_graphs) {
-        GraphGuard::Lock graph_lock{graph};
-        auto ctx = graph_lock._graph.getGraphContext();
+        // try to lock mutex, since it may be already locked (e.g by an infer request)
+        std::unique_lock<std::mutex> lock(graph._mutex, std::try_to_lock);
+        OPENVINO_ASSERT(lock.owns_lock(),
+                        "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
+                        "infer requests are completed before releasing memory.");
+        auto ctx = graph.getGraphContext();
         ctx->getNetworkMemoryControl()->releaseMemory();
     }
 }

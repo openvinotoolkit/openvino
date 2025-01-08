@@ -312,7 +312,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 
 /// \brief Save given model into IR. Floating point weights are compressed to FP16 by default.
 /// This method saves a model to IR applying all necessary transformations that usually applied
-/// in model conversion flow provided by mo tool. Particularly, floating point weights are compressed to FP16.
+/// in model conversion flow provided by OVC tool. Particularly, floating point weights are compressed to FP16.
 /// \param model Model which will be converted to IR representation.
 /// \param output_model Path to the output model file, must have extension .xml
 /// \param compress_to_fp16 Whether to compress floating point weights to FP16 (true by default)

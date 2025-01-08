@@ -26,9 +26,9 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* OpenVINO 2024.6 LTS release includes updates for enhanced stability and improved LLM performance.
-* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage)
-* Memory optimizations implemented to improve the inference time memory and LLM performance on NPUs.
+* OpenVINO 2024.6 release includes updates for enhanced stability and improved LLM performance.
+* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage).
+* Implemented optimizations to improve the inference time and LLM performance on NPUs.
 * Improved LLM performance with GenAI API optimizations and bug fixes.
 
 
@@ -39,8 +39,9 @@ OpenVINO™ Runtime
 CPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
-* KV cache now uses asymmetric U8 as the default precision, reducing memory stress for LLMs and
-  increasing their performance. This option can be controlled by model meta data.
+* KV cache now uses asymmetric 8-bit unsigned integer (U8) as the default precision, reducing
+  memory stress for LLMs and increasing their performance. This option can be controlled by
+  model meta data.
 * Quality and accuracy has been improved for selected models with several bug fixes.
 
 GPU Device Plugin
@@ -640,7 +641,7 @@ Previous 2024 releases
    * New samples and pipelines are now available:
 
      * An example IterableStreamer implementation in
-       `multinomial_causal_lm/python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/multinomial_causal_lm>`__
+       `multinomial_causal_lm/python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python//text_generation/multinomial_causal_lm>`__
 
    * GenAI compilation is now available as part of OpenVINO via the –DOPENVINO_EXTRA_MODULES CMake
      option.
@@ -1668,7 +1669,7 @@ Deprecation And Support
 Using deprecated features and components is not advised. They are available to enable a smooth
 transition to new solutions and will be discontinued in the future. To keep using discontinued
 features, you will have to revert to the last LTS OpenVINO version supporting them.
-For more details, refer to the :doc:`OpenVINO Legacy Features and Components <../documentation/legacy-features>`
+For more details, refer to the `OpenVINO Legacy Features and Components <https://docs.openvino.ai/2024/documentation/legacy-features.html>__`
 page.
 
 Discontinued in 2024
@@ -1726,13 +1727,16 @@ Deprecated and to be removed in the future
 * Model Optimizer will be discontinued with OpenVINO 2025.0. Consider using the
   :doc:`new conversion methods <../openvino-workflow/model-preparation/convert-model-to-ir>`
   instead. For more details, see the
-  :doc:`model conversion transition guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
+  `model conversion transition guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html>`__.
 * OpenVINO property Affinity API will be discontinued with OpenVINO 2025.0.
   It will be replaced with CPU binding configurations (``ov::hint::enable_cpu_pinning``).
 * OpenVINO Model Server components:
 
   * “auto shape” and “auto batch size” (reshaping a model in runtime) will be removed in the
     future. OpenVINO's dynamic shape models are recommended instead.
+
+* Starting with 2025.0 MacOS x86 will no longer be recommended for use due to the discontinuation
+  of validation. Full support will be removed later in 2025.
 
 * A number of notebooks have been deprecated. For an up-to-date listing of available notebooks,
   refer to the `OpenVINO™ Notebook index (openvinotoolkit.github.io) <https://openvinotoolkit.github.io/openvino_notebooks/>`__.
@@ -1754,10 +1758,6 @@ Deprecated and to be removed in the future
      * `Interactive Machine Translation with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/machine-translation>`__
 
        * See alternative: `Machine Translation Python* Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/machine_translation_demo/python/README.md>`__
-
-     * `Open Model Zoo Tools Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/model-tools>`__
-
-       * No alternatives, demonstrates deprecated tools.
 
      * `Super Resolution with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/vision-superresolution>`__
 
