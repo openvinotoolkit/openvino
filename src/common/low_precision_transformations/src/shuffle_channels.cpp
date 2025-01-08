@@ -80,7 +80,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
 }
 
 bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, op)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(op)) {
         return false;
     }
 

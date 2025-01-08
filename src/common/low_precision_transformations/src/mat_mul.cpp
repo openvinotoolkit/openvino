@@ -185,7 +185,7 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(layer)) {
         return false;
     }
 

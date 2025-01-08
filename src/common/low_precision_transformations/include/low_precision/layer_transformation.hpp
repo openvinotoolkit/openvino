@@ -365,7 +365,7 @@ protected:
     bool updateOutput(const std::shared_ptr<ov::Node>& lastNode, const std::shared_ptr<ov::Node>& originalNode) const;
 
     // TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
-    bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
+    bool canBeTransformedSpatialDimension(const std::shared_ptr<Node>& layer) const;
 };
 
 }  // namespace low_precision

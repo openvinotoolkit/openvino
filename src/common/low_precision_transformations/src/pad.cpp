@@ -171,7 +171,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
 }
 
 bool PadTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, op)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(op)) {
         return false;
     }
 

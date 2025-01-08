@@ -122,7 +122,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
     return true;
 }
 
-bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool LayerTransformation::canBeTransformedSpatialDimension(const std::shared_ptr<Node>& layer) const {
     if (!isQuantized(layer, defaultPrecisions)) {
         OPENVINO_DEBUG("LPT: early exit: not quantized");
         return false;
