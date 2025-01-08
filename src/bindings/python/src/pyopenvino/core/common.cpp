@@ -123,14 +123,6 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
     auto data = t.data<std::string>();
-    std::cout << "[C++] bytes_array_from_tensor\n";
-    for (size_t i = 0; i < t.get_size(); ++i) {
-        std::cout << "String " << i << ": " << data[i] << " (bytes: ";
-        for (unsigned char c : data[i]) {
-            std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c) << " ";
-        }
-        std::cout << ")" << std::endl;
-    }
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
         return x.length() < y.length();
     });
