@@ -68,7 +68,7 @@ OutputVector translate_repeat_interleave(const NodeContext& context) {
         }
     } else {
         // repeats is not Constant or single element constant
-        // Curently we support only case when repeats contains only one element. Otherwise next Reshape will fail.
+        // Currently we support only case when repeats contains only one element. Otherwise next Reshape will fail.
         auto repeats_input = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::i32));
         repeats_input = context.mark_node(std::make_shared<v1::Reshape>(repeats_input, const_1_list, false));
         auto repeats = context.mark_node(std::make_shared<v0::Concat>(OutputVector{repeats_input, const_1_list}, 0));

@@ -20,21 +20,20 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
+
+namespace {
 bool compare_strides(const std::tuple<size_t, size_t>& a, const std::tuple<size_t, size_t>& b) {
     return std::get<0>(a) > std::get<0>(b);
 }
-OutputVector translate_as_strided(const NodeContext& context) {
-    // "aten::as_strided(Tensor(a) self, SymInt[] size, SymInt[] stride, SymInt? storage_offset=None) -> Tensor(a)"
-    num_inputs_check(context, 3, 4);
-    auto decoder = context.get_decoder();
-    auto input = context.get_input(0);
+
+OutputVector translate_as_strided_common(const NodeContext& context,
+                                         const Output<Node>& input,
+                                         const std::vector<size_t>& input_strides,
+                                         const std::deque<Output<Node>>& sizes,
+                                         const std::deque<Output<Node>>& strides) {
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-    auto input_strides = decoder->get_input_strides(0);
-    PYTORCH_OP_CONVERSION_CHECK(input_strides.size() != 0,
-                                "aten::as_strided: Couldn't retrieve input stride information from torchscript.");
-
     std::vector<size_t> idxs(input_strides.size());
     iota(idxs.begin(), idxs.end(), 0);
     std::vector<std::tuple<size_t, size_t>> stride_idxs(idxs.size());
@@ -53,6 +52,44 @@ OutputVector translate_as_strided(const NodeContext& context) {
         context.mark_node(v0::Constant::create(element::i32, Shape{transpose_idx.size()}, transpose_idx));
     auto transposed_input = context.mark_node(std::make_shared<v1::Transpose>(input, transpose_idx_const));
     auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(transposed_input, const_neg_1, false));
+    auto offset = const_0->output(0);
+    if (!context.input_is_none(3)) {
+        offset = get_input_as_i32(context, 3);
+    }
+    PYTORCH_OP_CONVERSION_CHECK(sizes.size() == strides.size(),
+                                "aten::as_strided: Vector for strides and sizes need to have equal length.");
+    auto strides_size = strides.size() - 1;
+    auto i = 0;
+    auto strides_length_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides.size()}));
+    auto ones_strides_len = context.mark_node(std::make_shared<v0::Tile>(const_1, strides_length_const));
+    auto indices = const_0;
+    std::for_each(strides.rbegin(), strides.rend(), [&](const Output<Node>& stride) {
+        auto const_num_iter = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides_size - i}));
+        auto stride_conv = context.mark_node(std::make_shared<v0::Convert>(stride, element::i32));
+        auto size = sizes.at(strides_size - i);
+        auto range = context.mark_node(std::make_shared<v4::Range>(const_0, size, const_1, element::i32));
+        range = context.mark_node(std::make_shared<v1::Multiply>(range, stride_conv));
+        auto iteration_shape = context.mark_node(
+            std::make_shared<v3::ScatterUpdate>(ones_strides_len, const_num_iter, const_neg_1, const_0));
+        range = context.mark_node(std::make_shared<v1::Reshape>(range, iteration_shape, false));
+        indices = context.mark_node(std::make_shared<v1::Add>(indices, range));
+        i++;
+    });
+    indices = context.mark_node(std::make_shared<v1::Add>(indices, offset));
+    auto gather = context.mark_node(std::make_shared<v8::Gather>(flat_input, indices, const_0));
+    return {gather};
+}
+}  // namespace
+
+OutputVector translate_as_strided(const NodeContext& context) {
+    // "aten::as_strided(Tensor(a) self, SymInt[] size, SymInt[] stride, SymInt? storage_offset=None) -> Tensor(a)"
+    num_inputs_check(context, 3, 4);
+    auto decoder = context.get_decoder();
+    auto input = context.get_input(0);
+    auto input_strides = decoder->get_input_strides(0);
+    PYTORCH_OP_CONVERSION_CHECK(input_strides.size() != 0,
+                                "aten::as_strided: Couldn't retrieve input stride information from torchscript.");
+
     std::deque<Output<Node>> sizes;
     std::deque<Output<Node>> strides;
     if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
@@ -73,33 +110,9 @@ OutputVector translate_as_strided(const NodeContext& context) {
     } else {
         strides = get_list_as_outputs(context.get_input(2));
     }
-    auto offset = const_0->output(0);
-    if (!context.input_is_none(3)) {
-        offset = get_input_as_i32(context, 3);
-    }
-    PYTORCH_OP_CONVERSION_CHECK(sizes.size() == strides.size(),
-                                "aten::as_strided: Vector for strides and sizes need to have equal length.");
-    auto strides_size = strides.size() - 1;
-    auto i = 0;
-    auto strides_length_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides.size()}));
-    auto ones_strides_len = context.mark_node(std::make_shared<v0::Tile>(const_1, strides_length_const));
-    auto indices = const_0;
-    std::for_each(strides.rbegin(), strides.rend(), [&](Output<Node>& stride) {
-        auto const_num_iter = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {strides_size - i}));
-        stride = context.mark_node(std::make_shared<v0::Convert>(stride, element::i32));
-        auto size = sizes.at(strides_size - i);
-        auto range = context.mark_node(std::make_shared<v4::Range>(const_0, size, const_1, element::i32));
-        range = context.mark_node(std::make_shared<v1::Multiply>(range, stride));
-        auto iteration_shape = context.mark_node(
-            std::make_shared<v3::ScatterUpdate>(ones_strides_len, const_num_iter, const_neg_1, const_0));
-        range = context.mark_node(std::make_shared<v1::Reshape>(range, iteration_shape, false));
-        indices = context.mark_node(std::make_shared<v1::Add>(indices, range));
-        i++;
-    });
-    indices = context.mark_node(std::make_shared<v1::Add>(indices, offset));
-    auto gather = context.mark_node(std::make_shared<v8::Gather>(flat_input, indices, const_0));
-    return {gather};
+    return translate_as_strided_common(context, input, input_strides, sizes, strides);
 };
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
