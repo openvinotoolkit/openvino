@@ -1427,3 +1427,37 @@ ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
 #endif
     return tnew;
 }
+
+void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& from,
+                                               const ov::SoPtr<ov::ITensor>& to) {
+#if defined(HAVE_AVX2)
+    constexpr uint32_t block_size = sizeof(__m256i) / sizeof(uint16_t);
+
+    OPENVINO_ASSERT(from->get_element_type() == ov::element::f16);
+    OPENVINO_ASSERT(from->is_continuous());
+    OPENVINO_ASSERT(from->get_size() % block_size == 0);
+    OPENVINO_ASSERT(from->get_shape().size() == 4u);
+    OPENVINO_ASSERT(from->get_shape()[0] == 1u);
+    OPENVINO_ASSERT(to->get_element_type() == ov::element::f16);
+    OPENVINO_ASSERT(to->get_shape().size() == 4u);
+    OPENVINO_ASSERT(to->get_shape()[0] == 1u);
+    OPENVINO_ASSERT(from->get_shape()[1] == to->get_shape()[1]);
+    OPENVINO_ASSERT(from->get_shape()[2] == to->get_shape()[2]);
+
+    const auto* src_ptr = reinterpret_cast<uint16_t*>(from->data());
+          auto* dst_ptr = reinterpret_cast<uint16_t*>(to->data());
+
+    const auto row_step = to->get_strides()[2] / sizeof(uint16_t);
+    for (int k = 0; k < from->get_size(); k += block_size) {
+        __m256i src = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(src_ptr + k));
+        for (int j = 0; j < block_size; ++j) {
+            // NB: Assign particular byte from the block to the column
+            *dst_ptr = reinterpret_cast<uint16_t*>(&src)[j];
+            // NB: And simply go to the next element in column
+            dst_ptr += row_step;
+        }
+    }
+#else
+    from->copy_to(to._ptr);
+#endif
+}

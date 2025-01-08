@@ -8,6 +8,7 @@
 
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
+#include "util_xarch.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace {
@@ -29,6 +30,19 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
 }
 
 void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
+    /*
+      src/dst layout: [1, heads, emb_size, seq_len]
+
+      X[*,i] - embedding for i-th token,
+      Instead of copy columns, copy rows X[i,*]
+
+      [[X00 X01 ... X0n]      [[X00 X01 ... X0n]
+       [X10 X11 ... X1n]       [X10 X11 ... X1n]
+       [X20 X21 ... X2n]  ...  [X20 X21 ... X2n]
+             ...                     ...
+       [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
+    */
+
     const auto src_shape = src->get_shape();
 
     OPENVINO_ASSERT(src_shape.size() == 4u);
@@ -199,7 +213,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                   kvcache_desc.num_stored_tokens - 1,
                                                   kvcache_desc.num_stored_tokens);
         auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
-        kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
+        if (kv_dim == 3u) {
+            ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_tensor, kvcache_in_slice);
+        } else {
+            kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
+        }
     }
     LOG_DEBUG("Done");
 }
