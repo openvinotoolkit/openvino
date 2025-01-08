@@ -788,7 +788,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     compiled->m_compiled_submodels.reserve(subm_size);
     for (std::size_t i = 0; i < subm_size; ++i) {
         auto desc = CompiledModelDesc::deserialize(stream, i, plugin, non_npuw_props);
-        desc.device_it = compiled->m_dev_list.cbegin();  // FIXME: only NPU device is supported for now
+        desc.device_it = compiled->m_dev_list.cbegin();
         compiled->m_compiled_submodels.push_back(desc);
     }
 

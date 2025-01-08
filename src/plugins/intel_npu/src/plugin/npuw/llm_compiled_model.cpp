@@ -429,11 +429,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_cfg.update(any_copy(npuw_llm_props));
 
-    if (!model) {
-        LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
-        return;
-    }
-
     if (m_name.find(npuw_name_identifier) != m_name.npos) {
         LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
         return;
