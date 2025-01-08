@@ -8,7 +8,7 @@ on:
         default: '*smoke_AdaPoolAvg4DLayoutTest*'
   pull_request:
     paths:
-      - '.github/workflows/linux_riscv_xuantie.yml'
+      - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
