@@ -13,32 +13,46 @@ NamedOutputs expand_v2(const NodeContext& node) {
     using namespace default_opset;
     auto x = node.get_input("X");
     Output<Node> shape_expected_node;
-    if (node.has_input("Shape")) {
-        shape_expected_node = node.get_input("Shape");
-    } else if (node.has_input("expand_shapes_tensor")) {
-        auto inputs = node.get_ng_inputs("expand_shapes_tensor");
-        ov::NodeVector node_vec;
-        for (auto& input : inputs) {
-            if (input.get_partial_shape().rank().get_length() == 0) {
-                // should unsqueeze the input with non-shape.
-                auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i32, {}, {0});
-                input = std::make_shared<default_opset::Unsqueeze>(input, unsqueeze_scalar);
-            }
-            PADDLE_OP_CHECK(node,
-                            input.get_partial_shape().rank().get_length() == 1,
-                            "the rank of conv input must == 1");
-            auto cast = std::make_shared<Convert>(input, element::i32);
-            node_vec.emplace_back(cast);
-        }
-        shape_expected_node = std::make_shared<Concat>(node_vec, 0);
-    } else {
-        std::vector<int32_t> shape_expected;
-        if (node.has_attribute("shape")) {
-            shape_expected = node.get_attribute<std::vector<int32_t>>("shape");
+    if (node.get_op_type() == "expand_as_v2"){
+        if (node.has_input("Y")) {
+            shape_expected_node = std::make_shared<ShapeOf>(node.get_input("Y"), element::i32);
         } else {
-            throw std::runtime_error("expand: has no shape attribute");
+            std::vector<int32_t> shape_expected;
+            if (node.has_attribute("target_shape")) {
+                shape_expected = node.get_attribute<std::vector<int32_t>>("target_shape");
+            } else {
+                throw std::runtime_error("expand: has no target_shape attribute");
+            }
+            shape_expected_node = Constant::create(element::i32, {shape_expected.size()}, shape_expected);
         }
-        shape_expected_node = Constant::create(element::i32, {shape_expected.size()}, shape_expected);
+    } else {
+        if (node.has_input("Shape")) {
+            shape_expected_node = node.get_input("Shape");
+        } else if (node.has_input("expand_shapes_tensor")) {
+            auto inputs = node.get_ng_inputs("expand_shapes_tensor");
+            ov::NodeVector node_vec;
+            for (auto& input : inputs) {
+                if (input.get_partial_shape().rank().get_length() == 0) {
+                    // should unsqueeze the input with non-shape.
+                    auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i32, {}, {0});
+                    input = std::make_shared<default_opset::Unsqueeze>(input, unsqueeze_scalar);
+                }
+                PADDLE_OP_CHECK(node,
+                                input.get_partial_shape().rank().get_length() == 1,
+                                "the rank of conv input must == 1");
+                auto cast = std::make_shared<Convert>(input, element::i32);
+                node_vec.emplace_back(cast);
+            }
+            shape_expected_node = std::make_shared<Concat>(node_vec, 0);
+        } else {
+            std::vector<int32_t> shape_expected;
+            if (node.has_attribute("shape")) {
+                shape_expected = node.get_attribute<std::vector<int32_t>>("shape");
+            } else {
+                throw std::runtime_error("expand: has no shape attribute");
+            }
+            shape_expected_node = Constant::create(element::i32, {shape_expected.size()}, shape_expected);
+        }
     }
     // expected shape rank
     const auto shape_expected_node_rank = std::make_shared<ShapeOf>(shape_expected_node, element::i32);

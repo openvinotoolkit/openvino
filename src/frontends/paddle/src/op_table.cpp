@@ -181,7 +181,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"equal", op::equal},
             {"exp", op::exp},
             {"expand_v2", op::expand_v2},
-            {"expand_as_v2", op::expand_as_v2},
+            {"expand_as_v2", op::expand_v2},
             {"eye", op::eye},
             {"fill_any_like", op::fill_any_like},
             {"fill_constant", op::fill_constant},
