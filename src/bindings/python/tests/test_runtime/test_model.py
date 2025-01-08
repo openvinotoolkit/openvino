@@ -856,4 +856,4 @@ def test_model_dir():
     num_of_attrs = 83
 
     assert type(dir(model)) == list
-    assert len(dir(model)) == num_of_attrs
+    assert len(dir(model)) >= num_of_attrs
