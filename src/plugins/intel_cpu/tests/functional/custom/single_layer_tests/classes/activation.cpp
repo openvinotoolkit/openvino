@@ -183,6 +183,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
         (activation_type == utils::ActivationTypes::Ceiling) ||
+        (activation_type == utils::ActivationTypes::Negative) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
@@ -210,6 +211,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #endif
     if ((activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
+       (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
        (activation_type == utils::ActivationTypes::IsFinite) ||
        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
@@ -253,6 +255,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Elu,         {{0.1f}}},
         {Floor,       {{}}},
         {Ceiling,     {{}}},
+        {Negative,    {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
