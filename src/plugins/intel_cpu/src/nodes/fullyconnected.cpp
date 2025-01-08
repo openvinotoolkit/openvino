@@ -41,6 +41,42 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
+    using ov::element::Type_t;
+
+    bool useMatmulPrim = false;
+    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+
+    if (useMatmulPrim) {
+        return {Type_t::u8, Type_t::i8};
+    } else {
+#if defined(OPENVINO_ARCH_X86_64)
+        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+#else
+        return {};
+#endif
+    }
+}
+
+ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
+    using ov::element::Type_t;
+
+    bool useMatmulPrim = false;
+    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+
+    if (useMatmulPrim) {
+        return {Type_t::f32, Type_t::f16};
+    } else {
+#if defined(OPENVINO_ARCH_X86_64)
+        // @todo enable for bf16 as well
+        // after EnforceInferencePrecision is replaced with ConvertPrecision
+        return {Type_t::f32};
+#else
+        return {};
+#endif
+    }
+}
+
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
@@ -113,7 +149,9 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
     }
     return true;
 #else
-    return false;
+    bool useMatmulPrim = false;
+    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+    return useMatmulPrim;
 #endif
 }
 
@@ -182,7 +220,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         };
 
         int dim = -1;
-        auto dst_shape = dstMemoryBuffer->getShape();
+        const auto& dst_shape = dstMemoryBuffer->getShape();
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
@@ -587,7 +625,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 1. weight shape is dynamic
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
-        auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
+        const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
         if (shape.isDynamic()) {
             tp_cfg.enable_tensor_parallel = false;
         } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {

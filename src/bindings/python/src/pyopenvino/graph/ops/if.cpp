@@ -12,6 +12,7 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -77,10 +78,14 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.Model
         )");
 
-    cls.def("set_then_body",
-            &ov::op::v8::If::set_then_body,
-            py::arg("body"),
-            R"(
+    cls.def(
+        "set_then_body",
+        [](const std::shared_ptr<ov::op::v8::If>& self, const py::object& ie_api_model) {
+            const auto body = Common::utils::convert_to_model(ie_api_model);
+            return self->set_then_body(body);
+        },
+        py::arg("body"),
+        R"(
             Sets new Model object as new then_body.
 
             :param body: new body for 'then' branch.
@@ -89,10 +94,14 @@ void regclass_graph_op_If(py::module m) {
             :rtype: None
         )");
 
-    cls.def("set_else_body",
-            &ov::op::v8::If::set_else_body,
-            py::arg("body"),
-            R"(
+    cls.def(
+        "set_else_body",
+        [](const std::shared_ptr<ov::op::v8::If>& self, const py::object& ie_api_model) {
+            const auto body = Common::utils::convert_to_model(ie_api_model);
+            return self->set_else_body(body);
+        },
+        py::arg("body"),
+        R"(
             Sets new Model object as new else_body.
 
             :param body: new body for 'else' branch.
@@ -156,11 +165,15 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.Model
         )");
 
-    cls.def("set_function",
-            &ov::op::util::MultiSubGraphOp::set_function,
-            py::arg("index"),
-            py::arg("func"),
-            R"(
+    cls.def(
+        "set_function",
+        [](const std::shared_ptr<ov::op::v8::If>& self, int index, const py::object& ie_api_model) {
+            const auto func = Common::utils::convert_to_model(ie_api_model);
+            self->set_function(index, func);
+        },
+        py::arg("index"),
+        py::arg("func"),
+        R"(
             Adds sub-graph to MultiSubGraphOp.
 
             :param index: index of new sub-graph.
