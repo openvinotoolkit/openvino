@@ -117,7 +117,7 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
     h->mov(abi_param2, num_kernel_args);
     h->mov(abi_param3, h->rsp);
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rbp);
     spill.rsp_restore();
 

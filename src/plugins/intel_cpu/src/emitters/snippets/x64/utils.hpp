@@ -28,7 +28,7 @@ inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector
 size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 
 /**
- * @brief Find the available register from the pool excepting: abi_param1, RSP, RBP and `used_gpr_idxs`
+ * @brief Find the available register from the pool excepting: abi_param1, abi_param2, RSP and `used_gpr_idxs`
  * @param used_gpr_idxs current used gpr register indexes
  * @return register
  */

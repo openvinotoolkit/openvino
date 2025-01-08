@@ -59,7 +59,7 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     h->mov(h->rax, reinterpret_cast<size_t>(set_local_handler_overload));
     h->mov(abi_param1, reinterpret_cast<uint64_t>(this));
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rax);
     spill.rsp_restore();
 

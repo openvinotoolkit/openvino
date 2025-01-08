@@ -111,17 +111,19 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     // Note: these 3 registers will be corrupted by the caller during the ABI call
     regs_to_spill.emplace(snippets::RegType::gpr, abi_param1.getIdx());
     regs_to_spill.emplace(snippets::RegType::gpr, abi_param2.getIdx());
-    regs_to_spill.emplace(snippets::RegType::gpr, h->rbp.getIdx());
-    // Note: abi_param_1 is a default invalid value to check later that the aux reg was allocated properly
-    Xbyak::Reg64 aux_reg = abi_param1;
-    const bool is_dynamic_case =
-        std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
-    if (std::is_same<T, BrgemmAMXKernelExecutor>() || is_dynamic_case)
-        aux_reg = utils::init_memory_access_aux_gpr(mem_ptrs_idxs, aux_gpr_idxs, regs_to_spill);
+
+    // Note: aux_gpr idx must be non-empty because aux_gprs_count() returns 1 for this emitter
+    Xbyak::Reg64 aux_reg(static_cast<int>(aux_gpr_idxs.back()));
+    aux_gpr_idxs.pop_back();
+    bool spill_required = false;
+    Xbyak::Reg64 callee_saved_reg(
+        static_cast<int>(get_callee_saved_aux_gpr(aux_gpr_idxs, mem_ptrs_idxs, spill_required)));
+    if (spill_required)
+        regs_to_spill.emplace(snippets::RegType::gpr, callee_saved_reg.getIdx());
+
     EmitABIRegSpills spill(h);
     spill.preamble(regs_to_spill);
 
-    h->mov(h->rbp, reinterpret_cast<uint64_t>(T::execute));
     auto reserved_stack_size = sizeof(typename T::call_args);
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
@@ -136,7 +138,6 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
-            OV_CPU_JIT_EMITTER_ASSERT(aux_reg != abi_param1, "Aux reg is needed, but wasn't allocated");
             utils::push_ptr_with_runtime_offset_on_stack(h,
                                                          brgemm_args_offsets[i],
                                                          mem_ptrs[i],
@@ -153,16 +154,15 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {
-        OV_CPU_JIT_EMITTER_ASSERT(aux_reg != abi_param1, "Aux reg is needed, but wasn't allocated");
         h->lea(aux_reg, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
         h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_AMX_ARGS(amx_tile_config)], aux_reg);
     }
-
+    h->mov(aux_reg, reinterpret_cast<uintptr_t>(T::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
 
-    spill.rsp_align();
-    h->call(h->rbp);
+    spill.rsp_align(callee_saved_reg.getIdx());
+    h->call(aux_reg);
     spill.rsp_restore();
 
     h->add(h->rsp, reserved_stack_size);

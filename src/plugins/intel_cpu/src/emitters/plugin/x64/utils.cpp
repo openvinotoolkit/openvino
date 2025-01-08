@@ -70,6 +70,56 @@ std::vector<Xbyak::Reg> get_regs_to_spill(cpu_isa_t isa, const std::set<snippets
 }
 }  // namespace
 
+std::set<size_t> get_callee_saved_reg_idxs() {
+#if defined(_WIN32)
+    return {Xbyak::Reg::RBX,
+            Xbyak::Reg::RBP,
+            Xbyak::Reg::RDI,
+            Xbyak::Reg::RSI,
+            Xbyak::Reg::R12,
+            Xbyak::Reg::R13,
+            Xbyak::Reg::R14,
+            Xbyak::Reg::R15};
+#elif defined(OPENVINO_ARCH_X86_64)
+    return {Xbyak::Reg::RBX,
+            Xbyak::Reg::RSP,
+            Xbyak::Reg::RBP,
+            Xbyak::Reg::R12,
+            Xbyak::Reg::R13,
+            Xbyak::Reg::R14,
+            Xbyak::Reg::R15};
+#else
+    OPENVINO_THROW("Unhandled platform in get_callee_saved_regs");
+    return {};
+#endif
+}
+
+size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
+                                const std::vector<size_t>& used_gprs,
+                                bool& spill_required) {
+    const auto& callee_saved = get_callee_saved_reg_idxs();
+    spill_required = false;
+    size_t aux_idx = SIZE_MAX;
+    auto available_it = std::find_if(available_gprs.begin(), available_gprs.end(), [&callee_saved](size_t r) {
+        return callee_saved.count(r) != 0;
+    });
+    if (available_it != available_gprs.end()) {
+        aux_idx = *available_it;
+        available_gprs.erase(available_it);
+    } else {
+        spill_required = true;
+        std::set<size_t> blacklist(used_gprs.begin(), used_gprs.end());
+        auto callee_it = std::find_if(callee_saved.begin(), callee_saved.end(), [&blacklist](size_t r) {
+            return blacklist.count(r) == 0;
+        });
+        OPENVINO_ASSERT(callee_it != callee_saved.end(),
+                        "All callee-saved gpr are already in use. Spill used_gprs manually");
+        aux_idx = *callee_it;
+    }
+    OPENVINO_ASSERT(aux_idx != SIZE_MAX, "All callee-saved gpr are already in use. Spill used_gprs manually");
+    return aux_idx;
+}
+
 EmitABIRegSpills::EmitABIRegSpills(jit_generator* h_arg) : h(h_arg), isa(get_isa()) {}
 
 EmitABIRegSpills::~EmitABIRegSpills() {
@@ -148,10 +198,13 @@ void EmitABIRegSpills::postamble() {
     spill_status = true;
 }
 
-void EmitABIRegSpills::rsp_align() {
-    h->mov(h->rbx, h->rsp);
-    h->and_(h->rbx, 0xf);
-    h->sub(h->rsp, h->rbx);
+void EmitABIRegSpills::rsp_align(size_t callee_saved_gpr_idx) {
+    OPENVINO_ASSERT(get_callee_saved_reg_idxs().count(callee_saved_gpr_idx),
+                    "rsp_align requires a callee-saved register");
+    m_rsp_align_reg = Xbyak::Reg64(static_cast<int>(callee_saved_gpr_idx));
+    h->mov(m_rsp_align_reg, h->rsp);
+    h->and_(m_rsp_align_reg, 0xf);
+    h->sub(h->rsp, m_rsp_align_reg);
 #ifdef _WIN32
     // Allocate shadow space (home space) according to ABI
     h->sub(h->rsp, 32);
@@ -162,11 +215,12 @@ void EmitABIRegSpills::rsp_align() {
 }
 
 void EmitABIRegSpills::rsp_restore() {
+    OPENVINO_ASSERT(!rsp_status, "rsp_restore can be called only after rsp_align");
 #ifdef _WIN32
     // Release shadow space (home space)
     h->add(h->rsp, 32);
 #endif
-    h->add(h->rsp, h->rbx);
+    h->add(h->rsp, m_rsp_align_reg);
 
     // Update the status
     rsp_status = true;

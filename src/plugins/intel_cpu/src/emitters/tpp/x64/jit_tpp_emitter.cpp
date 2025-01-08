@@ -107,7 +107,7 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     for (int i = 0; i < num_kernel_args; i++)
         data_ptr_reg(Xmm(i), abi_params[i + 1], io_offsets[i]);
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rbp);
     spill.rsp_restore();
 

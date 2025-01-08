@@ -21,6 +21,9 @@ public:
     size_t get_inputs_num() const override {
         return m_memory_offsets.size() - 1;
     }
+    size_t aux_gprs_count() const override {
+        return 1;
+    }
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 

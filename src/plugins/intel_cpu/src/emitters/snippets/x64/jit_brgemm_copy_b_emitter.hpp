@@ -20,6 +20,9 @@ public:
     size_t get_inputs_num() const override {
         return 1;
     }
+    size_t aux_gprs_count() const override {
+        return 1;
+    }
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::i8}, {element::bf16}, {element::f16}, {element::f32}};
