@@ -106,8 +106,6 @@ struct MetadataBase {
 
 /**
  * @brief Template for metadata class handling.
- *
- * @attention It's a must to have metadata version as first field in any metadata specialization.
  */
 template <uint32_t version>
 struct Metadata : public MetadataBase {};
@@ -127,6 +125,12 @@ public:
 
     void read(std::istream& stream) override;
 
+    /**
+     * @attention It's a must to first write metadata version in any metadata specialization.
+     * 
+     * @details When importing a versioned blob, it's best to first read the metadata version field.
+     * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU metadata section.
+     */
     void write(std::ostream& stream) override;
 
     /**
