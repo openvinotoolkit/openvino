@@ -309,60 +309,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
-        } else if (key == ov::key_cache_precision.name()) {
-            try {
-                keyCachePrecisionSetExplicitly = true;
-                auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
-                    keyCachePrecision = prec;
-                } else {
-                    OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
-                }
-            } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               " for property key ",
-                               ov::key_cache_precision.name(),
-                               ". Supported values: u8, bf16, f16, f32");
-            }
-        } else if (key == ov::value_cache_precision.name()) {
-            try {
-                valueCachePrecisionSetExplicitly = true;
-                auto const prec = val.as<ov::element::Type>();
-                if (one_of(prec,
-                           ov::element::f32,
-                           ov::element::f16,
-                           ov::element::bf16,
-                           ov::element::u8,
-                           ov::element::u4)) {
-                    valueCachePrecision = prec;
-                } else {
-                    OPENVINO_THROW("valueCachePrecision doesn't support value ", prec);
-                }
-            } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               " for property key ",
-                               ov::value_cache_precision.name(),
-                               ". Supported values: u4, u8, bf16, f16, f32");
-            }
-        } else if (key == ov::key_cache_group_size.name() || key == ov::value_cache_group_size.name()) {
-            try {
-                auto const groupSize = val.as<uint64_t>();
-                if (key == ov::key_cache_group_size.name()) {
-                    keyCacheGroupSizeSetExplicitly = true;
-                    keyCacheGroupSize = groupSize;
-                } else {
-                    valueCacheGroupSizeSetExplicitly = true;
-                    valueCacheGroupSize = groupSize;
-                }
-            } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               " for property key ",
-                               key,
-                               ". Expected only unsinged integer numbers");
-            }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 const auto& encryption_callbacks = val.as<EncryptionCallbacks>();
@@ -398,13 +344,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         aclFastMath = true;
     }
 #endif
-    // key/value cache precision has higher priority, if not defined use kvCachePrecision
-    if (!keyCachePrecisionSetExplicitly && kvCachePrecisionSetExplicitly) {
-        keyCachePrecision = kvCachePrecision;
-    }
-    if (!valueCachePrecisionSetExplicitly && kvCachePrecisionSetExplicitly) {
-        valueCachePrecision = kvCachePrecision;
-    }
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
@@ -412,12 +351,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         }
         if (!kvCachePrecisionSetExplicitly) {
             kvCachePrecision = ov::element::f32;
-        }
-        if (!keyCachePrecisionSetExplicitly) {
-            keyCachePrecision = ov::element::f32;
-        }
-        if (!valueCachePrecisionSetExplicitly) {
-            valueCachePrecision = ov::element::f32;
         }
     }
 
@@ -465,30 +398,13 @@ void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
     // if user sets explicitly, it will be higher priority than rt_info
     if (!kvCachePrecisionSetExplicitly &&
         model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
-        this->kvCachePrecision = this->keyCachePrecision = this->valueCachePrecision =
+        this->kvCachePrecision =
             model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
     }
     if (!fcDynamicQuantizationGroupSizeSetExplicitly &&
         model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
         this->fcDynamicQuantizationGroupSize =
             model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
-    }
-    if (!keyCachePrecisionSetExplicitly && model->has_rt_info({"runtime_options", ov::key_cache_precision.name()})) {
-        this->keyCachePrecision =
-            model->get_rt_info<ov::element::Type>({"runtime_options", ov::key_cache_precision.name()});
-    }
-    if (!valueCachePrecisionSetExplicitly &&
-        model->has_rt_info({"runtime_options", ov::value_cache_precision.name()})) {
-        this->valueCachePrecision =
-            model->get_rt_info<ov::element::Type>({"runtime_options", ov::value_cache_precision.name()});
-    }
-    if (!keyCacheGroupSizeSetExplicitly && model->has_rt_info({"runtime_options", ov::key_cache_group_size.name()})) {
-        this->keyCacheGroupSize = model->get_rt_info<uint64_t>({"runtime_options", ov::key_cache_group_size.name()});
-    }
-    if (!valueCacheGroupSizeSetExplicitly &&
-        model->has_rt_info({"runtime_options", ov::value_cache_group_size.name()})) {
-        this->valueCacheGroupSize =
-            model->get_rt_info<uint64_t>({"runtime_options", ov::value_cache_group_size.name()});
     }
 }
 

@@ -84,14 +84,13 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
     OPENVINO_ASSERT(orgInputNumber == 13, "The input number of PagedAttention should be 13.");
     // kvcache, float, []
-    auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-    auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
+    auto past_kv_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     config.inConfs[PagedAttentionExecutor::ID_KCACHE].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(past_key_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
+            ->createSharedDesc(past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE)));
     config.inConfs[PagedAttentionExecutor::ID_VCACHE].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(past_value_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
+            ->createSharedDesc(past_kv_input_mem_precision, getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE)));
     // past_lens, int, [b_seq]
     config.inConfs[PagedAttentionExecutor::ID_PAST_LENS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
@@ -141,14 +140,8 @@ void PagedAttention::createPrimitive() {
 
     auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
-        // Since we are quantize only last dim it's safe to use the last dim of KV.
-        auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        const auto& cpuConfig = context->getConfig();
-
-        size_t key_group_size = cpuConfig.keyCacheGroupSize;
-        size_t value_group_size = cpuConfig.valueCacheGroupSize;
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
+        auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
+        return make_pa_executor(rtPrecision, kvCachePrecision);
 #else
         return nullptr;
 #endif
@@ -209,20 +202,6 @@ void PagedAttention::execute(dnnl::stream strm) {
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
-        auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
-        if (one_of(vCachePrecision,
-                   ov::element::u4,
-                   ov::element::u8,
-                   ov::element::f32,
-                   ov::element::f16,
-                   ov::element::bf16)) {
-            if (!one_of(kCachePrecision, ov::element::u8, ov::element::f16, ov::element::f32, ov::element::bf16)) {
-                errorMessage = "PageAttn key value cache compression doesn't support key cache prec " +
-                               kCachePrecision.to_string() + " value cache prec " + vCachePrecision.to_string();
-                return false;
-            }
-        }
         int orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
             orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {

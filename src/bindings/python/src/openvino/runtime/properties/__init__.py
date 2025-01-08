@@ -28,10 +28,6 @@ from openvino._pyopenvino.properties import execution_devices
 from openvino._pyopenvino.properties import loaded_from_cache
 from openvino._pyopenvino.properties import cache_encryption_callbacks
 from openvino._pyopenvino.properties import weights_path
-from openvino._pyopenvino.properties import key_cache_precision
-from openvino._pyopenvino.properties import value_cache_precision
-from openvino._pyopenvino.properties import key_cache_group_size
-from openvino._pyopenvino.properties import value_cache_group_size
 
 # Submodules
 from openvino.runtime.properties import hint
