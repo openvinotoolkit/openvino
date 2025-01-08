@@ -1038,18 +1038,14 @@ KERNEL(sdpa_opt)(
 
             int seq_len_calc_size = min((int)(SOURCE_SEQ_LEN) - (int)seq_len, (int)SUBGROUP_SIZE);
 #if IS_CAUSAL
-            MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = OUTPUT_VAL_ZERO;
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #else  // !IS_CAUSAL
             MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc;
 
             qk_acc = FUNC_CALL(load_attn_mask)(OPTIONAL_SHAPE_INFO_TENSOR
                             b0_idx,
                             b1_idx,
-#if IS_PAGED_ATTENTION
-                            block_start_pos - subsequence_begins[gws_seq_indexes_correspondence[target_seq_dim]] + sglid,
-#else
                             target_seq_idx + sglid,
-#endif
                             // TODO: pass seq_len_calc_size here
                             seq_len
                             ATTN_MASK_BUFFER
@@ -1173,7 +1169,7 @@ KERNEL(sdpa_opt)(
                 SOFTMAX_ACCUMULATOR_TYPE qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
 #if IS_CAUSAL
-                // casual mask: valid only if query <= kv_len
+                // casual mask: valid only if m >= n
                 if (seq_len + i <= target_seq_idx + sglid) {
 #endif  // IS_CAUSAL
 #if !APPLY_SCALES_TO_QUERY
@@ -1193,7 +1189,7 @@ KERNEL(sdpa_opt)(
                     qk_acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(qk_acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
 #if IS_CAUSAL
                 } else {
-                    qk_acc[i] = -1e9f;
+                    qk_acc[i] = INPUT0_VAL_MIN;
                 }
 #endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
@@ -1203,7 +1199,7 @@ KERNEL(sdpa_opt)(
             }
 #if IS_CAUSAL
         } else { // skip triu
-            slm_qk_max_vals[sglid][sgid] = -1e9f;
+            slm_qk_max_vals[sglid][sgid] = SOFTMAX_ACCUMULATOR_VAL_MIN;
         }
 #endif
 
