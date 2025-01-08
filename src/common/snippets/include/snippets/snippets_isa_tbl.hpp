@@ -11,12 +11,13 @@
 
 // SnippetS dialect
 OV_OP(Load, ov::snippets::op)
-OV_OP(LoadReshape, ov::snippets::op)
+OV_OP(LoadReorder, ov::snippets::op)
 OV_OP(LoopBegin, ov::snippets::op)
 OV_OP(LoopEnd, ov::snippets::op)
 OV_OP(Brgemm, ov::snippets::op)
 OV_OP(BroadcastLoad, ov::snippets::op)
 OV_OP(Reshape, ov::snippets::op)
+OV_OP(Reorder, ov::snippets::op)
 
 OV_OP(Store, ov::snippets::op)
 
