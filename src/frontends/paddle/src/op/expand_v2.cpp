@@ -13,7 +13,7 @@ NamedOutputs expand_v2(const NodeContext& node) {
     using namespace default_opset;
     auto x = node.get_input("X");
     Output<Node> shape_expected_node;
-    if (node.get_op_type() == "expand_as_v2"){
+    if (node.get_op_type() == "expand_as_v2") {
         if (node.has_input("Y")) {
             shape_expected_node = std::make_shared<ShapeOf>(node.get_input("Y"), element::i32);
         } else {
