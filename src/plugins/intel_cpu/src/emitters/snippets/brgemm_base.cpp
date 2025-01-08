@@ -249,6 +249,11 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         }
     }
 
+#ifndef OPENVINO_ARCH_X86_64
+    config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), 0, 0, 0, beta);
+    return;
+#endif
+
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
     const auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
@@ -325,6 +330,7 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.do_post_ops = with_comp;
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
+
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
