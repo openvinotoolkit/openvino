@@ -148,6 +148,16 @@ struct activation_impl : public typed_primitive_impl<activation> {
             }
         }
 
+        auto& dominators = instance.get_node().get_dependant_shape_of_nodes();
+        for (auto& dep : instance.dependencies()) {
+            auto& dep_dominators = dep.first->get_node().get_dependant_shape_of_nodes();
+            std::vector<const program_node*> intersection;
+            std::set_intersection(dominators.begin(), dominators.end(), dep_dominators.begin(), dep_dominators.end(), std::back_inserter(intersection));
+            for (auto& dep_node : intersection) {
+                instance.get_network().get_primitive_event(dep_node->id())->wait();
+            }
+        }
+
         if (!op) {
             switch (activation_function) {
             case activation_func::pow:
