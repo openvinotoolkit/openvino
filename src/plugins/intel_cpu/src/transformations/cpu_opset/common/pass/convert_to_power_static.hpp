@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToPowerStatic: public ov::pass::MatcherPass {
+class ConvertToPowerStatic : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToPowerStatic", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToPowerStatic");
     ConvertToPowerStatic();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

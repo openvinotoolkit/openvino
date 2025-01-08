@@ -4,6 +4,7 @@
 #include <float.h>
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -13,14 +14,16 @@
 #    include <immintrin.h>
 #endif
 
-
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/parallel.hpp"
-#include "mha_single_token.hpp"
 #include "common.hpp"
+#include "mha_single_token.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "softmax_kernel.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
+#    if defined(HAVE_SVE)
+#        include <arm_sve.h>
+#    endif
 #    include <arm_neon.h>
 #endif
 
@@ -33,19 +36,20 @@ using namespace ov;
 
 #if defined(HAVE_AVX2)
 
-#define prefetch_bytes(bytes, sel, advance, src) {  \
-    auto *p = reinterpret_cast<char *>(src);        \
-    for (size_t i = 0; i < bytes; i += 64)          \
-        _mm_prefetch(p + i + advance, sel);         \
-}
+#    define prefetch_bytes(bytes, sel, advance, src) \
+        {                                            \
+            auto* p = reinterpret_cast<char*>(src);  \
+            for (size_t i = 0; i < bytes; i += 64)   \
+                _mm_prefetch(p + i + advance, sel);  \
+        }
 
 #else
 
-#define prefetch_bytes(bytes, sel, advance, src)
+#    define prefetch_bytes(bytes, sel, advance, src)
 
 #endif
 
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -59,27 +63,59 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
         mm256_uni_storeu_ps(dst + i, vb);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    if (std::is_same<TA, ov::float16>::value && std::is_same<TB, ov::float16>::value) {
+#        if defined(HAVE_SVE)
+        size_t inc = vec_len_f16_sve();
+        svbool_t pg = svptrue_b16();
+
+        while (i < n) {
+            if (n - i < vec_len_f16_sve()) {
+                inc = n - i;
+                pg = svwhilelt_b16(0, static_cast<int>(inc));
+            }
+            svfloat16_t b1 = svld1_f16(pg, reinterpret_cast<const float16_t*>(src + i));
+            svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), b1);
+            i += inc;
+        }
+#        else
+        for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
+            auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
+            vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
+        }
+#        endif
+    }
+#    else
+#        if defined(HAVE_SVE)
+    auto _dst = reinterpret_cast<float32_t*>(dst);
+    size_t inc = vec_len_f32_sve();
+    svbool_t pg = svptrue_b32();
+
+    while (i < n) {
+        if (n - i < vec_len_f32_sve()) {
+            inc = n - i;
+            pg = svwhilelt_b32(0, static_cast<int>(inc));
+        }
+        svfloat32_t b1 = svld1_f32(pg, src + i);
+        svst1_f32(pg, _dst + i, b1);
+        i += inc;
+    }
+#        else
     if (std::is_same<TA, float>::value && std::is_same<TB, float>::value) {
         for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
             float32x4_t vb1 = __vld1q_f32(src + i);
             __vst1q_f32(dst + i, vb1);
         }
     }
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-    if (std::is_same<TA, ov::float16>::value && std::is_same<TB, ov::float16>::value) {
-        for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
-            auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
-            vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
-        }
-    }
-#endif
+#        endif
+#    endif
 #endif
     for (; i < n; i++) {
         dst[i] = src[i];
     }
 }
 
-template<typename T>
+template <typename T>
 static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -99,6 +135,27 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scal
         mm256_uni_storeu_ps(out + i, v_out);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(HAVE_SVE)
+    auto _v = reinterpret_cast<float32_t*>(v);
+    svfloat32_t attn_w_vec_fp32 = svdup_n_f32(weight);
+    size_t inc = vec_len_f32_sve();
+    svbool_t pg = svptrue_b32();
+
+    while (i < S) {
+        if (S - i < vec_len_f32_sve()) {
+            inc = S - i;
+            pg = svwhilelt_b32(0, static_cast<int>(inc));
+        }
+        svfloat32_t v_value = svld1_f32(pg, _v + i);
+        svfloat32_t v_out = svld1_f32(pg, out + i);
+
+        // svmla with merging to preserve inactive lane values when there's ...
+        // fewer than vec_len elements left
+        v_out = svmla_f32_m(pg, v_out, attn_w_vec_fp32, v_value);
+        svst1_f32(pg, out + i, v_out);
+        i += inc;
+    }
+#    else
     float32x4_t attn_w_vec_fp32 = vdupq_n_f32(weight);
     for (; i + vec_len_f32_neon <= S; i += vec_len_f32_neon) {
         float32x4_t v_value = __vld1q_f32(v + i);
@@ -106,6 +163,7 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scal
         v_out = vmlaq_f32(v_out, attn_w_vec_fp32, v_value);
         __vst1q_f32(out + i, v_out);
     }
+#    endif
 #endif
     for (; i < S; i++) {
         out[i] += weight * v[i];
@@ -113,24 +171,43 @@ static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scal
 }
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-template<typename T>
+template <typename T>
 static void attn_acc_value(ov::float16* out, ov::float16 weight, T* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
+    auto _v = reinterpret_cast<float16_t*>(v);
+    auto _out = reinterpret_cast<float16_t*>(out);
+
+#    if defined(HAVE_SVE)
+    svfloat16_t attn_w_vec_fp16 = svdup_n_f16(weight);
+    svbool_t pg = svptrue_b16();
+    size_t inc = vec_len_f16_sve();
+
+    while (i < S) {
+        if (S - i < vec_len_f16_sve()) {
+            inc = S - i;
+            pg = svwhilelt_b16(0, static_cast<int>(inc));
+        }
+        svfloat16_t v_value = svld1_f16(pg, _v + i);
+        svfloat16_t v_out = svld1_f16(pg, _out + i);
+
+        v_out = svmla_f16_m(pg, v_out, attn_w_vec_fp16, v_value);
+        svst1_f16(pg, _out + i, v_out);
+        i += inc;
+    }
+#    else
     auto attn_w_vec_fp16 = vdupq_n_f16(weight);
-    auto _v = reinterpret_cast<float16_t *>(v);
-    auto _out = reinterpret_cast<float16_t *>(out);
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
         auto v_value = vld1q_f16(_v + i);
         auto v_out = vld1q_f16(_out + i);
         v_out = vfmaq_f16(v_out, attn_w_vec_fp16, v_value);
         vst1q_f16(_out + i, v_out);
     }
+#    endif
     for (; i < S; i++) {
         out[i] += weight * v[i];
     }
 }
 #endif
-
 
 static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float* scale, float* zp) {
     size_t i = 0;
@@ -285,7 +362,7 @@ static void attn_acc_value(float* out, float weight, uint8_t* v, size_t S, float
     }
 }
 
-template<typename T>
+template <typename T>
 static float sum_q_head(T* a, size_t n) {
     float sum = 0.0f;
     size_t i = 0;
@@ -357,7 +434,51 @@ static float sum_q_head(T* a, size_t n) {
     hsum(vsum0);
     sum = _mm256_cvtss_f32(vsum0);
 #elif defined(OPENVINO_ARCH_ARM64)
-    size_t vec_len_f32_neon = 4;
+#    if defined(HAVE_SVE)
+    svfloat32_t sum0 = svdup_n_f32(0.0f);
+    svfloat32_t sum1 = svdup_n_f32(0.0f);
+    svfloat32_t sum2 = svdup_n_f32(0.0f);
+    svfloat32_t sum3 = svdup_n_f32(0.0f);
+    svbool_t pg = svptrue_b32();
+    auto vec_len = vec_len_f32_sve();
+
+    for (; i + 4 * vec_len <= n; i += 4 * vec_len) {
+        svfloat32_t a0 = svld1_f32(pg, a + i);
+        svfloat32_t a1 = svld1_f32(pg, a + i + vec_len);
+        svfloat32_t a2 = svld1_f32(pg, a + i + vec_len * 2);
+        svfloat32_t a3 = svld1_f32(pg, a + i + vec_len * 3);
+
+        sum0 = svadd_f32_z(pg, a0, sum0);
+        sum1 = svadd_f32_z(pg, a1, sum1);
+        sum2 = svadd_f32_z(pg, a2, sum2);
+        sum3 = svadd_f32_z(pg, a3, sum3);
+    }
+    if (i + 2 * vec_len <= n) {
+        svfloat32_t a0 = svld1_f32(pg, a + i);
+        svfloat32_t a1 = svld1_f32(pg, a + i + vec_len);
+
+        sum0 = svadd_f32_z(pg, a0, sum0);
+        sum1 = svadd_f32_z(pg, a1, sum1);
+        i += 2 * vec_len;
+    }
+    if (i + vec_len <= n) {
+        svfloat32_t a0 = svld1_f32(pg, a + i);
+        sum0 = svadd_f32_z(pg, a0, sum0);
+        i += vec_len;
+    }
+    // Process tail elements parallely as well (if any)
+    if (i != n) {
+        svbool_t pg_rem = svwhilelt_b32(0, static_cast<int>(n - i));
+        svfloat32_t a0 = svld1_f32(pg_rem, a + i);
+        sum0 = svadd_f32_m(pg_rem, sum0, a0);
+        i = n;
+    }
+    float32_t sum_0 = svaddv_f32(pg, sum0);
+    float32_t sum_1 = svaddv_f32(pg, sum1);
+    float32_t sum_2 = svaddv_f32(pg, sum2);
+    float32_t sum_3 = svaddv_f32(pg, sum3);
+    sum = static_cast<float>(sum_0 + sum_1 + sum_2 + sum_3);
+#    else
     float32x4_t vsum0 = vdupq_n_f32(0.0f);
     float32x4_t vsum1 = vdupq_n_f32(0.0f);
     float32x4_t vsum2 = vdupq_n_f32(0.0f);
@@ -397,8 +518,8 @@ static float sum_q_head(T* a, size_t n) {
     sum_low = vadd_f32(sum_low, sum_high);
     sum_low = vpadd_f32(sum_low, sum_low);
     sum = vget_lane_f32(sum_low, 0);
+#    endif
 #endif
-
     for (; i < n; i++) {
         float tmp = a[i];
         sum += tmp;
@@ -406,7 +527,7 @@ static float sum_q_head(T* a, size_t n) {
     return sum;
 }
 
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum) {
     size_t i = 0;
     float sum = 0.0f;
@@ -497,6 +618,64 @@ static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float*
     sum = _mm256_cvtss_f32(vsum0);
 
 #elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(HAVE_SVE)
+    svbool_t pg = svptrue_b32();
+    svfloat32_t sum0 = svdup_n_f32(0.0f);
+    svfloat32_t sum1 = svdup_n_f32(0.0f);
+    svfloat32_t sum2 = svdup_n_f32(0.0f);
+    svfloat32_t sum3 = svdup_n_f32(0.0f);
+    auto vec_len = vec_len_f32_sve();
+
+    auto _a = reinterpret_cast<float32_t*>(a);
+    auto _b = reinterpret_cast<float32_t*>(b);
+
+    for (; i + 4 * vec_len <= n; i += 4 * vec_len) {
+        svfloat32_t a0 = svld1_f32(pg, _a + i);
+        svfloat32_t a1 = svld1_f32(pg, _a + i + vec_len);
+        svfloat32_t a2 = svld1_f32(pg, _a + i + vec_len * 2);
+        svfloat32_t a3 = svld1_f32(pg, _a + i + vec_len * 3);
+
+        svfloat32_t b0 = svld1_f32(pg, _b + i);
+        svfloat32_t b1 = svld1_f32(pg, _b + i + vec_len);
+        svfloat32_t b2 = svld1_f32(pg, _b + i + vec_len * 2);
+        svfloat32_t b3 = svld1_f32(pg, _b + i + vec_len * 3);
+
+        sum0 = svmla_f32_z(pg, sum0, a0, b0);
+        sum1 = svmla_f32_z(pg, sum1, a1, b1);
+        sum2 = svmla_f32_z(pg, sum2, a2, b2);
+        sum3 = svmla_f32_z(pg, sum3, a3, b3);
+    }
+    if (i + 2 * vec_len <= n) {
+        svfloat32_t a0 = svld1_f32(pg, _a + i);
+        svfloat32_t a1 = svld1_f32(pg, _a + i + vec_len);
+
+        svfloat32_t b0 = svld1_f32(pg, _b + i);
+        svfloat32_t b1 = svld1_f32(pg, _b + i + vec_len);
+
+        sum0 = svmla_f32_z(pg, sum0, a0, b0);
+        sum1 = svmla_f32_z(pg, sum1, a1, b1);
+        i += 2 * vec_len;
+    }
+    if (i + vec_len <= n) {
+        svfloat32_t a0 = svld1_f32(pg, _a + i);
+        svfloat32_t b0 = svld1_f32(pg, _b + i);
+        sum0 = svmla_f32_z(pg, sum0, a0, b0);
+        i += vec_len;
+    }
+    // Process the tail elements parallely as well (if any)
+    if (i != n) {
+        svbool_t pg_rem = svwhilelt_b32(0, static_cast<int>(n - i));
+        svfloat32_t a0 = svld1_f32(pg_rem, _a + i);
+        svfloat32_t b0 = svld1_f32(pg_rem, _b + i);
+        sum0 = svmla_f32_m(pg_rem, sum0, a0, b0);
+        i = n;
+    }
+    float32_t sum_0 = svaddv_f32(pg, sum0);
+    float32_t sum_1 = svaddv_f32(pg, sum1);
+    float32_t sum_2 = svaddv_f32(pg, sum2);
+    float32_t sum_3 = svaddv_f32(pg, sum3);
+    sum = static_cast<float>(sum_0 + sum_1 + sum_2 + sum_3);
+#    else
     float32x4_t vsum0 = vdupq_n_f32(0.0f);
     float32x4_t vsum1 = vdupq_n_f32(0.0f);
     float32x4_t vsum2 = vdupq_n_f32(0.0f);
@@ -543,8 +722,8 @@ static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float*
     float32x2_t temp_sum = vadd_f32(vget_low_f32(vsum0), vget_high_f32(vsum0));
     temp_sum = vpadd_f32(temp_sum, temp_sum);
     sum = vget_lane_f32(temp_sum, 0);
+#    endif
 #endif
-
     for (; i < n; i++) {
         sum += a[i] * b[i];
     }
@@ -552,15 +731,76 @@ static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float*
 }
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, float* scale, float* zp, float* head_sum) {
+static ov::float16 dot_product_fp16(ov::float16* a,
+                                    ov::float16* b,
+                                    size_t n,
+                                    float* scale,
+                                    float* zp,
+                                    float* head_sum) {
     size_t i = 0;
     ov::float16 sum = 0.0f;
+    auto _a = reinterpret_cast<float16_t*>(a);
+    auto _b = reinterpret_cast<float16_t*>(b);
+
+#    if defined(HAVE_SVE)
+    svbool_t pg = svptrue_b16();
+    svfloat16_t sum0 = svdup_n_f16(0.0f);
+    svfloat16_t sum1 = svdup_n_f16(0.0f);
+    svfloat16_t sum2 = svdup_n_f16(0.0f);
+    svfloat16_t sum3 = svdup_n_f16(0.0f);
+    auto vec_len = vec_len_f16_sve();
+
+    for (; i + 4 * vec_len <= n; i += 4 * vec_len) {
+        svfloat16_t a0 = svld1_f16(pg, _a + i);
+        svfloat16_t a1 = svld1_f16(pg, _a + i + vec_len);
+        svfloat16_t a2 = svld1_f16(pg, _a + i + vec_len * 2);
+        svfloat16_t a3 = svld1_f16(pg, _a + i + vec_len * 3);
+
+        svfloat16_t b0 = svld1_f16(pg, _b + i);
+        svfloat16_t b1 = svld1_f16(pg, _b + i + vec_len);
+        svfloat16_t b2 = svld1_f16(pg, _b + i + vec_len * 2);
+        svfloat16_t b3 = svld1_f16(pg, _b + i + vec_len * 3);
+
+        sum0 = svmla_f16_z(pg, sum0, a0, b0);
+        sum1 = svmla_f16_z(pg, sum1, a1, b1);
+        sum2 = svmla_f16_z(pg, sum2, a2, b2);
+        sum3 = svmla_f16_z(pg, sum3, a3, b3);
+    }
+    if (i + 2 * vec_len <= n) {
+        svfloat16_t a0 = svld1_f16(pg, _a + i);
+        svfloat16_t a1 = svld1_f16(pg, _a + i + vec_len);
+
+        svfloat16_t b0 = svld1_f16(pg, _b + i);
+        svfloat16_t b1 = svld1_f16(pg, _b + i + vec_len);
+
+        sum0 = svmla_f16_z(pg, sum0, a0, b0);
+        sum1 = svmla_f16_z(pg, sum1, a1, b1);
+        i += 2 * vec_len;
+    }
+    if (i + vec_len <= n) {
+        svfloat16_t a0 = svld1_f16(pg, _a + i);
+        svfloat16_t b0 = svld1_f16(pg, _b + i);
+        sum0 = svmla_f16_z(pg, sum0, a0, b0);
+        i += vec_len;
+    }
+    // Process the tail elements parallely as well (if any)
+    if (i != n) {
+        svbool_t pg_rem = svwhilelt_b16(0, static_cast<int>(n - i));
+        svfloat16_t a0 = svld1_f16(pg_rem, _a + i);
+        svfloat16_t b0 = svld1_f16(pg_rem, _b + i);
+        sum0 = svmla_f16_m(pg_rem, sum0, a0, b0);
+        i = n;
+    }
+    float16_t sum_0 = svaddv_f16(pg, sum0);
+    float16_t sum_1 = svaddv_f16(pg, sum1);
+    float16_t sum_2 = svaddv_f16(pg, sum2);
+    float16_t sum_3 = svaddv_f16(pg, sum3);
+    sum = static_cast<float>(sum_0 + sum_1 + sum_2 + sum_3);
+#    else
     auto vsum0 = vdupq_n_f16(0.0f);
     auto vsum1 = vdupq_n_f16(0.0f);
     auto vsum2 = vdupq_n_f16(0.0f);
     auto vsum3 = vdupq_n_f16(0.0f);
-    auto _a = reinterpret_cast<float16_t*>(a);
-    auto _b = reinterpret_cast<float16_t*>(b);
 
     for (; i + 4 * vec_len_f16_neon <= n; i += vec_len_f16_neon * 4) {
         auto va0 = vld1q_f16(_a + i);
@@ -601,7 +841,7 @@ static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, fl
     vsum0 = vaddq_f16(vsum0, vsum2);
 
     sum = hsum(vsum0);
-
+#    endif
     for (; i < n; i++) {
         sum += a[i] * b[i];
     }
@@ -609,7 +849,7 @@ static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, fl
 }
 #endif
 
-template<typename TA>
+template <typename TA>
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum) {
     size_t i = 0;
     float sum = 0.0f;
@@ -763,11 +1003,11 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
 #endif
 }
 
-template<typename T>
+template <typename T>
 static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
-    for (; i + vec_len_f32_avx512 <= S; i+= vec_len_f32_avx512) {
+    for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
         auto* src = temp + i;
         auto result_vec_fp32 = _mm512_setzero_ps();
         for (size_t m = 0; m < M; m++) {
@@ -790,6 +1030,28 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
         mm256_uni_storeu_ps(dst + i, result_vec_fp32);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(HAVE_SVE)
+    auto _dst = reinterpret_cast<float32_t*>(dst);
+    size_t inc = vec_len_f32_sve();
+    svbool_t pg = svptrue_b32();
+
+    while (i < S) {
+        if (S - i < vec_len_f32_sve()) {
+            inc = S - i;
+            pg = svwhilelt_b32(0, static_cast<int>(inc));
+        }
+        auto* src = temp + i;
+        auto result_vec_fp32 = svdup_n_f32(0.0f);
+
+        for (size_t m = 0; m < M; m++) {
+            auto o_vec_fp32 = svld1_f32(pg, src);
+            result_vec_fp32 = svadd_f32_m(pg, result_vec_fp32, o_vec_fp32);
+            src += temp_stride;
+        }
+        svst1_f32(pg, _dst + i, result_vec_fp32);
+        i += inc;
+    }
+#    else
     for (; i + vec_len_f32_neon <= S; i += vec_len_f32_neon) {
         auto* src = temp + i;
         auto result_vec_fp32 = vdupq_n_f32(0.0f);
@@ -800,6 +1062,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
         }
         __vst1q_f32(dst + i, result_vec_fp32);
     }
+#    endif
 #endif
     for (; i < S; i++) {
         auto* src = temp + i;
@@ -816,6 +1079,21 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
+#    if defined(HAVE_SVE)
+    svbool_t pg = svptrue_b16();
+
+    for (; i + vec_len_f16_sve() <= S; i += vec_len_f16_sve()) {
+        auto* src = temp + i;
+        auto result_vec_fp16 = svdup_n_f16(0.0f);
+
+        for (size_t m = 0; m < M; m++) {
+            auto o_vec_fp16 = svld1_f16(pg, reinterpret_cast<float16_t*>(src));
+            result_vec_fp16 = svadd_f16_m(pg, result_vec_fp16, o_vec_fp16);
+            src += temp_stride;
+        }
+        svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), result_vec_fp16);
+    }
+#    else
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
         auto* src = temp + i;
         auto result_vec_fp16 = vdupq_n_f16(0.0f);
@@ -826,6 +1104,7 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
         }
         vst1q_f16(reinterpret_cast<float16_t*>(dst + i), result_vec_fp16);
     }
+#    endif
     for (; i < S; i++) {
         auto* src = temp + i;
         float sum = 0.0f;
@@ -903,11 +1182,16 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value && std::is_same<T2, ov::float16>::value) {
+                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
+                            std::is_same<T2, ov::float16>::value) {
                             auto p_k = present_key.ptr<ov::float16>(0, h_group, pk);
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
-                            auto _qk = dot_product_fp16(query.ptr<ov::float16>(0, h_group), p_k,
-                                                        S, p, p + 1, head_sum.ptr<float>(0, h_group));
+                            auto _qk = dot_product_fp16(query.ptr<ov::float16>(0, h_group),
+                                                        p_k,
+                                                        S,
+                                                        p,
+                                                        p + 1,
+                                                        head_sum.ptr<float>(0, h_group));
                             buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = _qk;
                             parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                             continue;
@@ -915,8 +1199,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 #endif
                         auto p_k = present_key.ptr<T2>(0, h_group, pk);
                         prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
-                        buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = dot_product(query.ptr<T>(0, h_group), p_k,
-                                                                            S, p, p + 1, head_sum.ptr<float>(0, h_group));;
+                        buf_attn_w.ptr<T3>(0, h_group, 0)[pk] =
+                            dot_product(query.ptr<T>(0, h_group), p_k, S, p, p + 1, head_sum.ptr<float>(0, h_group));
+                        ;
                         parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                     }
                 } else {
@@ -924,10 +1209,15 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                         auto p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value && std::is_same<T2, ov::float16>::value) {
+                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
+                            std::is_same<T2, ov::float16>::value) {
                             auto p_k = present_key.ptr<ov::float16>(b_kv, h_group, pk);
-                            auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h_group), p_k,
-                                                        S, p, p + 1, head_sum.ptr<float>(b, h_group));
+                            auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h_group),
+                                                        p_k,
+                                                        S,
+                                                        p,
+                                                        p + 1,
+                                                        head_sum.ptr<float>(b, h_group));
                             buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = _qk;
                             parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                             continue;
@@ -935,8 +1225,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 #endif
                         auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
                         buf_attn_w.ptr<T3>(b, h_group, 0)[pk] =
-                                dot_product(query.ptr<T>(b, h_group), p_k,
-                                    S, p, p + 1, head_sum.ptr<float>(b, h_group));
+                            dot_product(query.ptr<T>(b, h_group), p_k, S, p, p + 1, head_sum.ptr<float>(b, h_group));
                         parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                     }
                 }
@@ -947,17 +1236,25 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         auto p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                            if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value && std::is_same<T2, ov::float16>::value) {
+                            if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
+                                std::is_same<T2, ov::float16>::value) {
                                 auto p_k = present_key.ptr<ov::float16>(b_kv, h_group, pk);
-                                auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h, pq), p_k,
-                                                            S, p, p + 1, head_sum.ptr<float>(b, h, pq));
+                                auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h, pq),
+                                                            p_k,
+                                                            S,
+                                                            p,
+                                                            p + 1,
+                                                            head_sum.ptr<float>(b, h, pq));
                                 buf_attn_w.ptr<T3>(b, h, pq)[pk] = _qk;
                                 continue;
                             }
 #endif
-                            buf_attn_w.ptr<T3>(b, h, pq)[pk] =
-                                    dot_product(query.ptr<T>(b, h, pq), present_key.ptr<T2>(b_kv, h_group, pk),
-                                        S, p, p + 1, head_sum.ptr<float>(b, h, pq));
+                            buf_attn_w.ptr<T3>(b, h, pq)[pk] = dot_product(query.ptr<T>(b, h, pq),
+                                                                           present_key.ptr<T2>(b_kv, h_group, pk),
+                                                                           S,
+                                                                           p,
+                                                                           p + 1,
+                                                                           head_sum.ptr<float>(b, h, pq));
                         }
                     }
                     parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
@@ -1001,7 +1298,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
                 auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                 for (size_t pq = 0; pq < q_len; pq++) {
-                    for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len; h++, group_idx++) {
+                    for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len;
+                         h++, group_idx++) {
                         attn_acc_value(buf_attn_score.ptr<T3>(ithr, pq, group_idx),
                                        buf_attn_w.ptr<T3>(b, h, pq)[pv],
                                        v,
@@ -1014,7 +1312,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             // convert to dst
             for (size_t pq = 0; pq < q_len; pq++) {
                 for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len;
-                        h++, group_idx++) {
+                     h++, group_idx++) {
                     auto* dst = has_out_transpose ? output_emb.ptr<T>(b, pq, h * SV) : output_emb.ptr<T>(b, h, pq);
                     cvt_copy(dst, buf_attn_score.ptr<T3>(ithr, pq, group_idx), SV);
                 }
@@ -1239,6 +1537,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());
     }
 }
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

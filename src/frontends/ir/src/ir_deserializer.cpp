@@ -7,9 +7,11 @@
 #include <pugixml.hpp>
 #include <regex>
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -17,6 +19,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
@@ -574,7 +577,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     // Read meta data from legacy representation
     if (root.child("rt_info").empty()) {
         // Legacy representation
-        // meta_data - MO meta
+        // meta_data - IR meta
         // quantization_parameters - NNCF quantization section
         std::unordered_set<std::string> meta_names = {"meta_data", "quantization_parameters"};
         read_legacy_meta_data(function, meta_names, root);
@@ -831,7 +834,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " has incorrect input with index ",
                            i,
                            "!");
-        if (ov::element::Type_t::undefined == inputs[i].get_element_type())
+
+        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
+            ov::element::Type_t::undefined == inputs[i].get_element_type())
             OPENVINO_THROW(params.type,
                            " layer ",
                            params.name,
@@ -947,10 +952,12 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         }
         const auto size = dn.attribute("size");
         const auto offset = dn.attribute("offset");
-        if (size && offset) {
+        const auto element_type = dn.attribute("element_type");
+        if (size && offset && element_type) {
             rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
                 ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
-                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")),
+                                             ov::element::Type(pugixml::get_str_attr(dn, "element_type")));
         }
     }
 
@@ -1016,6 +1023,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             FOREACH_CHILD (rt_node, in_node, "port") {
                 set_runtime_info(ovNode->input(index).get_rt_info(), rt_node.child("rt_info"));
                 ++index;
+            }
+        }
+
+        // The IR does not store information about dedicated output names for Result node (model output),
+        // assume all names from parent node are Result's (model's) tensor names.
+        //  Consider adding dedicated RT info with information about Result's output names.
+        if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
+            if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
+                // Copy names if parent node is not parameter, model's input names should not be dedicated
+                // output names as they could be removed from Parameter's tensor during model transformations.
+                ov::descriptor::copy_tensor_names(result->get_output_tensor(0), result->get_input_tensor(0));
             }
         }
     }

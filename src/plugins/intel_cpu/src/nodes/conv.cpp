@@ -4,8 +4,11 @@
 
 #include "conv.h"
 
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "common/c_types_map.hpp"
 #include "common/cpu_convert.h"
 #include "common/primitive_desc.hpp"
@@ -27,16 +30,13 @@
 #include "oneapi/dnnl/dnnl_common.hpp"
 #include "oneapi/dnnl/dnnl_types.h"
 #include "onednn/dnnl.h"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "pooling.h"
 #include "reorder.h"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-
-#include <cstdlib>
-#include <memory>
-#include <string>
-#include <vector>
 
 using namespace dnnl;
 
@@ -88,7 +88,7 @@ size_t ConvKey::hash() const {
     return seed;
 }
 
-bool ConvKey::operator==(const ConvKey &rhs) const {
+bool ConvKey::operator==(const ConvKey& rhs) const {
     bool retVal = true;
     if (inp0 != rhs.inp0) {
         retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
@@ -112,11 +112,11 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
     return retVal;
 }
 
-} // namespace
+}  // namespace
 
 class Convolution::FusedSubgraph {
 public:
-    FusedSubgraph(const std::vector<NodePtr> &opList, const Convolution &conv, const GraphContext::CPtr context) {
+    FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr context) {
         _graph = std::unique_ptr<Graph>(new Graph());
 
         std::unordered_set<NodePtr> nodesSet;
@@ -130,16 +130,16 @@ public:
             nodesSet.insert(child);
         };
 
-        //Make inputs
-        const auto &inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
+        // Make inputs
+        const auto& inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
         auto inp0 = std::make_shared<Input>(inpMemDesc1, "inp0", "Parameter", context);
         inputs.push_back(inp0);
         const size_t sumPortNum = conv.getParentEdges().size() - 1;
-        const auto &inpMemDesc2 = conv.getBaseMemDescAtInputPort(sumPortNum);
+        const auto& inpMemDesc2 = conv.getBaseMemDescAtInputPort(sumPortNum);
         auto inp1 = std::make_shared<Input>(inpMemDesc2, "inp1", "Parameter", context);
         inputs.push_back(inp1);
 
-        auto itr = std::find_if(opList.begin(), opList.end(), [](const NodePtr &node) {
+        auto itr = std::find_if(opList.begin(), opList.end(), [](const NodePtr& node) {
             if (auto eltwise = std::dynamic_pointer_cast<Eltwise>(node)) {
                 return eltwise->isSpecialConvolutionAddFusing();
             }
@@ -153,7 +153,7 @@ public:
         addEdge(inp0, sumNode, 0, 0);
         addEdge(inp1, sumNode, 0, 1);
 
-        //Replicate the rest of the subgraph
+        // Replicate the rest of the subgraph
         auto parentItr = itr;
         while (++itr != opList.end()) {
             auto parentNode = *parentItr;
@@ -173,8 +173,8 @@ public:
             }
         }
 
-        //Make output
-        const auto &outMemDesc = conv.getBaseMemDescAtOutputPort(0);
+        // Make output
+        const auto& outMemDesc = conv.getBaseMemDescAtOutputPort(0);
         auto out = std::make_shared<Input>(outMemDesc, "out", "Result", context);
         addEdge(*parentItr, out, 0, 0);
         outputs.push_back(out);
@@ -240,9 +240,20 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op)), withBiases(false), withSum(false), withDWConv(false),
-          isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
-          groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(ov::element::f32) {
+    : Node(op, context, NgraphShapeInferFactory(op)),
+      withBiases(false),
+      withSum(false),
+      withDWConv(false),
+      isGrouped(false),
+      dw_conv_oc(0),
+      dw_conv_ih(0),
+      dw_conv_iw(0),
+      dw_conv_in_dt(memory::data_type::undef),
+      groupNum(1lu),
+      IC(1),
+      groupIC(1),
+      groupOC(1),
+      eltwisePrecision(ov::element::f32) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -296,12 +307,12 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
-        autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
+        autoPadding =
+            one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                                dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                    !context->isGraphQuantized();
+                            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !context->isGraphQuantized();
     useJitPlanar = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
@@ -315,7 +326,8 @@ bool Convolution::canBeExecutedInInt8() const {
     if (!legacyWeightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
-    return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
+    return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
+           weightsDataType == memory::data_type::s8;
 }
 
 ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
@@ -338,60 +350,63 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
-            impl_desc_type::unknown,
-            impl_desc_type::dw_acl,
-            impl_desc_type::winograd_acl,
-            impl_desc_type::gemm_acl,
-            impl_desc_type::acl,
-            impl_desc_type::brgconv_avx512_amx_1x1,
-            impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw,
-            impl_desc_type::jit_avx512_amx_1x1,
-            impl_desc_type::jit_avx512_amx,
-            impl_desc_type::brgconv_avx512_1x1,
-            impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_avx512_dw,
-            impl_desc_type::jit_avx512_1x1,
-            impl_desc_type::jit_avx512,
-            impl_desc_type::brgconv_avx2_1x1,
-            impl_desc_type::brgconv_avx2,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx2_dw,
-            impl_desc_type::jit_avx2_1x1,
-            impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw,
-            impl_desc_type::jit_avx_1x1,
-            impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw,
-            impl_desc_type::jit_sse42_1x1,
-            impl_desc_type::jit_sse42,
-            impl_desc_type::gemm_any,
-            impl_desc_type::gemm_blas,
-            impl_desc_type::gemm_avx512,
-            impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx,
-            impl_desc_type::gemm_sse42,
-            impl_desc_type::jit_gemm,
-            impl_desc_type::ref_any,
-            impl_desc_type::ref,
-        };
-        if (isBrgConvAvailable())
-            return priorities;
+        impl_desc_type::unknown,
+        impl_desc_type::dw_acl,
+        impl_desc_type::winograd_acl,
+        impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
+        impl_desc_type::brgconv_avx512_dw,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
+        impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::brgconv_avx2_dw,
+        impl_desc_type::brgconv_avx2_1x1,
+        impl_desc_type::brgconv_avx2,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
+    };
+    if (isBrgConvAvailable())
+        return priorities;
 
-        static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
-            std::vector<impl_desc_type>result;
-            std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result),
-                [](impl_desc_type type) { return !(type & impl_desc_type::brgconv); });
-            return result;}();
-        return priorities_wo_brgemm;
+    static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
+        std::vector<impl_desc_type> result;
+        std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
+            return !(type & impl_desc_type::brgconv);
+        });
+        return result;
+    }();
+    return priorities_wo_brgemm;
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    //When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
-    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                           !useJitPlanar;
+    // When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
+    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !useJitPlanar;
     return isBrgConvAvailable;
 }
 
@@ -411,7 +426,7 @@ void Convolution::getSupportedDescriptors() {
         }
 
         if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-            auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
+            auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
                 expectedInputEdgesNum++;
             }
@@ -425,17 +440,19 @@ void Convolution::getSupportedDescriptors() {
     outputDataType = DnnlExtensionUtils::ElementTypeToDataType(getOriginalOutputPrecisionAtPort(0));
     eltwisePrecision = DnnlExtensionUtils::DataTypeToElementType(outputDataType);
     if (!fusedWith.empty()) {
-        outputDataType = DnnlExtensionUtils::ElementTypeToDataType(fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
+        outputDataType = DnnlExtensionUtils::ElementTypeToDataType(
+            fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
         eltwisePrecision = DnnlExtensionUtils::DataTypeToElementType(outputDataType);
     }
 
     // We need to make sure that convolution output and second input of fused Eltwise operation
-    // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
+    // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale
+    // to FP32.
     if (outputDataType != memory::data_type::f32 && outputDataType != memory::data_type::bf16 &&
         outputDataType != memory::data_type::f16 && withSum) {
         for (size_t i = 0; i < fusedWith.size(); i++) {
             if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-                auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
+                auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
                 if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
                     eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
                     if (DnnlExtensionUtils::DataTypeToElementType(outputDataType).size() != eltwisePrecision.size()) {
@@ -466,7 +483,7 @@ void Convolution::getSupportedDescriptors() {
     }
 
     for (size_t i = 0; i < fusedWith.size(); i++) {
-        auto *convolutionNode = dynamic_cast<Convolution *>(fusedWith[i].get());
+        auto* convolutionNode = dynamic_cast<Convolution*>(fusedWith[i].get());
         if (convolutionNode) {
             auto& inActivationDims = convolutionNode->inputShapes[0].getStaticDims();
             dw_conv_ih = inActivationDims[convolutionNode->inputShapes[0].getRank() - 2];
@@ -475,7 +492,7 @@ void Convolution::getSupportedDescriptors() {
             auto& outDims = convolutionNode->outputShapes[0].getStaticDims();
             dw_conv_oc = outDims[1];
 
-            const auto &dwWeightsDims = convolutionNode->inputShapes[1].getStaticDims();
+            const auto& dwWeightsDims = convolutionNode->inputShapes[1].getStaticDims();
             dw_conv_kernel.push_back(dwWeightsDims[dwWeightsDims.size() - 1]);
             dw_conv_kernel.push_back(dwWeightsDims[dwWeightsDims.size() - 2]);
             dw_conv_strides = convolutionNode->getStride();
@@ -484,7 +501,8 @@ void Convolution::getSupportedDescriptors() {
                 if (i == 0) {
                     dw_conv_in_dt = DnnlExtensionUtils::ElementTypeToDataType(getOriginalOutputPrecisionAtPort(0));
                 } else {
-                    dw_conv_in_dt = DnnlExtensionUtils::ElementTypeToDataType(fusedWith[i - 1]->getOriginalOutputPrecisionAtPort(0));
+                    dw_conv_in_dt = DnnlExtensionUtils::ElementTypeToDataType(
+                        fusedWith[i - 1]->getOriginalOutputPrecisionAtPort(0));
                 }
             } else {
                 dw_conv_in_dt = memory::data_type::f32;
@@ -496,7 +514,7 @@ void Convolution::getSupportedDescriptors() {
                 int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
                 int dst = getOutputShapeAtPort(0).getStaticDims()[2 + j];
 
-                krn = (krn - 1)*(dilation[j] + 1) + 1;
+                krn = (krn - 1) * (dilation[j] + 1) + 1;
                 int calc_dst = (src - krn + paddingL[j]) / stride[j] + 1;
                 paddingR[j] = (dst - calc_dst) * stride[j];
             }
@@ -504,10 +522,14 @@ void Convolution::getSupportedDescriptors() {
     }
 
     MemoryDescPtr in_candidate, out_candidate;
-    memory::format_tag nspc = ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
-    memory::format_tag ncsp = ndims == 3 ? memory::format_tag::ncw : (ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw);
-    memory::format_tag nCsp8c = ndims == 3 ? memory::format_tag::nCw8c : (ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c);
-    memory::format_tag nCsp16c = ndims == 3 ? memory::format_tag::nCw16c : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
+    memory::format_tag nspc =
+        ndims == 3 ? memory::format_tag::nwc : (ndims == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc);
+    memory::format_tag ncsp =
+        ndims == 3 ? memory::format_tag::ncw : (ndims == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw);
+    memory::format_tag nCsp8c = ndims == 3 ? memory::format_tag::nCw8c
+                                           : (ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c);
+    memory::format_tag nCsp16c = ndims == 3 ? memory::format_tag::nCw16c
+                                            : (ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c);
 
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
@@ -522,7 +544,7 @@ void Convolution::getSupportedDescriptors() {
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
         return;
     }
 
@@ -547,7 +569,7 @@ void Convolution::getSupportedDescriptors() {
     eltwisePrecision = ov::element::f32;
     for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getAlgorithm() == Algorithm::EltwiseAdd) {
-            auto* eltwiseNode = dynamic_cast<Eltwise *>(fusedWith[i].get());
+            auto* eltwiseNode = dynamic_cast<Eltwise*>(fusedWith[i].get());
             if (eltwiseNode && eltwiseNode->isSpecialConvolutionAddFusing()) {
                 eltwisePrecision = fusedEltwisePrecision(fusedWith[i]);
                 // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
@@ -579,42 +601,44 @@ void Convolution::getSupportedDescriptors() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     // nspc shows better performance only with brgconv implementation
-    bool nspcFirst = isBrgConvAvailable() && one_of(inputDataType, memory::data_type::f16, memory::data_type::bf16, memory::data_type::f32);
+    bool nspcFirst = isBrgConvAvailable() &&
+                     one_of(inputDataType, memory::data_type::f16, memory::data_type::bf16, memory::data_type::f32);
     bool nspcAdded = false;
     if (nspcFirst) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
         nspcAdded = true;
     }
 
     if (IC == 1 && groupOC == 1) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
     } else if (IC < 4) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
     } else {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp16c);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp8c);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
     }
 
     in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
     out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
-    createDescriptor({ in_candidate }, { out_candidate });
+    createDescriptor({in_candidate}, {out_candidate});
 
-    if (!nspcAdded && (inputDataType != memory::data_type::bf16 && inputDataType != memory::data_type::f16 && isNspcAvailable())) {
+    if (!nspcAdded &&
+        (inputDataType != memory::data_type::bf16 && inputDataType != memory::data_type::f16 && isNspcAvailable())) {
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
-        createDescriptor({ in_candidate }, { out_candidate });
+        createDescriptor({in_candidate}, {out_candidate});
     }
 #else
     (void)ncsp;
@@ -623,7 +647,7 @@ void Convolution::getSupportedDescriptors() {
 
     in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
     out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
-    createDescriptor({ in_candidate }, { out_candidate });
+    createDescriptor({in_candidate}, {out_candidate});
 #endif
 }
 
@@ -634,9 +658,11 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     dnnl::post_ops ops;
     auto& args = convPostOpsArgs[useLegacyPostOps];
     bool isINT8 = canBeExecutedInInt8();
-    // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM, weiScaleMaskPerChannel =  1 << 0
-    // Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
-    DnnlPostOpsComposerLegacy dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
+    // Weight dims in NON-Group CONV: [OC, IC, KH, KW], perchannel weight scale applied on OC DIM,
+    // weiScaleMaskPerChannel =  1 << 0 Weight dims in Group CONV:[Group, OC, IC, KH, KW], perchannel weight scale
+    // applied on GROUP and OC DIM, weiScaleMaskPerChannel = ( 1 << 0 | 1<< 1) = 0x03
+    DnnlPostOpsComposerLegacy
+        dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8, isGrouped ? 3 : 1 << 0, getDQScales(), withBiases);
 
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
@@ -679,14 +705,14 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 bool hasSubsequentSum = false;
                 bool hasSubsequentFQ = false;
                 for (size_t j = i + 1; j < fusedWith.size(); j++) {
-                    auto &nextNode = fusedWith[j];
+                    auto& nextNode = fusedWith[j];
 
-                    auto *nextEltwiseNode = dynamic_cast<Eltwise *>(nextNode.get());
+                    auto* nextEltwiseNode = dynamic_cast<Eltwise*>(nextNode.get());
                     if (nextEltwiseNode && nextEltwiseNode->isSpecialConvolutionAddFusing()) {
                         hasSubsequentSum = true;
                     }
 
-                    auto *nextQuantizeNode = dynamic_cast<FakeQuantize *>(nextNode.get());
+                    auto* nextQuantizeNode = dynamic_cast<FakeQuantize*>(nextNode.get());
                     if (nextQuantizeNode) {
                         hasSubsequentFQ = true;
                     }
@@ -779,12 +805,16 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             const std::vector<size_t> dwWeightsDims{dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]};
             const std::vector<size_t> dwBiasesDims{dw_conv_oc};
 
-            const auto dwWeightsPrc = DnnlExtensionUtils::ElementTypeToDataType(dw_conv_in_dt == dnnl_u8 ? ov::element::i8 : ov::element::f32);
-            const auto dwWeightsDesc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), dwWeightsPrc, memory::format_tag::Goihw8g);
+            const auto dwWeightsPrc = DnnlExtensionUtils::ElementTypeToDataType(
+                dw_conv_in_dt == dnnl_u8 ? ov::element::i8 : ov::element::f32);
+            const auto dwWeightsDesc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims),
+                                                                               dwWeightsPrc,
+                                                                               memory::format_tag::Goihw8g);
             inConfs.emplace_back(dwWeightsDesc);
 
             const auto dwBiasPrc = memory::data_type::f32;
-            const auto dwBiasDesc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), dwBiasPrc, memory::format_tag::x);
+            const auto dwBiasDesc =
+                std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), dwBiasPrc, memory::format_tag::x);
             inConfs.emplace_back(dwBiasDesc);
         }
 
@@ -807,15 +837,25 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     };
 #ifdef CPU_DEBUG_CAPS
     {
-       if (!customImplPriorities.empty()) {
-            DEBUG_LOG("#", getName(), " customImplPriorities [", 0 , "/", customImplPriorities.size(),
-                        "]: ", impl_type_to_string(customImplPriorities[0]));
-       }
+        if (!customImplPriorities.empty()) {
+            DEBUG_LOG("#",
+                      getName(),
+                      " customImplPriorities [",
+                      0,
+                      "/",
+                      customImplPriorities.size(),
+                      "]: ",
+                      impl_type_to_string(customImplPriorities[0]));
+        }
     }
 #endif
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         auto& desc = descs[dIdx];
-        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        auto primitive_desc = desc.get(true);  // true mean allow empty
+        if (primitive_desc == nullptr) {
+            continue;
+        }
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(primitive_desc));
 
         auto add_supported_desc = [&](dnnl::primitive_desc& desc) {
             addSupportedPrimitiveDescriptor(desc);
@@ -823,16 +863,25 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         const bool first_match = customImplPriorities.empty();
-        DEBUG_LOG("#", getName(),
-                       ", itpd.impl_info_str(): ", desc.impl_info_str(),
-                    ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
-                    ", first_match: ", first_match ? "true" : "false");
-        DnnlExtensionUtils::for_each_implementation(desc,
-                                                    first_match,
-                                                    [&](impl_desc_type implType) {
-                                                        return contains(getImplPriority(), implType);
-                                                    },
-                                                    add_supported_desc);
+        DEBUG_LOG("#",
+                  getName(),
+                  ",descIndex:",
+                  dIdx + 1,
+                  "/",
+                  descs.size(),
+                  ", itpd.impl_info_str(): ",
+                  desc.impl_info_str(),
+                  ", parsed imp_type: ",
+                  impl_type_to_string(parse_impl_name(desc.impl_info_str())),
+                  ", first_match: ",
+                  first_match ? "true" : "false");
+        DnnlExtensionUtils::for_each_implementation(
+            desc,
+            first_match,
+            [&](impl_desc_type implType) {
+                return contains(getImplPriority(), implType);
+            },
+            add_supported_desc);
 
         // fallback. if none of the primitive types is present in the priority list just add first implementation
         // @todo this fallback is not necessary if primitive priority list is filled correctly
@@ -846,46 +895,48 @@ bool Convolution::created() const {
 }
 
 namespace {
-dnnl::convolution_forward::primitive_desc
-createDescriptorInternal(const dnnl::engine& engine,
-                         const dnnl::memory::desc& inputDesc,
-                         const dnnl::memory::desc& weightDesc,
-                         const dnnl::memory::desc& biasDesc,
-                         const dnnl::memory::desc& outputDesc,
-                         bool withBiases,
-                         const std::vector<size_t>& stride,
-                         const std::vector<ptrdiff_t>& dilation,
-                         const std::vector<ptrdiff_t>& paddingL,
-                         const std::vector<ptrdiff_t>& paddingR,
-                         dnnl::algorithm alg,
-                         const dnnl::primitive_attr& attr) {
+dnnl::convolution_forward::primitive_desc createDescriptorInternal(const dnnl::engine& engine,
+                                                                   const dnnl::memory::desc& inputDesc,
+                                                                   const dnnl::memory::desc& weightDesc,
+                                                                   const dnnl::memory::desc& biasDesc,
+                                                                   const dnnl::memory::desc& outputDesc,
+                                                                   bool withBiases,
+                                                                   const std::vector<size_t>& stride,
+                                                                   const std::vector<ptrdiff_t>& dilation,
+                                                                   const std::vector<ptrdiff_t>& paddingL,
+                                                                   const std::vector<ptrdiff_t>& paddingR,
+                                                                   dnnl::algorithm alg,
+                                                                   const dnnl::primitive_attr& attr) {
     if (withBiases) {
-        return dnnl::convolution_forward::primitive_desc(
-            engine,
-            prop_kind::forward_inference,
-            alg,
-            inputDesc, weightDesc, biasDesc, outputDesc,
-            dnnl::memory::dims(stride.begin(), stride.end()),
-            dnnl::memory::dims(dilation.begin(), dilation.end()),
-            dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-            dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-            attr,
-            true); // allow_empty
+        return dnnl::convolution_forward::primitive_desc(engine,
+                                                         prop_kind::forward_inference,
+                                                         alg,
+                                                         inputDesc,
+                                                         weightDesc,
+                                                         biasDesc,
+                                                         outputDesc,
+                                                         dnnl::memory::dims(stride.begin(), stride.end()),
+                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
+                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                                                         attr,
+                                                         true);  // allow_empty
     } else {
-        return dnnl::convolution_forward::primitive_desc(
-            engine,
-            prop_kind::forward_inference,
-            alg,
-            inputDesc, weightDesc, outputDesc,
-            dnnl::memory::dims(stride.begin(), stride.end()),
-            dnnl::memory::dims(dilation.begin(), dilation.end()),
-            dnnl::memory::dims(paddingL.begin(), paddingL.end()),
-            dnnl::memory::dims(paddingR.begin(), paddingR.end()),
-            attr,
-            true); // allow_empty
+        return dnnl::convolution_forward::primitive_desc(engine,
+                                                         prop_kind::forward_inference,
+                                                         alg,
+                                                         inputDesc,
+                                                         weightDesc,
+                                                         outputDesc,
+                                                         dnnl::memory::dims(stride.begin(), stride.end()),
+                                                         dnnl::memory::dims(dilation.begin(), dilation.end()),
+                                                         dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                                                         dnnl::memory::dims(paddingR.begin(), paddingR.end()),
+                                                         attr,
+                                                         true);  // allow_empty
     }
 }
-} // namespace
+}  // namespace
 
 static memory::data_type deriveWeightDataType(memory::data_type src_dt) {
     memory::data_type wdt = src_dt;
@@ -910,7 +961,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     if (outputDesc[0]->isDefined()) {
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]);
     } else {
-        std::vector<Shape> shapes = { definedInpMemDesc->getShape(), Shape(weightDims) };
+        std::vector<Shape> shapes = {definedInpMemDesc->getShape(), Shape(weightDims)};
         auto outDims = shapeInferGeneric(shapes);
         definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]->cloneWithNewDims(outDims.front()));
     }
@@ -924,13 +975,39 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     dnnl::memory::desc biasDnnlDesc;
 
     if (withBiases) {
-        //oneDNN ARM Convolution primitive supports only identical in/out data types
+        // oneDNN ARM Convolution primitive supports only identical in/out data types
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         memory::data_type bdt = outDnnlDesc.get_data_type();
 #else
         memory::data_type bdt = memory::data_type::f32;
+        /* brdgmm_dw_conv has more perf gain on bf16/fp16 inference.
+        brdgmm_dw_conv supports only bia_type the same as src_type or dst_type.
+        dw convolution support in onednn 3.5.
+        BF16:
+        kernel type | brgdconv | jit_uni_dw_convolution_fwd_t
+        support impl type | native bf16 ISA without AMX | avx512_core_bf16 or avx512_core
+        bias dt | oneof(src,dest) | oneof(src, dest, f32)
+        FP16:
+        kernel type | brgdconv | brgemm_convolution_fwd_t
+        impl type | native FP16 ISA without AMX | native FP16 ISA
+        bias type | oneof(src,dest) | oneof(src, dest, f32)
+        @todo: this bias type changes may have minor accuracy impact on some models, so when upstream ONEDNN extend this
+        kind of matrix support (ticket MFDNN-12936) we can continue use bdt = memory::data_type::f32 here;
+        */
+        auto out_dt = outDnnlDesc.get_data_type();
+        if (!canBeExecutedInInt8() && isDepthWise()) {
+            bool isF16BiasSupported = (out_dt == memory::data_type::f16) && hasHardwareSupport(ov::element::f16);
+            bool isBF16BiasSupported = (out_dt == memory::data_type::bf16) &&
+                                       (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+                                        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2));
+
+            if (isF16BiasSupported || isBF16BiasSupported) {
+                bdt = out_dt;
+            }
+        }
 #endif
-        biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
+        biasDnnlDesc =
+            dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
 
     std::vector<dnnl::algorithm> algorithms;
@@ -942,10 +1019,18 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     for (const auto alg : algorithms) {
         for (const auto& attr : attrs) {
             const auto desc = createDescriptorInternal(getEngine(),
-                                                       inDnnlDesc, weightDnnlDesc, biasDnnlDesc, outDnnlDesc, withBiases,
-                                                       stride, dilation, paddingL, paddingR, alg, attr);
-            if (desc)
-                descs.emplace_back(desc);
+                                                       inDnnlDesc,
+                                                       weightDnnlDesc,
+                                                       biasDnnlDesc,
+                                                       outDnnlDesc,
+                                                       withBiases,
+                                                       stride,
+                                                       dilation,
+                                                       paddingL,
+                                                       paddingR,
+                                                       alg,
+                                                       attr);
+            descs.emplace_back(desc);
         }
     }
 }
@@ -978,7 +1063,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
         if (!legacyWeightsZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {legacyWeightsZeroPoints.size()});
-            legacyWeightsZeroPointsMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, legacyWeightsZeroPoints.data());
+            legacyWeightsZeroPointsMemPtr =
+                std::make_shared<Memory>(getEngine(), memoryDesc, legacyWeightsZeroPoints.data());
         }
     }
 
@@ -988,7 +1074,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 
         if (!legacyOutputCompensationMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::i32, {legacyOutputCompensation.size()});
-            legacyOutputCompensationMemPtr = std::make_shared<Memory>(getEngine(), memoryDesc, legacyOutputCompensation.data());
+            legacyOutputCompensationMemPtr =
+                std::make_shared<Memory>(getEngine(), memoryDesc, legacyOutputCompensation.data());
         }
     }
 }
@@ -999,7 +1086,7 @@ static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::imp
 }
 
 // See the src/plugins/intel_cpu/src/docs/convPostOps.md for details
-void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
+void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr>& attrs) {
     attrs.resize(1);
     auto outputShape = outputStaticShape();
     // attr[0] - Legacy post ops + Legacy zero points.
@@ -1007,14 +1094,13 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
 
-    //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
+    // dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
     if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
         return;
     }
 
     // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
-    if (inputZeroPointType == zpType::None &&
-        !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
+    if (inputZeroPointType == zpType::None && !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
         !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
         return;
     }
@@ -1029,10 +1115,11 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     }
     // Try 2 attributes.
     attrs.resize(2);
-    if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-        //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
+    if (inputZeroPointType == zpType::PerTensor &&
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        // WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
         //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
-        //For now, have to adapt to JIT_AMX kernel for performance.
+        // For now, have to adapt to JIT_AMX kernel for performance.
         DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=true");
         setPostOps(attrs[1], outputShape, true);
     } else {
@@ -1043,7 +1130,7 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
 }
 
 void Convolution::initDescriptor(const NodeConfig& config) {
-    auto *selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
 
     if (!selectedPD) {
         return;
@@ -1052,24 +1139,29 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     // attr[0] for legacy post ops;
     // attr[1] is mostly for binaryPostops except when having per-tensor zp on AMX.
     const int descId = descIdx[selectedPrimitiveDescriptorIndex];
-    int attrId = attrs.size() == 1 ? 0 :
-        descId % 2 == 0 ? 0 : 1;
+    int attrId = attrs.size() == 1 ? 0 : descId % 2 == 0 ? 0 : 1;
 
     preferLegacyPostOps = (attrId == 0 || (attrId == 1 && (inputZeroPointType == zpType::PerTensor) &&
-                                      dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
-    //attr[0] for legacy zero point.
-    //attr[1] for stock per-tensor zero point.
+                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
+    // attr[0] for legacy zero point.
+    // attr[1] for stock per-tensor zero point.
     preferLegacyZeroPoint = (attrId == 0);
 
     DEBUG_LOG(getName(),
-              " selectedPrimitiveDescriptorIndex: ", selectedPrimitiveDescriptorIndex,
-              " DescIdx: ", descId,
-              " Selected impl type: ", selectedPD->getImplementationType(),
-              " Desc impl type: ", parse_impl_name(descs[descId].impl_info_str()),
-              " preferLegacyPostOps: ", preferLegacyPostOps,
-              " preferLegacyZeroPoint: ", preferLegacyZeroPoint);
+              " selectedPrimitiveDescriptorIndex: ",
+              selectedPrimitiveDescriptorIndex,
+              " DescIdx: ",
+              descId,
+              " Selected impl type: ",
+              selectedPD->getImplementationType(),
+              " Desc impl type: ",
+              parse_impl_name(descs[descId].impl_info_str()),
+              " preferLegacyPostOps: ",
+              preferLegacyPostOps,
+              " preferLegacyZeroPoint: ",
+              preferLegacyZeroPoint);
 
-    auto updateNodeConfig = [&](const NodeConfig& cfg){
+    auto updateNodeConfig = [&](const NodeConfig& cfg) {
         auto updatedConfig = cfg;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -1092,7 +1184,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
         return updatedConfig;
     };
 
-    if (!canBeExecutedInInt8()) { // strided blobs are suppoted only for FP32 convolutions
+    if (!canBeExecutedInInt8()) {  // strided blobs are suppoted only for FP32 convolutions
         descs.clear();
         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
 
@@ -1110,7 +1202,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     selectedPD->setConfig(updatedConfig);
 }
 
-std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (idx == 1) {
         // report original plain layout for weight since it needs to be reordered dynamically at runtime
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx),
@@ -1146,7 +1238,8 @@ ov::element::Type Convolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(
+                DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -1178,8 +1271,9 @@ bool Convolution::isNspcAvailable() const {
             return false;
         }
     } else {
-        // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the channels number more than the specific value
-        size_t spatialRank = ndims - 2; //two means batch dim plus channels dim
+        // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the
+        // channels number more than the specific value
+        size_t spatialRank = ndims - 2;  // two means batch dim plus channels dim
 
         bool is1x1 = false;
 
@@ -1190,24 +1284,24 @@ bool Convolution::isNspcAvailable() const {
             auto paddingRreversItr = paddingR.crbegin();
 
             for (size_t i = 0; i < spatialRank; ++i) {
-                is1x1 = true
-                        && *(weightDimsReversItr++) == 1
-                        && *(strideReversItr++) == 1
-                        && *(paddingLreversItr++) == 0
-                        && *(paddingRreversItr++) == 0;
+                is1x1 = true && *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 &&
+                        *(paddingLreversItr++) == 0 && *(paddingRreversItr++) == 0;
             }
         }
 
-        // if the activation field size is 1x1 the avx512 1x1 nspc convolution pollutes caches so that the layer after the convolution performs slow
+        // if the activation field size is 1x1 the avx512 1x1 nspc convolution pollutes caches so that the layer after
+        // the convolution performs slow
         if (mayiuse(impl::cpu::x64::avx512_core) && is1x1) {
             auto end = inpDims.rbegin();
             std::advance(end, spatialRank);
-            if (std::all_of(inpDims.rbegin(), end, [](size_t x) { return dimsEqualStrong(1, x); })) {
+            if (std::all_of(inpDims.rbegin(), end, [](size_t x) {
+                    return dimsEqualStrong(1, x);
+                })) {
                 return false;
             }
         }
 
-        unsigned thresholdNumChannels = 128u; // for avx and below
+        unsigned thresholdNumChannels = 128u;  // for avx and below
         if (is1x1) {
             thresholdNumChannels = 2048u;
         } else if (mayiuse(impl::cpu::x64::avx512_core)) {
@@ -1219,7 +1313,8 @@ bool Convolution::isNspcAvailable() const {
             return false;
         }
         if (!mayiuse(impl::cpu::x64::avx)) {
-            // SSE41 nspc convolutions do not support ic and oc tails yet and the blocked implementation will be much better than gemm
+            // SSE41 nspc convolutions do not support ic and oc tails yet and the blocked implementation will be much
+            // better than gemm
             if ((IC % 8) || (OC % 8)) {
                 return false;
             }
@@ -1246,7 +1341,7 @@ void Convolution::prepareParams() {
             OPENVINO_THROW("Input memory is undefined.");
     }
 
-    const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
 
@@ -1319,44 +1414,41 @@ void Convolution::prepareParams() {
                 dnnlBiasDesc = biasDescPtr->getDnnlDesc();
             }
 
-            return createDescriptorInternal(
-                engine,
-                srcDesc,
-                wghDesc,
-                dnnlBiasDesc,
-                dstDesc,
-                (biasDescPtr != nullptr),
-                stride,
-                dilation,
-                paddingL,
-                paddingR,
-                alg,
-                attr);
+            return createDescriptorInternal(engine,
+                                            srcDesc,
+                                            wghDesc,
+                                            dnnlBiasDesc,
+                                            dstDesc,
+                                            (biasDescPtr != nullptr),
+                                            stride,
+                                            dilation,
+                                            paddingL,
+                                            paddingR,
+                                            alg,
+                                            attr);
         };
 
-        dnnl::primitive_desc prim_desc = createDnnlConvDesc(
-            engine,
-            key.inp0->getDnnlDesc(),
-            wghDescAny,
-            key.out->getDnnlDesc(),
-            key.bias,
-            key.stride,
-            key.dilation,
-            key.paddingL,
-            key.paddingR,
-            convAlg,
-            key.attr);
+        dnnl::primitive_desc prim_desc = createDnnlConvDesc(engine,
+                                                            key.inp0->getDnnlDesc(),
+                                                            wghDescAny,
+                                                            key.out->getDnnlDesc(),
+                                                            key.bias,
+                                                            key.stride,
+                                                            key.dilation,
+                                                            key.paddingL,
+                                                            key.paddingR,
+                                                            convAlg,
+                                                            key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
         if (found) {
-            return std::make_shared<ConvolutionExecutor>(
-                prim_desc,
-                key.inp0->getDnnlDesc(),
-                key.inp1->getDnnlDesc(),
-                key.out->getDnnlDesc(),
-                engine,
-                key.constWeight);
+            return std::make_shared<ConvolutionExecutor>(prim_desc,
+                                                         key.inp0->getDnnlDesc(),
+                                                         key.inp1->getDnnlDesc(),
+                                                         key.out->getDnnlDesc(),
+                                                         engine,
+                                                         key.constWeight);
         }
 
         // primitive desc with proper implementation type not found, use the first available
@@ -1367,40 +1459,37 @@ void Convolution::prepareParams() {
                                           key.out->getDataType(),
                                           memory::format_tag::any);
 
-        auto reorderConvDesc = createDnnlConvDesc(
-            engine,
-            inDesc,
-            wghDescAny,
-            outDesc,
-            key.bias,
-            key.stride,
-            key.dilation,
-            key.paddingL,
-            key.paddingR,
-            convAlg,
-            key.attr);
+        auto reorderConvDesc = createDnnlConvDesc(engine,
+                                                  inDesc,
+                                                  wghDescAny,
+                                                  outDesc,
+                                                  key.bias,
+                                                  key.stride,
+                                                  key.dilation,
+                                                  key.paddingL,
+                                                  key.paddingR,
+                                                  convAlg,
+                                                  key.attr);
 
         // unable to create a primitive desc
         if (!reorderConvDesc)
             return nullptr;
 
         if (key.attr.get()->post_ops_.count(dnnl::impl::primitive_kind::sum)) {
-            return std::make_shared<ConvolutionSumExecutor>(
-                reorderConvDesc,
-                key.inp0->getDnnlDesc(),
-                key.inp1->getDnnlDesc(),
-                key.out->getDnnlDesc(),
-                engine,
-                key.constWeight);
+            return std::make_shared<ConvolutionSumExecutor>(reorderConvDesc,
+                                                            key.inp0->getDnnlDesc(),
+                                                            key.inp1->getDnnlDesc(),
+                                                            key.out->getDnnlDesc(),
+                                                            engine,
+                                                            key.constWeight);
         }
 
-        return std::make_shared<ConvolutionExecutor>(
-            reorderConvDesc,
-            key.inp0->getDnnlDesc(),
-            key.inp1->getDnnlDesc(),
-            key.out->getDnnlDesc(),
-            engine,
-            key.constWeight);
+        return std::make_shared<ConvolutionExecutor>(reorderConvDesc,
+                                                     key.inp0->getDnnlDesc(),
+                                                     key.inp1->getDnnlDesc(),
+                                                     key.out->getDnnlDesc(),
+                                                     engine,
+                                                     key.constWeight);
     };
 
     auto prevExecPtr = execPtr;
@@ -1455,7 +1544,8 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::primitive_desc
                                                       const dnnl::memory::desc& weightMemDesc,
                                                       const dnnl::memory::desc& outMemDesc,
                                                       const dnnl::engine& engine,
-                                                      bool constWeight) : DnnlExecutor(pd) {
+                                                      bool constWeight)
+    : DnnlExecutor(pd) {
     if (inMemDesc != getDnnlSrcDesc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
@@ -1475,7 +1565,8 @@ Convolution::ConvolutionSumExecutor::ConvolutionSumExecutor(const dnnl::primitiv
                                                             const dnnl::memory::desc& weightMemDesc,
                                                             const dnnl::memory::desc& outMemDesc,
                                                             const dnnl::engine& engine,
-                                                            bool constWeight) : DnnlExecutor(pd) {
+                                                            bool constWeight)
+    : DnnlExecutor(pd) {
     if (inMemDesc != getDnnlSrcDesc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
@@ -1493,9 +1584,10 @@ Convolution::ConvolutionSumExecutor::ConvolutionSumExecutor(const dnnl::primitiv
     }
 }
 
-void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
+void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs,
+                                                       dnnl::stream strm) {
     auto outputMem = primArgs.at(DNNL_ARG_DST);
-    for (auto &inReorder : inputReorders) {
+    for (auto& inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
             inReorder.second.exec(primArgs[inReorder.first], memDst, strm);
@@ -1544,14 +1636,14 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Convolution::updatePadding() {
-    //update padding.
+    // update padding.
     if (isDynamicNode() && autoPadding) {
         paddingL = shapeInference->get_pads_begin();
         paddingR = shapeInference->get_pads_end();
     }
 }
 
-void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
+void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) {
     if (withSum) {
         const size_t sumPortNum = getParentEdges().size() - 1;
         const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
@@ -1565,7 +1657,8 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
 
             auto inp1 = subgraph->getInput(1);
             inp1->redefineOutputMemory({sumInpMem.getStaticDims()});
-            // here we postpone output memory reallocation due to the fact that it is the same memory with the sum second input
+            // here we postpone output memory reallocation due to the fact that it is the same memory with the sum
+            // second input
             return;
         } else {
             withSumBroadcast = false;
@@ -1574,12 +1667,10 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
     Node::redefineOutputMemory(newOutputShapes);
 }
 
-MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc &primitive_desc_it) {
+MemoryDescPtr Convolution::getSumMemDesc(const primitive_desc& primitive_desc_it) {
     if (getOutputShapeAtPort(0).isDynamic()) {
-        // When we set input shape with ranged dims, sum node input shape maybe mismatch with output shape, we just change
-        // ranged min value to 1 to meet this case.
-        // For example:
-        // Output shape = {1, 160, {128, 256}, {128, 256}}
+        // When we set input shape with ranged dims, sum node input shape maybe mismatch with output shape, we just
+        // change ranged min value to 1 to meet this case. For example: Output shape = {1, 160, {128, 256}, {128, 256}}
         // Sum input shape = {1, 160, 1, 1}
         // Update sum shape to {1, 160, {1, 256}, {1, 256}}
         auto shape = getOutputShapeAtPort(0);
@@ -1617,7 +1708,7 @@ MemoryPtr Convolution::getOutputMemory() const {
     }
 }
 
-void Convolution::addFusedNode(const NodePtr &fusingNode) {
+void Convolution::addFusedNode(const NodePtr& fusingNode) {
     if (Type::Eltwise == fusingNode->getType()) {
         if (fusingNode->getAlgorithm() == Algorithm::EltwiseAdd) {
             auto eltwiseNode = std::dynamic_pointer_cast<Eltwise>(fusingNode);
@@ -1650,7 +1741,6 @@ void Convolution::appendLegacyZeroPointsArgs() {
     }
 }
 
-
 void Convolution::appendZeroPointsArgs() {
     if (stockInputZeroPointsMemPtr != nullptr) {
         primArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = stockInputZeroPointsMemPtr->getPrimitive();
@@ -1668,10 +1758,9 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
             inputZeroPointType = zpType::PerChannel;
     }
     // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
-    // avx2_vnni is not enabled per-tensor z because of perf regression brgconv with per-tensor zpcompared with jit per-channel zp
-    // If zero point is pertensor, both legacy zp and stock zp
-    // would be passed into conv node. The conv node would determine how to create
-    // post-ops attribute and prioritize to choose final onednn kernel.
+    // avx2_vnni is not enabled per-tensor z because of perf regression brgconv with per-tensor zpcompared with jit
+    // per-channel zp If zero point is pertensor, both legacy zp and stock zp would be passed into conv node. The conv
+    // node would determine how to create post-ops attribute and prioritize to choose final onednn kernel.
     if (inputZeroPointType == zpType::PerTensor && (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
                                                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
                                                     impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2)))
@@ -1689,15 +1778,14 @@ VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
     const size_t filterStartIndx = weightDims.size() - spatialRank;
 
     VectorDims dummyInputShapeVals(inpShape.getRank(), dummyInputDim);
-    dummyInputShapeVals[1] = IC; //channels
+    dummyInputShapeVals[1] = IC;  // channels
 
     for (size_t i = 0; i < spatialRank; i++) {
         if (weightDims[filterStartIndx + i] > dummyInputShapeVals[2 + i]) {
             constexpr Dim dummyOutputDim = 16;
-            dummyInputShapeVals[2 + i] = (dummyOutputDim - 1) * stride[i] -
-                                (paddingL[i] + paddingR[i]) +
-                                weightDims[filterStartIndx + i] +
-                                (weightDims[filterStartIndx + i]- 1) * (dilation[i]);
+            dummyInputShapeVals[2 + i] = (dummyOutputDim - 1) * stride[i] - (paddingL[i] + paddingR[i]) +
+                                         weightDims[filterStartIndx + i] +
+                                         (weightDims[filterStartIndx + i] - 1) * (dilation[i]);
         }
     }
     return MemoryDescUtils::makeDummyShape(inpShape, dummyInputShapeVals).getStaticDims();
@@ -1707,12 +1795,12 @@ VectorDims Convolution::outputStaticShape() const {
     auto& outputShape = getOutputShapeAtPort(0);
     if (outputShape.isDynamic()) {
         auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
-        auto outputDims = shapeInferGeneric({ Shape(inpDummyShape), Shape(weightDims) });
+        auto outputDims = shapeInferGeneric({Shape(inpDummyShape), Shape(weightDims)});
         return Shape(outputDims.front()).getStaticDims();
     }
     return outputShape.getStaticDims();
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

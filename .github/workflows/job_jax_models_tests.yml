@@ -65,6 +65,7 @@ jobs:
 
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -88,7 +89,7 @@ jobs:
 
       - name: Install JAX tests requirements for precommit
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/jax/requirements.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
 
       - name: JAX/Flax Models Tests from Hugging Face
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly' }}

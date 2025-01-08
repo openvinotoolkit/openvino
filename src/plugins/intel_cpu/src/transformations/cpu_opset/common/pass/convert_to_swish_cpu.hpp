@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToSwishCPU: public ov::pass::MatcherPass {
+class ConvertToSwishCPU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToSwishCPU", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToSwishCPU");
     ConvertToSwishCPU();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

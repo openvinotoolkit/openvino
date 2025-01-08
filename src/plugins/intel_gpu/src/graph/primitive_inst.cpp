@@ -38,6 +38,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "impls/registry/implementation_manager.hpp"
 #include "impls/registry/registry.hpp"
@@ -2410,11 +2411,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             if ((_node.is_output() && is_reorder_weights) || (!_node.is_output() && _node.is_type<input_layout>()))
                 reset = false;
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
-            return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
+            return _engine.allocate_memory(layout, alloc_type, reset);
         }
     } else if (!_node.can_share_buffer() || impl_params.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
-        return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
+        return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
                                     net_id,
@@ -2606,6 +2607,16 @@ bool primitive_inst::is_valid_fusion() const {
         } else {
             if (fd.is_type<reorder>() || fd.is_type<quantize>())
                 continue;
+            if (fd.is_type<swiglu>()) {
+                OPENVINO_ASSERT(_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::ocl);
+                if (!_node->get_selected_impl())
+                    return false;
+                // TODO : support ref kernel too
+                if (_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
+                    return true;
+                else
+                    return false;
+            }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
@@ -2647,6 +2658,18 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>())
             can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
+        // Check if broadcast happens more than single axis.
+        // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
+        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() == outer_dep_pshape.rank().get_length()) {
+            uint8_t broadcast_more_than_single_axis = 0;
+            for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
+                if (merged_shape.get_shape().at(i) != outer_dep_pshape.get_shape().at(i))
+                    broadcast_more_than_single_axis++;
+            }
+            if (broadcast_more_than_single_axis > 1)
+                can_broadcast = false;
+        }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
         // batch dimension mismatch in OneDNN tensor descriptors as follow:
@@ -2660,7 +2683,6 @@ bool primitive_inst::is_valid_fusion() const {
             auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                          cldnn::format::dimension(gemm_layout.format),
                                                          false);
-
             auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
@@ -2674,8 +2696,19 @@ bool primitive_inst::is_valid_fusion() const {
             const auto fc_dims = fc_layout.get_dims();
             const auto data_dims = data_layout.get_dims();
 
+            auto same_spatial = [](layout a, layout b) {
+                if (a.get_spatial_rank() != b.get_spatial_rank())
+                    return false;
+                for (size_t i = 0; i < a.get_spatial_rank(); i++) {
+                    if (a.spatial(i) != b.spatial(i))
+                        return false;
+                }
+                return true;
+            };
+
             if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
                 !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !((data_dims[0] == 1 || data_dims[1] == 1) && same_spatial(fc_layout, data_layout)) &&
                 !(fc_layout.count() == data_layout.count())) {
                 return false;
             }

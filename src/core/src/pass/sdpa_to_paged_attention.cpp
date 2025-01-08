@@ -81,15 +81,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
 
     input_ids_node->set_partial_shape(PartialShape{-1});
+    auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
     auto unsqueezed_input_ids =
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(input_ids_node, unsqueezed_input_ids);
-
-    auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
-                                                    v0::Constant::create(element::i64, Shape{}, {1}),
-                                                    v0::Constant::create(element::i64, Shape{}, {0}));
-    auto prev_max_seq_len =
-        std::make_shared<v1::Subtract>(max_context_len, std::make_shared<v0::Convert>(cur_seq_len, element::i32));
+    for (const auto& target : input_ids_target_inputs) {
+        target.replace_source_output(unsqueezed_input_ids);
+    }
 
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
@@ -106,14 +103,14 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         position_ids->set_partial_shape(PartialShape{-1});
         position_ids->validate_and_infer_types();
     }
+    auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);
     auto unsqueezed_position_ids =
         std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(position_ids, unsqueezed_position_ids);
+    for (const auto& target : position_ids_target_inputs) {
+        target.replace_source_output(unsqueezed_position_ids);
+    }
 
     int layer_index = 0;
-
-    auto batch_dim =
-        std::make_shared<v3::ShapeOf>(position_ids);  // it is not always required, so will be disposed if not needed
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
@@ -127,9 +124,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   score_results,
                                                   m_use_block_indices_inputs,
                                                   m_use_score_outputs);
-    manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
+
+    manager.register_pass<PrevSequenceLengthPattern>(unsqueezed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
-    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
+    manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
+    manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
     manager.run_passes(model);
 
     {
