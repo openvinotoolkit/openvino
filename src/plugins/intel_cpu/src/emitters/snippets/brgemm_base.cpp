@@ -248,6 +248,11 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
             beta = get_beta(loop_manager, static_cast<int>(loop_ids.back()), current_expanded_loop_info);
     }
 
+#ifndef OPENVINO_ARCH_X86_64
+    config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), 0, 0, 0, beta);
+    return;
+#endif
+
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
     const auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
@@ -257,7 +262,6 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
         LDB = DIM_CAST(brgemm_utils::repacking::compute_LDB(LDB, brgemm_node->get_input_element_type(1)));
-
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
 
@@ -323,6 +327,7 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.do_post_ops = with_comp;
     brgemm_p.do_apply_comp = with_comp;
     brgemm_p.skip_accm = 0;
+
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
