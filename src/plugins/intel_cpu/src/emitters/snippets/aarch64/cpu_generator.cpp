@@ -141,10 +141,11 @@ bool CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
-    : TargetMachine(std::make_shared<CPURuntimeConfigurator>()),
+CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
       h(new jit_snippet()),
-      isa(host_isa) {
+      isa(host_isa),
+      compiled_kernel_cache(std::move(cache)) {
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
@@ -213,7 +214,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
 }
 
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
-    const auto cloned = std::make_shared<CPUTargetMachine>(isa);
+    const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
     return cloned;
 }
@@ -250,14 +251,15 @@ dnnl::impl::cpu::aarch64::cpu_isa_t CPUTargetMachine::get_isa() const {
     return isa;
 }
 
-CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_)
-    : Generator(std::make_shared<CPUTargetMachine>(isa_)) {}
+CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {}
+CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
     const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     OPENVINO_ASSERT(cpu_target_machine,
                     "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
-    return std::make_shared<CPUGenerator>(cpu_target_machine->get_isa());
+    return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {

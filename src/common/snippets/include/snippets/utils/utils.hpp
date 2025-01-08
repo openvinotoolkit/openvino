@@ -290,13 +290,26 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
 std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
 
 /**
- *
  * @param Get stride of input/output dimension
  * @param expr_port target port that contains shape and layout info
  * @param idx index of the target dimension starting from the shape's end (default = 1)
  */
 
 int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx = 1);
+/**
+ * @brief Get stride of input dimension
+ * @param shape target shape
+ * @param layout target layout
+ * @param idx index of the target dimension starting from the shape's end (default = 1)
+ */
+int64_t get_dim_in_stride(const VectorDims& shape, const VectorDims& layout, size_t idx = 1);
+/**
+ * @brief Get stride of output dimension
+ * @param shape target shape
+ * @param layout target layout
+ * @param idx index of the target dimension starting from the shape's end (default = 1)
+ */
+int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, size_t idx = 1);
 
 /**
  * @brief Traverses path starting from "expr", and calls "func" for each expression.

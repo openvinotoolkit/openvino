@@ -299,7 +299,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsImpossible) {
      *
      *        Param0(32,8,1)
      *             |
-     *       LoadReshape with order (1,2,0)
+     *       LoadReorder with order (1,2,0)
      *             |
      *           Store
      *             |
@@ -307,7 +307,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsImpossible) {
     */
     {
         auto param = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape_0);
-        auto load_reshape = linear_ir->push_node<ov::snippets::op::LoadReshape>(param.second, 1, 0, layout);
+        auto load_reshape = linear_ir->push_node<ov::snippets::op::LoadReorder>(param.second, 1, 0, layout);
         auto store = linear_ir->push_node<ov::snippets::op::Store>(load_reshape.second, 1, 0);
         init_expr_descriptors(*load_reshape.first, {subtensor, subtensor}, {order, layout});
         init_expr_descriptors(*store.first, {subtensor, subtensor}, {layout, layout});

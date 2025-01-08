@@ -41,7 +41,7 @@ static bool is_affecting_op(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return ov::is_type<ov::snippets::op::Brgemm>(node) ||
            ov::is_type<ov::snippets::op::Reshape>(node) ||
-           ov::is_type<ov::snippets::op::LoadReshape>(node);
+           ov::is_type<ov::snippets::op::LoadReorder>(node);
 }
 }  // namespace
 

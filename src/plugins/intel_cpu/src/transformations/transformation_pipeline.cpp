@@ -1069,10 +1069,7 @@ void Transformations::MainSnippets(void) {
         // Only FP32 dynamic MHA is supported
         if (matmul->is_dynamic())
             return false;
-        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
-        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of
-        // brgemm_copy_b kernel
-        if (matmul->get_transpose_a() || matmul->get_transpose_b())
+        if (matmul->get_transpose_a())
             return false;
         // [150842] The execution of Brgemm INT8/BF16/FP16 on AMX platforms depends on the value of "K % VNNIFactor".
         //          For more details, please teake a look at the ticket 150842
@@ -1101,6 +1098,7 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto parallel_work_amount =
             std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+        // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());

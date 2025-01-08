@@ -70,8 +70,11 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
     auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& brgemm_expr) {
         // Repacking may be extracted outside the snippets kernel. In this case, brgemm parent expression is a
         // parameter.
-        if (is_type<ov::op::v0::Parameter>(
-                brgemm_expr->get_input_port_connector(1)->get_source().get_expr()->get_node()))
+        const auto& brgemm_in1 = brgemm_expr->get_input_port_connector(1)->get_source();
+        const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(brgemm_in1.get_expr());
+        const auto source =
+            shape_infer_seq.empty() ? brgemm_in1 : shape_infer_seq.back()->get_input_port_connector(0)->get_source();
+        if (is_type<ov::op::v0::Parameter>(source.get_expr()->get_node()))
             return std::vector<size_t>{};
         const auto repacking_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr);
         OPENVINO_ASSERT(repacking_expr, "BrgemmCopyB expression is not found");
