@@ -81,6 +81,9 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
     const auto outputShapeSize = m_outputShape.size();
     bool newAxis = false;
     bool shrinkAxis = false;
+    // because has aleady initialize the elements of m_outputShape as value 1,
+    // so don't need m_outputShape[out_idx] = 1 when newAxis,
+    // so also don't need to check if there is Axis is appended at the end of ShapeIn.
     for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
          axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
          axis_idx++) {
@@ -88,12 +91,10 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         shrinkAxis = m_shrink_axis_mask_set.count(axis_idx);
         if (shrinkAxis && newAxis) {
             // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer
-            m_outputShape[out_idx] = 1;
             out_idx++;
         } else if (shrinkAxis) {
             in_idx++;
         } else if (newAxis) {
-            m_outputShape[out_idx] = 1;
             out_idx++;
         } else {
             m_outputShape[out_idx] = gen_new_sliced_value(axis_idx, in_idx);
