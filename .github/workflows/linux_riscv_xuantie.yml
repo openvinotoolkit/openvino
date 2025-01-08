@@ -8,7 +8,7 @@ on:
         default: '*smoke_AdaPoolAvg4DLayoutTest*'
   pull_request:
     paths:
-      - '.github/workflows/dev_cpu_linux_riscv.yml'
+      - '.github/workflows/linux_riscv_xuantie.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -82,6 +82,7 @@ jobs:
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
+    name: Build (RVV 0.7.1)
     needs: [Smart_CI, Docker]
     timeout-minutes: 150
     defaults:

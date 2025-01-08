@@ -80,7 +80,7 @@ if(ENABLE_INTEL_NPU)
         endif()
     endif()
 
-    if(NOT libze_loader_FOUND)
+    if(NOT level_zero_FOUND)
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
     endif()
