@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include "transformation_context.hpp"
 #include "layer_transformation.hpp"
 #include "openvino/opsets/opset1.hpp"
 

@@ -45,16 +45,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     deqPrecision(params.deqPrecision),
     defaultPrecisions(params.defaultPrecisions),
     reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
-    scalingMode(params.scalingMode),
-    context(nullptr) {}
-
-void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
-    this->updatePrecisions = updatePrecisions;
-}
-
-void LayerTransformation::setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions) {
-    this->defaultPrecisions = defaultPrecisions;
-}
+    scalingMode(params.scalingMode) {}
 
 bool LayerTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     if (!isQuantized(layer, defaultPrecisions)) {

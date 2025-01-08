@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "common/fake_quantize_dequantization.hpp"
@@ -346,7 +345,6 @@ protected:
     bool scalingMode;
 
     static constexpr char originalLayerPostfix[] = "_original";
-    TransformationContext* context;
 
 protected:
     std::shared_ptr<ov::Node> moveDequantizationAfter(
