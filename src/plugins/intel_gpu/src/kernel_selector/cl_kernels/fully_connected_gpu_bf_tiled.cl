@@ -352,17 +352,18 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
+    const uint B_PITCH_MAX = min((uint)((BATCH_SIZE-out_b) * (SIMD/INPUT0_TYPE_SIZE)), (uint)TILE_IN_B_PITCH);
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
         #define LOAD_IN_0(bi) do {                                  \
                 in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+                input_offset += B_PITCH_MAX;                        \
             } while (false)
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
+        input_offset += TILE_IFM * SIMD - B_PITCH_MAX * TILE_B;
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
