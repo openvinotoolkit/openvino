@@ -25,29 +25,6 @@ using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
-    // this is default mode
-#if defined(__APPLE__) || defined(_WIN32)
-    threadBindingType = IStreamsExecutor::NONE;
-#else
-    threadBindingType = IStreamsExecutor::CORES;
-#endif
-
-// for the TBB code-path, additional configuration depending on the OS and CPU types
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-#    if defined(__APPLE__) || defined(_WIN32)
-    // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
-    auto numaNodes = get_available_numa_nodes();
-    if (numaNodes.size() > 1) {
-        threadBindingType = IStreamsExecutor::NUMA;
-    } else {
-        threadBindingType = IStreamsExecutor::NONE;
-    }
-#    endif
-
-    if (get_available_cores_types().size() > 1 /*Hybrid CPU*/) {
-        threadBindingType = IStreamsExecutor::HYBRID_AWARE;
-    }
-#endif
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
 
     updateProperties();
@@ -93,47 +70,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     streamsChanged = true;
                 }
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key == ov::affinity.name()) {
-            try {
-                changedCpuPinning = true;
-                ov::Affinity affinity = val.as<ov::Affinity>();
-#if defined(__APPLE__)
-                enableCpuPinning = false;
-                threadBindingType = affinity == ov::Affinity::NONE ? IStreamsExecutor::ThreadBindingType::NONE
-                                                                   : IStreamsExecutor::ThreadBindingType::NUMA;
-#else
-                enableCpuPinning =
-                    (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
-                switch (affinity) {
-                case ov::Affinity::NONE:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
-                    break;
-                case ov::Affinity::CORE: {
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
-                } break;
-                case ov::Affinity::NUMA:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-                    break;
-                case ov::Affinity::HYBRID_AWARE:
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
-                    break;
-                default:
-                    OPENVINO_THROW("Wrong value ",
-                                   val.as<std::string>(),
-                                   "for property key ",
-                                   key,
-                                   ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
-                }
-#endif
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               key,
-                               ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
-            }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::performance_mode.name()) {
             try {
                 hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;
@@ -375,7 +311,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
-                auto encryption_callbacks = val.as<EncryptionCallbacks>();
+                const auto& encryption_callbacks = val.as<EncryptionCallbacks>();
                 cacheEncrypt = encryption_callbacks.encrypt;
                 cacheDecrypt = encryption_callbacks.decrypt;
             } catch (ov::Exception&) {

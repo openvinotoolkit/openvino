@@ -75,7 +75,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         // and activations will be dynamically per-token quantized and using AMX-INT8 to get the result
         bool quantized_int8 = m_node->m_config.quantized;
 
-        auto cache_blk_k_size = quantized_int8 ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = quantized_int8 ? sizeof(int8_t) : sizeof(ov::float16);
 
         auto K = w0.size(1);
