@@ -291,10 +291,6 @@ public:
     virtual ~LayerTransformation() = default;
     virtual bool transform(ov::pass::pattern::Matcher &m) = 0;
 
-    void setUpdatePrecisions(const bool updatePrecisions);
-
-    void setDefaultPrecisions(const std::vector<ov::element::Type>& defaultPrecisions);
-
     virtual bool canBeTransformed(const std::shared_ptr<Node>& layer) const;
     static bool canBeTransformedStatic(const std::shared_ptr<Node>& layer,
         const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
@@ -338,11 +334,11 @@ protected:
         const std::vector<float>& dequantizationShifts);
 #endif
 
-    bool updatePrecisions;
-    element::Type deqPrecision;
-    std::vector<ov::element::Type> defaultPrecisions;
-    bool reshapeIgnorePerTensorQuantizationCheck;
-    bool scalingMode;
+    const bool updatePrecisions;
+    const element::Type deqPrecision;
+    const std::vector<ov::element::Type> defaultPrecisions;
+    const bool reshapeIgnorePerTensorQuantizationCheck;
+    const bool scalingMode;
 
     static constexpr char originalLayerPostfix[] = "_original";
 
