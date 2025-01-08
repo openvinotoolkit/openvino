@@ -403,10 +403,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::unordered_map<std::string, ov::Any> multi_model_config;
     std::vector<DeviceInformation> meta_devices;
     auto priorities = load_config.get_property(ov::device::priorities);
-     if (priorities.empty() && !work_mode_auto)
+    if (priorities.empty() && !work_mode_auto)
         OPENVINO_THROW("KEY_MULTI_DEVICE_PRIORITIES key is not set for ", get_device_name());
-    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
-        OPENVINO_THROW("The device candidate list should not include the meta plugin for ", get_device_name());
+    std::vector<std::string> candidate_devices = m_plugin_config.parse_priorities_devices(priorities);
+    for (const auto& device : candidate_devices) {
+        if (device.find("AUTO:") != std::string::npos || device == "AUTO" ||
+            device.find("MULTI:") != std::string::npos || device == "MULTI") {
+            OPENVINO_THROW("The device candidate list should not include the meta plugin for ", get_device_name());
+        }
     }
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
