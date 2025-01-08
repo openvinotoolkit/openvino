@@ -1999,7 +1999,9 @@ jit_negative_emitter::jit_negative_emitter(x64::jit_generator* host,
                                            const std::shared_ptr<ov::Node>& node,
                                            ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
-jit_negative_emitter::jit_negative_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+jit_negative_emitter::jit_negative_emitter(x64::jit_generator* host,
+                                           x64::cpu_isa_t host_isa,
+                                           ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_negative_emitter::get_inputs_num() const {

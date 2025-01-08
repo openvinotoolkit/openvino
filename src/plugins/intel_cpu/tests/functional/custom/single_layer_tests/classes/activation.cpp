@@ -209,6 +209,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #endif
     if ((activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
+       (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
        (activation_type == utils::ActivationTypes::IsFinite)) {
         return "ref";
