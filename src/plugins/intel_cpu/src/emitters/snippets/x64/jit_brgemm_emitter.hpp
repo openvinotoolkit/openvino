@@ -5,7 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "emitters/snippets/brgemm_base.hpp"
 #include "jit_binary_call_emitter.hpp"
 
 namespace ov::intel_cpu {
