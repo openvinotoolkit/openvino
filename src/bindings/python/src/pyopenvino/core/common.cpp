@@ -215,7 +215,9 @@ void fill_string_tensor_data(ov::Tensor& tensor, py::array& array) {
 
 const char* find_first_not_null(const char* ptr, size_t itemsize) {
     auto rbegin = std::make_reverse_iterator(ptr + itemsize);
-    auto first_not_null = std::find_if(rbegin, std::make_reverse_iterator(ptr), [](const auto& c) { return c != '\0'; });
+    auto first_not_null = std::find_if(rbegin, std::make_reverse_iterator(ptr), [](const auto& c) {
+        return c != '\0';
+    });
     return first_not_null.base();
 }
 
