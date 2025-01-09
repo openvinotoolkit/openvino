@@ -8,8 +8,8 @@
 
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
-#include "util_xarch.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "util_xarch.hpp"
 
 namespace {
 template <typename T>
@@ -29,8 +29,7 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
-void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor,
-                    ov::SoPtr<ov::ITensor> dst_tensor) {
+void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
     // [1, H, S1, E] -> [1, H, S2, E]
     const int N = 0;
     const int H = 1;
@@ -45,11 +44,11 @@ void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor,
     OPENVINO_ASSERT(src_tensor->get_shape().size() == 4u);
 
     const auto* src_tensor_data = reinterpret_cast<uint8_t*>(src_tensor->data());
-          auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
+    auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
 
-    const auto num_planes          = src_tensor->get_shape()[H];
-    const auto src_plane_stride    = src_tensor->get_strides()[H];
-    const auto dst_plane_stride    = dst_tensor->get_strides()[H];
+    const auto num_planes = src_tensor->get_shape()[H];
+    const auto src_plane_stride = src_tensor->get_strides()[H];
+    const auto dst_plane_stride = dst_tensor->get_strides()[H];
     const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
 
     for (size_t i = 0; i < num_planes; ++i) {
