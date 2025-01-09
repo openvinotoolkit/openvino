@@ -17,3 +17,5 @@ from openvino.op import loop
 from openvino.op import tensor_iterator
 from openvino.op import read_value
 from openvino.op import Result
+
+from openvino.runtime.op import util
