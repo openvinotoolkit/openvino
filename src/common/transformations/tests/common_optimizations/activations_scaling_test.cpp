@@ -39,7 +39,9 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
                                                               CoordinateDiff{},
                                                               CoordinateDiff{},
                                                               Strides{});
-        auto convert = std::make_shared<ov::op::v0::Convert>(conv, ov::element::f32);
+        auto bias_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 1, 1}, {2.3f});
+        auto add = std::make_shared<ov::op::v1::Add>(conv, bias_const);
+        auto convert = std::make_shared<ov::op::v0::Convert>(add, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
@@ -56,8 +58,11 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
                                                               CoordinateDiff{},
                                                               CoordinateDiff{},
                                                               Strides{});
+        auto bias_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 1, 1}, {2.3f});
+        auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(bias_const, scale_down_const);
+        auto add = std::make_shared<ov::op::v1::Add>(conv, scale_down_bias);
         auto scale_up_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
-        auto scale_up = std::make_shared<ov::op::v1::Multiply>(conv, scale_up_const);
+        auto scale_up = std::make_shared<ov::op::v1::Multiply>(add, scale_up_const);
         auto convert = std::make_shared<ov::op::v0::Convert>(scale_up, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 

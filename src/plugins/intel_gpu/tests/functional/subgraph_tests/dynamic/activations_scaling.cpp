@@ -174,12 +174,23 @@ protected:
 
         function = init_subgraph(inputDynamicShapes, shape_params.weights_shapes, input_precision);
     }
+
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+
+        ov::element::Type input_precision = function->input(0).get_element_type();
+        auto runtime_model = compiledModel.get_runtime_model();
+
+        for (auto& op : runtime_model->get_ordered_ops()) {
+            ASSERT_EQ(op->output(0).get_element_type(), input_precision)
+                    << "expected output precision is " << input_precision << " , while actual is " << op->output(0).get_element_type();
+        }
+    }
 };
 
 TEST_P(ActivationsScaling, Inference) {
     core->set_property(targetDevice, ov::hint::activations_scale_factor(4.3));
     run();
-    ov::serialize(compiledModel.get_runtime_model(), "test.xml");
 }
 
 TEST_P(ActivationsScaling, Inference_cached) {

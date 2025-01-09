@@ -283,6 +283,8 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             last_dep_const_type = last_dep_const.get_element_type();
         }
 
+        auto target_inputs = concat->get_output_target_inputs(0);
+
         for (auto& input : concat->inputs()) {
             auto dep_node = input.get_source_output().get_node_shared_ptr();
             auto dep_input0 = dep_node->input(0).get_source_output().get_node();
@@ -314,7 +316,10 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             ov::op::TemporaryReplaceOutputType(last_dep_const, concat_type).get());
         new_mul->set_friendly_name(concat->get_friendly_name() + "_c");
         ov::copy_runtime_info(concat, new_mul);
-        ov::replace_output_update_name(concat->output(0), new_mul->output(0));
+
+        for (auto& in : target_inputs) {
+            in.replace_source_output(new_mul);
+        }
 
         return true;
     };
