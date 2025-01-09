@@ -5,6 +5,7 @@
 #pragma once
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
 
@@ -24,11 +25,23 @@ public:
 
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
     bool applicable() const override {
-        return !m_param_idces_with_external_repacking.empty();
+        return !m_executors.empty();
     }
 
 private:
-    std::set<size_t> m_param_idces_with_external_repacking;
+    using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
+    static VectorDims get_blk_order(size_t shape_rank);
+    static VectorDims get_blk_shape(const VectorDims& planar_shape, ov::element::Type prc);
+
+    void update_kernel(const RepackExecutorPtr& executor,
+                       const VectorDims& shape,
+                       const VectorDims& layout,
+                       size_t N,
+                       size_t K,
+                       ov::element::Type prc);
+
+    static const size_t brgemm_kernel_rank;
+    std::unordered_map<size_t, RepackExecutorPtr> m_executors;
 };
 
 }  // namespace intel_cpu
