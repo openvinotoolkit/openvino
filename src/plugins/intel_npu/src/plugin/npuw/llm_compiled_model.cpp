@@ -301,15 +301,17 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    // NOTE: Calls are done to core and not to plugin itself to avoid NPU plugin to directly ask
-    //       for device and properties if NPU device/driver is not present.
-    std::shared_ptr<ov::ICore> core = plugin->get_core();
-    const std::string arch = core->get_property("NPU", ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
-    const int64_t max_tiles = core->get_property("NPU", ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+    const auto all_devices = plugin->get_core()->get_available_devices();
+    if (std::find(all_devices.begin(), all_devices.end(), "NPU") == all_devices.end()) {
+        return std::nullopt;
+    }
+
+    const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
 
     bool compiler_dq = false;
     const auto device_caps =
-        core->get_property("NPU", ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
+        plugin->get_property(ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
     if (std::find(device_caps.begin(), device_caps.end(), "COMPILER_DYNAMIC_QUANTIZATION") != device_caps.end()) {
         compiler_dq = true;
     }
