@@ -27,6 +27,12 @@ RUN dnf update -y && dnf install -y \
     xz \
     rpm-devel
 
+# Install build dependencies
+ADD install_build_dependencies.sh /install_build_dependencies.sh
+RUN chmod +x /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh && \
+    rm -rf /var/lib/apt/lists/*
+    
 # Setup Python
 RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
@@ -49,12 +55,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
     
-# Install build dependencies
-ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && \
-    bash -e /install_build_dependencies.sh && \
-    rm -rf /var/lib/apt/lists/*
-
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
