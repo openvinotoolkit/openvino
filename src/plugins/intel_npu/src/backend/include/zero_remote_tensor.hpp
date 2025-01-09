@@ -48,4 +48,8 @@ private:
     bool _external_memory_support = false;
 };
 
+inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
+    return std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor) != nullptr;
+}
+
 }  // namespace intel_npu

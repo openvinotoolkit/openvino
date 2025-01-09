@@ -467,8 +467,7 @@ void ZeroInferRequest::infer_async() {
                     auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
 
                     if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor || inputDescriptor.isStateInput ||
-                        std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor.at(SINGLE_TENSOR)) != nullptr ||
-                        zeroTensor == nullptr) {
+                        is_remote_tensor(levelZeroTensor.at(SINGLE_TENSOR)) || zeroTensor == nullptr) {
                         ++ioIndex;
                         continue;
                     }
@@ -494,8 +493,7 @@ void ZeroInferRequest::infer_async() {
                     auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
 
                     if (outputDescriptor.isShapeTensor || outputDescriptor.isStateOutput ||
-                        std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor) != nullptr ||
-                        zeroTensor == nullptr) {
+                        is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
                         ++ioIndex;
                         continue;
                     }
@@ -535,9 +533,7 @@ void ZeroInferRequest::infer_async() {
         if (is_batched_input(inputIndex)) {
             if (_graph->get_batch_size().has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
-                    auto levelZeroBatchRemoteTensor =
-                        std::dynamic_pointer_cast<ZeroRemoteTensor>(get_level_zero_input(inputIndex, i));
-                    if (levelZeroBatchRemoteTensor == nullptr) {
+                    if (!is_remote_tensor(get_level_zero_input(inputIndex, i))) {
                         void* levelZeroBuffer = get_level_zero_input(inputIndex, i)->data();
 
                         auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
@@ -587,8 +583,7 @@ void ZeroInferRequest::infer_async() {
                                : extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
 
         const auto& levelZeroTensor = get_level_zero_input(inputIndex);
-        auto levelZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor);
-        if (levelZeroRemoteTensor == nullptr) {
+        if (!is_remote_tensor(levelZeroTensor)) {
             void* levelZeroBuffer = levelZeroTensor->data();
 
             if (userBuffer != levelZeroBuffer) {
@@ -639,8 +634,7 @@ void ZeroInferRequest::get_result() {
                                : extract_object(userRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
 
         const std::shared_ptr<ov::ITensor>& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
-        auto levelZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor);
-        if (levelZeroRemoteTensor == nullptr) {
+        if (!is_remote_tensor(levelZeroTensor)) {
             void* levelZeroBuffer = levelZeroTensor->data();
 
             if (userBuffer != levelZeroBuffer) {
