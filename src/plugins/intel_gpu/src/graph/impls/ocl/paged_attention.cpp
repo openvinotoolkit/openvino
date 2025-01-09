@@ -204,6 +204,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                     // dependency
                     args.inputs.push_back(instance.subsequence_begins_memory_ptr());
                 }
+                if (desc->has_rotated_blocks) {
+                    args.inputs.push_back(instance.rotated_block_indices_memory_ptr());
+                    args.inputs.push_back(instance.rotation_deltas_memory_ptr());
+                    args.inputs.push_back(instance.rotation_trig_lut_memory_ptr());
+                }
             } else if (kernel_idx == 4) {
                 // Output scores calculation kernel
                 args.inputs = { instance.past_lens_memory_ptr(),

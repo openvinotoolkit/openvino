@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(vectorized)
+
 set(TARGET_NAME ov_cpu_unit_tests)
 
 if(BUILD_SHARED_LIBS)
@@ -52,6 +54,8 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
+            ${CMAKE_CURRENT_SOURCE_DIR}/vectorized
+
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -77,6 +81,7 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif()
+
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

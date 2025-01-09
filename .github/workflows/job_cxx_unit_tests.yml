@@ -195,6 +195,12 @@ jobs:
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
+      - name: CPU plugin unit tests (vectorized)
+        if: fromJSON(inputs.affected-components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests_vectorized --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTestsVectorized.xml
+
       - name: ov_subgraphs_dumper_tests tests
         run: |
           ${{ env.SETUPVARS_COMMAND }}
