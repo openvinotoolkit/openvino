@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     auto type_str = var.get_element_type().to_string();
     write(stream, type_str);
     write(stream, var.get_shape());
-    // Should we write strides?
+    // FIXME: Should strides be serialized as well?
     write(stream, var.get_byte_size());
     stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
 }

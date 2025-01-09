@@ -649,7 +649,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
         }
     }
 
-    // FIXME: should we support heterogeneous structure?
+    // FIXME: should heterogeneous structure be supported?
     if (device_list.size() != 1) {
         NPUW_ASSERT(false && "Not all of the submodels are compiled for a singular device!");
     }
