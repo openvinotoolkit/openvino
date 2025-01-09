@@ -10,7 +10,7 @@ RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
 RUN dnf update -y && dnf install -y \
     git \
     curl \
-    python3.9 \
+    python3 \
     # To build Python from source
     openssl-devel \
     sqlite-devel \
@@ -27,17 +27,19 @@ RUN dnf update -y && dnf install -y \
     xz \
     rpm-devel
 
-# # Setup Python
-# RUN cd /usr/src && \
-#     wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
-#     tar xvf Python-3.9.9.tar.xz
-# RUN cd /usr/src/Python-3.9.9 && \
-#     ./configure --prefix=/usr --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions && \
-#     make altinstall && ldconfig
+# Setup Python
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
+    tar xvf Python-3.9.9.tar.xz
+RUN cd /usr/src/Python-3.9.9 && \
+    ./configure --prefix=/usr --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions && \
+    make altinstall && ldconfig
 
-# # Use Python 3.9 as default
-# RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10 && \
-#     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 10
+# Use Python 3.9 as default
+RUN rm /usr/bin/python && \
+    rm /usr/bin/python3 && \
+    ln -s /usr/local/bin/python3.9 /usr/bin/python && \
+    ln -s /usr/local/bin/python3.9 /usr/bin/python3
 
 # Setup pip
 ENV PIP_VERSION="24.0"
