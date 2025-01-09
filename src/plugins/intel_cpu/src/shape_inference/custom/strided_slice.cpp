@@ -56,34 +56,15 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         }
     };
 
-    // for (size_t in_idx = 0, out_idx = 0; in_idx < shapeIn.size(); ++in_idx) {
-    //     if (m_new_axis_mask_set.count(in_idx)) {
-    //         // deal with new_axis_mask
-    //         m_outputShape[out_idx] = 1;
-    //         out_idx++;
-    //         // deal with continuous new_axis_mask
-    //         while (m_new_axis_mask_set.count(out_idx)) {
-    //             m_outputShape[out_idx] = 1;
-    //             out_idx++;
-    //         }
-    //         // deal with current axis
-    //         m_outputShape[out_idx] = gen_new_sliced_value(out_idx, in_idx);
-    //         out_idx++;
-    //     } else if (!m_shrink_axis_mask_set.count(in_idx)) {
-    //         // deal with begin_mask and end_mask
-    //         m_outputShape[out_idx] = gen_new_sliced_value(in_idx, in_idx);
-    //         out_idx++;
-    //     }
-    // }
     const auto shapeInSize = shapeIn.size();
-    const auto newAxisMasksize = m_new_axis_mask_set.size();
-    const auto maxAxisSize = shapeInSize + newAxisMasksize;
+    const auto newAxisMaskSize = m_new_axis_mask_set.size();
+    const auto maxAxisSize = shapeInSize + newAxisMaskSize;
     const auto outputShapeSize = m_outputShape.size();
     bool newAxis = false;
     bool shrinkAxis = false;
-    // because has aleady initialize the elements of m_outputShape as value 1,
+    // because has already initialized the elements of m_outputShape as value 1,
     // so don't need m_outputShape[out_idx] = 1 when newAxis,
-    // so also don't need to check if there is Axis is appended at the end of ShapeIn.
+    // so also don't need to check if there are new axis at the end of ShapeIn.
     for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
          axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
          axis_idx++) {
