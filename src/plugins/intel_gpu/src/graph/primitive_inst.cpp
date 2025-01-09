@@ -2660,12 +2660,21 @@ bool primitive_inst::is_valid_fusion() const {
 
         // Check if broadcast happens more than single axis.
         // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
-        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() == outer_dep_pshape.rank().get_length()) {
+        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length()) {
             uint8_t broadcast_more_than_single_axis = 0;
+            auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
+
+            // Update outer_dep_pshape to merged_shape rank
+            if (merged_shape.rank().get_length() > outer_dep_pshape.rank().get_length()) {
+                updated_outer_dep_pshape.insert(updated_outer_dep_pshape.begin(),
+                                                merged_shape.rank().get_length() - outer_dep_pshape.rank().get_length(), ov::Dimension(1));
+            }
+
             for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
-                if (merged_shape.get_shape().at(i) != outer_dep_pshape.get_shape().at(i))
+                if (merged_shape[i] != updated_outer_dep_pshape[i])
                     broadcast_more_than_single_axis++;
             }
+
             if (broadcast_more_than_single_axis > 1)
                 can_broadcast = false;
         }
