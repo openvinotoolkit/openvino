@@ -13,6 +13,7 @@
 #include "openvino/core/version.hpp"
 
 namespace {
+
 std::streampos getFileSize(std::istream& stream) {
     auto log = intel_npu::Logger::global().clone("getFileSize");
     if (!stream) {
@@ -110,7 +111,6 @@ bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
-    auto logger = Logger::global().clone("NPUBlobMetadata");
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
@@ -135,13 +135,14 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(stream);
     } catch (...) {
-        logger.warning("Imported blob metadata version: %d.%d, but the current version is: %d.%d",
+        OPENVINO_THROW("Imported blob metadata version: ",
                        MetadataBase::get_major(metaVersion),
+                       ".",
                        MetadataBase::get_minor(metaVersion),
+                       " but the current version is: ",
                        MetadataBase::get_major(CURRENT_METADATA_VERSION),
+                       ".",
                        MetadataBase::get_minor(CURRENT_METADATA_VERSION));
-
-        OPENVINO_THROW("NPU metadata mismatch.");
     }
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
