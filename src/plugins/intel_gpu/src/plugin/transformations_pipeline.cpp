@@ -16,7 +16,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/add.hpp"
-#include "low_precision/clamp.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -31,12 +30,9 @@
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
-#include "low_precision/reshape.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
-#include "low_precision/unsqueeze.hpp"
-#include "low_precision/variadic_split.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -971,7 +967,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             // Move up remained scalar-multiply layers
             manager.register_pass<ov::pass::EliminateEltwise>();
-            manager.register_pass<ov::pass::activations_scaling::NormMulTransformation>();
+            manager.register_pass<ov::pass::activations_scaling::MulShareTransformation>();
 
             const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
                 ov::op::v1::Reshape::get_type_info_static(),

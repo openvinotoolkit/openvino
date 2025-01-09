@@ -316,7 +316,7 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
         ov::copy_runtime_info(concat, new_mul);
         ov::replace_output_update_name(concat->output(0), new_mul->output(0));
 
-        return false;
+        return true;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, "MulConcatTransformation");
@@ -330,8 +330,8 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
 //      op_a   op_b       Norm   op_b
 //                          |
 //                        op_a
-ov::pass::activations_scaling::NormMulTransformation::NormMulTransformation() {
-    MATCHER_SCOPE(NormMulTransformation);
+ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() {
+    MATCHER_SCOPE(MulShareTransformation);
 
     auto mvn_m = wrap_type<ov::op::v6::MVN>({any_input(), any_input()});
     auto rms_m = wrap_type<ov::op::internal::RMS>({any_input(), any_input()});
@@ -349,34 +349,32 @@ ov::pass::activations_scaling::NormMulTransformation::NormMulTransformation() {
         auto norm = pattern_map.at(norm_m).get_node_shared_ptr();
 
         auto parent_output = norm->get_input_source_output(0);
-        if (parent_output.get_target_inputs().size() != 2)
+        if (parent_output.get_target_inputs().size() == 1)
             return false;
 
-        ov::Node* mul = nullptr;
         for (auto& child : parent_output.get_target_inputs()) {
             if (child == norm->input(0))
                 continue;
-            mul = child.get_node();
+
+            if (ov::is_type<ov::op::v1::Multiply>(child.get_node())) {
+                ov::Output<ov::Node> const_input;
+                for (auto input : child.get_node()->input_values()) {
+                    if (input == parent_output)
+                        continue;
+                    const_input = input;
+                }
+
+                if (is_scalar_node(const_input) && !is_non_const_node(const_input)) {
+                    norm->input(0).replace_source_output(child.get_node()->output(0));
+                    return true;
+                }
+            }
         }
 
-        if (!ov::is_type<ov::op::v1::Multiply>(mul))
-            return false;
-
-        ov::Output<ov::Node> const_input;
-        for (auto input : mul->input_values()) {
-            if (input == parent_output)
-                continue;
-            const_input = input;
-        }
-
-        if (!is_scalar_node(const_input) || is_non_const_node(const_input))
-            return false;
-
-        norm->input(0).replace_source_output(mul->output(0));
-        return true;
+        return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "NormMulTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "ScalarMulShareTransformation");
     this->register_matcher(m, callback);
 }
 

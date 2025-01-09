@@ -19,7 +19,7 @@ namespace activations_scaling {
 class TRANSFORMATIONS_API ScaleDownSingleLayer;
 class TRANSFORMATIONS_API EliminateMultiplyScalar;
 class TRANSFORMATIONS_API MulConcatTransformation;
-class TRANSFORMATIONS_API NormMulTransformation;
+class TRANSFORMATIONS_API MulShareTransformation;
 class TRANSFORMATIONS_API MulMulTransformation;
 
 }  // namespace activations_scaling
@@ -49,10 +49,10 @@ public:
     MulConcatTransformation();
 };
 
-class ov::pass::activations_scaling::NormMulTransformation : public ov::pass::MatcherPass {
+class ov::pass::activations_scaling::MulShareTransformation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("NormMulTransformation", "0");
-    NormMulTransformation();
+    OPENVINO_MATCHER_PASS_RTTI("MulShareTransformation", "0");
+    MulShareTransformation();
 };
 
 class ov::pass::activations_scaling::MulMulTransformation : public ov::pass::MatcherPass {
