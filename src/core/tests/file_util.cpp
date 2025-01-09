@@ -276,7 +276,19 @@ TEST(file_util, path_cast_unicode) {
               ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").generic_u16string());
 }
 
+#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3))
+#    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
+#endif
+
+#if !(defined(__clang__) || __clang_major__ >= 17)
+#    define CLANG_NOT_USED_OR_VER_AT_LEAST_17
+#endif
+
 #if !defined(_MSC_VER)
+#    define MSVC_NOT_USED
+#endif
+
+#if defined(MSVC_NOT_USED)
 TEST(file_util, path_cast_unicode_msc_skip) {
     EXPECT_EQ("/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt",
               ov::util::Path(u8"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_string());
@@ -339,8 +351,7 @@ TEST(file_util, path_cast_to_u32string) {
 }
 #endif
 
-#if (!(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
-     !(defined(__clang__) && __clang_major__ < 17))
+#if defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
 // https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 
@@ -362,13 +373,13 @@ TEST(file_util, path_cast_from_wstring) {
     EXPECT_STREQ(L"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_wstring().c_str());
 
     // from wchar_t to char16_t
-    EXPECT_EQ(u"", ov::util::Path(L"").u16string());
-    EXPECT_EQ(u"file.txt", ov::util::Path(L"file.txt").u16string());
-    EXPECT_EQ(u"./local/file.txt", ov::util::Path(L"./local/file.txt").generic_u16string());
-    EXPECT_EQ(u"~/local/file.txt", ov::util::Path(L"~/local/file.txt").generic_u16string());
-    EXPECT_EQ(u"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt",
-              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"") == ov::util::Path(L"").u16string());
+    EXPECT_TRUE(std::u16string(u"file.txt") == ov::util::Path(L"file.txt").u16string());
+    EXPECT_TRUE(std::u16string(u"./local/file.txt") == ov::util::Path(L"./local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"~/local/file.txt") == ov::util::Path(L"~/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == ov::util::Path(L"/usr/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt") ==
+                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt").generic_u16string());
 }
 
 TEST(file_util, path_cast_to_wstring) {
@@ -399,22 +410,19 @@ TEST(file_util, path_cast_from_wstring_to_char8_t) {
 
 TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
     // from wchar_t to char8_t
-#if defined(OPENVINO_CPP_VER_AT_LEAST_20) &&                                            \
-    (!(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
-     !(defined(__clang__) && __clang_major__ < 17))
-    EXPECT_EQ(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt"),
-              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string());
+#if defined(OPENVINO_CPP_VER_AT_LEAST_20) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && \
+    defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
+    EXPECT_EQ(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_1.txt"),
+              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_1.txt").generic_u8string());
 
-#elif defined(OPENVINO_CPP_VER_AT_LEAST_17) &&                                          \
-    (!(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
-     !(defined(__clang__) && __clang_major__ < 17))
-    EXPECT_EQ(std::string("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt"),
-              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string());
+#elif defined(OPENVINO_CPP_VER_AT_LEAST_17) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && \
+    defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
+    EXPECT_EQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt",
+              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_2.txt").generic_u8string());
 #endif
 }
 
-#if (!defined(_MSC_VER) && !(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
-     !(defined(__clang__) && __clang_major__ < 17))
+#if defined(MSVC_NOT_USED) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
 // error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
 // reference a deleted function
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
