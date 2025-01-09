@@ -101,6 +101,10 @@ public:
         configuration[ov::hint::key_cache_group_size.name()] = keyGroupSize;
         configuration[ov::hint::value_cache_group_size.name()] = keyGroupSize;
         configuration[ov::hint::key_cache_quant_bychannel.name()] = quantKeyByChannel;
+        //QuantByChannel needs explictly set u8 kv_cache
+        if (quantKeyByChannel) {
+            configuration[ov::hint::kv_cache_precision.name()] = ov::element::u8;
+        }
         if (inType == ElementType::bf16) {
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
