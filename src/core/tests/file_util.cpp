@@ -276,11 +276,11 @@ TEST(file_util, path_cast_unicode) {
               ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").generic_u16string());
 }
 
-#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3))
+#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
 #    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
 #endif
 
-#if !(defined(__clang__) || __clang_major__ >= 17)
+#if !defined(__clang__) || defined(__clang__) && __clang_major__ >= 17
 #    define CLANG_NOT_USED_OR_VER_AT_LEAST_17
 #endif
 
@@ -290,8 +290,8 @@ TEST(file_util, path_cast_unicode) {
 
 #if defined(MSVC_NOT_USED)
 TEST(file_util, path_cast_unicode_msc_skip) {
-    EXPECT_EQ("/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt",
-              ov::util::Path(u8"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_string());
+    EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt",
+              ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_string());
     // EXPECT_EQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt",
     //           ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt").generic_u8string());
     // EXPECT_EQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt",
