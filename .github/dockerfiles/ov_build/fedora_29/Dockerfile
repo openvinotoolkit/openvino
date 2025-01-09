@@ -10,7 +10,7 @@ RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
 RUN dnf update -y && dnf install -y \
     git \
     curl \
-    python3 \
+    python3.9 \
     # To build Python from source
     openssl-devel \
     sqlite-devel \
@@ -26,11 +26,6 @@ RUN dnf update -y && dnf install -y \
     pigz \
     xz \
     rpm-devel
-
-# Setup Python
-RUN dnf module list python && \
-    dnf module enable python:3.9 && \
-    dnf install python3.9
 
 # # Setup Python
 # RUN cd /usr/src && \
