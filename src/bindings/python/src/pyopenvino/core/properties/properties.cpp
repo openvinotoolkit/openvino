@@ -4,14 +4,13 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
-#include "pyopenvino/core/common.hpp"
-#include "pyopenvino/graph/any.hpp"
-#include "pyopenvino/utils/utils.hpp"
-
+#include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-#include "openvino/runtime/auto/properties.hpp"
+#include "pyopenvino/core/common.hpp"
+#include "pyopenvino/graph/any.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -324,8 +323,7 @@ void regmodule_properties(py::module m) {
 
     // Submodule npu
     py::module m_intel_npu =
-        m_properties.def_submodule("intel_npu",
-                                   "openvino.properties.intel_npu submodule that simulates ov::intel_npu");
+        m_properties.def_submodule("intel_npu", "openvino.properties.intel_npu submodule that simulates ov::intel_npu");
 
     wrap_property_RO(m_intel_npu, ov::intel_npu::device_alloc_mem_size, "device_alloc_mem_size");
     wrap_property_RO(m_intel_npu, ov::intel_npu::device_total_mem_size, "device_total_mem_size");
