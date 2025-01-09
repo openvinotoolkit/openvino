@@ -36,8 +36,8 @@ RUN cd /usr/src/Python-3.9.9 && \
     make altinstall && ldconfig
 
 # Use Python 3.9 as default
-RUN rm /usr/bin/python && \
-    rm /usr/bin/python3 && \
+RUN rm -f /usr/bin/python && \
+    rm -f /usr/bin/python3 && \
     ln -s /usr/local/bin/python3.9 /usr/bin/python && \
     ln -s /usr/local/bin/python3.9 /usr/bin/python3
 
