@@ -7,11 +7,11 @@ Converting a Keras Model
                  Keras format to the OpenVINO Model.
 
 
-This document explains the process of converting Keras 3 models to OpenVINO Intermediate Representation (IR) format.
-For instructions on converting Keras 2 models, refer to the guide :doc:`TensorFlow Model Conversion <convert-model-tensorflow>`.
+This document explains the process of converting Keras 3 models to the OpenVINO Intermediate Representation (IR) format.
+For instructions on converting Keras 2 models, refer to :doc:`TensorFlow Model Conversion <convert-model-tensorflow>`.
 
-For converting Keras 3 model, first export the model to a lightweight TensorFlow SavedModel artifact.
-Once the model is saved in the SavedModel format, proceed with converting it to an OpenVINO model using the ``convert_model`` function.
+To convert a Keras 3 model, first export it to a lightweight TensorFlow SavedModel artifact,
+and then convert it to an OpenVINO model, using the ``convert_model`` function.
 Here is a code example of how to do this:
 
 .. code-block:: py
@@ -84,4 +84,4 @@ Below is an example of how to infer a model (trained with PyTorch, JAX, or Tenso
 .. note::
 
    The OpenVINO backend may currently lack support for some operations.
-   This will be addressed in upcoming Keras releases as operation coverage is expanded.
+   This will be addressed in upcoming Keras releases as operation coverage is being expanded.
