@@ -7,8 +7,8 @@
 import torch
 import numpy as np
 
-from openvino.runtime import op, Type as OVType, Shape, Tensor
-from openvino.runtime import opset11 as ops
+from openvino import op, Type as OVType, Shape, Tensor
+from openvino import opset11 as ops
 
 
 def make_constant(*args, **kwargs):
