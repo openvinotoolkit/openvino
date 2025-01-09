@@ -136,10 +136,10 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
         storedMeta->read(stream);
     } catch (...) {
         logger.warning("Imported blob metadata version: %d.%d, but the current version is: %d.%d",
-                       get_major(metaVersion),
-                       get_minor(metaVersion),
-                       get_major(CURRENT_METADATA_VERSION),
-                       get_minor(CURRENT_METADATA_VERSION));
+                       MetadataBase::get_major(metaVersion),
+                       MetadataBase::get_minor(metaVersion),
+                       MetadataBase::get_major(CURRENT_METADATA_VERSION),
+                       MetadataBase::get_minor(CURRENT_METADATA_VERSION));
 
         OPENVINO_THROW("NPU metadata mismatch.");
     }

@@ -57,7 +57,7 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     std::stringstream stream;
     auto meta = MetadataTest(blobSize, std::nullopt);
 
-    constexpr uint32_t dummy_version = make_version(0x00007E57, 0x0000AC3D);
+    constexpr uint32_t dummy_version = MetadataBase::make_version(0x00007E57, 0x0000AC3D);
     meta.set_version(dummy_version);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
@@ -90,16 +90,16 @@ TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
     ASSERT_ANY_THROW(read_metadata_from(blob));
 }
 
-constexpr uint16_t currentMajor = get_major(CURRENT_METADATA_VERSION),
-                   currentMinor = get_minor(CURRENT_METADATA_VERSION);
+constexpr uint16_t currentMajor = MetadataBase::get_major(CURRENT_METADATA_VERSION),
+                   currentMinor = MetadataBase::get_minor(CURRENT_METADATA_VERSION);
 
 INSTANTIATE_TEST_CASE_P(MetadataUnitTests,
                         MetadataVersionTestFixture,
-                        ::testing::Values(make_version(currentMajor, currentMinor + 1),
-                                          make_version(currentMajor, currentMinor - 1),
-                                          make_version(currentMajor + 1, currentMinor),
-                                          make_version(currentMajor + 1, currentMinor + 1),
-                                          make_version(currentMajor + 1, currentMinor - 1),
-                                          make_version(currentMajor - 1, currentMinor),
-                                          make_version(currentMajor - 1, currentMinor + 1),
-                                          make_version(currentMajor - 1, currentMinor - 1)));
+                        ::testing::Values(MetadataBase::make_version(currentMajor, currentMinor + 1),
+                                          MetadataBase::make_version(currentMajor, currentMinor - 1),
+                                          MetadataBase::make_version(currentMajor + 1, currentMinor),
+                                          MetadataBase::make_version(currentMajor + 1, currentMinor + 1),
+                                          MetadataBase::make_version(currentMajor + 1, currentMinor - 1),
+                                          MetadataBase::make_version(currentMajor - 1, currentMinor),
+                                          MetadataBase::make_version(currentMajor - 1, currentMinor + 1),
+                                          MetadataBase::make_version(currentMajor - 1, currentMinor - 1)));
