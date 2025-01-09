@@ -114,7 +114,7 @@ macro(ov_check_compiler_supports_sve flags)
     set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS_INIT} ${flags}")
 
     # Check if the source code compiles with the given flags for C++
-    CHECK_CXX_SOURCE_COMPILES("${SVE_CODE}" CXX_HAS_SVE)            
+    CHECK_CXX_SOURCE_COMPILES("${SVE_CODE}" CXX_HAS_SVE)
 
     # If the compilation test is successful, set appropriate variables indicating support
     if(CXX_HAS_SVE)
@@ -234,12 +234,12 @@ endmacro()
 #
 macro(ov_arm_neon_fp16_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID} for arm64 platform")
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} -march=armv8.2-a+fp16 -Wno-unused-command-line-argument)
         else()
-            message(WARNING "fp16 is not supported by Android armv7")
+            message(WARNING "ARM64 fp16 is not supported by Android armv7")
         endif()
     elseif(AARCH64)
         set(${flags} -O2 -march=armv8.2-a+fp16)
@@ -247,9 +247,9 @@ macro(ov_arm_neon_fp16_optimization_flags flags)
             list(APPEND ${flags} -ftree-vectorize)
         endif()
     elseif(ARM)
-        message(WARNING "fp16 is not supported by 32-bit ARM")
+        message(WARNING "ARM64 fp16 is not supported by 32-bit ARM")
     else()
-        message(WARNING "fp16 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
+        message(WARNING "ARM64 fp16 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endmacro()
 
@@ -278,7 +278,7 @@ macro(ov_arm_sve_optimization_flags flags)
     else()
         if(AARCH64)
             set(${flags} -O2)
-        
+
             # Add flag for SVE if supported
             if(CXX_SVE_FOUND)
                 list(APPEND ${flags} -march=armv8-a+sve)
@@ -390,13 +390,7 @@ endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(CMAKE_CXX_STANDARD 14)
-    elseif(OV_COMPILER_IS_INTEL_LLVM)
-        set(CMAKE_CXX_STANDARD 17)
-    else()
-        set(CMAKE_CXX_STANDARD 11)
-    endif()
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
@@ -461,8 +455,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # Workaround for an MSVC compiler issue in some versions of Visual Studio 2022.
     # The issue involves a null dereference to a mutex. For details, refer to link https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
-    if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930 AND MSVC_VERSION LESS 1941)
-	ov_add_compiler_flags(/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+    if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+        ov_add_compiler_flags(/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
     endif()
 
     if(AARCH64 AND NOT MSVC_VERSION LESS 1930)

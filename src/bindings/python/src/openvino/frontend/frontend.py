@@ -7,7 +7,7 @@ from typing import Union
 from openvino._pyopenvino import FrontEnd as FrontEndBase
 from openvino._pyopenvino import FrontEndManager as FrontEndManagerBase
 from openvino._pyopenvino import InputModel
-from openvino.runtime import Model
+from openvino import Model
 
 
 class FrontEnd(FrontEndBase):
