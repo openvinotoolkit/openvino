@@ -69,6 +69,8 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array);
 
 void fill_string_tensor_data(ov::Tensor& tensor, py::array& array);
 
+const char* find_first_not_null(const char* ptr, size_t itemsize);
+
 }; // namespace string_helpers
 
 // Helpers for numpy arrays

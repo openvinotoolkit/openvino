@@ -177,7 +177,8 @@ void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
     auto data = tensor.data<std::string>();
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
-        data[i] = std::string(ptr, strnlen(ptr, buf.itemsize));
+        auto first_not_null = find_first_not_null(ptr, buf.itemsize);
+        data[i] = std::string(ptr, first_not_null);
     }
 }
 
@@ -210,6 +211,12 @@ void fill_string_tensor_data(ov::Tensor& tensor, py::array& array) {
     } else {
         OPENVINO_THROW("Unknown string kind passed to fill the Tensor's data!");
     }
+}
+
+const char* find_first_not_null(const char* ptr, size_t itemsize) {
+    auto rbegin = std::make_reverse_iterator(ptr + itemsize);
+    auto first_not_null = std::find_if(rbegin, std::make_reverse_iterator(ptr), [](const auto& c) { return c != '\0'; });
+    return first_not_null.base();
 }
 
 };  // namespace string_helpers
