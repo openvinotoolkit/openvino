@@ -43,6 +43,7 @@ OP_CONVERTER(elu);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
+OP_CONVERTER(expand_as_v2);
 OP_CONVERTER(eye);
 OP_CONVERTER(flip);
 OP_CONVERTER(flatten_contiguous_range);
@@ -62,6 +63,7 @@ OP_CONVERTER(index_select);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
+OP_CONVERTER(less_equal);
 OP_CONVERTER(linear_interp_v2);
 OP_CONVERTER(linspace);
 OP_CONVERTER(lod_array_length);
@@ -179,6 +181,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"equal", op::equal},
             {"exp", op::exp},
             {"expand_v2", op::expand_v2},
+            {"expand_as_v2", op::expand_as_v2},
             {"eye", op::eye},
             {"fill_any_like", op::fill_any_like},
             {"fill_constant", op::fill_constant},
@@ -200,6 +203,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
+            {"less_equal", op::less_equal},
             {"linear_interp_v2", op::linear_interp_v2},
             {"linspace", op::linspace},
             {"lod_array_length", op::lod_array_length},
