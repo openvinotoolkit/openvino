@@ -8,7 +8,6 @@
 #include "cpu/aarch64/jit_generator.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
-#include "cache/multi_cache.h"
 
 namespace ov {
 namespace intel_cpu {

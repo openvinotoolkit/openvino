@@ -6,11 +6,12 @@
 
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
+#include "emitters/snippets/aarch64/jit_brgemm_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
-#include "emitters/snippets/aarch64/jit_brgemm_emitter.hpp"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -25,7 +26,6 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 
 namespace ov {
 
