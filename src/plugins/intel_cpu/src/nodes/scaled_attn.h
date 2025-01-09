@@ -47,7 +47,10 @@ public:
             real_order = {permute_axes[2], permute_axes[0], permute_axes[1], permute_axes[3]};
         return real_order;
     }
-
+    struct SDPAQuantParam {
+        ov::element::Type precision = ov::element::undefined;
+        size_t groupSize = 0;
+    };
     ov::element::Type getKVCachePrecision();
 
 private:
@@ -86,6 +89,8 @@ private:
     // (0, 1, 2, 3) for BHLS
     // (2, 0, 1, 3) for LBHS
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
+    SDPAQuantParam m_key_quant_param;
+    SDPAQuantParam m_value_quant_param;
 };
 
 }  // namespace node
