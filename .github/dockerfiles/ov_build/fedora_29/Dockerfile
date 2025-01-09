@@ -38,8 +38,8 @@ RUN cd /usr/src/Python-3.9.9 && \
 # Use Python 3.9 as default
 RUN rm -f /usr/bin/python && \
     rm -f /usr/bin/python3 && \
-    ln -s /usr/local/bin/python3.9 /usr/bin/python && \
-    ln -s /usr/local/bin/python3.9 /usr/bin/python3
+    ln -s /usr/bin/python3.9 /usr/bin/python && \
+    ln -s /usr/bin/python3.9 /usr/bin/python3
 
 # Setup pip
 ENV PIP_VERSION="24.0"
