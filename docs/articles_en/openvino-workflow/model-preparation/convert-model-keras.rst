@@ -49,12 +49,12 @@ Alternatively, a model exported to TensorFlow SavedModel format can also be conv
 Run inference in Keras 3 with the OpenVINO backend
 ##################################################
 
-Starting with the Keras 3.8 release, Keras provides native integration with the OpenVINO backend for accelerated inference.
-This integration allows you to leverage OpenVINO performance optimizations directly within Keras workflow, enabling faster inference on OpenVINO supported hardware.
+Starting with release 3.8, Keras provides native integration with the OpenVINO backend for accelerated inference.
+This integration enables you to leverage OpenVINO performance optimizations directly within the Keras workflow, enabling faster inference on OpenVINO supported hardware.
 
-To switch on the OpenVINO backend in Keras 3, set the environment variable ``KERAS_BACKEND`` to ``"openvino"``
-or update the local configuration file at ``~/.keras/keras.json`` to specify the backend.
-Below is an example of how to infer a model (trained with PyTorch, JAX, or TensorFlow backends) in Keras 3 using the OpenVINO backend:
+To switch to the OpenVINO backend in Keras 3, set the ``KERAS_BACKEND`` environment variable to ``"openvino"``
+or specify the backend in the local configuration file at ``~/.keras/keras.json``.
+Here is an example of how to infer a model (trained with PyTorch, JAX, or TensorFlow backends) in Keras 3, using the OpenVINO backend:
 
 .. code-block:: py
    :force:
