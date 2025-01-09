@@ -520,7 +520,7 @@ std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node) {
 std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
     std::string res;
     if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
-        res += wrap_type->type_description_str();
+        res += "WrapType" + wrap_type->type_description_str();
     } else {
         auto version = node->get_type_info().version_id;
         if (version)
@@ -531,7 +531,7 @@ std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
 
     std::string sep = "";
     std::stringstream stream;
-    stream << " (";
+    stream << "(";
     for (const auto& arg : node->input_values()) {
         stream << sep << arg;
         sep = ", ";

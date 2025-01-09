@@ -6,6 +6,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 
 bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
@@ -19,10 +20,12 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         auto& pattern_map = matcher->get_pattern_value_map();
         pattern_map[shared_from_this()] = graph_value;
         matcher->add_node(graph_value);
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "]         TYPE and PREDICATE MATCHED. CHECKING PATTERN ARGUMENTS:");
         return (get_input_size() == 0
                     ? true
                     : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
     }
+    OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "]         NODES' TYPE or PREDICATE DIDN'T MATCH");
     return false;
 }
 
@@ -54,7 +57,8 @@ std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostre
 
 std::string ov::pass::pattern::op::WrapType::type_description_str() const {
     bool first = true;
-    std::string res = (m_wrapped_types.size() > 1 ? "<" : "");
+    // std::string res = (m_wrapped_types.size() > 1 ? "<" : "");
+    std::string res = "<";
     for (const auto& type : m_wrapped_types) {
         auto version = type.version_id;
         if (version)
@@ -63,6 +67,7 @@ std::string ov::pass::pattern::op::WrapType::type_description_str() const {
             res += std::string(first ? "" : ", ") + type.name;
         first = false;
     }
-    res += (m_wrapped_types.size() > 1 ? ">" : "");
+    // res += (m_wrapped_types.size() > 1 ? ">" : "");
+    res += ">";
     return res;
 }

@@ -534,31 +534,11 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
 bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
                            const Output<Node>& pattern_value,
                            const Output<Node>& graph_value) {
-    // OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] MATCHING ", pattern_value.get_node_shared_ptr(), "\nagainst\n", graph_value.get_node_shared_ptr());
-    if (pattern_value.get_index() != graph_value.get_index()) {
-        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(),
-                             "] ABORTING: Compared argument's output indices are not the same: Pattern's output index: ",
-                             pattern_value.get_index(),
-                             ". Graph's output index: ", graph_value.get_index());
+    if (pattern_value.get_index() != graph_value.get_index() ||
+        (matcher->is_strict_mode() &&
+         (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
+          !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
         return false;
-    }
-
-    if (matcher->is_strict_mode()) {
-        if (!pattern_value.get_element_type().compatible(graph_value.get_element_type())) {
-            OPENVINO_DEBUG_EMPTY("[", matcher->get_name(),
-                                 "] ABORTING: Compared argument's output element types are not compatible: Pattern's output element type: ",
-                                 pattern_value.get_element_type(),
-                                 ". Graph's output element type: ", graph_value.get_element_type());
-            return false;
-        }
-
-        if (!pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())) {
-            OPENVINO_DEBUG_EMPTY("[", matcher->get_name(),
-                                 "] ABORTING: Compared argument's output partial shapes are not compatible: Pattern's output partial shape: ",
-                                 pattern_value.get_partial_shape(),
-                                 ". Graph's output partial shape: ", graph_value.get_partial_shape());
-            return false;
-        }
     }
 
     return match_node(matcher, graph_value);
@@ -586,17 +566,6 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (!graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
-        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(),
-                             "] ABORTING: Compared node's types do not match. Expected pattern node: ", node_version_type_name_str(graph_value.get_node_shared_ptr()),
-                             ". Found graph node: ", node_version_type_name_str(shared_from_this()));
-        return false;
-    }
-
-    if (!matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
-        return false;
-    }
-
     if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
         matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
         auto& pattern_map = matcher->get_pattern_value_map();

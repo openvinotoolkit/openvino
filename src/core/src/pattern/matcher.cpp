@@ -137,31 +137,26 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
         if (!match_value(pattern_args.at(i), args.at(i))) {
-            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]        ABORTING: Argument ", i,
-                                 " mismatch. Expected in pattern: ",
-                                 node_version_type_name_str(pattern_args.at(i).get_node_shared_ptr()),
-                                 ". Found in graph: ", node_version_type_name_str(args.at(i).get_node_shared_ptr()));
+            // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     ABORTING: Argument ", i,
+            //                      " mismatch. Expected in pattern: ",
+            //                      node_version_type_name_str(pattern_args.at(i).get_node_shared_ptr()),
+            //                      ". Found in graph: ", node_version_type_name_str(args.at(i).get_node_shared_ptr()));
             return false;
         }
     }
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     ALL ARGUMENTS MATCHED");
     return true;
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    // OPENVINO_DEBUG_EMPTY("[MATCHER] Match arguments at");
-    // OPENVINO_DEBUG_EMPTY("\t", *graph_node);
-    // OPENVINO_DEBUG_EMPTY("for pattern");
-    // OPENVINO_DEBUG_EMPTY("\t", *pattern_node);
-    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     MATCHING PATTERN NODE: ", node_with_arguments(pattern_node->shared_from_this()));
-    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     AGAINST    GRAPH NODE: ", node_with_arguments(graph_node));
-
+    this->level += 1;
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]       ABORTING: Arguments count mismatch. Expected ",
-                             pattern_args.size(), " arguments in pattern node. Found", 
-                             args.size(), " arguments in graph node.");
+        // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", LVL_WIDTH(this->level), "ABORTING: Arguments count mismatch. Expected ",
+        //                      pattern_args.size(), " arguments in pattern node. Found", 
+        //                      args.size(), " arguments in graph node.");
         return false;
     }
 
@@ -174,9 +169,10 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
                       return n1 < n2;
                   });
         do {
+            // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", LVL_WIDTH(this->level), "match_permutation()1 for ", node_with_arguments(pattern_node->shared_from_this()));
             auto saved = start_match();
             if (match_permutation(pattern_args, args)) {
-                OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", " EXIT 1");
+                // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", "EXIT 1");
                 return saved.finish(true);
             }
         } while (std::next_permutation(begin(pattern_args),
@@ -185,11 +181,11 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
                                            return n1 < n2;
                                        }));
     } else {
+        // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", LVL_WIDTH(this->level), "match_permutation()2 for ", node_with_arguments(pattern_node->shared_from_this()));
         return match_permutation(pattern_args, args);
     }
 
-    // OPENVINO_DEBUG("[MATCHER] Aborting");
-    OPENVINO_DEBUG("[", this->get_name(), "]", "       ABORTING");
+    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]       ABORTING");
     return false;
 }
 
@@ -222,6 +218,7 @@ void Matcher::clear_state() {
     m_pattern_map.clear();
     m_pattern_value_maps.clear();
     m_matched_list.clear();
+    level = 0;
 }
 }  // namespace pattern
 }  // namespace pass
