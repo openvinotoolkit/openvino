@@ -368,7 +368,7 @@ private:
     void solve() {
         ov::MemorySolver::normalize_boxes(m_boxes);
 
-        std::vector<std::vector<ov::MemorySolver::Box>> groups;  // groups of nonoverlapping boxes
+        std::vector<std::vector<ov::MemorySolver::Box>> groups;  // groups of non overlapping boxes
         groups.push_back({m_boxes.front()});
         for (size_t i = 1; i < m_boxes.size(); ++i) {
             const auto& box = m_boxes[i];
