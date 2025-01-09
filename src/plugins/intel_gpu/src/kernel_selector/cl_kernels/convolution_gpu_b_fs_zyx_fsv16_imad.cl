@@ -290,6 +290,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                     }
                 }
 
+                sub_group_barrier(CLK_LOCAL_MEM_FENCE);
+
                 unroll_for(uint fzu = 0; fzu < FILTER_SIZE_Z_UNROLL; ++fzu) {
                     unroll_for(uint fyu = 0; fyu < FILTER_SIZE_Y_UNROLL; ++fyu) {
                         unroll_for (uint fx = 0; fx < FILTER_SIZE_X; fx++) {
