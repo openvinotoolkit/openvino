@@ -93,8 +93,10 @@ def main():
 
     # expand_as_v2
     data_x = np.random.rand(1, 1, 6).astype(data_type)
-    data_y = np.random.rand(2, 3, 6).astype(data_type)
-    expand_as_v2("expand_as_v2", data_x, data_y)
+    data_y1 = np.random.rand(2, 3, 6).astype(data_type)
+    data_y2 = np.random.rand(4, 2, 3, 6).astype(data_type)
+    expand_as_v2("expand_as_v2_1", data_x, data_y1)
+    expand_as_v2("expand_as_v2_2", data_x, data_y2)
 
 if __name__ == "__main__":
     main()
