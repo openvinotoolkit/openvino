@@ -337,7 +337,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
     int sz = static_cast<int>(pshape.size());
-    for (auto s : pshape) {
+    for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;
         }
@@ -345,7 +345,7 @@ bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     return value_1_num >= sz - 1;
 }
 
-bool Node::isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::MemoryDescPtr desc2) {
+bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2) {
     bool samePrec = desc1->getPrecision() == desc2->getPrecision();
     bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
     bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
