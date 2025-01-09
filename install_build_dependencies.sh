@@ -91,12 +91,12 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     fi
 elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/os-release ; then
     yum update
-    # RHEL 8 / CentOS 7
+    # RHEL 8 / CentOS 7 / Fedora 29
     if [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
-        if grep -q "centos" /etc/os-release; then
+        if ! grep -q "fedora" /etc/os-release; then
             yum install -y centos-release-scl
+            yum install -y epel-release
         fi
-        yum install -y epel-release
         yum install -y \
             `# to build and check pip packages` \
             patchelf \
