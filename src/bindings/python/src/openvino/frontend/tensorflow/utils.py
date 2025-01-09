@@ -8,7 +8,7 @@
 import logging as log
 import numpy as np
 import sys
-from openvino.runtime import PartialShape, Dimension, Type
+from openvino import PartialShape, Dimension, Type
 from packaging.version import parse, Version
 from typing import List, Dict, Union
 

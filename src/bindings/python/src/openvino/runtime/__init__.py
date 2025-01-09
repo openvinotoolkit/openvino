@@ -63,6 +63,11 @@ from openvino.runtime import opset14
 from openvino.runtime import opset15
 from openvino.runtime import opset16
 
+# Import runtime proxy modules for backward compatibility
+from openvino.runtime import utils
+from openvino.runtime import opset_utils
+from openvino.runtime import exceptions
+
 # Import properties API
 from openvino.runtime import properties
 
