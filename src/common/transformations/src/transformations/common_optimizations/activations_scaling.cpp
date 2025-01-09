@@ -48,10 +48,6 @@ using namespace ov::pass::activations_scaling;
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
-// Add scale_down and scale_up layers around Convolution and MatMul nodes
-// Conv/MatMul
-//    ==>
-// Multiply(scale_down by scale_factor) --> Conv/MatMul --> Multiply(scale_up by scale_factor)
 ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor,
                                                                           ov::element::Type scaled_prec) {
     MATCHER_SCOPE(ScaleDownSingleLayer);
@@ -184,17 +180,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     this->register_matcher(m, callback);
 }
 
-// Normalization has the following property.
-//
-// Norm(input * const_a) = Norm(input)
-//
-// So, we can skip Multiply that is connected to Normalization.
-//
-// input --> Multiply --> Normalization
-//   ==>
-// input --> Normalization
-ov::pass::activations_scaling::EliminateMultiplyScalar::EliminateMultiplyScalar() {
-    MATCHER_SCOPE(EliminateMultiplyScalar);
+ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
+    MATCHER_SCOPE(EliminateScalarMul);
 
     auto activation_m = any_input(is_non_const_node);
     auto convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(activation_m);
@@ -221,27 +208,10 @@ ov::pass::activations_scaling::EliminateMultiplyScalar::EliminateMultiplyScalar(
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "EliminateMultiplyScalar");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "EliminateScalarMul");
     this->register_matcher(m, callback);
 }
 
-// input_a   const_a   input_b   const_b   input_c   const_c
-//    \        /          \        /          \        /
-//    Multiply_a          Multiply_b          Multiply_c
-//             \              |               /
-//              \             |              /
-//               ---------- Concat ------------
-// ==>
-//          (const_a            (const_b             (const_c
-// input_a  /const_c)  input_b  /const_c)  input_c   /const_c)
-//    \        /          \        /          \        /
-//    Multiply_a          Multiply_b          Multiply_c
-//             \              |               /
-//              \             |              /
-//               ---------- Concat ------------
-//                            |   const_c
-//                            |    /
-//                           Multiply
 ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation() {
     MATCHER_SCOPE(MulConcatTransformation);
 
@@ -328,13 +298,6 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
     this->register_matcher(m, callback);
 }
 
-//         input             input
-//         /   \               |
-//      Norm   Mul    ==>     Mul (expect to be fused into the input layer)
-//        |     |            /   \_
-//      op_a   op_b       Norm   op_b
-//                          |
-//                        op_a
 ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() {
     MATCHER_SCOPE(MulShareTransformation);
 
@@ -383,13 +346,8 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
     this->register_matcher(m, callback);
 }
 
-//        input_b   scalar        input_a   input_b
-//              \   /                   \   /
-//    input_a   Mul_b       ==>         Mul_a'  scalar
-//          \   /                         \     /
-//          Mul_a                          Mul_b' (expect to be merged with Mul_a')
-ov::pass::activations_scaling::MulMulTransformation::MulMulTransformation() {
-    MATCHER_SCOPE(MulMulTransformation);
+ov::pass::activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
+    MATCHER_SCOPE(MoveDownScalarMul);
 
     auto activation_b_m = any_input(is_non_const_node);
     auto mul_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
@@ -429,6 +387,6 @@ ov::pass::activations_scaling::MulMulTransformation::MulMulTransformation() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_a_m, "MulMulTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_a_m, "MoveDownScalarMul");
     this->register_matcher(m, callback);
 }

@@ -70,7 +70,7 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateMultiplyScalarTest) {
+TEST_F(TransformationTestsF, EliminateScalarMulTest) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
@@ -83,7 +83,7 @@ TEST_F(TransformationTestsF, EliminateMultiplyScalarTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyScalar>();
+        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
@@ -130,7 +130,7 @@ TEST_F(TransformationTestsF, ConcatTransformationTest) {
     }
 }
 
-TEST_F(TransformationTestsF, MulMulTransformationTest) {
+TEST_F(TransformationTestsF, MoveDownScalarMulTest) {
     {
         auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
         auto scale_const0 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
@@ -141,7 +141,7 @@ TEST_F(TransformationTestsF, MulMulTransformationTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
-        manager.register_pass<ov::pass::activations_scaling::MulMulTransformation>();
+        manager.register_pass<ov::pass::activations_scaling::MoveDownScalarMul>();
     }
     {
         auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});

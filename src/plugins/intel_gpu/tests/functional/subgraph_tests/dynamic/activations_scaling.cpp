@@ -145,9 +145,9 @@ protected:
 
         auto add12 = std::make_shared<ov::op::v1::Add>(transpose1, transpose2);
 
-        auto concat0 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose0, add12}, 3);
+        auto concat0 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose0, add12}, 0);
 
-        auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{add12, transpose2}, 3);
+        auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{add12, transpose2}, 0);
 
         auto add = std::make_shared<ov::op::v1::Add>(concat0, concat1);
 

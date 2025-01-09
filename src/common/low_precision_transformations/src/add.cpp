@@ -214,7 +214,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
-        auto output_type = useDefaultTransformation ? element::f32 : add->get_output_element_type(0);
+        auto output_type = scalingMode ? add->get_output_element_type(0) : element::f32;
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
             std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{ output_type },
             ov::op::TemporaryReplaceOutputType(inputs[0], output_type).get(),

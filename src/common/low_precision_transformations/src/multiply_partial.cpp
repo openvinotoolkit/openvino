@@ -79,7 +79,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
         auto constParent = multiply->input_value(multiplyBranch.first == 0 ? 1 : 0);
         auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second);
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
-        auto input_data_type = useDefaultTransformation ? element::f32 : multiply->get_output_element_type(0);
+        auto input_data_type = scalingMode ? multiply->get_output_element_type(0) : element::f32;
 
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
             std::vector<ov::element::Type>{ input_data_type, input_data_type },
@@ -134,7 +134,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
 
 
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
-        // if useDefaultTransformation = true
+        // if scalingMode == false
         //     after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //             SC1' = SC1 * SC2
         // else
@@ -142,9 +142,9 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
         //             SC1' = SC1 * SC2
         auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
-        inputs[emptyPathIndex] = useDefaultTransformation ? dequantizationEmptyPath.data : newMultiplyValuesFullPath;
-        auto input_for_fullPath = useDefaultTransformation ? newMultiplyValuesFullPath :
-                                                             dequantizationEmptyPath.data.get_node_shared_ptr();
+        inputs[emptyPathIndex] = scalingMode ? newMultiplyValuesFullPath : dequantizationEmptyPath.data;
+        auto input_for_fullPath = scalingMode ? dequantizationEmptyPath.data.get_node_shared_ptr() :
+                                                newMultiplyValuesFullPath;
 
         ov::Output<ov::Node> parent0 = dequantizationFullPath.subtract == nullptr ?
             (dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert) :

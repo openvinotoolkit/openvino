@@ -253,12 +253,12 @@ public:
             const std::vector<ov::element::Type> defaultPrecisions =
             { ov::element::u8,  ov::element::i8 },
             const bool reshapeIgnorePerTensorQuantizationCheck = false,
-            const bool useDefaultTransformation = true) :
+            const bool scalingMode = false) :
             updatePrecisions(updatePrecisions),
             deqPrecision(deqPrecision),
             defaultPrecisions(defaultPrecisions),
             reshapeIgnorePerTensorQuantizationCheck(reshapeIgnorePerTensorQuantizationCheck),
-            useDefaultTransformation(useDefaultTransformation) {}
+            scalingMode(scalingMode) {}
 
         Params& setUpdatePrecisions(const bool updatePrecisions) {
             this->updatePrecisions = updatePrecisions;
@@ -283,8 +283,8 @@ public:
         std::vector<ov::element::Type> defaultPrecisions;
         // to support GPU workarround to keep Reshape and MatMul in FP32
         bool reshapeIgnorePerTensorQuantizationCheck;
-        // for MultiplyPartialTransformation to support Activations Scaling
-        bool useDefaultTransformation;
+        // to support Activations Scaling
+        bool scalingMode;
     };
 
     class PrecisionDetails {
@@ -356,7 +356,7 @@ protected:
     element::Type deqPrecision;
     std::vector<ov::element::Type> defaultPrecisions;
     bool reshapeIgnorePerTensorQuantizationCheck;
-    bool useDefaultTransformation;
+    bool scalingMode;
 
     static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
