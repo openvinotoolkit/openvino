@@ -1761,7 +1761,7 @@ Deprecated and to be removed in the future
 
      * `Super Resolution with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/vision-superresolution>`__
 
-       * See alternative: `Super Resolution with PaddleGAN and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-paddlegan-superresolution>`__
+       * See alternative: `Super Resolution with PaddleGAN and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/vision-paddlegan-superresolution>`__
        * See alternative:  `Image Processing C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/image_processing_demo/cpp/README.md>`__
 
      * `Image Colorization with OpenVINO Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/vision-image-colorization>`__
@@ -1778,7 +1778,7 @@ Deprecated and to be removed in the future
      * `Image Generation with DeciDiffusion <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/decidiffusion-image-generation>`_
      * `Image generation with DeepFloyd IF and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/deepfloyd-if>`_
      * `Depth estimation using VI-depth with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/depth-estimation-videpth>`_
-     * `Instruction following using Databricks Dolly 2.0 and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/dolly-2-instruction-following>`_
+     * `Instruction following using Databricks Dolly 2.0 and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.4/notebooks/dolly-2-instruction-following>`_
 
        * See alternative: `LLM Instruction-following pipeline with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering>`__
 
