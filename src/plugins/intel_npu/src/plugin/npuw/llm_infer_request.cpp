@@ -29,6 +29,36 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
+void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor,
+                    ov::SoPtr<ov::ITensor> dst_tensor) {
+    // [1, H, S1, E] -> [1, H, S2, E]
+    const int N = 0;
+    const int H = 1;
+    const int S = 2;
+    const int E = 3;
+
+    OPENVINO_ASSERT(src_tensor->get_shape()[N] == dst_tensor->get_shape()[N]);
+    OPENVINO_ASSERT(src_tensor->get_shape()[H] == dst_tensor->get_shape()[H]);
+    OPENVINO_ASSERT(src_tensor->get_shape()[E] == dst_tensor->get_shape()[E]);
+    OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
+    OPENVINO_ASSERT(src_tensor->get_shape()[N] == 1u);
+    OPENVINO_ASSERT(src_tensor->get_shape().size() == 4u);
+
+    const auto* src_tensor_data = reinterpret_cast<uint8_t*>(src_tensor->data());
+          auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
+
+    const auto num_planes          = src_tensor->get_shape()[H];
+    const auto src_plane_stride    = src_tensor->get_strides()[H];
+    const auto dst_plane_stride    = dst_tensor->get_strides()[H];
+    const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
+
+    for (size_t i = 0; i < num_planes; ++i) {
+        std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
+        dst_tensor_data += dst_plane_stride;
+        src_tensor_data += src_plane_stride;
+    }
+}
+
 void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     /*
       src/dst layout: [1, heads, emb_size, seq_len]
@@ -171,6 +201,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             if (kv_dim == 3u) {
                 copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+            } else if (kv_dim == 2u) {
+                copy_by_planes(prefill_out_slice, kvcache_in_slice);
             } else {
                 prefill_out_slice->copy_to(kvcache_in_slice._ptr);
             }
@@ -215,6 +247,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
         if (kv_dim == 3u) {
             ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_tensor, kvcache_in_slice);
+        } else if (kv_dim == 2u) {
+            copy_by_planes(kvcache_out_tensor, kvcache_in_slice);
         } else {
             kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
         }
