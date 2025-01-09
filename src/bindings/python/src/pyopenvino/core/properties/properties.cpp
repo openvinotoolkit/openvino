@@ -8,6 +8,11 @@
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
+#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/auto/properties.hpp"
+
 namespace py = pybind11;
 
 void regmodule_properties(py::module m) {
@@ -316,4 +321,20 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
+
+    // Submodule npu
+    py::module m_intel_npu =
+        m_properties.def_submodule("intel_npu",
+                                   "openvino.properties.intel_npu submodule that simulates ov::intel_npu");
+
+    wrap_property_RO(m_intel_npu, ov::intel_npu::device_alloc_mem_size, "device_alloc_mem_size");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::device_total_mem_size, "device_total_mem_size");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::driver_version, "driver_version");
+
+    wrap_property_RW(m_intel_npu, ov::intel_npu::compilation_mode_params, "compilation_mode_params");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::turbo, "turbo");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::tiles, "tiles");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::bypass_umd_caching, "bypass_umd_caching");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
 }
