@@ -8,12 +8,11 @@
 
 #include "visitors/visitors.hpp"
 
-using ov::PartialShape;
+using ov::op::internal::GLU;
 using ov::op::v0::Parameter;
 using ov::test::NodeBuilder;
 
 TEST(attributes, glu_attr_Swish) {
-    using ov::op::internal::GLU;
     NodeBuilder::opset().insert<GLU>();
 
     int64_t axis = -1;
@@ -34,7 +33,6 @@ TEST(attributes, glu_attr_Swish) {
 }
 
 TEST(attributes, glu_attr_Gelu) {
-    using ov::op::internal::GLU;
     NodeBuilder::opset().insert<GLU>();
 
     int64_t axis = 2;
@@ -55,7 +53,6 @@ TEST(attributes, glu_attr_Gelu) {
 }
 
 TEST(attributes, glu_attr_Gelu_Tanh) {
-    using ov::op::internal::GLU;
     NodeBuilder::opset().insert<GLU>();
 
     int64_t axis = 2;
