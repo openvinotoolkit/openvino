@@ -66,7 +66,7 @@ public:
 
 class TestGraphRewritePass : public pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TestGraphRewritePass");
+    OPENVINO_GRAPH_REWRITE_RTTI("TestGraphRewritePass");
     TestGraphRewritePass() {
         add_matcher<RenameReLU, false /*disabled by default*/>();
         add_matcher<RenameSigmoid>();
@@ -284,7 +284,7 @@ public:
 
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TestNestedGraphRewrite");
+    OPENVINO_GRAPH_REWRITE_RTTI("TestNestedGraphRewrite");
     TestNestedGraphRewrite() {
         add_matcher<TestNestedMatcher>();
     }

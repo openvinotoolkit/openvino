@@ -10,6 +10,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/repacked_input.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -139,7 +140,7 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct BrgemmCopyBKernel : public dnnl::impl::cpu::x64::jit_generator {
+struct BrgemmCopyBKernel : public RepackedInputKernel, public dnnl::impl::cpu::x64::jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(BrgemmCopyBKernel)
     struct call_args {
         const void* src = nullptr;
@@ -152,7 +153,7 @@ struct BrgemmCopyBKernel : public dnnl::impl::cpu::x64::jit_generator {
 
     dnnl::impl::status_t create_kernel() override;
 
-    void operator()(const call_args* args) const;
+    void operator()(const void* args) const override;
 
 private:
     void generate() override;

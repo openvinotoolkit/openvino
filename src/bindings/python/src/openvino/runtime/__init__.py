@@ -66,6 +66,7 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
 
 # Import opsets
+from openvino.runtime import op
 from openvino.runtime import opset1
 from openvino.runtime import opset2
 from openvino.runtime import opset3
@@ -82,6 +83,11 @@ from openvino.runtime import opset13
 from openvino.runtime import opset14
 from openvino.runtime import opset15
 from openvino.runtime import opset16
+
+# Import runtime proxy modules for backward compatibility
+from openvino.runtime import utils
+from openvino.runtime import opset_utils
+from openvino.runtime import exceptions
 
 # Import properties API
 from openvino.runtime import properties

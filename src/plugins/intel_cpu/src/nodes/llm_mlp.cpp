@@ -37,8 +37,6 @@ public:
 
     LinearKsplit2() {}
 
-    ReduceAdd2bh* p_jit_reduce2bh;
-
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
     // and post-ops will compute  silu(gate)*up in unit of 16 elements
@@ -201,7 +199,7 @@ public:
         bool quantized_int8 = config.gate_up_quantized;
 
         auto reg_blk_K_size = quantized_int8 ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
-        auto cache_blk_k_size = quantized_int8 ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = quantized_int8 ? sizeof(int8_t) : sizeof(ov::float16);
 
         // prepare weights, split N among threads
@@ -226,9 +224,8 @@ public:
                 blkN++;
             }
             if (blkN) {
-                auto shared_atomic = std::make_shared<std::atomic_int>(0);
                 auto& work = works[ithr];
-                work.sync_flag = shared_atomic;
+                work.sync_flag = std::make_shared<std::atomic_int>(0);
                 work.blk_K_size = cache_blk_k_size;
 
                 work.n0 = (start_blkN)*REG_BLK_N_SIZE;

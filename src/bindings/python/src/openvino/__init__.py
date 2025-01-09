@@ -74,6 +74,7 @@ from openvino._ov_api import compile_model
 
 
 # Import opsets
+from openvino import op
 from openvino import opset1
 from openvino import opset2
 from openvino import opset3

@@ -1328,10 +1328,6 @@ void regclass_graph_Model(py::module m) {
                outputs_str + "\n]>";
     });
 
-    model.def("__copy__", [](ov::Model& self) {
-        throw py::type_error("Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead.");
-    });
-
     model.def("get_rt_info",
               (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
               py::return_value_policy::reference_internal,

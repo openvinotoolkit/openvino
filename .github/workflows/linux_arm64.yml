@@ -202,6 +202,16 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    needs: [ Build, Docker, Smart_CI ]
+    uses: ./.github/workflows/job_jax_layer_tests.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb-arm'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test

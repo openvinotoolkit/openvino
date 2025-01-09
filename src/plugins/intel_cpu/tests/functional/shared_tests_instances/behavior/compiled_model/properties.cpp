@@ -21,39 +21,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(inproperties)),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
-#if (defined(__APPLE__) || defined(_WIN32))
-auto default_affinity = [] {
-    auto numaNodes = ov::get_available_numa_nodes();
-    auto coreTypes = ov::get_available_cores_types();
-    if (coreTypes.size() > 1) {
-        return ov::Affinity::HYBRID_AWARE;
-    } else if (numaNodes.size() > 1) {
-        return ov::Affinity::NUMA;
-    } else {
-        return ov::Affinity::NONE;
-    }
-}();
-#else
-auto default_affinity = [] {
-    auto coreTypes = ov::get_available_cores_types();
-    if (coreTypes.size() > 1) {
-        return ov::Affinity::HYBRID_AWARE;
-    } else {
-        return ov::Affinity::CORE;
-    }
-}();
-#endif
-
-const std::vector<ov::AnyMap> default_properties = {
-    {ov::affinity(default_affinity)},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVClassCompiledModelPropertiesDefaultTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(default_properties)),
-                         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompiledModelPropertiesDefaultSupportedTests,
                          ::testing::Values(ov::test::utils::DEVICE_CPU),

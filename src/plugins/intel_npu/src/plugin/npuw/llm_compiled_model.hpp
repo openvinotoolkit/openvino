@@ -22,6 +22,7 @@ public:
         uint32_t total_size = 0u;
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
+        bool v_tensors_transposed = false;
     };
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
