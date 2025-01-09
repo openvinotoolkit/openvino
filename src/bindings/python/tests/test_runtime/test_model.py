@@ -849,3 +849,11 @@ def test_tempdir_save_load_error():
         with tempfile.TemporaryDirectory() as model_save_dir:
             save_model(mem_model, f"{model_save_dir}/model.xml")
             _ = Core().read_model(f"{model_save_dir}/model.xml")
+
+
+def test_model_dir():
+    model = generate_add_model()
+    num_of_attrs = 83
+
+    assert type(dir(model)) == list
+    assert len(dir(model)) >= num_of_attrs

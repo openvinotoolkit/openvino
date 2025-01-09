@@ -22,7 +22,12 @@ from openvino.utils.data_helpers import (
 )
 
 
-class Model:
+class ModelMeta(type):
+    def __dir__(cls) -> list:
+        return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
+
+
+class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
@@ -64,6 +69,10 @@ class Model:
 
     def __repr__(self) -> str:
         return self.__model.__repr__()
+
+    def __dir__(self) -> list:
+        wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
+        return dir(self.__model) + wrapper_methods
 
 
 class InferRequest(_InferRequestWrapper):
