@@ -4,7 +4,7 @@
 
 
 import numpy as np
-from openvino.runtime import opset13 as opset
+from openvino import opset13 as opset
 
 import openvino as ov
 import pytest

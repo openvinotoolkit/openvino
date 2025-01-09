@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import PartialShape, Type
-from openvino.runtime.op.util import VariableInfo, Variable
+from openvino.op.util import VariableInfo, Variable
 
 
 def test_info_as_property():

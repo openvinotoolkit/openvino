@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 from sys import platform
 from openvino import compile_model, Model
-from openvino.runtime import Extension
-import openvino.runtime.opset8 as ov
-from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.utils.node_factory import NodeFactory
+from openvino import Extension
+import openvino.opset8 as ov
+from openvino.exceptions import UserInputError
+from openvino.utils.node_factory import NodeFactory
 
 
 def test_node_factory_add():

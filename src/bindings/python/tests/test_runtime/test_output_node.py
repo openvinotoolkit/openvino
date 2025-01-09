@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import Type, Tensor, Symbol
 import numpy as np
 

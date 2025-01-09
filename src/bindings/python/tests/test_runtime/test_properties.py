@@ -17,7 +17,7 @@ import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
-from openvino.runtime import properties
+from openvino import properties
 
 
 ###

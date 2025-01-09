@@ -4,10 +4,10 @@
 
 import pytest
 import numpy as np
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 from openvino import Model
 
-from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription
+from openvino.op.util import InvariantInputDescription, BodyOutputDescription
 
 from tests.utils.helpers import compare_models
 

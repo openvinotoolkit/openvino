@@ -7,14 +7,14 @@ import pytest
 
 from openvino import PartialShape, Dimension, Model, Type
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.utils.types import make_constant_node
+from openvino.utils.types import make_constant_node
 
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 import openvino.runtime.opset10 as ov_opset10
 import openvino.runtime.opset15 as ov_opset15
 import openvino.runtime.opset11 as ov
-from openvino.runtime.op.util import VariableInfo, Variable
+from openvino.op.util import VariableInfo, Variable
 
 np_types = [np.float32, np.int32]
 integral_np_types = [

@@ -15,7 +15,7 @@ from openvino import (
 )
 
 from tests.utils.helpers import generate_model_with_memory
-from openvino.runtime.utils.types import get_dtype
+from openvino.utils.types import get_dtype
 
 
 class Caller:

@@ -7,7 +7,7 @@ import os
 import numpy as np
 import pytest
 
-import openvino.runtime.opset10 as ops
+import openvino.opset10 as ops
 from openvino import Core, Model
 from openvino.passes import Manager, Serialize, ConstantFolding, Version
 

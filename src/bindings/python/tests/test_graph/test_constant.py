@@ -5,9 +5,9 @@
 import numpy as np
 import openvino as ov
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import Type, PartialShape, Model, Strides, Tensor, compile_model
-from openvino.runtime.op import Constant
+from openvino.op import Constant
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
@@ -306,7 +306,7 @@ def test_memory_sharing(shared_flag):
         assert not np.shares_memory(arr, ov_const.data)
 
 
-OPSETS = [ov.runtime.opset12, ov.runtime.opset13]
+OPSETS = [ov.opset12, ov.opset13]
 
 
 @pytest.mark.parametrize(("opset"), OPSETS)

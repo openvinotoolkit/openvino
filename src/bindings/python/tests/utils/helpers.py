@@ -14,7 +14,7 @@ from pathlib import Path
 
 import openvino
 from openvino import Model, Core, Shape, Tensor, Type
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 
 def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from openvino import Type
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 
 
 @pytest.mark.parametrize(("strides", "pads_begin", "pads_end", "dilations", "expected_shape"), [

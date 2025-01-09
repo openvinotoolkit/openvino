@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Type, PartialShape, Dimension
-import openvino.runtime.opset15 as ov
+import openvino.opset15 as ov
 import pytest
 
 
