@@ -948,7 +948,7 @@ void transpose_16NxK(TDST* dst,
 // dequant f16/u8 to float
 template <typename T,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC != ov::element::u8, bool>::type = true>
+          typename std::enable_if<SRC_PREC != ov::element::u8 && precision_of<T>::value == SRC_PREC, bool>::type = true>
 static inline void dequant(T* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
     // never called
     OPENVINO_THROW("dequant: should not be called.");
@@ -956,8 +956,8 @@ static inline void dequant(T* dst, void* src, const size_t N, const size_t K, co
 template <typename T,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::f16, bool>::type = true>
-static inline void dequant(float* dst, ov::float16* src, const size_t N, const size_t K, const size_t group_size) {
-    cvt_copy(dst, src, K * N);
+static inline void dequant(float* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
+    cvt_copy(dst, reinterpret_cast<ov::float16*>(src), K * N);
 }
 
 template <typename TDST,
