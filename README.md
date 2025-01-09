@@ -127,6 +127,7 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 -   [OpenVINO Execution Provider for ONNX Runtime](https://onnxruntime.ai/docs/execution-providers/OpenVINO-ExecutionProvider.html) - use OpenVINO as a backend with your existing ONNX Runtime code.
 -   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
 -   [LangChain](https://python.langchain.com/docs/integrations/llms/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.
+-   [Keras 3](https://github.com/keras-team/keras) - Keras 3 is a multi-backend deep learning framework. Users can switch model inference to the OpenVINO backend using the Keras API.
 
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 
