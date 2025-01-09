@@ -202,7 +202,7 @@ KernelsData GroupNormalizationKernelBfyx::GetKernelsData(const Params &params) c
     {
         // Mean first stage
         auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_1);
-        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_MEAN_VARIANCE", 1));
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN", 1));
         auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];

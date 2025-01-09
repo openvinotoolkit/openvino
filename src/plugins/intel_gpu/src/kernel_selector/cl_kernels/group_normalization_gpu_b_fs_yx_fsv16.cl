@@ -5,9 +5,9 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 
-#ifdef GROUP_NORM_KERNEL_FEATURE_MEAN_VARIANCE
+#ifdef GROUP_NORM_KERNEL_FEATURE_MEAN_SQR_MEAN
 REQD_SUB_GROUP_SIZE(SIMD)
-KERNEL(calc_mean_per_feature)(
+KERNEL(calc_mean_sqr_mean_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global ACCUMULATOR_TYPE* internal_mean,
@@ -67,7 +67,7 @@ KERNEL(calc_mean_per_feature)(
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE
-KERNEL(calc_mean_per_group)(
+KERNEL(calc_mean_variance_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
