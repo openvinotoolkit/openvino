@@ -170,7 +170,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
-         ov::intel_npu::compiler_api_version
+         ov::intel_npu::compiler_version
 
 
 .. note::

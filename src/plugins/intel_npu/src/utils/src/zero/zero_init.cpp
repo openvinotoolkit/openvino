@@ -318,7 +318,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     graph_props.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
     auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &graph_props);
     THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-    compiler_api_version = ZE_MAKE_VERSION(graph_props.compilerVersion.major, graph_props.compilerVersion.minor);
+    compiler_version = ZE_MAKE_VERSION(graph_props.compilerVersion.major, graph_props.compilerVersion.minor);
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {

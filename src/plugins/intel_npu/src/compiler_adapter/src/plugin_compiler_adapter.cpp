@@ -132,8 +132,8 @@ ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov:
     return _compiler->query(model, config);
 }
 
-uint32_t PluginCompilerAdapter::getApiVersion() const {
-    return _compiler->get_api_version();
+uint32_t PluginCompilerAdapter::get_version() const {
+    return _compiler->get_version();
 }
 
 }  // namespace intel_npu

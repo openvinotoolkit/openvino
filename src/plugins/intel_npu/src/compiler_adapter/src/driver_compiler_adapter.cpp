@@ -253,8 +253,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     return result;
 }
 
-uint32_t DriverCompilerAdapter::getApiVersion() const {
-    return _zeroInitStruct->getCompilerApiVersion();
+uint32_t DriverCompilerAdapter::get_version() const {
+    return _zeroInitStruct->getCompilerVersion();
 }
 
 /**
