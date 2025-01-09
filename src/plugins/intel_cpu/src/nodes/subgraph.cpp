@@ -475,11 +475,23 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_ARM64(PASS_PLACE, PASS, ...) \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)              \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_ARM64(PASS_PLACE, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_ARM64
+
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After,
                                            ov::snippets::pass::Canonicalization,
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
+
     if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
@@ -500,6 +512,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::intel_cpu::pass::EliminateBrgemmCopyB);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
@@ -519,58 +534,79 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_ARM64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
 
     return backend_passes;
 }
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     ControlFlowPasses backend_passes;
-
-#if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
-#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)                    \
+#define SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(PASS_PLACE, TARGET_PASS, PASS, ...)             \
+    backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                std::make_shared<PASS>(__VA_ARGS__))
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)             \
         backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
                                     std::make_shared<PASS>(__VA_ARGS__))
 #else
-#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::MarkLoops,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking);
+#if defined(OPENVINO_ARCH_ARM64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)              \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_ARM64
 
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::snippets::lowered::pass::MarkLoops,
+                                           ov::intel_cpu::pass::BrgemmCPUBlocking);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
     if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
-        SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                        ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                        ov::snippets::lowered::pass::InsertPerfCountVerbose,
-                                        getName());
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                               ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                               getName());
     }
 #endif  // SNIPPETS_DEBUG_CAPS
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::InitLoops,
-                                    ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::snippets::lowered::pass::InitLoops,
+                                           ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
 
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::InsertLoops,
-                                    ov::intel_cpu::pass::FuseLoadStoreConvert);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before,
-                                    ov::snippets::lowered::pass::InsertBuffers,
-                                    ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::snippets::lowered::pass::InsertLoops,
+                                           ov::intel_cpu::pass::FuseLoadStoreConvert);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+                                           ov::snippets::lowered::pass::InsertBuffers,
+                                           ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
+
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::MarkLoops,
+                                          ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::InsertLoops,
+                                          ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                    ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
-    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::intel_cpu::pass::FuseLoadStoreConvert,
-                                    ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+                                           ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                           ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::intel_cpu::pass::FuseLoadStoreConvert,
+                                           ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
 
-#undef SNIPPETS_REGISTER_PASS_RELATIVE
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
     return backend_passes;
 }
 
