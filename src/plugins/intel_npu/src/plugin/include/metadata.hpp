@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace intel_npu {
+
 struct MetadataBase {
     /**
      * @brief Reads metadata from a stream.
@@ -43,7 +43,6 @@ struct MetadataBase {
 
     /**
      * @brief Gets the major version.
-     *
      * @return Major version.
      */
     static constexpr uint16_t get_major(uint32_t version) {
@@ -52,7 +51,6 @@ struct MetadataBase {
 
     /**
      * @brief Gets the minor version.
-     *
      * @return Minor version.
      */
     static constexpr uint16_t get_minor(uint32_t version) {
