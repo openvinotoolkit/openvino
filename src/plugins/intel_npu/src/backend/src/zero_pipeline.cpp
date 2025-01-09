@@ -232,13 +232,23 @@ void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_
         _command_lists.at(i)->updateMutableCommandList(
             arg_index,
             static_cast<const unsigned char*>(arg_data) + (i * byte_size) / _number_of_command_lists);
+    }
+};
+
+void Pipeline::closeCommandList() {
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "closeCommandList");
+    _logger.debug("Pipeline - closeCommandList");
+
+    const size_t _number_of_command_lists = _command_lists.size();
+
+    for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.at(i)->close();
     }
 };
 
 void Pipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
-    _logger.debug("Pipeline - updateCommandList");
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
+    _logger.debug("Pipeline - updateCommandListIndex");
 
     const size_t _number_of_command_lists = _command_lists.size();
 
@@ -247,6 +257,18 @@ void Pipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, 
                     command_list_index);
 
     _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
+};
+
+void Pipeline::closeCommandListIndex(size_t command_list_index) {
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "closeCommandListIndex");
+    _logger.debug("Pipeline - closeCommandListIndex");
+
+    const size_t _number_of_command_lists = _command_lists.size();
+
+    OPENVINO_ASSERT(command_list_index < _number_of_command_lists,
+                    "Command list index is higgher than the number of Command lists ",
+                    command_list_index);
+
     _command_lists.at(command_list_index)->close();
 };
 

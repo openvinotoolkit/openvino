@@ -36,6 +36,9 @@ public:
     void updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size);
     void updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index);
 
+    void closeCommandList();
+    void closeCommandListIndex(size_t command_list_index);
+
 protected:
     std::shared_ptr<IGraph> _graph;
     const Config _config;

@@ -254,6 +254,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
                                                  : _graph->get_output_descriptors().at(index).idx,
                                          levelZeroTensors->data(),
                                          levelZeroTensors->get_byte_size());
+            _pipeline->closeCommandList();
         }
     }
 }
@@ -283,6 +284,7 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             data,
             tensor->get_byte_size());
+        _pipeline->closeCommandList();
     }
 }
 
@@ -396,6 +398,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                     OPENVINO_ASSERT(data, "Empty buffer");
 
                     _pipeline->updateCommandListIndex(_graph->get_input_descriptors().at(foundPort.idx).idx, data, i);
+                    _pipeline->closeCommandListIndex(i);
                 }
             }
         }
@@ -460,6 +463,7 @@ void ZeroInferRequest::infer_async() {
             _pipelineIsCreated = true;
         } else {
             if (_initStructs->getMutableCommandListVersion()) {
+                bool closePipeline = false;
                 size_t ioIndex = 0;
 
                 for (const auto& levelZeroTensor : _levelZeroInputTensors) {
@@ -479,6 +483,7 @@ void ZeroInferRequest::infer_async() {
                         _pipeline->updateCommandList(_graph->get_input_descriptors().at(ioIndex).idx,
                                                      zeroTensor->data(),
                                                      zeroTensor->get_byte_size());
+                        closePipeline = true;
 
                         zeroTensor->reset_memory_flag();
                     }
@@ -505,11 +510,16 @@ void ZeroInferRequest::infer_async() {
                         _pipeline->updateCommandList(_graph->get_output_descriptors().at(ioIndex).idx,
                                                      zeroTensor->data(),
                                                      zeroTensor->get_byte_size());
+                        closePipeline = true;
 
                         zeroTensor->reset_memory_flag();
                     }
 
                     ++ioIndex;
+                }
+
+                if (closePipeline) {
+                    _pipeline->closeCommandList();
                 }
             }
         }
