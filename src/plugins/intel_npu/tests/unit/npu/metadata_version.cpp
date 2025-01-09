@@ -29,8 +29,8 @@ TEST_F(MetadataUnitTests, readUnversionedBlob) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
-    std::stringstream stream;
     uint64_t blobSize = 0;
+    std::stringstream stream;
     auto meta = MetadataTest(blobSize, ov::get_openvino_version().buildNumber);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
@@ -61,7 +61,6 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     meta.set_version(dummy_version);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 }
 
@@ -82,13 +81,12 @@ public:
 };
 
 TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
-    auto dummyMeta = MetadataVersionTestFixture(0, ov::get_openvino_version().buildNumber);
-    auto metaVersion = GetParam();
+    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(0, ov::get_openvino_version().buildNumber);
+    uint32_t metaVersion = GetParam();
 
     dummyMeta.set_version(metaVersion);
 
     OV_ASSERT_NO_THROW(dummyMeta.write(blob));
-
     ASSERT_ANY_THROW(read_metadata_from(blob));
 }
 

@@ -127,9 +127,10 @@ public:
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
-     * 
+     *
      * @details When importing a versioned blob, it's best to first read the metadata version field.
-     * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU metadata section.
+     * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU
+     * metadata section.
      */
     void write(std::ostream& stream) override;
 

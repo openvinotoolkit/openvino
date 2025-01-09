@@ -115,8 +115,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
 
-    std::streampos currentStreamPos = stream.tellg();
-    std::streampos streamSize = getFileSize(stream);
+    std::streampos currentStreamPos = stream.tellg(), streamSize = getFileSize(stream);
     stream.seekg(-currentStreamPos + streamSize - magicBytesSize, std::ios::cur);
     stream.read(blobMagicBytes.data(), magicBytesSize);
     if (MAGIC_BYTES != blobMagicBytes) {
