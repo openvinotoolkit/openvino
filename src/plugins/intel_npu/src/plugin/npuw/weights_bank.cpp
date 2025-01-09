@@ -183,7 +183,9 @@ void Bank::serialize(std::ostream& stream) const {
     LOG_INFO("DONE.");
 }
 
-std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core) {
+std::shared_ptr<Bank> Bank::deserialize(std::istream& stream,
+                                        const std::shared_ptr<const ov::ICore>& core,
+                                        const std::string& name) {
     using namespace ov::npuw::s11n;
 
     LOG_INFO("Deserializing weights bank...");
@@ -193,9 +195,8 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
     std::string device;
     read(stream, device);
 
-    // Bank is assumed to be shared - thus no need for a unique name.
-    // FIXME: is that right? What about multi-model pipeline or several pipelines?
-    auto bank = ov::npuw::weights::bank("shared_serialized", core, device);
+    // Note: bank is assumed to be shared
+    auto bank = ov::npuw::weights::bank(name, core, device);
     std::size_t bank_size = 0;
     read(stream, bank_size);
 
@@ -254,6 +255,10 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     stream.read(reinterpret_cast<char*>(allocated_tensor.data()), byte_size);
 }
 
+std::string Bank::get_name() const {
+    return m_bank_name;
+}
+
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
                                            const std::string& alloc_device) {
@@ -261,7 +266,7 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end() || iter->second.expired()) {
-        auto bank = std::make_shared<Bank>(core, alloc_device);
+        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -273,7 +278,7 @@ std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
                                               const std::string& alloc_device) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(core, alloc_device);
+        return std::make_shared<Bank>(core, alloc_device, bank_name);
     }
 
     auto& instance = BankManager::getInstance();

@@ -25,9 +25,12 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device)
+    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
+                  const std::string& alloc_device,
+                  const std::string& bank_name)
         : m_core(core),
-          m_alloc_device(alloc_device) {}
+          m_alloc_device(alloc_device),
+          m_bank_name(bank_name) {}
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -39,6 +42,8 @@ public:
     void evaluate_and_allocate();
 
     bool is_remote(int64_t uid) const;
+
+    std::string get_name() const;
 
 private:
     friend class ov::npuw::LLMCompiledModel;
@@ -59,7 +64,9 @@ private:
     ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
 
     void serialize(std::ostream& stream) const;
-    static std::shared_ptr<Bank> deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core);
+    static std::shared_ptr<Bank> deserialize(std::istream& stream,
+                                             const std::shared_ptr<const ov::ICore>& core,
+                                             const std::string& name);
     // Used during deserialization
     void read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device);
 
@@ -67,6 +74,7 @@ private:
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
     int64_t uid_count = 0;
+    std::string m_bank_name;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

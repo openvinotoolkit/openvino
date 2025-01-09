@@ -564,6 +564,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     const auto& p_bank = m_prefill_compiled->m_weights_bank;
     NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
     // FIXME: support weightless flow
+    write(stream, kv_bank->get_name());
     kv_bank->serialize(stream);
 
     LOG_INFO("Done.");
@@ -628,7 +629,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, compiled->m_prefill_compiled->m_cfg);
 
     // Deserialize weights bank (if required)
-    auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core());
+    std::string bank_name;
+    read(stream, bank_name);
+    auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
 
     // FIXME: support weightless option
     compiled->m_kvcache_compiled->m_weights_bank = bank;
