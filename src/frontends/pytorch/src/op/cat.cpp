@@ -104,18 +104,11 @@ OutputVector translate_cat(const NodeContext& context) {
 };
 
 OutputVector translate_cat_fx(const NodeContext& context) {
-    // This translator is only needed to get axis as constant from external scope
-    num_inputs_check(context, 1, context.get_input_size());
-    std::deque<Output<Node>> list_elems;
-    for (size_t i = 0; i < context.get_input_size() - 1; i++) {
-        list_elems.push_back(context.get_input(static_cast<int>(i)));
-    }
+    num_inputs_check(context, 1, 2);
+    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     int64_t axis = 0;
-    if (!context.get_input_type(context.get_input_size() - 1).is<type::List>()) {
-        // axis can be not present and that means that last input will have List type
-        axis = context.const_input<int64_t>(context.get_input_size() - 1);
-    } else {
-        list_elems.push_back(context.get_input(static_cast<int>(context.get_input_size() - 1)));
+    if (!context.input_is_none(1)) {
+        axis = context.const_input<int64_t>(1);
     }
     return translate_cat_common(context, list_elems, axis, true);
 };
