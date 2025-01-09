@@ -199,7 +199,7 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
     // For now only a singular NPU or CPU device is supported
     std::string device;
     read(stream, device);
-    NPUW_ASSERT((device == "NPU" || device == "CPU") && "Only a singular NPU or CPU bank can be serialized");
+
     // Bank is assumed to be shared - thus no need for a unique name.
     // FIXME: is that right? What about multi-model pipeline or several pipelines?
     auto bank = ov::npuw::weights::bank("shared_serialized", core, device);

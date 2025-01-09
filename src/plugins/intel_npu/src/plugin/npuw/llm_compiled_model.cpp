@@ -16,8 +16,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "serialization.hpp"
 
-const constexpr char* npuw_name_identifier = "NPUW_serialized_";
-
 namespace opp = ov::pass::pattern;
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
@@ -429,8 +427,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_cfg.update(any_copy(npuw_llm_props));
 
-    if (m_name.find(npuw_name_identifier) != m_name.npos) {
+    if (m_name.find(NPUW_NAME_IDENTIFIER) != m_name.npos) {
         LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
+        // Drop serialized from the name
+        m_name = m_name.substr(std::string(NPUW_NAME_IDENTIFIER).size());
         return;
     }
 
@@ -495,6 +495,53 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Done");
 }
 
+void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
+    LOG_INFO("Serializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Serialize magic number first
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
+
+    // Serialize general meta info
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
+
+    // Serialize name first + NPUW identifier for deserialization
+    // FIXME: consider a better approach then using name there
+    std::string name = std::string(NPUW_NAME_IDENTIFIER) + m_name;
+    write(stream, name);
+
+    // Serialize inputs and outputs
+    write(stream, inputs());
+    write(stream, outputs());
+
+    // Serialize LLMCompiledModel-specific data
+    write(stream, m_kvcache_desc.max_prompt_size);
+    write(stream, m_kvcache_desc.total_size);
+    write(stream, m_kvcache_desc.num_stored_tokens);
+    write(stream, m_kvcache_desc.dim);
+
+    // Serialize CompiledModels
+    m_kvcache_compiled->serialize(stream);
+    m_prefill_compiled->serialize(stream);
+
+    // Serialize configs
+    write(stream, m_kvcache_compiled->m_cfg);
+    write(stream, m_prefill_compiled->m_cfg);
+
+    // Serialize weights bank (if required)
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // FIXME: support weightless flow
+    kv_bank->serialize(stream);
+
+    LOG_INFO("Done.");
+}
+
 std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -522,52 +569,15 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     std::string model_name;
     read(stream, model_name);
 
-    NPUW_ASSERT(model_name.find(npuw_name_identifier) != model_name.npos && "Model wasn't serialized via NPUW!");
+    NPUW_ASSERT(model_name.find(NPUW_NAME_IDENTIFIER) != model_name.npos && "Model wasn't serialized via NPUW!");
 
     // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
     // to continue deserialization
-    // FIXME: make a separate function
     ov::ParameterVector parameters;
     ov::NodeVector results;
 
-    std::size_t params_size = 0, results_size = 0;
-    read(stream, params_size);
-    for (std::size_t i = 0; i < params_size; ++i) {
-        std::string elem_type_str;
-        std::string part_shape_str;
-        std::unordered_set<std::string> names;
-        read(stream, elem_type_str);
-        read(stream, part_shape_str);
-        read(stream, names);
-        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
-        auto param =
-            std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
-        param->set_friendly_name(*names.begin());  // FIXME: any_name ?
-        param->output(0).get_tensor().set_names(names);
-        parameters.push_back(param);
-    }
-
-    read(stream, results_size);
-    for (std::size_t i = 0; i < results_size; ++i) {
-        std::string elem_type_str;
-        std::string part_shape_str;
-        std::unordered_set<std::string> names;
-        read(stream, elem_type_str);
-        read(stream, part_shape_str);
-        read(stream, names);
-        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
-        std::shared_ptr<ov::Node> res =
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
-        // FIXME: serialize names as well?
-        const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
-            std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
-                                                     ov::PartialShape(part_shape_str),
-                                                     names);
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
-        result->output(0).set_tensor_ptr(tensor_dummy);
-        result->set_friendly_name(*names.begin());  // any_name ?
-        results.push_back(result);
-    }
+    read(stream, parameters);
+    read(stream, results);
 
     auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
 
@@ -606,65 +616,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     LOG_INFO("Done.");
     return compiled;
-}
-
-void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
-    LOG_INFO("Serializing LLMCompiledModel...");
-    LOG_BLOCK();
-
-    using namespace ov::npuw::s11n;
-
-    // Serialize magic number first
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
-
-    // Serialize general meta info
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-
-    // Serialize name first + NPUW identifier for deserialization
-    // FIXME: consider a better approach then using name there
-    std::string name = std::string(npuw_name_identifier) + m_name;
-    write(stream, name);
-
-    // Serialize inputs and outputs
-    // FIXME: make a separate function
-    write(stream, inputs().size());
-    for (const auto& in : inputs()) {
-        write(stream, in.get_element_type().to_string());
-        write(stream, in.get_partial_shape().to_string());
-        write(stream, in.get_names());
-    }
-
-    write(stream, outputs().size());
-    for (const auto& out : outputs()) {
-        write(stream, out.get_element_type().to_string());
-        write(stream, out.get_partial_shape().to_string());
-        write(stream, out.get_names());
-    }
-
-    // Serialize LLMCompiledModel-specific data
-    write(stream, m_kvcache_desc.max_prompt_size);
-    write(stream, m_kvcache_desc.total_size);
-    write(stream, m_kvcache_desc.num_stored_tokens);
-    write(stream, m_kvcache_desc.dim);
-
-    // Serialize CompiledModels
-    m_kvcache_compiled->serialize(stream);
-    m_prefill_compiled->serialize(stream);
-
-    // Serialize configs
-    write(stream, m_kvcache_compiled->m_cfg);
-    write(stream, m_prefill_compiled->m_cfg);
-
-    // Serialize weights bank (if required)
-    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
-    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    // FIXME: support weightless flow
-    kv_bank->serialize(stream);
-
-    LOG_INFO("Done.");
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {

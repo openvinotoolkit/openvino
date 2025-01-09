@@ -1,10 +1,9 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "compiled_model.hpp"
 
 #include <iostream>
-#include <limits>
 #include <memory>
 #include <string>
 
@@ -35,8 +34,6 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/convert_precision.hpp"
-
-const constexpr char* npuw_name_identifier = "NPUW_serialized_";
 
 namespace {
 void split_properties(const ov::AnyMap& properties,
@@ -170,8 +167,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_dev_list = ov::DeviceIDParser::get_hetero_devices(dev_list_str);
     m_meta_devices = ov::npuw::get_properties_per_device(plugin, dev_list_str, m_non_npuw_props);
 
-    if (m_name.find(npuw_name_identifier) != m_name.npos) {
+    if (m_name.find(NPUW_NAME_IDENTIFIER) != m_name.npos) {
         LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
+        // Drop serialized from the name
+        m_name = m_name.substr(std::string(NPUW_NAME_IDENTIFIER).size());
         return;
     }
 
@@ -503,7 +502,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("Serializing CompiledModelDesc...");
     LOG_BLOCK();
 
-    NPUW_ASSERT(device == "CPU" || device == "NPU");
     write(stream, device);
 
     write(stream, replaced_by);
@@ -533,6 +531,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, closure_uid);
 
     // Some tensors might be present in CPU closure already - need to serialize as is
+    // FIXME: When weightless serialization is introduced, this should be handled differently
     write(stream, closure.size());
     std::vector<ov::Tensor> cpu_closures;
     std::vector<std::size_t> cpu_closure_ids;
@@ -545,14 +544,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 
     write(stream, cpu_closure_ids);
 
-    // FIXME: make a function
     for (const auto& tensor : cpu_closures) {
-        NPUW_ASSERT(tensor.is_continuous());
-        write(stream, tensor.get_element_type().to_string());
-        write(stream, tensor.get_shape());
-        // FIXME: should we write strides as well?
-        write(stream, tensor.get_byte_size());
-        stream.write(reinterpret_cast<const char*>(tensor.data()), tensor.get_byte_size());
+        write(stream, tensor);
     }
 
     // FIXME: support weightless flow!
@@ -574,7 +567,6 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
 
     std::string device;
     read(stream, device);
-    NPUW_ASSERT(device == "CPU" || device == "NPU");
     read(stream, desc.replaced_by);
     // FIXME: is this check enough?
     if (desc.replaced_by == idx) {
@@ -608,25 +600,14 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     read(stream, desc.closure_uid);
 
     // Some tensors might be present in CPU closure already - need to deserialize as is
+    // FIXME: When weightless serialization is introduced, this should be handled differently
     std::size_t closure_size = 0;
     read(stream, closure_size);
     std::vector<std::size_t> cpu_closure_ids;
     read(stream, cpu_closure_ids);
     desc.closure.resize(closure_size);
     for (const auto& cidx : cpu_closure_ids) {
-        // Read tensor type, shape and byte size
-        std::string type_str;
-        read(stream, type_str);
-        ov::element::Type type(type_str);
-
-        ov::Shape shape;
-        read(stream, shape);
-
-        std::size_t byte_size = 0;
-        read(stream, byte_size);
-
-        desc.closure[cidx] = ov::Tensor(type, shape);
-        stream.read(reinterpret_cast<char*>(desc.closure[cidx].data()), byte_size);
+        read(stream, desc.closure[cidx]);
     }
 
     // FIXME: support weightless flow!
@@ -644,24 +625,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Serialize name first + NPUW identifier for deserialization
     // FIXME: consider a better approach then using name there
-    std::string name = std::string(npuw_name_identifier) + m_name;
+    std::string name = std::string(NPUW_NAME_IDENTIFIER) + m_name;
     write(stream, name);
 
     // Serialize inputs and outputs
-    // FIXME: make a separate function
-    write(stream, inputs().size());
-    for (const auto& in : inputs()) {
-        write(stream, in.get_element_type().to_string());
-        write(stream, in.get_partial_shape().to_string());
-        write(stream, in.get_names());
-    }
-
-    write(stream, outputs().size());
-    for (const auto& out : outputs()) {
-        write(stream, out.get_element_type().to_string());
-        write(stream, out.get_partial_shape().to_string());
-        write(stream, out.get_names());
-    }
+    write(stream, inputs());
+    write(stream, outputs());
 
     // Serialize meta
     write(stream, m_inputs_to_submodels_inputs);
@@ -681,8 +650,8 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     }
 
     // FIXME: should we support heterogeneous structure?
-    if (device_list.size() != 1 || (*device_list.begin() != "NPU" && *device_list.begin() != "CPU")) {
-        NPUW_ASSERT(false && "Not all submodels are compied for a singular NPU or CPU device!");
+    if (device_list.size() != 1) {
+        NPUW_ASSERT(false && "Not all of the submodels are compiled for a singular device!");
     }
     write(stream, *device_list.begin());
 
@@ -710,56 +679,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::string model_name;
     read(stream, model_name);
 
-    NPUW_ASSERT(model_name.find(npuw_name_identifier) != model_name.npos && "Model wasn't serialized via NPUW!");
+    NPUW_ASSERT(model_name.find(NPUW_NAME_IDENTIFIER) != model_name.npos && "Model wasn't serialized via NPUW!");
 
     // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
     // to continue deserialization
-    // FIXME: make a separate function
     ov::ParameterVector parameters;
     ov::NodeVector results;
 
-    std::size_t params_size = 0, results_size = 0;
-    read(stream, params_size);
-    for (std::size_t i = 0; i < params_size; ++i) {
-        std::string elem_type_str;
-        std::string part_shape_str;
-        std::unordered_set<std::string> names;
-        read(stream, elem_type_str);
-        read(stream, part_shape_str);
-        read(stream, names);
-        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
-        auto param =
-            std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
-        param->set_friendly_name(*names.begin());  // FIXME: any_name ?
-        param->output(0).get_tensor().set_names(names);
-        parameters.push_back(param);
-    }
-
-    read(stream, results_size);
-    for (std::size_t i = 0; i < results_size; ++i) {
-        std::string elem_type_str;
-        std::string part_shape_str;
-        std::unordered_set<std::string> names;
-        read(stream, elem_type_str);
-        read(stream, part_shape_str);
-        read(stream, names);
-        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
-        std::shared_ptr<ov::Node> res =
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
-        // FIXME: serialize names as well?
-        const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
-            std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
-                                                     ov::PartialShape(part_shape_str),
-                                                     names);
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
-        result->output(0).set_tensor_ptr(tensor_dummy);
-        result->set_friendly_name(*names.begin());  // any_name ?
-        results.push_back(result);
-    }
+    read(stream, parameters);
+    read(stream, results);
 
     auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
 
-    // FIXME: drop npuw_name_identifier from the model name (but after it's checked in the CompiledModel's constructor!)
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, properties);
 
     // Deserialize meta

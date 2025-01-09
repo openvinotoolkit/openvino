@@ -8,8 +8,6 @@
 
 #include "compiled_model.hpp"
 
-const constexpr uint64_t NPUW_SERIALIZATION_INDICATOR = 0x0123456789abcdef;
-
 namespace ov {
 namespace npuw {
 

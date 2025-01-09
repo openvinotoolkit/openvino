@@ -13,7 +13,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "logging.hpp"
+const constexpr char* NPUW_NAME_IDENTIFIER = "NPUW_serialized_";
+const constexpr uint64_t NPUW_SERIALIZATION_INDICATOR = 0x0123456789abcdef;
 
 // Forward declaration
 namespace intel_npu {
@@ -21,6 +22,20 @@ class Config;
 }  // namespace intel_npu
 
 namespace ov {
+
+// Forward declaration
+class Node;
+class Tensor;
+template <class>
+class Output;
+
+// Forward declaration
+namespace op {
+namespace v0 {
+class Parameter;
+}  // namespace v0
+}  // namespace op
+
 namespace npuw {
 
 // Forward declaration
@@ -37,6 +52,7 @@ void write(std::ostream& stream, const bool& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
+void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -44,6 +60,8 @@ void read(std::istream& stream, bool& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
+void read(std::istream& stream, std::vector<std::shared_ptr<ov::op::v0::Parameter>>& var);
+void read(std::istream& stream, std::vector<std::shared_ptr<ov::Node>>& var);
 
 // Forward declaration
 template <typename T1, typename T2>
@@ -115,7 +133,7 @@ void read(std::istream& stream, std::pair<T1, T2>& var) {
 
 template <typename T>
 void read(std::istream& stream, std::vector<T>& var) {
-    NPUW_ASSERT(var.empty() && "Can't deserialize into non-empty vector!");
+    var.clear();
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
     var.reserve(var_size);
@@ -128,7 +146,7 @@ void read(std::istream& stream, std::vector<T>& var) {
 
 template <typename T>
 void read(std::istream& stream, std::unordered_set<T>& var) {
-    NPUW_ASSERT(var.empty() && "Can't deserialize into non-empty unordered_set!");
+    var.clear();
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
     for (std::size_t i = 0; i < var_size; ++i) {
@@ -140,7 +158,7 @@ void read(std::istream& stream, std::unordered_set<T>& var) {
 
 template <typename K, typename V>
 void read(std::istream& stream, std::map<K, V>& var) {
-    NPUW_ASSERT(var.empty() && "Can't deserialize into non-empty map!");
+    var.clear();
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
     for (std::size_t i = 0; i < var_size; ++i) {

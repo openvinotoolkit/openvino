@@ -5,6 +5,8 @@
 #include "serialization.hpp"
 
 #include "intel_npu/config/config.hpp"
+#include "logging.hpp"
+#include "openvino/op/constant.hpp"
 #include "spatial.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
@@ -50,6 +52,12 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
     write(stream, var.toString());
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node>& var) {
+    write(stream, var.get_element_type().to_string());
+    write(stream, var.get_partial_shape().to_string());
+    write(stream, var.get_names());
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -127,4 +135,50 @@ void ov::npuw::s11n::read(std::istream& stream, ::intel_npu::Config& var) {
     config[key] = value;
 
     var.update(config);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, std::vector<std::shared_ptr<ov::op::v0::Parameter>>& var) {
+    var.clear();
+    std::size_t params_size = 0;
+    read(stream, params_size);
+    for (std::size_t i = 0; i < params_size; ++i) {
+        std::string elem_type_str;
+        std::string part_shape_str;
+        std::unordered_set<std::string> names;
+        read(stream, elem_type_str);
+        read(stream, part_shape_str);
+        read(stream, names);
+        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
+        auto param =
+            std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
+        param->set_friendly_name(*names.begin());  // FIXME: any_name ?
+        param->output(0).get_tensor().set_names(names);
+        var.push_back(param);
+    }
+}
+
+void ov::npuw::s11n::read(std::istream& stream, std::vector<std::shared_ptr<ov::Node>>& var) {
+    var.clear();
+    std::size_t results_size = 0;
+    read(stream, results_size);
+    for (std::size_t i = 0; i < results_size; ++i) {
+        std::string elem_type_str;
+        std::string part_shape_str;
+        std::unordered_set<std::string> names;
+        read(stream, elem_type_str);
+        read(stream, part_shape_str);
+        read(stream, names);
+        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
+        std::shared_ptr<ov::Node> res =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
+        // FIXME: serialize names as well?
+        const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
+            std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
+                                                     ov::PartialShape(part_shape_str),
+                                                     names);
+        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
+        result->output(0).set_tensor_ptr(tensor_dummy);
+        result->set_friendly_name(*names.begin());  // any_name ?
+        var.push_back(result);
+    }
 }

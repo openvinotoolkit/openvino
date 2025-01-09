@@ -9,6 +9,7 @@
 #include "compiled_model.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
+#include "npuw/serialization.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
