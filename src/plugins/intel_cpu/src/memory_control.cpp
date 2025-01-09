@@ -18,7 +18,9 @@ namespace {
 
 class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
 public:
-    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset) : m_pBlock(pBlock), m_offset(offset) {
+    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
+        : m_pBlock(std::move(pBlock)),
+          m_offset(offset) {
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 

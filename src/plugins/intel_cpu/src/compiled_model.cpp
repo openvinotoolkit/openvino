@@ -181,7 +181,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                                     false,
                                                                     true,
-                                                                    sub_streams_table,
+                                                                    std::move(sub_streams_table),
                                                                     sub_cfg.streamsRankTable[i]};
             m_sub_compiled_models.push_back(
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
@@ -305,6 +305,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
+            RO_property(ov::key_cache_precision.name()),
+            RO_property(ov::value_cache_precision.name()),
+            RO_property(ov::key_cache_group_size.name()),
+            RO_property(ov::value_cache_group_size.name()),
         };
 
         return ro_properties;
@@ -362,6 +366,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::hint::dynamic_quantization_group_size)::value_type(config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(config.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(config.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(config.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(config.valueCacheGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }
