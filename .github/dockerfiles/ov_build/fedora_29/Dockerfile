@@ -7,6 +7,8 @@ USER root
 RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
     echo "retries=10" >> /etc/dnf/dnf.conf
 
+RUN dnf install -y fedora-repos
+    
 RUN dnf update -y && dnf install -y \
     git \
     curl \
