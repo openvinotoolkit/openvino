@@ -6,7 +6,9 @@
 
 #include "openvino/util/cpp_version.hpp"
 
-#if defined(_MSC_VER) && defined(OPENVINO_CPP_VER_AT_LEAST_11)
+#if defined(_MSC_VER) && defined(OPENVINO_CPP_VER_AT_LEAST_20)
+#    define OPENVINO_HAS_FILESYSTEM
+#elif defined(_MSC_VER) && defined(OPENVINO_CPP_VER_AT_LEAST_11)
 #    define OPENVINO_HAS_EXP_FILESYSTEM
 #    define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #    define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
