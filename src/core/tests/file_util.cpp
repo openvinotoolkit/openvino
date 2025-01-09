@@ -361,15 +361,6 @@ TEST(file_util, path_cast_from_wstring) {
     EXPECT_STREQ(L"~/local/file.txt", ov::util::Path(L"~/local/file.txt").generic_wstring().c_str());
     EXPECT_STREQ(L"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_wstring().c_str());
 
-    // from wchar_t to char8_t
-    EXPECT_EQ(std::u8string(u8""), ov::util::Path(L"").u8string());
-    EXPECT_EQ(std::u8string(u8"file.txt"), ov::util::Path(L"file.txt").u8string());
-    EXPECT_EQ(std::u8string(u8"./local/file.txt"), ov::util::Path(L"./local/file.txt").generic_u8string());
-    EXPECT_EQ(std::u8string(u8"~/local/file.txt"), ov::util::Path(L"~/local/file.txt").generic_u8string());
-    EXPECT_EQ(std::u8string(u8"/usr/local/file.txt"), ov::util::Path(L"/usr/local/file.txt").generic_u8string());
-    EXPECT_EQ(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt"),
-              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string());
-
     // from wchar_t to char16_t
     EXPECT_EQ(u"", ov::util::Path(L"").u16string());
     EXPECT_EQ(u"file.txt", ov::util::Path(L"file.txt").u16string());
@@ -388,6 +379,27 @@ TEST(file_util, path_cast_to_wstring) {
                  ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt").generic_wstring().c_str());
 }
 #endif
+
+TEST(file_util, path_cast_from_wstring_to_char8_t) {
+    // from wchar_t to char8_t
+#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
+    EXPECT_EQ(std::u8string(u8""), ov::util::Path(L"").u8string());
+    EXPECT_EQ(std::u8string(u8"file.txt"), ov::util::Path(L"file.txt").u8string());
+    EXPECT_EQ(std::u8string(u8"./local/file.txt"), ov::util::Path(L"./local/file.txt").generic_u8string());
+    EXPECT_EQ(std::u8string(u8"~/local/file.txt"), ov::util::Path(L"~/local/file.txt").generic_u8string());
+    EXPECT_EQ(std::u8string(u8"/usr/local/file.txt"), ov::util::Path(L"/usr/local/file.txt").generic_u8string());
+    EXPECT_EQ(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt"),
+              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string());
+#elif defined(OPENVINO_CPP_VER_AT_LEAST_17)
+    EXPECT_EQ(std::string(""), ov::util::Path(L"").u8string());
+    EXPECT_EQ(std::string("file.txt"), ov::util::Path(L"file.txt").u8string());
+    EXPECT_EQ(std::string("./local/file.txt"), ov::util::Path(L"./local/file.txt").generic_u8string());
+    EXPECT_EQ(std::string("~/local/file.txt"), ov::util::Path(L"~/local/file.txt").generic_u8string());
+    EXPECT_EQ(std::string("/usr/local/file.txt"), ov::util::Path(L"/usr/local/file.txt").generic_u8string());
+    EXPECT_EQ(std::string("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt"),
+              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string());
+#endif
+}
 
 #if (!defined(_MSC_VER) && !(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
      !(defined(__clang__) && __clang_major__ < 17))
