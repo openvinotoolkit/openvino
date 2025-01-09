@@ -13,21 +13,6 @@ NamedOutputs expand_v2(const NodeContext& node) {
     using namespace default_opset;
     auto x = node.get_input("X");
     Output<Node> shape_expected_node;
-    if (node.get_op_type() == "expand_as_v2") {
-        if (node.has_input("Y")) {
-            shape_expected_node = std::make_shared<ShapeOf>(node.get_input("Y"), element::i32);
-        } else {
-            std::vector<int32_t> shape_expected;
-            if (node.has_attribute("target_shape")) {
-                shape_expected = node.get_attribute<std::vector<int32_t>>("target_shape");
-            } else {
-                throw std::runtime_error("expand: has no target_shape attribute");
-            }
-            shape_expected_node = Constant::create(element::i32, {shape_expected.size()}, shape_expected);
-        }
-        return node.default_single_output_mapping({std::make_shared<Broadcast>(x, shape_expected_node)}, {"Out"});
-    }
-
     if (node.has_input("Shape")) {
         shape_expected_node = node.get_input("Shape");
     } else if (node.has_input("expand_shapes_tensor")) {
