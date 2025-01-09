@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
@@ -15,8 +15,11 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+#include <functional>
+
 namespace opp = ov::pass::pattern;
-class TransposeValueTensors : public ov::pass::MatcherPass {
+
+class TransposeValuesTensorsBroadcasted : public ov::pass::MatcherPass {
 public:
     struct Context {
         std::vector<std::shared_ptr<ov::opset13::Parameter>> new_params;
@@ -24,8 +27,111 @@ public:
         using Ref = std::reference_wrapper<Context>;
     };
 
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors");
-    TransposeValueTensors(Context::Ref ctx) {
+    TransposeValuesTensorsBroadcasted(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+
+        // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
+        const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
+        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({concat, unsqueeze_axes});
+        auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
+        auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
+
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
+            auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_node_unsqueeze = node_to_output.at(unsqueeze).get_node_shared_ptr();
+            auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
+            auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
+            auto matched_node_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+
+            auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
+            auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
+            auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
+            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+            auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
+            auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
+            auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
+
+            auto shape_broadcast = matched_broadcast->get_output_shape(0);
+            OPENVINO_ASSERT(shape_broadcast.size() == 5u);
+            std::swap(shape_broadcast[3], shape_broadcast[4]);
+
+            LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
+                                              << ", shape=" << shape_broadcast);
+
+            const auto broadcast_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{5}, shape_broadcast);
+            broadcast_axes_node->set_friendly_name(matched_broadcast->get_friendly_name() + "/new_broadcast_shape");
+            matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
+
+            auto shape_reshape = matched_reshape->get_output_shape(0);
+            OPENVINO_ASSERT(shape_reshape.size() == 4u);
+            std::swap(shape_reshape[2], shape_reshape[3]);
+
+            LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
+
+            const auto reshape_axes_node =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, shape_reshape);
+            reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
+            matched_reshape->input(1).replace_source_output(reshape_axes_node);
+
+            auto param_shape = matched_param->get_partial_shape();
+            OPENVINO_ASSERT(param_shape.size() == 4u);
+            // NB: Transpose Parameter that correspond to V-tensor it will
+            // speed-up its multiplication with attention scores
+            std::swap(param_shape[2], param_shape[3]);
+            auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), param_shape);
+            new_param->set_friendly_name(matched_param->get_friendly_name());
+            new_param->outputs().begin()->get_tensor().set_names(
+                matched_param->outputs().begin()->get_tensor().get_names());
+            ov::replace_node(matched_param, new_param);
+            // NB: Save in order to add/remove to the model later on
+            ctx.get().new_params.push_back(new_param);
+            ctx.get().old_params.push_back(matched_param);
+
+            auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+            auto new_transpose =
+                std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0), order_cst->output(0));
+            new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
+            ov::replace_node(matched_transpose, new_transpose);
+
+            auto new_concat =
+                std::make_shared<ov::opset13::Concat>(ov::OutputVector{new_param->output(0), new_transpose->output(0)},
+                                                      3u);
+            new_concat->set_friendly_name(matched_concat->get_friendly_name());
+            ov::replace_node(matched_concat, new_concat);
+
+            //------ update output dims
+            matched_unsqueeze->validate_and_infer_types();
+            matched_broadcast->validate_and_infer_types();
+            matched_reshape->validate_and_infer_types();
+
+            matched_matmul->set_transpose_b(true);
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
+    }
+};
+
+class TransposeValuesTensors: public ov::pass::MatcherPass {
+public:
+    struct Context {
+        std::vector<std::shared_ptr<ov::opset13::Parameter>> new_params;
+        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
+        using Ref = std::reference_wrapper<Context>;
+    };
+
+    TransposeValuesTensors(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
@@ -75,7 +181,7 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
     }
 };
 
@@ -233,21 +339,38 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
     return ppp.build();
 }
 
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
+void unroll_sdpa(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
-    TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors>(std::ref(ctx));
     rewr.run_on_model(model);
+    ov::pass::Validate().run_on_model(model);
+}
 
+template <typename TransposePass>
+bool apply_tranpose_pass(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    typename TransposePass::Context ctx;
+    rewr.add_matcher<TransposePass>(std::ref(ctx));
+    rewr.run_on_model(model);
     model->add_parameters(ctx.new_params);
     for (auto old_param : ctx.old_params) {
         model->remove_parameter(old_param);
     }
     ov::pass::Validate().run_on_model(model);
-
-    // NB: if new_params is not empty - pass has been applied
     return !ctx.new_params.empty();
+}
+
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
+    if (apply_tranpose_pass<TransposeValuesTensors>(model)) {
+        LOG_INFO("TransposeValueTensors has been successfully applied");
+        return true;
+    }
+    if (apply_tranpose_pass<TransposeValuesTensorsBroadcasted>(model)) {
+        LOG_INFO("TransposeValueTensorsBroadcasted has been successfully applied");
+        return true;
+    }
+    LOG_INFO("Optimize value tensors passes haven not been applied!");
+    return false;
 }
 
 struct KVAxesPosition {
@@ -301,6 +424,11 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    const auto all_devices = plugin->get_core()->get_available_devices();
+    if (std::find(all_devices.begin(), all_devices.end(), "NPU") == all_devices.end()) {
+        return std::nullopt;
+    }
+
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
 
@@ -457,15 +585,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
     LOG_DEBUG("6.Check and apply opt layout if applicable.");
-
-    const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
-    // NB: Try to apply opt transpose only for Llama-2-7b-chat-hf model
-    if (optimize_v_tensors) {
-        if (optimize_value_tensors(kvcache_model)) {
-            // NB: Check if TransposeValueTensors transformation was applied
-            m_kvcache_desc.v_tensors_transposed = true;
-            prefill_model = cvt_value_tensors_layout(prefill_model);
-        }
+    unroll_sdpa(kvcache_model);
+    if (optimize_value_tensors(kvcache_model)) {
+        m_kvcache_desc.v_tensors_transposed = true;
+        prefill_model = cvt_value_tensors_layout(prefill_model);
     }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
@@ -559,7 +682,6 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::batch_dim, NPUW_LLM_SEQ_LEN_DIM, get),
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
-                          BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }
