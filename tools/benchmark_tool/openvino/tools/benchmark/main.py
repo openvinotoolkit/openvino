@@ -49,6 +49,10 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision.")
 
+    if args.api_type == "sync":
+        if args.time == 0 and (args.number_infer_requests > args.number_iterations):
+            raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
+
     return args, is_network_compiled
 
 def main():
@@ -85,7 +89,8 @@ def main():
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type, args.inference_only)
+                              args.number_iterations, args.time, args.api_type,
+                              args.inference_only, args.maximum_inference_rate)
 
         if args.extensions:
             benchmark.add_extension(path_to_extensions=args.extensions)
@@ -284,11 +289,6 @@ def main():
                 return
 
             def set_nthreads_pin(property_name, property_value):
-                if property_name == properties.affinity():
-                    if property_value == "YES":
-                        property_value = properties.Affinity.CORE
-                    elif property_value == "NO":
-                        property_value = properties.Affinity.NONE
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
@@ -305,7 +305,7 @@ def main():
 
             if is_flag_set_in_command_line('pin'):
                 ## set for CPU to user defined value
-                set_nthreads_pin(properties.affinity(), args.infer_threads_pinning)
+                set_nthreads_pin(properties.hint.enable_cpu_pinning(), args.infer_threads_pinning)
 
             set_throughput_streams()
             set_infer_precision()

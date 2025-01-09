@@ -151,6 +151,8 @@ class PytorchLayerTest:
             config = {}
             if ie_device == "GPU" and precision == "FP32":
                 config[hints.inference_precision] = Type.f32
+            if "dynamic_quantization_group_size" in kwargs:
+                config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = str(kwargs["dynamic_quantization_group_size"])
             compiled = core.compile_model(converted_model, ie_device, config)
             infer_res = compiled(deepcopy(ov_inputs))
 
@@ -289,6 +291,8 @@ class PytorchLayerTest:
             options={"testing": 1,}
             if ("aot_autograd" in kwargs):
                 options.update({"aot_autograd": True,})
+            if "dynamic_quantization_group_size" in kwargs:
+                options["config"] = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": str(kwargs["dynamic_quantization_group_size"])}
             dynamic = False
             if ("dynamic" in kwargs):
                 dynamic = kwargs["dynamic"]

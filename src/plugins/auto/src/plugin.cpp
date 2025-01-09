@@ -75,8 +75,9 @@ namespace {
 namespace ov {
 namespace auto_plugin {
 
-std::mutex Plugin::m_mtx;
-std::map<unsigned int, std::list<std::string>> Plugin::m_priority_map;
+std::shared_ptr<std::mutex> Plugin::m_mtx = std::make_shared<std::mutex>();
+std::shared_ptr<std::map<unsigned int, std::list<std::string>>> Plugin::m_priority_map =
+    std::make_shared<std::map<unsigned int, std::list<std::string>>>();
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
@@ -129,17 +130,13 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
         if (get_device_name() == "MULTI") {
             auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto is_set_affinity = properties.find(ov::affinity.name()) != properties.end();
-            OPENVINO_SUPPRESS_DEPRECATED_END
             auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
+            if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
                 // setting tput as the default performance mode if
                 // 1. no hints setting for MULTI plugin
-                // 2. no affinity setting for MULTI plugin
-                // 3. no inference_num_threads setting for MULTI plugin
-                // 4. no ov::device::properties(secondary properties) setting for target device
-                // 5. no ov::num_streams setting for target device
+                // 2. no inference_num_threads setting for MULTI plugin
+                // 3. no ov::device::properties(secondary properties) setting for target device
+                // 4. no ov::num_streams setting for target device
                 device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
             }
         }
@@ -440,9 +437,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
+    auto_s_context->m_mtx = m_mtx;
+    auto_s_context->m_priority_map = m_priority_map;
     std::shared_ptr<ov::ICompiledModel> impl;
-    std::shared_ptr<Schedule> scheduler = is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>()) :
-                                std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
+    std::shared_ptr<Schedule> scheduler =
+        is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>())
+                      : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
     scheduler->launch(auto_s_context);
     ov::SoPtr<ov::IRemoteContext> device_context;
     try {
@@ -591,19 +591,25 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     DeviceInformation last_device = valid_devices.back();
     {
         // begin to filter devices
-        std::lock_guard<std::mutex> lck(m_mtx);
-        for (auto && kvp : m_priority_map) {
-            if (kvp.first >= priority) {
-                continue;
+        if (m_mtx && m_priority_map) {
+            std::lock_guard<std::mutex> lck(*m_mtx);
+            for (auto&& kvp : *m_priority_map) {
+                if (kvp.first >= priority) {
+                    continue;
+                }
+                auto& filter_devices = kvp.second;
+                auto sd = std::remove_if(valid_devices.begin(),
+                                         valid_devices.end(),
+                                         [&filter_devices](const DeviceInformation& device) {
+                                             auto iter = std::find_if(filter_devices.begin(),
+                                                                      filter_devices.end(),
+                                                                      [&device](std::string uniqueName) {
+                                                                          return (uniqueName == device.unique_name);
+                                                                      });
+                                             return iter != filter_devices.end() ? true : false;
+                                         });
+                valid_devices.erase(sd, valid_devices.end());
             }
-            auto& filter_devices = kvp.second;
-            auto sd = std::remove_if(valid_devices.begin(), valid_devices.end(), [&filter_devices](const DeviceInformation& device) {
-                    auto iter = std::find_if(filter_devices.begin(), filter_devices.end(), [&device](std::string uniqueName) {
-                            return (uniqueName == device.unique_name);
-                            });
-                    return iter != filter_devices.end() ? true : false;
-                    });
-            valid_devices.erase(sd, valid_devices.end());
         }
     }
 
@@ -621,24 +627,26 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     return *ptr_select_device;
 }
 
-void Plugin::unregister_priority(const unsigned int& priority,
-        const std::string& device_name) {
-    std::lock_guard<std::mutex> lck(m_mtx);
-    auto& priority_devices = m_priority_map[priority];
-    for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
-        if (*iter == device_name) {
-            priority_devices.erase(iter);
-            break;
+void Plugin::unregister_priority(const unsigned int& priority, const std::string& device_name) {
+    if (m_mtx && m_priority_map) {
+        std::lock_guard<std::mutex> lck(*m_mtx);
+        auto& priority_devices = (*m_priority_map)[priority];
+        for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
+            if (*iter == device_name) {
+                priority_devices.erase(iter);
+                break;
+            }
+            iter++;
         }
-        iter++;
     }
 }
 
-void Plugin::register_priority(const unsigned int& priority,
-        const std::string& device_name) {
-    std::lock_guard<std::mutex> lck(m_mtx);
-    auto& priority_devices = m_priority_map[priority];
-    priority_devices.push_back(device_name);
+void Plugin::register_priority(const unsigned int& priority, const std::string& device_name) {
+    if (m_mtx && m_priority_map) {
+        std::lock_guard<std::mutex> lck(*m_mtx);
+        auto& priority_devices = (*m_priority_map)[priority];
+        priority_devices.push_back(device_name);
+    }
 }
 
 std::string Plugin::get_device_list(const ov::AnyMap& properties) const {

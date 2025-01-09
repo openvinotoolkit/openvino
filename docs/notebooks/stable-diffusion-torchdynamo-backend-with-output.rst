@@ -114,16 +114,19 @@ script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
 torch.compile it goes through the following steps:
 
-1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
+1. Graph acquisition
+   - the model is rewritten as blocks of subgraphs that are either:
 
-  - compiled by TorchDynamo and “flattened”,
-  - falling back to the eager-mode, due to unsupported Python constructs (like control-flow
-    code).
+   - compiled by TorchDynamo and “flattened”,
+   - falling back to the
+     eager-mode, due to unsupported Python constructs (like control-flow
+     code).
 
 2. Graph lowering - all PyTorch operations are decomposed into
-  their constituent kernels specific to the chosen backend.
-3. Graph compilation - the kernels call their corresponding low-level
-  device-specific operations.
+   their constituent kernels specific to the chosen backend.
+3. Graph
+   compilation - the kernels call their corresponding low-level
+   device-specific operations.
 
 Select device for inference and enable or disable saving the optimized
 model files to a hard drive, after the first application run. This makes

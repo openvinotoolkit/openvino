@@ -18,7 +18,7 @@ find_package(PkgConfig QUIET)
 # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
 # so, we have to use 'IMPORTED_GLOBAL' property
 if(CMAKE_VERSION VERSION_LESS 3.18)
-    set(OV_PkgConfig_VISILITY GLOBAL)
+    set(OV_PkgConfig_VISIBILITY GLOBAL)
 endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -69,9 +69,21 @@ endif()
 #
 
 if(ENABLE_INTEL_NPU)
-    add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+    if(ENABLE_SYSTEM_LEVEL_ZERO)
+        pkg_search_module(level_zero QUIET
+                          IMPORTED_TARGET
+                          ${OV_PkgConfig_VISIBILITY}
+                          level-zero)
+        if(level_zero_FOUND)
+            add_library(LevelZero::LevelZero ALIAS PkgConfig::level_zero)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: level_zero (${level_zero_VERSION}) is found at ${level_zero_PREFIX}")
+        endif()
+    endif()
 
-    add_library(LevelZero::LevelZero ALIAS ze_loader)
+    if(NOT level_zero_FOUND)
+        add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+        add_library(LevelZero::LevelZero ALIAS ze_loader)
+    endif()
 endif()
 
 #
@@ -190,7 +202,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         # Ubuntu 18.04 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET
-                          ${OV_PkgConfig_VISILITY}
+                          ${OV_PkgConfig_VISIBILITY}
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)
@@ -249,7 +261,7 @@ if(ENABLE_SYSTEM_PUGIXML)
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
-        if(OV_PkgConfig_VISILITY)
+        if(OV_PkgConfig_VISIBILITY)
             # need to set GLOBAL visibility in order to create ALIAS for this target
             set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
         endif()
@@ -299,7 +311,7 @@ if(ENABLE_TESTS)
 
     if(GTest_FOUND)
         foreach(gtest_target gtest gtest_main gmock gmock_main)
-            if(OV_PkgConfig_VISILITY)
+            if(OV_PkgConfig_VISIBILITY)
                 # need to set GLOBAL visibility in order to create ALIAS for this target
                 set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
             endif()
@@ -335,7 +347,10 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 4.22.0 QUIET CONFIG)
+        find_package(Protobuf 5.26.0 QUIET CONFIG)
+        if(NOT Protobuf_FOUND)
+            find_package(Protobuf 4.22.0 QUIET CONFIG)
+        endif()
         if(Protobuf_FOUND)
             # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
             set(protobuf_config CONFIG)
@@ -445,7 +460,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(ov_snappy_lib Snappy::snappy-static)
         endif()
 
-        if(OV_PkgConfig_VISILITY)
+        if(OV_PkgConfig_VISIBILITY)
             # need to set GLOBAL visibility in order to create ALIAS for this target
             set_target_properties(${ov_snappy_lib} PROPERTIES IMPORTED_GLOBAL ON)
         endif()
@@ -459,7 +474,6 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
             set(SNAPPY_BUILD_TESTS OFF)
             set(INSTALL_GTEST OFF)
-            set(CMAKE_CXX_STANDARD 14)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
                 # '<': signed/unsigned mismatch
                 ov_add_compiler_flags(/wd4018)
@@ -500,10 +514,17 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.15.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
+        # newer versions of ONNX in vcpkg has ONNX:: prefix, let's create aliases
+        if(TARGET ONNX::onnx)
+            add_library(onnx ALIAS ONNX::onnx)
+        endif()
+        if(TARGET ONNX::onnx_proto)
+            add_library(onnx_proto ALIAS ONNX::onnx_proto)
+        endif()
     else()
         add_subdirectory(thirdparty/onnx)
     endif()

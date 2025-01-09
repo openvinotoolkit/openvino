@@ -7,6 +7,7 @@
 #include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -19,7 +20,6 @@
 #include "utils/precision_support.h"
 #include "utils/serialize.hpp"
 #include "weights_cache.hpp"
-#include "openvino/op/paged_attention.hpp"
 
 #if defined(__linux__)
 #    include <signal.h>
@@ -200,7 +200,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         return Config::ModelType::CNN;
 
     if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
-         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model))
+        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model))
         return Config::ModelType::LLM;
 
     return Config::ModelType::Unknown;
@@ -218,6 +218,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                                            ov::element::Type_t::i4,
                                                                            ov::element::Type_t::u8,
                                                                            ov::element::Type_t::i8,
+                                                                           ov::element::Type_t::f8e4m3,
+                                                                           ov::element::Type_t::f8e5m2,
                                                                            ov::element::Type_t::u16,
                                                                            ov::element::Type_t::i16,
                                                                            ov::element::Type_t::u32,
@@ -229,7 +231,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                                            ov::element::Type_t::f32,
                                                                            ov::element::Type_t::f64,
                                                                            ov::element::Type_t::boolean,
-                                                                           ov::element::Type_t::string};
+                                                                           ov::element::Type_t::string,
+                                                                           ov::element::Type_t::nf4};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
@@ -246,6 +249,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+    conf.applyRtInfo(cloned_model);
     conf.readProperties(config, modelType);
 
     Transformations transformations(cloned_model, conf);
@@ -316,21 +320,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == ov::affinity) {
-        const auto affinity = engConfig.threadBindingType;
-        switch (affinity) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-        return ov::Affinity::NONE;
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
@@ -388,6 +377,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(engConfig.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(engConfig.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(engConfig.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
@@ -431,11 +428,11 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
+            RW_property(ov::key_cache_precision.name()),
+            RW_property(ov::value_cache_precision.name()),
+            RW_property(ov::key_cache_group_size.name()),
+            RW_property(ov::value_cache_group_size.name()),
         };
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        rwProperties.insert(rwProperties.end(), RW_property(ov::affinity.name()));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -444,15 +441,17 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 
         return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
     } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
+        return decltype(ov::internal::supported_properties)::value_type {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
-                             ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+                ov::PropertyName {
+                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
+            }
+        };
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
@@ -519,6 +518,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
+    conf.applyRtInfo(model);
     conf.readProperties(config, modelType);
 
     auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
@@ -550,33 +550,40 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
-                                                         const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    CacheDecrypt decrypt{ codec_xor };
+    CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
-        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }
 
+    auto _config = config;
+    std::shared_ptr<ov::AlignedBuffer> model_buffer;
+    if (_config.count(ov::internal::cached_model_buffer.name())) {
+        model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        _config.erase(ov::internal::cached_model_buffer.name());
+    }
+
     ModelDeserializer deserializer(
         model_stream,
+        model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
         },
-        decrypt, decript_from_string);
+        decrypt,
+        decript_from_string);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
-
+    conf.applyRtInfo(model);
     // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
-    auto _config = config;
     const auto& it = _config.find(ov::loaded_from_cache.name());
     bool loaded_from_cache = false;
     if (it != _config.end()) {

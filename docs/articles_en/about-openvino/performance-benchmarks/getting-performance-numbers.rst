@@ -41,7 +41,7 @@ dedicated only to measuring performance.
 
    The benchmark setup for OVMS consists of four main parts:
 
-   .. image:: ../assets/images/performance_benchmarks_ovms_02.png
+   .. image:: ../../assets/images/performance_benchmarks_ovms_02.png
       :alt: OVMS Benchmark Setup Diagram
 
    * **OpenVINO™ Model Server** is launched as a docker container on the server platform and it
@@ -103,7 +103,7 @@ General considerations
 
       Some image pre-processing can be baked into OpenVINO IR and accelerated accordingly.
       For more information, refer to
-      :doc:`Embedding Pre-processing <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`
+      :doc:`Preprocessing API <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
       and
       :doc:`General Runtime Optimizations <../../openvino-workflow/running-inference/optimize-inference/general-optimizations>`.
 
@@ -192,7 +192,7 @@ execution breakdown.
 
 For example, the table below is part of performance counters for
 :doc:`CPU inference <../../openvino-workflow/running-inference/inference-devices-and-modes/cpu-device>`.
-of a `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
+of a TensorFlow implementation of ResNet-50.
 Keep in mind that since the device is CPU, the ``realTime`` wall clock and the ``cpu`` time
 layers are the same. Information about layer precision is also stored in the performance
 counters.

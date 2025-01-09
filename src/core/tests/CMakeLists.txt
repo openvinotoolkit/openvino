@@ -18,6 +18,7 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 type_prop/multiclass_nms.cpp
+                                type_prop/squeeze.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 

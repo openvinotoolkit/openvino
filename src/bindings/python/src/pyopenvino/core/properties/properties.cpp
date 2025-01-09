@@ -14,13 +14,6 @@ void regmodule_properties(py::module m) {
     // Top submodule
     py::module m_properties = m.def_submodule("properties", "openvino.properties submodule");
 
-    // Submodule properties - enums
-    py::enum_<ov::Affinity>(m_properties, "Affinity", py::arithmetic())
-        .value("NONE", ov::Affinity::NONE)
-        .value("CORE", ov::Affinity::CORE)
-        .value("NUMA", ov::Affinity::NUMA)
-        .value("HYBRID_AWARE", ov::Affinity::HYBRID_AWARE);
-
     py::enum_<ov::WorkloadType>(m_properties, "WorkloadType", py::arithmetic())
         .value("DEFAULT", ov::WorkloadType::DEFAULT)
         .value("EFFICIENT", ov::WorkloadType::EFFICIENT);
@@ -38,12 +31,13 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    wrap_property_RW(m_properties, ov::affinity, "affinity");
-    OPENVINO_SUPPRESS_DEPRECATED_END
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
     wrap_property_RW(m_properties, ov::weights_path, "weights_path");
+    wrap_property_RW(m_properties, ov::key_cache_precision, "key_cache_precision");
+    wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");
+    wrap_property_RW(m_properties, ov::key_cache_group_size, "key_cache_group_size");
+    wrap_property_RW(m_properties, ov::value_cache_group_size, "value_cache_group_size");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -101,6 +95,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
     wrap_property_RW(m_hint, ov::hint::dynamic_quantization_group_size, "dynamic_quantization_group_size");
     wrap_property_RW(m_hint, ov::hint::kv_cache_precision, "kv_cache_precision");
+    wrap_property_RW(m_hint, ov::hint::activations_scale_factor, "activations_scale_factor");
 
     // Submodule intel_cpu
     py::module m_intel_cpu =

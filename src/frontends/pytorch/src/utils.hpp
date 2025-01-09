@@ -125,9 +125,16 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& mask,
                          const Output<Node>& value);
 
-Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end);
-
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
+
+Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
+
+bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
+                          const Output<Node>& data,
+                          const ov::OutputVector& indices,
+                          const ov::Rank& rank,
+                          Output<Node>& new_output,
+                          bool& use_input_as_output);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
@@ -301,11 +308,11 @@ public:
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
         FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
     }
-    bool is_input_inlined(size_t index) const override {
+    virtual bool is_input_inlined(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(is_input_inlined);
     }
-    virtual OutputVector inlined_input(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(inlined_input);
+    virtual std::shared_ptr<TorchDecoder> get_inlined_input_decoder(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_inlined_input_decoder);
     }
     virtual ov::Any get_attribute(const std::string& name) const override {
         FRONT_END_NOT_IMPLEMENTED(get_attribute);

@@ -61,6 +61,7 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
         case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
         case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
         case ngen::HW::Xe2: return gpu_arch::xe2;
+        case ngen::HW::Xe3: return gpu_arch::xe3;
         case ngen::HW::Gen10:
         case ngen::HW::Unknown: return gpu_arch::unknown;
     }
@@ -223,6 +224,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.max_local_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>());
     info.max_global_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>());
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
+    info.max_global_cache_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHE_SIZE>());
 
     info.supports_image = static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>());
     info.max_image2d_width = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_WIDTH>());
@@ -329,6 +331,14 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     ngen::Product product = {ngen::ProductFamily::Unknown, 0};
     jit_generator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
     info.arch = convert_ngen_arch(hw);
+    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+    // This is required to guarantee some level of forward compatibility for the new HW generations
+    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+    if (product.family == ngen::ProductFamily::Unknown) {
+        info.supports_immad = false;
+    }
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU

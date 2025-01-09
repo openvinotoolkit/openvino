@@ -46,15 +46,6 @@ def test_properties_rw_base():
     ("ov_enum", "expected_values"),
     [
         (
-            props.Affinity,
-            (
-                (props.Affinity.NONE, "Affinity.NONE", -1),
-                (props.Affinity.CORE, "Affinity.CORE", 0),
-                (props.Affinity.NUMA, "Affinity.NUMA", 1),
-                (props.Affinity.HYBRID_AWARE, "Affinity.HYBRID_AWARE", 2),
-            ),
-        ),
-        (
             props.CacheMode,
             (
                 (props.CacheMode.OPTIMIZE_SIZE, "CacheMode.OPTIMIZE_SIZE", 0),
@@ -259,11 +250,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             "COMPILATION_NUM_THREADS",
             ((44, 44),),
         ),
-        (
-            props.affinity,
-            "AFFINITY",
-            ((props.Affinity.NONE, props.Affinity.NONE),),
-        ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
         (
@@ -271,6 +257,18 @@ def test_properties_ro(ov_property_ro, expected_value):
             "WEIGHTS_PATH",
             (("./model.bin", "./model.bin"),),
         ),
+        (
+            props.key_cache_group_size,
+            "KEY_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (
+            props.value_cache_group_size,
+            "VALUE_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (props.key_cache_precision, "KEY_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (props.value_cache_precision, "VALUE_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             hints.model_priority,
@@ -335,6 +333,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((64, 64),),
         ),
         (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (
+            hints.activations_scale_factor,
+            "ACTIVATIONS_SCALE_FACTOR",
+            ((0.0, 0.0),),
+        ),
         (
             intel_cpu.denormals_optimization,
             "CPU_DENORMALS_OPTIMIZATION",
@@ -534,7 +537,6 @@ def test_single_property_setting(device):
                 props.enable_profiling(True),
                 props.cache_dir("./"),
                 props.inference_num_threads(9),
-                props.affinity(props.Affinity.NONE),
                 hints.inference_precision(Type.f32),
                 hints.performance_mode(hints.PerformanceMode.LATENCY),
                 hints.enable_cpu_pinning(True),
@@ -549,7 +551,6 @@ def test_single_property_setting(device):
             props.enable_profiling: True,
             props.cache_dir: "./",
             props.inference_num_threads: 9,
-            props.affinity: props.Affinity.NONE,
             hints.inference_precision: Type.f32,
             hints.performance_mode: hints.PerformanceMode.LATENCY,
             hints.enable_cpu_pinning: True,
@@ -563,7 +564,6 @@ def test_single_property_setting(device):
             props.enable_profiling: True,
             "CACHE_DIR": "./",
             props.inference_num_threads: 9,
-            props.affinity: "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
             hints.performance_mode: hints.PerformanceMode.LATENCY,
             hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
@@ -584,7 +584,6 @@ def test_core_cpu_properties(properties_to_set):
     assert core.get_property("CPU", props.enable_profiling) is True
     assert core.get_property("CPU", props.cache_dir) == "./"
     assert core.get_property("CPU", props.inference_num_threads) == 9
-    assert core.get_property("CPU", props.affinity) == props.Affinity.NONE
     assert core.get_property("CPU", streams.num) == 5
 
     # RO properties

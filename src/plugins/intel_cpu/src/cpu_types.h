@@ -89,6 +89,7 @@ enum class Type {
     ShuffleChannels,
     DFT,
     RDFT,
+    STFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -131,7 +132,9 @@ enum class Type {
     CausalMaskPreprocess,
     LLMMLP,
     QKVProjection,
-    RMS
+    RMS,
+    SearchSorted,
+    LoRA
 };
 
 enum class Algorithm {
@@ -162,7 +165,9 @@ enum class Algorithm {
     EltwiseSubtract,
     EltwiseDivide,
     EltwiseFloor,
+    EltwiseCeiling,
     EltwiseFloorMod,
+    EltwiseNegative,
     EltwiseMod,
     EltwiseMaximum,
     EltwiseMinimum,
@@ -208,6 +213,12 @@ enum class Algorithm {
     EltwiseBitwiseXor,
     EltwiseBitwiseLeftShift,
     EltwiseBitwiseRightShift,
+
+    // FullyConnected algorithms
+    FullyConnectedCommon,
+    FullyConnectedCompressed,
+    FullyConnectedQuantized,
+    FullyConnectedQuantizedLegacy,
 
     // FakeQuantize algorithms
     FQCommon,

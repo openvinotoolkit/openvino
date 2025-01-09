@@ -147,7 +147,7 @@ xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSeque
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
 
 # ONNX 1.14
-xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
+xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8", strict=False)
 xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
                                        "half_pixel_symmetric - this type of coordinate transformation mode "
                                        "is not supported. Choose one of the following modes: "
@@ -182,3 +182,6 @@ xfail_issue_139934 = xfail_test(reason = "Int4 isn't supported")
 xfail_issue_139936 = xfail_test(reason = "MaxPool accuracy fails")
 xfail_issue_139937 = xfail_test(reason = "GroupNorm, QLinearMatMul, DequantizeLinear translation failed")
 xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
+
+# ONNX 1.17
+skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")

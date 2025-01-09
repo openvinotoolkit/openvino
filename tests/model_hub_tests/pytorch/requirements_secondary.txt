@@ -1,3 +1,0 @@
--c ../../constraints.txt
-# This file contains requirements dependednt from modules in requirements.txt
-natten -f https://shi-labs.com/natten/wheels/cpu/torch2.0.0/index.html 

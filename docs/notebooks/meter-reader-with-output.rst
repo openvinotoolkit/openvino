@@ -54,20 +54,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -143,7 +135,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    model/meter_det_model.tar.gz:   0%|          | 0.00/192M [00:00<?, ?B/s]
+    meter_det_model.tar.gz:   0%|          | 0.00/192M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -154,7 +146,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    model/meter_seg_model.tar.gz:   0%|          | 0.00/94.9M [00:00<?, ?B/s]
+    meter_seg_model.tar.gz:   0%|          | 0.00/94.9M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -165,7 +157,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    data/170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg:   0%|          | 0.00/183k [00:00<?, ?B/s]
+    170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg:   0%|          | 0.00/183k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -645,7 +637,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f1a8287da90>
+    <matplotlib.image.AxesImage at 0x7f1a979271f0>
 
 
 

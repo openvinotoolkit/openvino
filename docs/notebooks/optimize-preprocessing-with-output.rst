@@ -81,14 +81,8 @@ Settings
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
@@ -98,7 +92,6 @@ Settings
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -154,7 +147,7 @@ Setup image and device
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 .. code:: ipython3
@@ -208,15 +201,6 @@ and save it to the disk.
 .. parsed-literal::
 
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
-
-
-.. parsed-literal::
-
-    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 94). These functions will not be directly callable after loading.
-
-
-.. parsed-literal::
-
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
@@ -360,7 +344,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f70c0c3dc70>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f69f01394b0>
 
 
 
@@ -391,7 +375,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f70a4d64630>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f687432f330>
 
 
 
@@ -429,7 +413,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f71146e21b0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f69131f9670>
 
 
 
@@ -591,7 +575,7 @@ Compare results on one image
 
 .. parsed-literal::
 
-    data/imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
+    imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -643,6 +627,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0148 seconds per image, FPS: 67.77
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0142 seconds per image, FPS: 70.46
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0150 seconds per image, FPS: 66.66
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0141 seconds per image, FPS: 71.16
 

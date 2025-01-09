@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "bucketize.h"
+
+#include <algorithm>
+#include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 #include <vector>
-#include <algorithm>
 
-#include "openvino/opsets/opset3.hpp"
-#include <shape_inference/shape_inference_pass_through.hpp>
 #include "openvino/core/parallel.hpp"
-#include "bucketize.h"
+#include "openvino/opsets/opset3.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -70,16 +71,15 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
         output_precision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
-                          {LayoutType::ncsp, boundaries_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision}, {LayoutType::ncsp, boundaries_precision}},
                          {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 
 inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
-                                ov::element::Type precision2,
-                                ov::element::Type precision3 = ov::element::undefined,
-                                ov::element::Type precision4 = ov::element::undefined) {
+                                          ov::element::Type precision2,
+                                          ov::element::Type precision3 = ov::element::undefined,
+                                          ov::element::Type precision4 = ov::element::undefined) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
@@ -90,98 +90,98 @@ void Bucketize::execute(dnnl::stream strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
-        case getElementsMask(ov::element::f32, ov::element::f32, ov::element::i32):
-            bucketize<element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::f32, ov::element::f32, ov::element::i64):
-            bucketize<element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::f32, ov::element::i32, ov::element::i32):
-            bucketize<element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::f32, ov::element::i32, ov::element::i64):
-            bucketize<element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::f32, ov::element::i64, ov::element::i32):
-            bucketize<element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::f32, ov::element::i64, ov::element::i64):
-            bucketize<element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::i32, ov::element::f32, ov::element::i32):
-            bucketize<element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::i32, ov::element::f32, ov::element::i64):
-            bucketize<element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::i32, ov::element::i32, ov::element::i32):
-            bucketize<element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::i32, ov::element::i32, ov::element::i64):
-            bucketize<element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::i32, ov::element::i64, ov::element::i32):
-            bucketize<element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::i32, ov::element::i64, ov::element::i64):
-            bucketize<element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::i64, ov::element::f32, ov::element::i32):
-            bucketize<element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::i64, ov::element::f32, ov::element::i64):
-            bucketize<element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::f32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::i64, ov::element::i32, ov::element::i32):
-            bucketize<element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::i64, ov::element::i32, ov::element::i64):
-            bucketize<element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i32>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        case getElementsMask(ov::element::i64, ov::element::i64, ov::element::i32):
-            bucketize<element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i32>::value_type>();
-            break;
-        case getElementsMask(ov::element::i64, ov::element::i64, ov::element::i64):
-            bucketize<element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i64>::value_type,
-                    element_type_traits<ov::element::i64>::value_type>();
-            break;
-        default:
-            OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision_mask);
+    case getElementsMask(ov::element::f32, ov::element::f32, ov::element::i32):
+        bucketize<element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::f32, ov::element::f32, ov::element::i64):
+        bucketize<element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::f32, ov::element::i32, ov::element::i32):
+        bucketize<element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::f32, ov::element::i32, ov::element::i64):
+        bucketize<element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::f32, ov::element::i64, ov::element::i32):
+        bucketize<element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::f32, ov::element::i64, ov::element::i64):
+        bucketize<element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::i32, ov::element::f32, ov::element::i32):
+        bucketize<element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::i32, ov::element::f32, ov::element::i64):
+        bucketize<element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::i32, ov::element::i32, ov::element::i32):
+        bucketize<element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::i32, ov::element::i32, ov::element::i64):
+        bucketize<element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::i32, ov::element::i64, ov::element::i32):
+        bucketize<element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::i32, ov::element::i64, ov::element::i64):
+        bucketize<element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::i64, ov::element::f32, ov::element::i32):
+        bucketize<element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::i64, ov::element::f32, ov::element::i64):
+        bucketize<element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::f32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::i64, ov::element::i32, ov::element::i32):
+        bucketize<element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::i64, ov::element::i32, ov::element::i64):
+        bucketize<element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i32>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    case getElementsMask(ov::element::i64, ov::element::i64, ov::element::i32):
+        bucketize<element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i32>::value_type>();
+        break;
+    case getElementsMask(ov::element::i64, ov::element::i64, ov::element::i64):
+        bucketize<element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i64>::value_type,
+                  element_type_traits<ov::element::i64>::value_type>();
+        break;
+    default:
+        OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision_mask);
     }
 }
 
@@ -222,9 +222,9 @@ bool Bucketize::isExecutable() const {
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>
 void Bucketize::bucketize() {
-    const auto *input_data = getSrcDataAtPortAs<const T>(0);
-    const auto *boundaries_data = getSrcDataAtPortAs<const T_BOUNDARIES>(1);
-    auto *output_data = getDstDataAtPortAs<T_IND>(0);
+    const auto* input_data = getSrcDataAtPortAs<const T>(0);
+    const auto* boundaries_data = getSrcDataAtPortAs<const T_BOUNDARIES>(1);
+    auto* output_data = getDstDataAtPortAs<T_IND>(0);
 
     if (!with_bins) {
         memset(output_data, 0, num_values * sizeof(T_IND));
@@ -248,6 +248,6 @@ bool Bucketize::created() const {
     return getType() == Type::Bucketize;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -5,11 +5,12 @@
 #pragma once
 
 #include <node.h>
-#include "kernels/x64/gather_uni_kernel.hpp"
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "kernels/x64/gather_uni_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,7 +20,7 @@ class Gather : public Node {
 public:
     Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
@@ -110,10 +111,11 @@ private:
     bool have_scalar_scale = false;
     size_t zp_group_size = 1u;
     size_t scale_group_size = 1u;
+    size_t m_threads_num = 0lu;
 
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -120,15 +120,44 @@ def process_coveo_meta(meta, url, link):
 
     for namespace, values in meta:
         namespace_element = ET.SubElement(url, namespace)
+        loc_element = url.find("loc")
 
         for tag_name, tag_value in values.items():
-            if tag_name == 'ovcategory':
-                processed_link = process_link(link)
-                ET.SubElement(namespace_element, tag_name).text = processed_link
-            else:
+            if tag_name == 'ovdoctype':
+                ET.SubElement(namespace_element, tag_name).text = process_link(link)
+            elif tag_name == 'ovcategory' and loc_element is not None:
+                ET.SubElement(namespace_element, tag_name).text = extract_categories(loc_element.text)
+            elif tag_name == 'ovversion':
                 ET.SubElement(namespace_element, tag_name).text = tag_value
 
 def process_link(link):
     if '/' in link:
-        return link.split('/')[0].replace("-", " ")
-    return link.split('.html')[0].replace("-", " ")
+        return format_segment(link.split('/')[0].replace("-", " "))
+    return format_segment(link.split('.html')[0].replace("-", " "))
+
+def extract_categories(link):
+    path = link.split("://")[-1]
+    segments = path.split('/')[1:]
+    if segments and segments[-1].endswith('.html'):
+        segments = segments[:-1]
+
+    if segments:
+        segments = segments[1:]
+
+    if segments and '.' in segments[0]:
+        year, *rest = segments[0].split('.')
+        if year.isdigit() and len(year) == 4:
+            segments[0] = year
+
+    segments = [format_segment(segment) for segment in segments]
+
+    if segments:
+        hierarchy = ['|'.join(segments[:i]) for i in range(1, len(segments) + 1)]
+        return ';'.join(hierarchy)
+    
+    return "No category"
+
+def format_segment(segment):
+    if segment == 'c_cpp_api': segment = 'C/C++_api'
+
+    return ' '.join(word.capitalize() for word in segment.replace('-', ' ').replace('_', ' ').split())

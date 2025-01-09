@@ -143,7 +143,7 @@ else()
 endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
-if(RISCV64_THEAD)
+if(RISCV64_XUANTIE)
     set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
 else()
     set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
@@ -173,10 +173,6 @@ endif()
 if(DNNL_USE_ACL)
     add_definitions(-DOV_CPU_WITH_ACL)
     set(OV_CPU_WITH_ACL ON)
-endif()
-
-if(OV_CPU_WITH_ACL)
-    set(CMAKE_CXX_STANDARD 14)
 endif()
 
 if (ENABLE_SHL_FOR_CPU)
@@ -242,7 +238,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              ADD_CLANG_FORMAT)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
@@ -287,14 +284,14 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token
@@ -326,7 +323,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
                     src/nodes/kernels/x64/mlp_utils.cpp
         API         src/nodes/kernels/x64/mlp_utils.hpp
-        NAME        llm_mlp_transpose_epi32_16x16
+        NAME        llm_mlp_transpose_epi32_16x16  llm_mlp_quantize_bf16_i8 llm_mlp_quantize_f16_i8 llm_mlp_dequantize_i32_f32
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 

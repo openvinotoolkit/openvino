@@ -320,6 +320,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         model->get_rt_info().erase("symmetric_quantization");
     }
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
+    manager.register_pass<ov::frontend::pytorch::pass::U4ConvertReshape>();
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.run_passes(model);

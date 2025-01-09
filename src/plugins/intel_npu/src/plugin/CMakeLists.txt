@@ -22,21 +22,11 @@ ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-if(ENABLE_DRIVER_COMPILER_ADAPTER)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DRIVER_COMPILER_ADAPTER)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            openvino_npu_driver_compiler_adapter
-    )
-endif()
-
-if(ENABLE_ZEROAPI_BACKEND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ZEROAPI_BACKEND)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            openvino_npu_level_zero_backend
-    )
-endif()
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        openvino_npu_driver_compiler_adapter
+        openvino_npu_level_zero_backend
+)
 
 if(ENABLE_IMD_BACKEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_IMD_BACKEND)
@@ -49,9 +39,7 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
-        openvino::npu_logger_utils
-        openvino::runtime
-        openvino::runtime::dev
+        openvino::npu_common
 )
 
 target_include_directories(${TARGET_NAME}
@@ -59,11 +47,6 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
-)
-target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 cross_compiled_file(${TARGET_NAME}

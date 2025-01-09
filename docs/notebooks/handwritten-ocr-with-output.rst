@@ -49,20 +49,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
-    # Install openvino-dev package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    # Install openvino package
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -176,13 +168,13 @@ model file.
 
 .. parsed-literal::
 
-    models/handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
+    handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    models/handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
+    handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
 
 
 Load the Model and Execute
@@ -286,7 +278,7 @@ keep letters proportional and meet input shape.
 
 .. parsed-literal::
 
-    data/handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
+    handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
 
 
 Visualize Input Image
@@ -329,7 +321,7 @@ Chinese and Japanese models.
 
 .. parsed-literal::
 
-    data/text/chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
+    chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
 
 
 .. code:: ipython3

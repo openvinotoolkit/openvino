@@ -17,7 +17,7 @@ public:
     ProxyMemoryBlock() : m_pOrigBlock(std::make_shared<MemoryBlockWithReuse>()), m_pMemBlock(m_pOrigBlock) {}
     explicit ProxyMemoryBlock(std::shared_ptr<IMemoryBlock> pBlock) {
         OPENVINO_ASSERT(pBlock, "Memory block is uninitialized");
-        m_pMemBlock = pBlock;
+        m_pMemBlock = std::move(pBlock);
     }
 
     void* getRawPtr() const noexcept override;
@@ -49,5 +49,5 @@ private:
 using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;
 using ProxyMemoryBlockCPtr = std::shared_ptr<const ProxyMemoryBlock>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

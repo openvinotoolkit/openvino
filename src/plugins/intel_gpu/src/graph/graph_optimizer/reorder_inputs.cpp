@@ -56,9 +56,9 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
             onednn_impls_counter++;
     }
 
-    if (lo.get_optimization_attributes().use_onednn_impls && onednn_impls_counter < 1) {
+    if (!lo.is_empty_onednn_impls_optimization_attribute() && onednn_impls_counter < 1) {
         should_update_fmt_map = true;
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
+        lo.clear_onednn_impls_optimization_attribute();
         GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
     }
 
@@ -1003,6 +1003,10 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (gemm_dims[0] == data_dims[0])
                         continue;
 
+                    auto data_shape = data_layout.get_shape();
+                    if (data_shape.size() && shape_size(data_shape) == 1ul)
+                        continue;
+
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(),
@@ -1024,6 +1028,15 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (fc_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
+                    auto same_spatial = [](layout a, layout b) {
+                        if (a.get_spatial_rank() != b.get_spatial_rank())
+                            return false;
+                        for (size_t i = 0; i < a.get_spatial_rank(); i++) {
+                            if (a.spatial(i) != b.spatial(i))
+                                return false;
+                        }
+                        return true;
+                    };
                     // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
                     // ---------+-----------+-----------+-----------+--------------------
                     // 1        | 1         | 1         | 1         | no broadcast
@@ -1039,11 +1052,12 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     // N        | 1         | N         | 1         | no broadcast
                     // N        | 1         | N         | N         | N/A
                     // N        | N         | 1         | 1         | implicit broadcast
-                    // N        | N         | 1         | N         | explicit broadcast
-                    // N        | N         | N         | 1         | explicit broadcast
+                    // N        | N         | 1         | N         | explicit broadcast when spatial different
+                    // N        | N         | N         | 1         | explicit broadcast when spatial different
                     // N        | N         | N         | N         | no broadcast
                     if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
                         (data_layout.batch() == 1 && data_layout.feature() == 1) ||
+                        ((data_layout.batch() == 1 || data_layout.feature() == 1) && same_spatial(fc_layout, data_layout)) ||
                         (fc_layout.count() == data_layout.count())) {
                         continue;
                     }

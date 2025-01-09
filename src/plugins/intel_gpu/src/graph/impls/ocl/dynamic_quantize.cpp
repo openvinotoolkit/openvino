@@ -21,12 +21,12 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::dynamic_quantize_impl);
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<dynamic_quantize_impl>(*this);
+        return make_deep_copy<dynamic_quantize_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -34,8 +34,8 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        /// TODO: handle group_size here
         auto params = get_default_params<kernel_selector::dynamic_quantize_params>(impl_param, is_shape_agnostic);
+        const auto& primitive = impl_param.typed_desc<dynamic_quantize>();
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
 
         // In Some model, the feature size could be dynamic in input0.
@@ -45,6 +45,20 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
             auto& fc_node = user_node->as<fully_connected>();
             params.fc_ifm_size = fc_node.weights().get_output_layout().feature();
         }
+
+        if (impl_param.output_layouts.size() > 2)
+            params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
+
+        // Keep 2d data as bf layout
+        if (primitive->input_size == 2)
+            params.outputs[0] = params.outputs[0].FlattenFeatureAndSpatials();
+
+        const auto& desc = impl_param.typed_desc<dynamic_quantize>();
+        params.group_sizes = desc->attrs.group_sizes;
+        params.scales_output_order = desc->attrs.scales_zp_output_order;
+        params.use_asymmetric_quantization = desc->attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+        params.combine_scales_and_zp = desc->attrs.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+
         return params;
     }
 
@@ -59,7 +73,8 @@ namespace detail {
 attach_dynamic_quantize_impl::attach_dynamic_quantize_impl() {
     auto types = {
         data_types::f16,
-        data_types::i8
+        data_types::i8,
+        data_types::u8
     };
 
     auto formats = {
