@@ -159,17 +159,11 @@ void Bank::serialize(std::ostream& stream) const {
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    // For now only a singular NPU or CPU device is supported
+    // For now only a singular device is supported
     // Sanity check
     NPUW_ASSERT(m_device_banks.size() == 1 && "Bank containing several devices can't be serialized");
-    auto it = m_device_banks.find("NPU");
     auto it_cpu = m_device_banks.find("CPU");
-    NPUW_ASSERT((it != m_device_banks.end() || it_cpu != m_device_banks.end()) &&
-                "Only a singular NPU or CPU bank can be serialized");
-
-    if (it_cpu != m_device_banks.end() && it == m_device_banks.end()) {
-        it = it_cpu;
-    }
+    auto it = it_cpu == m_device_banks.end() ? m_device_banks.find("NPU") : it_cpu;
 
     const auto& device_bank = it->second;
     std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
@@ -177,14 +171,7 @@ void Bank::serialize(std::ostream& stream) const {
     write(stream, device_bank.storage.size());
     for (const auto& t_pair : device_bank.storage) {
         write(stream, t_pair.first);
-
-        auto& tensor = t_pair.second.tensor;
-        NPUW_ASSERT(tensor.is_continuous());
-        write(stream, tensor.get_element_type().to_string());
-        write(stream, tensor.get_shape());
-        // FIXME: should we write strides as well?
-        write(stream, tensor.get_byte_size());
-        stream.write(reinterpret_cast<const char*>(tensor.data()), tensor.get_byte_size());
+        write(stream, t_pair.second.tensor);
     }
 
     LOG_INFO("DONE.");
@@ -196,7 +183,7 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
     LOG_INFO("Deserializing weights bank...");
     LOG_BLOCK();
 
-    // For now only a singular NPU or CPU device is supported
+    // For now only a singular device is supported
     std::string device;
     read(stream, device);
 
@@ -221,8 +208,6 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     using namespace ov::npuw::s11n;
 
     // This method is supposed to be used only during deserialization
-    // For now only a singular NPU or CPU device is supported
-    NPUW_ASSERT(device == "NPU" || device == "CPU");
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto& device_bank = m_device_banks[device];
@@ -235,7 +220,17 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
         return;
     }
 
-    // Read tensor type, shape and byte size
+    if (device == "CPU") {
+        // Just read deserialized tensor into the bank
+        read(stream, device_bank.storage[uid].tensor);
+        return;
+    }
+
+    // Need to allocate on device and copy deserialized tensor to that memory
+    ov::SoPtr<ov::ITensor> remote_tensor;
+    ov::Tensor allocated_tensor;
+
+    // FIXME: reading not via a dedicated function
     std::string type_str;
     read(stream, type_str);
     ov::element::Type type(type_str);
@@ -245,17 +240,6 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
 
     std::size_t byte_size = 0;
     read(stream, byte_size);
-
-    if (device == "CPU") {
-        // Just read deserialized tensor into the bank
-        device_bank.storage[uid] = {LazyTensor(), ov::Tensor(type, shape)};
-        stream.read(reinterpret_cast<char*>(device_bank.storage[uid].tensor.data()), byte_size);
-        return;
-    }
-
-    // Need to allocate on device and copy deserialized tensor to that memory
-    ov::SoPtr<ov::ITensor> remote_tensor;
-    ov::Tensor allocated_tensor;
 
     auto remote_ctx = m_core->get_default_context(device)._ptr;
     remote_tensor = remote_ctx->create_host_tensor(type, shape);

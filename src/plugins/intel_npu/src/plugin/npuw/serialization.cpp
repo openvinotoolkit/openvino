@@ -25,7 +25,7 @@ void ov::npuw::s11n::write(std::ostream& stream, const bool& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Spatial& var) {
     using ov::npuw::s11n::write;
-    // FIXME: add to overloads
+
     write(stream, var.params.size());
     for (const auto& p : var.params) {
         write(stream, p.idx);
@@ -77,7 +77,7 @@ void ov::npuw::s11n::read(std::istream& stream, bool& var) {
 
 void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var) {
     using ov::npuw::s11n::read;
-    // FIXME: add to overloads
+
     ov::npuw::compiled::Spatial spat;
     std::size_t params_size = 0;
     read(stream, params_size);

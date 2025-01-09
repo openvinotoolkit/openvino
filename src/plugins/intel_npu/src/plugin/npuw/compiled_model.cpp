@@ -656,7 +656,6 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, *device_list.begin());
 
     // Serialize compiled submodels
-    // FIXME: add to overloads
     write(stream, m_compiled_submodels.size());
     std::size_t idx = 0;
     for (const auto& subm : m_compiled_submodels) {
@@ -713,7 +712,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             non_npuw_props.insert(*it);
         }
     }
-    // FIXME: add to overloads
+
     std::size_t subm_size = 0;
     read(stream, subm_size);
     compiled->m_compiled_submodels.reserve(subm_size);
@@ -741,8 +740,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;
         }
-
-        comp_model_desc.closure_uid.resize(comp_model_desc.closure.size(), -1);
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];

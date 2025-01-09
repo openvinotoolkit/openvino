@@ -611,7 +611,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     compiled->m_kvcache_compiled->reconstruct_closure();
     compiled->m_prefill_compiled->reconstruct_closure();
 
-    // FIXME: is it required for LLMCompiledModel or CompiledModel ???
     compiled->implement_properties();
 
     LOG_INFO("Done.");
