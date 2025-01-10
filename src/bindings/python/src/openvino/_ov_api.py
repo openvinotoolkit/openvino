@@ -13,6 +13,7 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
+from openvino._pyopenvino import Op as OpBase
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Node
 
@@ -22,6 +23,17 @@ from openvino.runtime.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
+
+
+class Op(OpBase):
+    def __init__(self, py_obj, inputs=None) -> None:
+        super().__init__(py_obj)
+        print("super ok")
+        self._initialize_type_info()
+        print("__initialize_type_info ok")
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
 
 
 class Model:

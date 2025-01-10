@@ -20,24 +20,13 @@ public:
     PyOp() = default;
 
     // Keeps a reference to the Python object to manage its lifetime
-    PyOp(const py::object& py_obj, const py::object& inputs=py::none()) : py_handle(py_obj) {
-        py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
-        std::cout << "jello" << std::endl;
-        // Try to look up the overridden method on the Python side.
-        py::function overrided_py_method = pybind11::get_override(this, "get_type_info");
-        if (overrided_py_method) {   // method is found
-            const auto result = overrided_py_method(); // Call the Python function.
-            m_type_info = result.cast<std::shared_ptr<DiscreteTypeInfoWrapper>>();
-        } else {
-            const auto py_class_name = py_handle.get_type().attr("__name__").cast<std::string>();
-            m_type_info = std::make_shared<DiscreteTypeInfoWrapper>(py_class_name, "extension");
-        }
-        if (!inputs.is_none()) {
-            std::cout << "here" << std::endl;
-            this->set_arguments(inputs.cast<const ov::NodeVector>());
-            this->constructor_validate_and_infer_types();
-        }
+    PyOp(const py::object& py_obj) : py_handle(py_obj) {
+        // Set default value for DiscreteTypeInfo
+        const auto py_class_name = py_handle.get_type().attr("__name__").cast<std::string>();
+        m_type_info = std::make_shared<DiscreteTypeInfoWrapper>(py_class_name, "extension");
     }
+
+    void initialize_type_info();
 
     void validate_and_infer_types() override;
 
@@ -53,7 +42,7 @@ public:
 
 private:
     py::object py_handle;  // Holds the Python object to manage its lifetime
-    std::shared_ptr<DiscreteTypeInfoWrapper> m_type_info;
+    std::shared_ptr<ov::DiscreteTypeInfo> m_type_info;
 };
 
 void regclass_graph_Op(py::module m);

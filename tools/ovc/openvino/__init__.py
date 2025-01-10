@@ -32,6 +32,7 @@ from openvino._ov_api import Core
 from openvino._ov_api import CompiledModel
 from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
+from openvino._ov_api import Op
 
 from openvino.runtime import Symbol
 from openvino.runtime import Dimension
@@ -55,7 +56,6 @@ from openvino.runtime import layout_helpers
 
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
-from openvino._pyopenvino import Op
 from openvino._pyopenvino import OpExtension
 
 # Import opsets

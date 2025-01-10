@@ -45,7 +45,7 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
 }
 
 const ov::op::Op::type_info_t& PyOp::get_type_info() const {
-    std::cout << reinterpret_cast<size_t>(m_type_info.get())  << std::endl;
+    // std::cout << reinterpret_cast<size_t>(m_type_info.get())  << std::endl;
     return *m_type_info;
 }
 
@@ -57,6 +57,23 @@ bool PyOp::has_evaluate() const {
     PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
 }
 
+void PyOp::initialize_type_info() {
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    std::cout << "jello" << std::endl;
+    // Try to look up the overridden method on the Python side.
+    py::function overriden_py_method = pybind11::get_override(this, "get_type_info");
+    if (overriden_py_method) {
+        // TODO: Write a test on this behavior!
+        std::cout << "use type name" << std::endl;
+        const auto type_info_from_py = overriden_py_method();
+        if (!py::isinstance<ov::DiscreteTypeInfo>(type_info_from_py)) {
+            // TODO: Rewrite me?
+            OPENVINO_THROW("operation type_info must be an instance of DiscreteTypeInfo, but ", py::str(py::type::of(type_info_from_py)), " is passed.");
+        }
+        m_type_info = type_info_from_py.cast<std::shared_ptr<ov::DiscreteTypeInfo>>();
+    }
+}
+
 void regclass_graph_Op(py::module m) {
     py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node> op(m, "Op");
 
@@ -65,14 +82,8 @@ void regclass_graph_Op(py::module m) {
         return PyOp(py_obj);
     }));
 
-    op.def(py::init([](const py::object& py_obj, const py::object& inputs) {
-        return PyOp(py_obj, inputs);
-    }));
-
-    // op.def(py::init([](const py::object& py_obj, py::object& inputs) {
-    //     if (inputs.is_none()) {
-    //         return PyOp(py_obj);
-    //     }
-    //     return PyOp(py_obj);
-    // }), py::arg("py_obj"), py::arg("inputs"));
+    op.def("_initialize_type_info", [](PyOp& self){
+        std::cout << "init ti" << std::endl;
+        self.initialize_type_info();
+    });
 }

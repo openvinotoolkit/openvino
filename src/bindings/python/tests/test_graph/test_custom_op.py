@@ -56,12 +56,13 @@ class CustomAdd(Op):
     class_type_info = DiscreteTypeInfo("CustomAdd", "extension")
 
     def __init__(self, inputs=None):
-        super().__init__(self)
-        if inputs is not None:
-            self.set_arguments(inputs)
-            self.constructor_validate_and_infer_types()
+        super().__init__(self, inputs)
+        # if inputs is not None:
+        #     self.set_arguments(inputs)
+        #     self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
+        print("from validate")
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
     def clone_with_new_inputs(self, new_inputs):
@@ -87,11 +88,12 @@ class CustomOpWithAttribute(Op):
     class_type_info = DiscreteTypeInfo("CustomOpWithAttribute", "extension")
 
     def __init__(self, inputs=None, attrs=None):
-        super().__init__(self)
-        if attrs is not None or inputs is not None:
-            self._attrs = attrs
-            self.set_arguments(inputs)
-            self.constructor_validate_and_infer_types()
+        super().__init__(self, inputs)
+        self._attrs = attrs
+        # if attrs is not None or inputs is not None:
+        #     self._attrs = attrs
+        #     self.set_arguments(inputs)
+        #     self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
@@ -212,12 +214,9 @@ class CustomSimpleOp(Op):
 class CustomSimpleOpWithAttribute(Op):
     class_type_info = DiscreteTypeInfo("CustomSimpleOpWithAttribute", "extension")
 
-    def __init__(self, inputs=None, attrs=None):
-        super().__init__(self)
+    def __init__(self, inputs=None, **attrs):
+        super().__init__(self, inputs)
         self._attrs = attrs
-        if attrs is not None or inputs is not None:
-            self.set_arguments(inputs)
-            self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
@@ -249,7 +248,7 @@ def test_op_extension(prepared_paths):
     custom_simple = CustomSimpleOp(inputs=[param1, param2])
     print("6")
     custom_simple.set_friendly_name("test_add")
-    custom_with_attribute = CustomSimpleOpWithAttribute(inputs=[custom_simple], attrs={"value_str": "test_attribute"})
+    custom_with_attribute = CustomSimpleOpWithAttribute(inputs=[custom_simple], value_str="test_attribute")
     custom_add = CustomAdd(inputs=[custom_with_attribute])
     res = ops.result(custom_add, name="result")
     simple_model = Model(res, [param1, param2], "SimpleModel")
@@ -291,4 +290,4 @@ def test_fail_create_op_extension():
 
     with pytest.raises(RuntimeError) as e:
         core.add_extension(OpWithBadClassTypeInfo)
-    assert "operation type_info must be an instance of DiscreteTypeInfo, but <class \'str\'> is passed." in str(e.value)
+    assert "operation type_info must be an instance of DiscreteTypeInfo, but <class 'str'> is passed." in str(e.value)
