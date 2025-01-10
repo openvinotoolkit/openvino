@@ -20,13 +20,18 @@
 #include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
-#include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
 #include "utils/plain_tensor.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/kernels/x64/brgemm_kernel.hpp"
+#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+#    include "arm_sve.h"
+#    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
+#endif
 
 namespace ov {
 namespace Extensions {
@@ -37,7 +42,7 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 // currently depends on brgemm which only support x64
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
 #    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 
@@ -1241,8 +1246,10 @@ struct MHAHelper {
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
     // will accumulate C buffer
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
-    // second token
+// second token
+#    if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<JitMatMulVecAMX> _gemv;
+#    endif
     ov::element::Type _fastpath_valid_prec = ov::element::undefined;
     // second token for bhl loop
     PlainTensor _weight_bhl;
@@ -1347,6 +1354,7 @@ struct MHAHelper {
             _wv_scratch_a.resize<DATA_TYPE>(
                 {_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
 
+#    if defined(OPENVINO_ARCH_X86_64)
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
                     precision_of<DATA_TYPE>::value == ov::element::bf16 &&
@@ -1363,6 +1371,7 @@ struct MHAHelper {
                                                           static_cast<int>(block_size),
                                                           _fastpath_valid_prec);
             }
+#    endif
         }
 
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
@@ -1564,6 +1573,7 @@ struct MHAHelper {
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
                             float* score_output) {
+#    if defined(OPENVINO_ARCH_X86_64)
         if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -1578,6 +1588,7 @@ struct MHAHelper {
             }
             _gemv->tile_release();
         } else {
+#    endif
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
@@ -1591,7 +1602,9 @@ struct MHAHelper {
                     }
                 }
             }
+#    if defined(OPENVINO_ARCH_X86_64)
         }
+#    endif
 
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
@@ -1711,6 +1724,7 @@ struct MHAHelper {
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
+#    if defined(OPENVINO_ARCH_X86_64)
                 if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
@@ -1722,6 +1736,7 @@ struct MHAHelper {
                     }
                     _gemv->tile_release();
                 } else {
+#    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
                             dot_product_block(query.ptr<DATA_TYPE>(b, h, pq),
@@ -1732,7 +1747,9 @@ struct MHAHelper {
                                               _key_group_size);
                         }
                     }
+#    if defined(OPENVINO_ARCH_X86_64)
                 }
+#    endif
             }
         };
 
@@ -2409,7 +2426,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          size_t value_group_size) {
     std::shared_ptr<PagedAttentionExecutor> executor;
 
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
@@ -2479,8 +2496,18 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
+#elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
+    if (data_type == ov::element::f32) {
+        if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
+            executor =
+                std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size, value_group_size);
+        } else {
+            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+        }
+    }
+
 #else
-    OPENVINO_THROW("make_pa_executor: only support x64 platform");
+    OPENVINO_THROW("make_pa_executor: only support x64 platform or ARM with SVE support");
 #endif
     return executor;
 }
