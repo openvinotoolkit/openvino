@@ -1130,6 +1130,8 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v1::Mod>(n) || ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
                 ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v1::Greater>(n) ||
+                ov::is_type<ov::op::v1::GreaterEqual>(n) || ov::is_type<ov::op::v1::LessEqual>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,

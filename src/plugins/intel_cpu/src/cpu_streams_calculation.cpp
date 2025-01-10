@@ -727,7 +727,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            config.enableCpuReservation,
                                                            cpu_pinning,
-                                                           streams_info_table,
+                                                           std::move(streams_info_table),
                                                            {},
                                                            false};
     return proc_type_table;
