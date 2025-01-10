@@ -8,7 +8,10 @@ Benchmark Tool
                  devices.
 
 
-This page demonstrates how to use the Benchmark Tool to estimate deep learning inference performance on supported devices.
+This page demonstrates how to use the Benchmark Tool to estimate deep learning inference
+performance on supported devices. Note that the MULTI plugin mentioned here is considered
+a legacy tool and currently is just a mapping of the
+:doc:`AUTO plugin <../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`.
 
 .. note::
 
