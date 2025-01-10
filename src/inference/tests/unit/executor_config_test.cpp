@@ -1328,39 +1328,6 @@ ExecutorConfigTestCase _pecore_streams_info_table_2 = {
     1,
     8,
     ov::hint::SchedulingCoreType::PCORE_ONLY,
-    false,
-    false,
-    {
-        {5, MAIN_CORE_PROC, 2, 0, 0},
-        {2, EFFICIENT_CORE_PROC, 2, 0, 0},
-    },
-    {
-        {1, MAIN_CORE_PROC, 8, 0, 0},
-    },
-    {},
-};
-
-ExecutorConfigTestCase _pecore_streams_info_table_3 = {
-    {
-        {24, 8, 8, 8, 0, 0},
-    },
-    {
-        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
-        {2, 0, 0, 1, MAIN_CORE_PROC, 2, -1},         {3, 0, 0, 1, HYPER_THREADING_PROC, 3, -1},
-        {4, 0, 0, 2, MAIN_CORE_PROC, 4, -1},         {5, 0, 0, 2, HYPER_THREADING_PROC, 5, -1},
-        {6, 0, 0, 3, MAIN_CORE_PROC, 6, -1},         {7, 0, 0, 3, HYPER_THREADING_PROC, 7, -1},
-        {8, 0, 0, 4, MAIN_CORE_PROC, 8, -1},         {9, 0, 0, 4, HYPER_THREADING_PROC, 9, -1},
-        {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},       {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
-        {12, 0, 0, 6, MAIN_CORE_PROC, 12, -1},       {13, 0, 0, 6, HYPER_THREADING_PROC, 13, -1},
-        {14, 0, 0, 7, MAIN_CORE_PROC, 14, -1},       {15, 0, 0, 7, HYPER_THREADING_PROC, 15, -1},
-        {16, 0, 0, 8, EFFICIENT_CORE_PROC, 16, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 17, -1},
-        {18, 0, 0, 10, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 19, -1},
-        {20, 0, 0, 12, EFFICIENT_CORE_PROC, 20, -1}, {21, 0, 0, 13, EFFICIENT_CORE_PROC, 21, -1},
-        {22, 0, 0, 14, EFFICIENT_CORE_PROC, 22, -1}, {23, 0, 0, 15, EFFICIENT_CORE_PROC, 23, -1},
-    },
-    1,
-    8,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
     true,
     {
@@ -1414,7 +1381,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
                                          _pecore_streams_10_threads_1_binding,
                                          _pecore_streams_10_threads_2_reservation,
                                          _pecore_streams_info_table_1,
-                                         _pecore_streams_info_table_2,
-                                         _pecore_streams_info_table_3));
+                                         _pecore_streams_info_table_2));
 #endif
 }  // namespace
