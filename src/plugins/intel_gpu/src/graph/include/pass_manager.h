@@ -9,6 +9,7 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "read_value_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -87,6 +88,16 @@ public:
 
 private:
     void run(program& p) override;
+};
+
+class mark_state_init_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into state initializer subgraphs
+public:
+    mark_state_init_subgraphs() : base_pass("mark_state_init_subgraphs") {}
+
+private:
+    void run(program& p) override;
+    void mark_init_subgraph(program& p, read_value_node& node);
 };
 
 class mark_shape_of_subgraphs : public base_pass {

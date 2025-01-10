@@ -104,6 +104,7 @@ macro(ov_check_compiler_supports_sve flags)
     int main() {
         svfloat64_t a;
         a = svdup_n_f64(0);
+        (void)a; // to avoid warnings
         return 0;
     }")
 
@@ -259,7 +260,6 @@ endmacro()
 macro(ov_arm_sve_optimization_flags flags)
     # Check for compiler SVE support
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
-
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -448,6 +448,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/bigobj)
     # Build with multiple processes
     ov_add_compiler_flags(/MP)
+
+    # Specifies both the source character set and the execution character set as UTF-8.
+    # For details, refer to link: https://learn.microsoft.com/en-us/cpp/build/reference/utf-8-set-source-and-executable-character-sets-to-utf-8?view=msvc-170
+    ov_add_compiler_flags(/utf-8)
 
     # Workaround for an MSVC compiler issue in some versions of Visual Studio 2022.
     # The issue involves a null dereference to a mutex. For details, refer to link https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
