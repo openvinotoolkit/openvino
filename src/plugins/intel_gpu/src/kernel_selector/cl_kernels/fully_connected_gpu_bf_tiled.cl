@@ -352,7 +352,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     // =====================================================================================================================================
     // Main computation loop
     uint iterations = MAIN_LOOP_ELEMENTS_COUNT / (TILE_IFM * SIMD);
-    const uint B_PITCH_MAX = min((uint)((BATCH_SIZE-out_b) * (SIMD/INPUT0_TYPE_SIZE)), (uint)TILE_IN_B_PITCH);
+    const uint B_PITCH_MAX = (INPUT_ELEMENTS_COUNT % TILE_IN_B_PITCH) ? 
+           min((uint)((BATCH_SIZE-out_b) * (SIMD/INPUT0_TYPE_SIZE)), (uint)TILE_IN_B_PITCH) : TILE_IN_B_PITCH;
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
         // Load input.
