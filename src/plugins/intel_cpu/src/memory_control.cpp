@@ -354,13 +354,6 @@ public:
         auto result = calculateOptimalMemorySize(std::move(tmp_boxes));
         retVal.optimal_total_size = result.first;
         retVal.max_region_size = result.second;
-
-        // retVal.max_region_size = std::accumulate(m_internalBlocks.begin(),
-        //                                         m_internalBlocks.end(),
-        //                                         0,
-        //                                         [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
-        //                                             return std::max(acc, item.second->size());
-        //                                         });
         return retVal;
     }
 
@@ -458,9 +451,11 @@ public:
         m_memManager->release();
     }
 
+#ifdef CPU_DEBUG_CAPS
     MemoryStatisticsRecord dumpStatistics() const {
         return m_memManager->dumpStatistics();
     }
+#endif
 
 private:
     Condition m_cond;
@@ -548,6 +543,7 @@ void MemoryControl::releaseMemory() {
     m_allocated = false;
 }
 
+#ifdef CPU_DEBUG_CAPS
 MemoryStatistics MemoryControl::dumpStatistics() const {
     MemoryStatistics profileData;
     for (auto&& handler : m_handlers) {
@@ -555,6 +551,7 @@ MemoryStatistics MemoryControl::dumpStatistics() const {
     }
     return profileData;
 }
+#endif
 
 EdgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     typedef std::unordered_map<EdgePtr, size_t> edge_cluster_idx_map_t;
@@ -617,11 +614,15 @@ void NetworkMemoryControl::releaseMemory() {
 }
 
 std::unordered_map<std::string, MemoryStatistics> NetworkMemoryControl::dumpStatistics() const {
+#ifdef CPU_DEBUG_CAPS
     std::unordered_map<std::string, MemoryStatistics> retVal;
     for (auto&& item : m_controlUnits) {
         retVal.insert({item->getId(), item->dumpStatistics()});
     }
     return retVal;
+#else
+    return {};
+#endif
 }
 
 }  // namespace intel_cpu

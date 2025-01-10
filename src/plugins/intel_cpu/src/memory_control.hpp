@@ -21,6 +21,7 @@ struct MemoryRegion {
     enum class AllocType : uint8_t { POD, STRING, UNKNOWN } alloc_type;
 };
 
+using MemoryRegions = std::vector<MemoryRegion>;
 struct MemoryStatisticsRecord {
     const char* id;
     size_t total_regions;        // number of regions
@@ -33,7 +34,6 @@ struct MemoryStatisticsRecord {
 std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
 
 using MemoryStatistics = std::vector<MemoryStatisticsRecord>;
-using MemoryRegions = std::vector<MemoryRegion>;
 
 class MemoryControl {
 public:
@@ -56,8 +56,6 @@ public:
     void allocateMemory();
     void releaseMemory();
 
-    MemoryStatistics dumpStatistics() const;
-
     const std::string& getId() const {
         return m_id;
     }
@@ -65,6 +63,7 @@ public:
 private:
     explicit MemoryControl(std::string id);
     void insert(const MemoryRegion& region, const std::vector<size_t>& syncInds);
+    MemoryStatistics dumpStatistics() const;
 
     friend class NetworkMemoryControl;
 
