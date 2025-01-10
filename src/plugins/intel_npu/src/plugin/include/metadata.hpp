@@ -73,6 +73,9 @@ constexpr uint32_t METADATA_VERSION_1_0{MetadataBase::make_version(1, 0)};
  */
 constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_1_0};
 
+constexpr uint32_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
+constexpr uint32_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
+
 struct OpenvinoVersion {
 private:
     std::string _version;

@@ -77,6 +77,11 @@ void Metadata<METADATA_VERSION_1_0>::write(std::ostream& stream) {
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
+    if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
+        MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
+        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt);
+    }
+
     switch (version) {
     case METADATA_VERSION_1_0:
         return std::make_unique<Metadata<METADATA_VERSION_1_0>>(blobSize, std::nullopt);
@@ -94,13 +99,14 @@ bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
     auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
     if (_ovVersion.get_version() != ov::get_openvino_version().buildNumber) {
-        logger.warning("Imported blob OpenVINO version: %s, but the current OpenVINO version is: %s",
-                       _ovVersion.get_version().c_str(),
-                       ov::get_openvino_version().buildNumber);
+        logger.error("Imported blob OpenVINO version: %s, but the current OpenVINO version is: %s",
+                     _ovVersion.get_version().c_str(),
+                     ov::get_openvino_version().buildNumber);
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
         if (auto envVar = std::getenv("NPU_DISABLE_VERSION_CHECK")) {
             if (envVarStrToBool("NPU_DISABLE_VERSION_CHECK", envVar)) {
+                // message that blob was skipped
                 return true;
             }
         }
@@ -134,15 +140,18 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     try {
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(stream);
-    } catch (...) {
-        OPENVINO_THROW("Imported blob metadata version: ",
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what(),
+                       "Imported blob metadata version: ",
                        MetadataBase::get_major(metaVersion),
                        ".",
                        MetadataBase::get_minor(metaVersion),
                        " but the current version is: ",
-                       MetadataBase::get_major(CURRENT_METADATA_VERSION),
+                       CURRENT_METADATA_MAJOR_VERSION,
                        ".",
-                       MetadataBase::get_minor(CURRENT_METADATA_VERSION));
+                       CURRENT_METADATA_MINOR_VERSION);
+    } catch (...) {
+        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
