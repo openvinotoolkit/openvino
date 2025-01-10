@@ -69,7 +69,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> make_data(&has_scores_output, sizeof(bool));
-        ib >> make_data(&has_rotation_coefficients, sizeof(bool));
+        ib >> make_data(&has_rotated_blocks, sizeof(bool));
         if (is_dynamic()) {
             auto& kv_cache_update_kernel_selector = kv_cache_update_kernel_selector_t::Instance();
             auto kv_cache_update_kernel_impl = kv_cache_update_kernel_selector.GetImplementation(_kernels_data[Stage::KV_CACHE_UPDATE].kernelName);
@@ -83,7 +83,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             auto pa_sdpa_kernel_impl = pa_sdpa_kernel_selector.GetImplementation(_kernels_data[Stage::PA_SDPA].kernelName);
             pa_sdpa_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[Stage::PA_SDPA]);
 
-            if (has_rotation_coefficients) {
+            if (has_rotated_blocks) {
                 auto& kv_cache_rotate_kernel_selector = kv_cache_rotate_kernel_selector_t::Instance();
                 auto kv_cache_rotate_kernel_impl = kv_cache_rotate_kernel_selector.GetImplementation(_kernels_data[Stage::KV_CACHE_ROTATE].kernelName);
                 kv_cache_rotate_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[Stage::KV_CACHE_ROTATE]);
@@ -94,7 +94,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << make_data(&has_scores_output, sizeof(bool));
-        ob << make_data(&has_rotation_coefficients, sizeof(bool));
+        ob << make_data(&has_rotated_blocks, sizeof(bool));
     }
 
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
@@ -347,7 +347,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         std::vector<event::ptr> res_events;
         std::vector<event::ptr> dep_events = events;
-        if (has_rotation_coefficients) {
+        if (has_rotated_blocks) {
             execute_stage(dep_events, instance, res_events, Stage::KV_CACHE_ROTATE, is_mixed_mode);
             dep_events = res_events;
         }
@@ -472,7 +472,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             config.has_const_scale_val = false;
         }
 
-        config.has_rotation_coefficients_input = desc->has_rotation_coefficients;
+        config.has_rotated_blocks = desc->has_rotated_blocks;
 
         if (desc->heads_num != desc->kv_heads_num) {
             config.broadcast_axis = 1;
@@ -752,7 +752,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         for (const auto& input_layout : impl_param.input_layouts)
             input_tensors.emplace_back(convert_data_tensor(input_layout));
 
-        if (has_rotation_coefficients) {
+        if (has_rotated_blocks) {
             auto kv_cache_rotate_kernel_params = get_kv_cache_rotate_kernel_params(impl_param, input_tensors, impl_param.is_dynamic());
             (_kernels_data[Stage::KV_CACHE_ROTATE].update_dispatch_data_func)(kv_cache_rotate_kernel_params, _kernels_data[Stage::KV_CACHE_ROTATE]);
         }
@@ -792,7 +792,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto& pa_sdpa_kernel_selector = pa_sdpa_kernel_selector_t::Instance();
         kernels_data.push_back(pa_sdpa_kernel_selector.get_best_kernel(pa_sdpa_kernel_params));
 
-        if (desc->has_rotation_coefficients) {
+        if (desc->has_rotated_blocks) {
             auto kv_cache_rotate_kernel_params = get_kv_cache_rotate_kernel_params(impl_param, input_tensors, impl_param.is_dynamic());
             auto& kv_cache_rotate_kernel_selector = kv_cache_rotate_kernel_selector_t::Instance();
             kernels_data.push_back(kv_cache_rotate_kernel_selector.get_best_kernel(kv_cache_rotate_kernel_params));
@@ -800,14 +800,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         auto impl = cldnn::make_unique<paged_attention_impl>(kernels_data);
         impl->has_scores_output = desc->has_scores_output();
-        impl->has_rotation_coefficients = desc->has_rotation_coefficients;
+        impl->has_rotated_blocks = desc->has_rotated_blocks;
 
         return impl;
     }
 
 private:
     bool has_scores_output = false;
-    bool has_rotation_coefficients = false;
+    bool has_rotated_blocks = false;
 };
 
 namespace detail {

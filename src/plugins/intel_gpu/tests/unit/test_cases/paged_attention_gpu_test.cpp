@@ -752,7 +752,7 @@ public:
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
         pa_prim.num_outputs = p.scores_output ? 2 : 1;
-        pa_prim.has_rotation_coefficients = p.rotation_config.apply_rotation;
+        pa_prim.has_rotated_blocks = p.rotation_config.apply_rotation;
 
         topology topology;
 
