@@ -489,7 +489,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
-                                       const ov::AnyMap& properties,
                                        const bool serialized)
     : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
@@ -610,6 +609,9 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     // Write device list
     write(stream, m_dev_list);
 
+    // Write config
+    write(stream, m_cfg);
+
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
     for (const auto& subm : m_compiled_submodels) {
@@ -635,8 +637,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::istream& stream,
-    const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& properties) {
+    const std::shared_ptr<const ov::IPlugin>& plugin) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
@@ -656,7 +657,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
 
-    auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, properties, true);
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
 
     // Deserialize meta
     compiled->m_name = model_name;
@@ -668,13 +669,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     // Deserialize device list
     read(stream, compiled->m_dev_list);
 
-    // Drop NPUW-related properties from the config for submodels import
-    std::map<std::string, ov::Any> non_npuw_props;
-    for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_LLM") == it->first.npos && it->first.find("NPUW") == it->first.npos) {
-            non_npuw_props.insert(*it);
-        }
-    }
+    // Deserialize config
+    read(stream, compiled->m_cfg);
 
     // Deserialize compiled submodels
     std::size_t subm_size = 0;
@@ -691,14 +687,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             // FIXME: workaround for import/export model since import model seems to reset the file pointer
             std::string buf;
             read(stream, buf);
-
-            // FIXME: extra copy
-            std::stringstream buffer;
-            buffer.write(&buf[0], buf.size());
-
-            // No NPUW properties are present in this config
+            std::stringstream buffer(buf);
             compiled->m_compiled_submodels[i].compiled_model =
-                plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx], non_npuw_props);
+                plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
         }
         compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
         compiled->m_compiled_submodels[i].deserialize(stream);

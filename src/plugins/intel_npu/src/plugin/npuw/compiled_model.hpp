@@ -42,7 +42,6 @@ public:
                   const ov::AnyMap& properties);
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const ov::AnyMap& properties,
                   const bool serialized);
 
     void export_model(std::ostream& model) const override;
@@ -73,8 +72,7 @@ private:
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      const ov::AnyMap& properties);
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be

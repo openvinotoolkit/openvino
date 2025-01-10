@@ -165,19 +165,18 @@ void Bank::serialize(std::ostream& stream) const {
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    // For now only a singular device is supported
-    // Sanity check
-    NPUW_ASSERT(m_device_banks.size() == 1 && "Bank containing several devices can't be serialized");
-    auto it_cpu = m_device_banks.find("CPU");
-    auto it = it_cpu == m_device_banks.end() ? m_device_banks.find("NPU") : it_cpu;
+    write(stream, m_device_banks.size());
 
-    const auto& device_bank = it->second;
-    std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
-    write(stream, it->first);
-    write(stream, device_bank.storage.size());
-    for (const auto& t_pair : device_bank.storage) {
-        write(stream, t_pair.first);
-        write(stream, t_pair.second.tensor);
+    for (const auto& elem : m_device_banks) {
+        const auto& device = elem.first;
+        const auto& device_bank = elem.second;
+        std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
+        write(stream, device);
+        write(stream, device_bank.storage.size());
+        for (const auto& t_pair : device_bank.storage) {
+            write(stream, t_pair.first);
+            write(stream, t_pair.second.tensor);
+        }
     }
 
     LOG_INFO("DONE.");
@@ -191,19 +190,21 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream,
     LOG_INFO("Deserializing weights bank...");
     LOG_BLOCK();
 
-    // For now only a singular device is supported
-    std::string device;
-    read(stream, device);
+    auto bank = ov::npuw::weights::bank(name, core, "");
 
-    // Note: bank is assumed to be shared
-    auto bank = ov::npuw::weights::bank(name, core, device);
     std::size_t bank_size = 0;
     read(stream, bank_size);
 
     for (std::size_t i = 0; i < bank_size; ++i) {
-        int64_t uid = -1;
-        read(stream, uid);
-        bank->read_and_add_tensor(stream, uid, device);
+        std::string device;
+        read(stream, device);
+        std::size_t storage_size = 0;
+        read(stream, storage_size);
+        for (std::size_t i = 0; i < bank_size; ++i) {
+            int64_t uid = -1;
+            read(stream, uid);
+            bank->read_and_add_tensor(stream, uid, device);
+        }
     }
 
     LOG_INFO("DONE.");

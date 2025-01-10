@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -13,7 +14,10 @@
 #include <unordered_set>
 #include <vector>
 
-const constexpr uint64_t NPUW_SERIALIZATION_INDICATOR = 0x0123456789abcdef;
+const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
+    {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.0";
 
 // Forward declaration
 namespace intel_npu {
@@ -59,18 +63,22 @@ void read(std::istream& stream, bool& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
-void read(std::istream& stream, std::vector<std::shared_ptr<ov::op::v0::Parameter>>& var);
-void read(std::istream& stream, std::vector<std::shared_ptr<ov::Node>>& var);
+void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
+void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
 
 // Forward declaration
 template <typename T1, typename T2>
 void write(std::ostream& stream, const std::pair<T1, T2>& var);
 template <typename T>
 void write(std::ostream& stream, const std::vector<T>& var);
+template <typename T, size_t N>
+void write(std::ostream& stream, const std::array<T, N>& var);
 template <typename T1, typename T2>
 void read(std::istream& stream, std::pair<T1, T2>& var);
 template <typename T>
 void read(std::istream& stream, std::vector<T>& var);
+template <typename T, std::size_t N>
+void read(std::istream& stream, std::array<T, N>& var);
 
 // Serialization
 template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
@@ -87,6 +95,13 @@ void write(std::ostream& stream, const std::pair<T1, T2>& var) {
 template <typename T>
 void write(std::ostream& stream, const std::vector<T>& var) {
     write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el);
+    }
+}
+
+template <typename T, size_t N>
+void write(std::ostream& stream, const std::array<T, N>& var) {
     for (const auto& el : var) {
         write(stream, el);
     }
@@ -140,6 +155,15 @@ void read(std::istream& stream, std::vector<T>& var) {
         T elem;
         read(stream, elem);
         var.push_back(elem);
+    }
+}
+
+template <typename T, std::size_t N>
+void read(std::istream& stream, std::array<T, N>& var) {
+    for (std::size_t i = 0; i < N; ++i) {
+        T elem;
+        read(stream, elem);
+        var[i] = elem;
     }
 }
 

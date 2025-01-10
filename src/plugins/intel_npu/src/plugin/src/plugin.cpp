@@ -756,24 +756,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 
-    // If NPUW is active - import via NPUW
-    auto useNpuwKey = ov::intel_npu::use_npuw.name();
-    ov::AnyMap localProperties = properties;
-    if (localProperties.count(useNpuwKey) && localProperties.at(useNpuwKey).as<bool>() == true) {
-        auto llm_enabled = ov::intel_npu::npuw::llm::enabled.name();
-        // Only dynamic stateful models are supported for now supported
-        if (!localProperties.count(llm_enabled) || localProperties.at(llm_enabled).as<bool>() == false) {
-            OPENVINO_THROW("Cannot import non-dynamic NPUW model!");
-        }
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), localProperties);
-    }
-
     // If was exported via NPUW
-    uint64_t serialization_indicator;
-    stream.read(reinterpret_cast<char*>(&serialization_indicator), sizeof serialization_indicator);
+    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
         stream.seekg(0);
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), localProperties);
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
     }
     stream.seekg(0);
 

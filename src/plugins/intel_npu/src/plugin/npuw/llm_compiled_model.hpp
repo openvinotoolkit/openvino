@@ -30,14 +30,12 @@ public:
                      const ov::AnyMap& properties);
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                     const ov::AnyMap& properties,
                      const bool serialized);
     LLMCompiledModel() = delete;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
-                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                         const ov::AnyMap& properties);
+                                                         const std::shared_ptr<const ov::IPlugin>& plugin);
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
