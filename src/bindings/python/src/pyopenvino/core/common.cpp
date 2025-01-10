@@ -153,13 +153,13 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
             new_strides[i] = (new_strides[i] / element_stride) * max_stride;
         }
         array = py::array(dtype, t.get_shape(), new_strides);
-        // Create an empty array and populate it with utf-8 encoded strings:
-        auto ptr = reinterpret_cast<char*>(array.mutable_data());
-        for (size_t i = 0; i < t.get_size(); ++i) {
-            const auto length = data[i].length();
-            ptr = std::copy_n(data[i].begin(), length, ptr);
-            ptr = std::fill_n(ptr, max_stride - length, '\0');
-        }
+    }
+    // Create an empty array and populate it with utf-8 encoded strings:
+    auto ptr = reinterpret_cast<char*>(array.mutable_data());
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        const auto length = data[i].length();
+        ptr = std::copy_n(data[i].begin(), length, ptr);
+        ptr = std::fill_n(ptr, max_stride - length, '\0');
     }
     return array;
 }
