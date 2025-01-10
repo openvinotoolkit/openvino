@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,15 @@ public:
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const ov::AnyMap& properties);
+    LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
+                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                     const bool serialized);
     LLMCompiledModel() = delete;
+
     void export_model(std::ostream& model) const override;
+    static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
+                                                         const std::shared_ptr<const ov::IPlugin>& plugin);
+
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -42,6 +49,7 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
+    std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;

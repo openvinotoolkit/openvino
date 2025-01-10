@@ -423,6 +423,8 @@ public:
 
     std::string toString() const;
 
+    void fromString(const std::string& str);
+
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
