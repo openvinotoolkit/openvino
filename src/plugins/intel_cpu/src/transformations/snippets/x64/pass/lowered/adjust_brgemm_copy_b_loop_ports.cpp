@@ -20,7 +20,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     bool modified = false;
     auto caller = [&](snippets::lowered::LoopPort& loop_port,
                       snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
-        const auto& p = *loop_port.expr_port;
+        const auto& p = *loop_port.get_expr_port();
         if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
             const auto& node = p.get_expr()->get_node();
             if (auto brg = as_type_ptr<BrgemmCPU>(node)) {
@@ -31,9 +31,9 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                  *  2) Zero padding is applied if N4k < 256 or N2k < 64
                  */
                 if (brgemm_utils::with_repacking(brg->get_type()) && precision != element::f32 &&
-                    loop_port.is_incremented) {
+                    loop_port.is_incremented()) {
                     // K blocking loop: account for zero padding
-                    if (loop_port.dim_idx == 1) {
+                    if (loop_port.get_dim_idx() == 1) {
                         const auto ptr_incr = loop_desc.ptr_increment;
                         const auto blocked_shape_ptr_inc = brgemm_utils::repacking::compute_LDB(ptr_incr, precision);
                         if (ptr_incr != 0 && ptr_incr != blocked_shape_ptr_inc) {
@@ -44,7 +44,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                                 loop_desc.ptr_increment * (loop_desc.finalization_offset / ptr_incr);
                         }
                         // N blocking loop: account for the VNNI format
-                    } else if (loop_port.dim_idx == 0) {
+                    } else if (loop_port.get_dim_idx() == 0) {
                         auto k_blk_size = static_cast<int64_t>(brgemm_utils::compute_vnni_factor(precision));
                         loop_desc.ptr_increment =
                             snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_blk_size);

@@ -23,7 +23,7 @@ bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const Uni
     const auto current_dim_idx = loop_to_split->get_dim_idx();
     const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
     const auto& handlers = loop_to_split->get_handlers();
-    const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
+    const bool equal_dim_idxes = current_dim_idx != LoopPort::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
     const bool only_main_body = handlers.get_passes<SpecificLoopIterType::FIRST_ITER>().empty() &&
                                 handlers.get_passes<SpecificLoopIterType::LAST_ITER>().empty();
     return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
@@ -47,7 +47,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         const auto& loop_id = loop_ids.front();
         const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
         for (const auto& input_port : loop->get_input_ports()) {
-            const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
+            const auto& parent_port = input_port.get_expr_port()->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
             const auto& parent_loop_ids = parent_expr->get_loop_ids();
             if (parent_loop_ids.empty())
@@ -141,7 +141,7 @@ bool SplitLoops::TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::con
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& outer_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(loop_end->get_id());
     const auto current_dim_idx = outer_loop_info->get_dim_idx();
-    OPENVINO_ASSERT(current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX,
+    OPENVINO_ASSERT(current_dim_idx != LoopPort::UNDEFINED_DIM_IDX,
                     "Outer splitted loop unexpectedly iterates by several dimension indices");
 
     bool modified = false;

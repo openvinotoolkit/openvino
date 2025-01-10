@@ -24,8 +24,8 @@ std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
         loop_ids_need_extract.push_back(p.first);
 
     auto sorter = [&](size_t lhs, size_t rhs) {
-        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().expr_port->get_expr();
-        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().expr_port->get_expr();
+        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().get_expr_port()->get_expr();
+        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().get_expr_port()->get_expr();
         // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop IDs.
         if (lhs_last_expr == rhs_last_expr) {
             for (const auto& id : lhs_last_expr->get_loop_ids()) {
@@ -50,9 +50,9 @@ void remove_last_loop_id(const std::shared_ptr<Expression>& expr) {
 }
 
 int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
-    const auto& expr_port = loop_port.expr_port;
+    const auto& expr_port = loop_port.get_expr_port();
     const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
-    size_t shape_dim_idx = utils::get_dim_idx(*expr_port, loop_port.dim_idx);
+    size_t shape_dim_idx = utils::get_dim_idx(*expr_port, loop_port.get_dim_idx());
     int64_t stride = utils::get_stride(shape_dim_idx, shape);
     if (utils::is_dynamic_value(stride) || utils::is_dynamic_value(shape[shape_dim_idx])) {
         return utils::get_dynamic_value<int64_t>();
@@ -89,7 +89,7 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
         if (is_loop_port) {
             // stride is not 1 after move to outside, then should not extract.
             const auto& loop_port = inner_loop_info->get_loop_port(expr_input_ports[i]);
-            if (get_stride_after_move_outer(loop_port) != 1) {
+            if (!loop_port.is_processed() || get_stride_after_move_outer(loop_port) != 1) {
                 return false;
             }
         }
@@ -150,7 +150,7 @@ std::vector<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loo
     std::vector<ExpressionPtr> input_exprs;
     std::unordered_set<ExpressionPtr> seen_exprs;
     for (size_t port_num = 0; port_num < loop_in_ports.size(); ++port_num) {
-        const auto& expr = loop_in_ports[port_num].expr_port->get_expr();
+        const auto& expr = loop_in_ports[port_num].get_expr_port()->get_expr();
         if (seen_exprs.count(expr) == 0) {
             input_exprs.push_back(expr);
             seen_exprs.insert(expr);
