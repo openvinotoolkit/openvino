@@ -54,6 +54,7 @@ public:
     template<LoopPort::Type T,
              typename std::enable_if<T == Type::Incremented || T == Type::NotIncremented, bool>::type = true>
     void convert_to_type() {
+        OPENVINO_ASSERT(is_processed(), "NotProcessed LoopPort cannot change type!");
         m_type = T;
     }
 

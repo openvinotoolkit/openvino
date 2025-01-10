@@ -16,6 +16,7 @@ namespace snippets {
 
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::lowered::pass;
+using PortType = LoopPort::Type;
 
 class ExtractLoopInvariantsTest : public LoweredPassTestsF {
 public:
@@ -63,10 +64,10 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithParams) {
         auto begin = multiply.first;
         auto end = result.first;
         linear_ir->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(0)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(1)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0))},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0))});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(0)),
+                                                                       LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(1)),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0))},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0))});
         linear_ir->set_loop_depth(1);
     }
     {
@@ -82,9 +83,9 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithParams) {
         auto begin = sub.first;
         auto end = result.first;
         linear_ir_ref->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
-                                                     std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0)),
-                                                                           LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(1))},
-                                                     std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0))});
+                                                     std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0)),
+                                                                           LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(1))},
+                                                     std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0))});
     }
 }
 
@@ -121,9 +122,9 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithScalar) {
         auto begin = scalar.first;
         auto end = result.first;
         linear_ir->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(0)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0))},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0))});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(0)),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0))},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0))});
         linear_ir->set_loop_depth(1);
     }
     {
@@ -139,9 +140,9 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithScalar) {
         auto begin = sub.first;
         auto end = result.first;
         linear_ir_ref->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
-                                                     std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0)),
-                                                                           LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(1))},
-                                                     std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0))});
+                                                     std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0)),
+                                                                           LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(1))},
+                                                     std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0))});
     }
 }
 
@@ -184,19 +185,19 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed
         auto begin = multiply.first;
         auto end = result1.first;
         linear_ir->get_loop_manager()->mark_loop(begin, end, 16, vector_size,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(0)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(1)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0))},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0)),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0))});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(0)),
+                                                                       LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(1)),
+                                                                       LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0))},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0)),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0))});
         linear_ir->get_loop_manager()->mark_loop(begin, end, 3, 1,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(0), 1),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(1), 1),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 1),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0), 1)},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 1),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0), 1)});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(0), 1),
+                                                                       LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(1), 1),
+                                                                       LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0), 1)},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0), 1)});
         linear_ir->set_loop_depth(2);
     }
     {
@@ -215,22 +216,22 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed
         auto begin_inner = add.first;
         auto end_inner = result1.first;
         {
-            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 0),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1), 0),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0), 0)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 0),
-                                                          LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0), 0)};
+            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                                            LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0),
+                                                            LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0), 0)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0),
+                                                          LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0), 0)};
             linear_ir_ref->get_loop_manager()->mark_loop(begin_inner, end_inner, 16, vector_size, entry_ports, exit_ports);
         }
         {
             auto begin_outer = multiply.first;
             auto end_outer = result1.first;
-            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(0), 1),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(1), 1),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 1),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0), 1)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 1),
-                                                          LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_output_port(0), 1)};
+            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(0), 1),
+                                                            LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(1), 1),
+                                                            LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                                            LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0), 1)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1),
+                                                          LoopPort::create<PortType::Incremented>((*sub.first)->get_output_port(0), 1)};
             linear_ir_ref->get_loop_manager()->mark_loop(begin_outer, end_outer, 3, 1, entry_ports, exit_ports);
         }
     }
@@ -265,15 +266,15 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
         auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
 
         {
-            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*broadcastmove.first)->get_input_port(0), 0),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 0)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 0)};
+            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*broadcastmove.first)->get_input_port(0), 0),
+                                                            LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)};
             linear_ir->get_loop_manager()->mark_loop(broadcastmove.first, result.first, 512, vector_size, entry_ports, exit_ports);
         }
         {
-            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*broadcastmove.first)->get_input_port(0), 1),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 1)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 1)};
+            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*broadcastmove.first)->get_input_port(0), 1),
+                                                            LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)};
             linear_ir->get_loop_manager()->mark_loop(broadcastmove.first, result.first, 3, 1, entry_ports, exit_ports);
         }
 
@@ -289,15 +290,15 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
 
         {
-            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 0),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1), 0)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 0)};
+            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                                            LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)};
             linear_ir_ref->get_loop_manager()->mark_loop(add.first, result.first, 512, vector_size, entry_ports, exit_ports);
         }
         {
-            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0), 1),
-                                                            LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1), 1)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 1)};
+            const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                                            LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 1)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)};
             linear_ir_ref->get_loop_manager()->mark_loop(add.first, result.first, 3, 1, entry_ports, exit_ports);
         }
     }
@@ -329,13 +330,13 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsImpossible) {
         auto result = linear_ir->push_node<ov::opset10::Result>(store.second);
 
         {
-            const auto entry_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*load_reshape.first)->get_input_port(0), 0)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*store.first)->get_output_port(0), 0)};
+            const auto entry_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_reshape.first)->get_input_port(0), 0)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*store.first)->get_output_port(0), 0)};
             linear_ir->get_loop_manager()->mark_loop(load_reshape.first, result.first, 32, 1, entry_ports, exit_ports);
         }
         {
-            const auto entry_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*load_reshape.first)->get_input_port(0), 1)};
-            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*store.first)->get_output_port(0), 1)};
+            const auto entry_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_reshape.first)->get_input_port(0), 1)};
+            const auto exit_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*store.first)->get_output_port(0), 1)};
             linear_ir->get_loop_manager()->mark_loop(load_reshape.first, result.first, 1, 1, entry_ports, exit_ports);
         }
 
@@ -373,17 +374,17 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
         const auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
         const auto& loop_manager = linear_ir->get_loop_manager();
         loop_manager->mark_loop(matmul.first, broadcastmove.first, 128, block_size, 1,
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*matmul.first)->get_input_port(0)),
-                                                      LoopPort::create<LoopPort::Type::NotProcessed>((*matmul.first)->get_input_port(1))},
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*matmul.first)->get_output_port(0))});
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0)),
+                                                      LoopPort::create<PortType::NotProcessed>((*matmul.first)->get_input_port(1))},
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_output_port(0))});
         loop_manager->mark_loop(broadcastmove.first, result.first, 64, vector_size, 0,
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*broadcastmove.first)->get_input_port(0)),
-                                                      LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0))},
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0))});
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*broadcastmove.first)->get_input_port(0)),
+                                                      LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0))},
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
         loop_manager->mark_loop(broadcastmove.first, result.first, 128, 1, 1,
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*broadcastmove.first)->get_input_port(0)),
-                                                      LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0))},
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0))});
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*broadcastmove.first)->get_input_port(0)),
+                                                      LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0))},
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
         ov::snippets::lowered::pass::SplitLoops().run(*linear_ir, linear_ir->begin(), linear_ir->end());
     }
     {
@@ -398,17 +399,17 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
         loop_manager->mark_loop(matmul.first, add.first, 128, block_size, 1,
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*matmul.first)->get_input_port(0)),
-                                                      LoopPort::create<LoopPort::Type::NotProcessed>((*matmul.first)->get_input_port(1))},
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*matmul.first)->get_output_port(0))});
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0)),
+                                                      LoopPort::create<PortType::NotProcessed>((*matmul.first)->get_input_port(1))},
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_output_port(0))});
         loop_manager->mark_loop(add.first, result.first, 64, vector_size, 0,
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0)),
-                                                      LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1))},
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0))});
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
+                                                      LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1))},
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
         loop_manager->mark_loop(add.first, result.first, 128, 1, 1,
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(0)),
-                                                      LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1))},
-                                std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0))});
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
+                                                      LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1))},
+                                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
         ov::snippets::lowered::pass::SplitLoops().run(*linear_ir_ref, linear_ir_ref->begin(), linear_ir_ref->end());
     }
 }
@@ -478,20 +479,19 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
         auto result = linear_ir->push_node<ov::opset10::Result>(multiply.second);
         // 3 inner loop
         linear_ir->get_loop_manager()->mark_loop(max.first, hmax.first, 1, vector_size,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_input_port(0), 0),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_input_port(1), 0)},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_output_port(0), 0)});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(0), 0),
+                                                                       LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(1), 0)},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*max.first)->get_output_port(0), 0)});
         linear_ir->get_loop_manager()->mark_loop(sub.first, hsum.first, 1, vector_size,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(0), 0),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*sub.first)->get_input_port(1), 0),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1), 0)},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*exp.first)->get_output_port(0), 0),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_output_port(0), 0)});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(0), 0),
+                                                                       LoopPort::create<PortType::Incremented>((*sub.first)->get_input_port(1), 0),
+                                                                       LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*exp.first)->get_output_port(0), 0),
+                                                                       LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)});
         linear_ir->get_loop_manager()->mark_loop(multiply.first, result.first, 1, vector_size,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(0), 0),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*multiply.first)->get_input_port(1), 0)},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>(
-                                                    (*multiply.first)->get_output_port(0), 0)});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(0), 0),
+                                                                       LoopPort::create<PortType::Incremented>((*multiply.first)->get_input_port(1), 0)},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_output_port(0), 0)});
         // outer loop info
         const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>();
         auto loop_begin_expr = linear_ir->insert_node(loop_begin, std::vector<PortConnectorPtr>{}, {}, false, max.first);
@@ -499,11 +499,10 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
         std::vector<PortConnectorPtr> loop_end_inputs{(*loop_begin_expr)->get_output_port_connector(0)};
         auto loop_end_expr = linear_ir->insert_node(loop_end, loop_end_inputs, {}, false, result.first);
         linear_ir->get_loop_manager()->mark_loop(loop_begin_expr, result.first, 10, 1,
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_input_port(0), 1),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_input_port(1), 0),
-                                                                       LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1), 0)},
-                                                 std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>(
-                                                    (*multiply.first)->get_output_port(0), 1)});
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(0), 1),
+                                                                       LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(1), 0),
+                                                                       LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+                                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_output_port(0), 1)});
         loop_end->set_id((*loop_end_expr)->get_loop_ids().back());
         linear_ir->set_loop_depth(2);
     }
@@ -533,11 +532,10 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
         std::vector<PortConnectorPtr> loop_end_inputs{(*loop_begin_expr)->get_output_port_connector(0)};
         auto loop_end_expr = linear_ir_ref->insert_node(loop_end, loop_end_inputs, {}, false, result.first);
         linear_ir_ref->get_loop_manager()->mark_loop(loop_begin_expr, result.first, 10, 1,
-                                                     std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_input_port(0), 1),
-                                                                           LoopPort::create<LoopPort::Type::Incremented>((*max.first)->get_input_port(1), 0),
-                                                                           LoopPort::create<LoopPort::Type::Incremented>((*add.first)->get_input_port(1), 0)},
-                                                     std::vector<LoopPort>{LoopPort::create<LoopPort::Type::Incremented>(
-                                                        (*multiply.first)->get_output_port(0), 1)});
+                                                     std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(0), 1),
+                                                                           LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(1), 0),
+                                                                           LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+                                                     std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*multiply.first)->get_output_port(0), 1)});
         loop_end->set_id((*loop_end_expr)->get_loop_ids().back());
     }
 }

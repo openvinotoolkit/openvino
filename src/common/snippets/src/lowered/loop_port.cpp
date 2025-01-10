@@ -13,7 +13,12 @@ namespace lowered {
 
 LoopPort::LoopPort(const ExpressionPort& port, size_t dim_idx, Type type)
     : m_expr_port(std::make_shared<ExpressionPort>(port)), m_type(type)  {
-    set_dim_idx(dim_idx);
+    if (is_processed()) {
+        set_dim_idx(dim_idx);
+    } else {
+        OPENVINO_ASSERT(dim_idx == UNDEFINED_DIM_IDX, "NotProcessed LoopPort can have only UNDEFINED_DIM_IDX");
+        m_dim_idx = dim_idx;
+    }
 }
 
 std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new_expr) const {
@@ -49,16 +54,14 @@ void LoopPort::set_expr_port(std::shared_ptr<ExpressionPort> p) {
 }
 
 void LoopPort::set_dim_idx(size_t idx) {
-    if (!is_processed()) {
-        OPENVINO_ASSERT(idx == UNDEFINED_DIM_IDX, "NotProcessed LoopPort can have only UNDEFINED_DIM_IDX");
-    } else {
-        OPENVINO_ASSERT(idx < m_expr_port->get_descriptor_ptr()->get_shape().size(),
-                        "LoopPort dim_idx (",
-                        idx,
-                        ") must be less than the corresponding expression port shape rank (",
-                        m_expr_port->get_descriptor_ptr()->get_shape().size(),
-                        ")");
-    }
+    OPENVINO_ASSERT(is_processed(), "NotProcessed LoopPort cannot call `get_dim_idx()`");
+    OPENVINO_ASSERT(idx < m_expr_port->get_descriptor_ptr()->get_shape().size(),
+                    "LoopPort dim_idx (",
+                    idx,
+                    ") must be less than the corresponding expression port shape rank (",
+                    m_expr_port->get_descriptor_ptr()->get_shape().size(),
+                    ")");
+
     m_dim_idx = idx;
 }
 
