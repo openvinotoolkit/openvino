@@ -31,8 +31,6 @@ struct MemoryStatisticsRecord {
     size_t max_region_size;      // bytes
 };
 
-std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
-
 using MemoryStatistics = std::vector<MemoryStatisticsRecord>;
 
 class MemoryControl {

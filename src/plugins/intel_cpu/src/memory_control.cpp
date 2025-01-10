@@ -411,16 +411,6 @@ private:
 
 }  // namespace
 
-std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
-    os << "Memory profile record: " << record.id << std::endl;
-    os << "Total regions: " << record.total_regions << std::endl;
-    os << "Total unique blocks: " << record.total_unique_blocks << std::endl;
-    os << "Total size: " << record.total_size << " bytes" << std::endl;
-    os << "Optimal total size: " << record.optimal_total_size << " bytes" << std::endl;
-    os << "Max region size: " << record.max_region_size << " bytes" << std::endl;
-    return os;
-}
-
 class MemoryControl::RegionHandler {
 public:
     using Condition = std::function<bool(const MemoryRegion&)>;

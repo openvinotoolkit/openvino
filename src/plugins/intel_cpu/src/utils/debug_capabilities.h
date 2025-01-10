@@ -16,6 +16,7 @@
 #    include <string>
 
 #    include "edge.h"
+#    include "memory_control.hpp"
 #    include "nodes/node_config.h"
 #    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
@@ -120,6 +121,7 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem);
 std::ostream& operator<<(std::ostream& os, const PrintableModel& model);
 std::ostream& operator<<(std::ostream& os, const PrintableDelta& us);
 std::ostream& operator<<(std::ostream& os, const Edge::ReorderStatus reorderStatus);
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
 
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_desc& desc);
 std::ostream& operator<<(std::ostream& os, const dnnl::memory::desc& desc);
@@ -277,6 +279,7 @@ struct EnforceInferPrcDebug {
 };
 
 bool getEnvBool(const char* name);
+
 #else  // !CPU_DEBUG_CAPS
 
 #    define CPU_DEBUG_CAP_ENABLE(...)
