@@ -17,8 +17,6 @@
 #include "gemm_inst.h"
 #include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>

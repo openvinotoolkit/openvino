@@ -181,6 +181,7 @@ public:
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
     size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
+    bool contains_state(const std::string& variable_id);
 
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
@@ -225,6 +226,8 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<std::shared_ptr<primitive_inst>> _read_values;
+    std::unordered_map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>> _state_initializers;
 
     program::primitives_info _prims_info;
     size_t _weights_cache_capacity = 1;

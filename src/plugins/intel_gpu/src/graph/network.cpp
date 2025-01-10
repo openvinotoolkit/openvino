@@ -661,6 +661,15 @@ void network::build_exec_order() {
         }
     }
 }
+
+bool network::contains_state(const std::string& variable_id) {
+    auto it = _state_initializers.find(variable_id);
+    if (it != _state_initializers.end())
+        return true;
+    else
+        return false;
+}
+
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
     _exec_order.push_back(inst);
@@ -695,6 +704,19 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
             if (inst->output_memory_ptr() &&
                 is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
+        }
+    }
+
+    for (auto& inst : _read_values) {
+        const auto& prim = inst->get_node().as<read_value>().get_primitive();
+        auto it = _state_initializers.find(prim->variable_id);
+        if (it != _state_initializers.end()) {
+            const auto& variable = get_variable(prim->variable_id);
+            if (variable.is_set()) {
+                for (auto& init_inst : it->second) {
+                    init_inst->set_flag(ExecutionFlags::SKIP);
+                }
+            }
         }
     }
 
@@ -912,6 +934,15 @@ void network::allocate_primitive_instance(program_node const& node) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
+    }
+    if (node.is_type<read_value>()) {
+        _read_values.push_back(inst);
+        const auto& variable_id = node.as<read_value>().get_primitive()->variable_id;
+        if (_program->contains_state(variable_id)) {
+            for (const auto& id : _program->get_initializers(variable_id)) {
+                _state_initializers[variable_id].push_back(get_primitive(id));
+            }
+        }
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         auto prim = inst->get_node().get_primitive();
