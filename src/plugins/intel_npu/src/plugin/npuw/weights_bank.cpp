@@ -70,6 +70,10 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     // uid may be coming from a 2nd (3rd, ...) model
     // detach the tensor here just in case
     const_cast<LazyTensor&>(iter_device->second.lt).detach();
+    // Also detach from registered tensors
+    auto it_registered = device_bank.registered_tensors.find(iter_device->second.lt);
+    NPUW_ASSERT(it_registered != device_bank.registered_tensors.end());
+    const_cast<LazyTensor&>(it_registered->first).detach();
     return iter_device->second.tensor;
 }
 
@@ -136,6 +140,11 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     // not needed anymore (transformations, if any, and copies are done)
     // Note: this is the non-CPU path!
     const_cast<LazyTensor&>(tensor).detach();
+
+    // Also detach from registered tensors
+    auto it_registered = dbank.registered_tensors.find(tensor);
+    NPUW_ASSERT(it_registered != dbank.registered_tensors.end());
+    const_cast<LazyTensor&>(it_registered->first).detach();
 
     return allocated_tensor;
 }
