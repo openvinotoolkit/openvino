@@ -266,37 +266,37 @@ TEST(file_util, path_cast_unicode) {
     EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt").generic_string());
     EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt").generic_string());
     EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗3.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗3.txt").generic_string());
-    EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt",
-              ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_string());
+    EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt",
+              ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt").generic_string());
 
     // from char, char8_t, char16_t, char32_t to u16string
+    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt") ==
+                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt") ==
+                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt") ==
-                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt").generic_u16string());
+                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt") ==
-                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt") ==
-                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt") ==
-                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt").generic_u16string());
+                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt").generic_u16string());
 
 #if defined(OPENVINO_CPP_VER_AT_LEAST_20)
-    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt") ==
-                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt").generic_u8string());
-    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt") ==
-                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt").generic_u8string());
-    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt") ==
-                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt").generic_u8string());
+    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt") ==
+                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").generic_u8string());
+    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt") ==
+                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt") ==
-                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt").generic_u8string());
+                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt").generic_u8string());
+    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt") ==
+                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt").generic_u8string());
 #elif defined(OPENVINO_CPP_VER_AT_LEAST_17)
-    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt"),
-              ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt").generic_u8string());
-    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt"),
-              ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt").generic_u8string());
-    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt"),
-              ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt").generic_u8string());
-    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt"),
-              ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt").generic_u8string());
+    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt"),
+              ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt").generic_u8string());
+    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt"),
+              ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt").generic_u8string());
+    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt"),
+              ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt").generic_u8string());
+    EXPECT_EQ(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt"),
+              ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt").generic_u8string());
 #endif
 }
 // error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
@@ -309,8 +309,8 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path("~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path("/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path("C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt") ==
-                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt") ==
+                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt").u32string());
 
     // from char8_t to u32string
     EXPECT_TRUE(std::u32string(U"") == ov::util::Path(u8"").u32string());
@@ -319,8 +319,8 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(u8"~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(u8"/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path(u8"C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt") ==
-                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt") ==
+                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt").u32string());
 
     // from char16_t to u32string
     EXPECT_TRUE(std::u32string(U"") == ov::util::Path(u"").u32string());
@@ -329,8 +329,8 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(u"~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(u"/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path(u"C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt") ==
-                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt") ==
+                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt").u32string());
 
     // from char32_t to u32string
     EXPECT_TRUE(std::u32string(U"") == ov::util::Path(U"").u32string());
@@ -339,18 +339,18 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(U"~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(U"/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path(U"C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt") ==
-                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt").u32string());
-
-    // from char, char8_t, char16_t, char32_t to u32string
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt") ==
-                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt") ==
-                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt") ==
-                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt").u32string());
     EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗20.txt") ==
                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗20.txt").u32string());
+
+    // from char, char8_t, char16_t, char32_t to u32string
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt") ==
+                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt") ==
+                ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt") ==
+                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt") ==
+                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt").u32string());
 }
 
 #if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
@@ -372,8 +372,8 @@ TEST(file_util, path_cast_from_wstring) {
     EXPECT_STREQ("./local/file.txt", ov::util::Path(L"./local/file.txt").generic_string().c_str());
     EXPECT_STREQ("~/local/file.txt", ov::util::Path(L"~/local/file.txt").generic_string().c_str());
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_string().c_str());
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt",
-                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt").generic_string().c_str());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt",
+                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt").generic_string().c_str());
 
     // from wchar_t to wchar_t
     EXPECT_STREQ(L"", ov::util::Path(L"").wstring().c_str());
@@ -388,22 +388,22 @@ TEST(file_util, path_cast_from_wstring) {
     EXPECT_TRUE(std::u16string(u"./local/file.txt") == ov::util::Path(L"./local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/local/file.txt") == ov::util::Path(L"~/local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == ov::util::Path(L"/usr/local/file.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt") ==
-                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt") ==
+                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt").generic_u16string());
 }
 
 TEST(file_util, path_cast_to_wstring) {
     // from char, char32_t to wchar_t
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt",
-                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt").generic_wstring().c_str());
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt",
-                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt").generic_wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
+                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").generic_wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt",
+                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt").generic_wstring().c_str());
 
     // from char8_t, char16_t to wchar_t
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
-                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").wstring().c_str());
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt",
-                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt").wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗29.txt",
+                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗29.txt").wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗30.txt",
+                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗30.txt").wstring().c_str());
 }
 
 // error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
@@ -417,8 +417,8 @@ TEST(file_util, path_cast_from_wstring_to_u32string) {
     EXPECT_TRUE(std::u32string(U"./local/file.txt") == ov::util::Path(L"./local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(L"~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(L"/usr/local/file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt") ==
-                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗31.txt") ==
+                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗31.txt").u32string());
 }
 #endif
 
@@ -443,12 +443,12 @@ TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
     // from wchar_t to char8_t
 #if defined(OPENVINO_CPP_VER_AT_LEAST_20) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && \
     defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
-    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_1.txt") ==
-                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_1.txt").generic_u8string());
+    EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗32.txt") ==
+                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗32.txt").generic_u8string());
 
 #elif defined(OPENVINO_CPP_VER_AT_LEAST_17) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && \
     defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
-    EXPECT_EQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt",
-              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_2.txt").generic_u8string());
+    EXPECT_EQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗33.txt",
+              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗33.txt").generic_u8string());
 #endif
 }
