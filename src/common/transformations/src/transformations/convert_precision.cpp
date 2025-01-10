@@ -274,7 +274,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 is_changed = convert_function_precision(pass,
@@ -400,7 +400,7 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ov::Model>& fn) 
         for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 auto sub_graph_precisions =
@@ -1050,7 +1050,7 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
 }
 
 bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
-    if (const auto casted = std::dynamic_pointer_cast<ov::op::v1::Reverse>(node)) {
+    if (const auto casted = ov::as_type_ptr<ov::op::v1::Reverse>(node)) {
         if (casted->get_mode() == ov::op::v1::Reverse::Mode::MASK) {
             auto relaxed_op = std::make_shared<op::TypeRelaxed<ov::op::v1::Reverse>>(
                 *casted,

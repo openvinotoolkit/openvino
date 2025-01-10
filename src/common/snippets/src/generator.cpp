@@ -69,14 +69,14 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
     if (reg_type != RegType::undefined)
         return reg_type;
     const auto op = out.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-        std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+    if (ov::as_type_ptr<ov::op::v0::Parameter>(op) ||
+        ov::as_type_ptr<ov::op::v0::Result>(op) ||
         std::dynamic_pointer_cast<op::LoopBegin>(op) ||
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
         std::dynamic_pointer_cast<op::Buffer>(op) ||
         std::dynamic_pointer_cast<op::RankNormalization>(op) ||
-        std::dynamic_pointer_cast<op::Reshape>(op) ||
+        ov::as_type_ptr<op::Reshape>(op) ||
         std::dynamic_pointer_cast<op::Reorder>(op) ||
         std::dynamic_pointer_cast<snippets::op::Store>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -91,13 +91,13 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
              ov::op::util::is_binary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_comparison(op) ||
              ov::op::util::is_binary_elementwise_logical(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
+             ov::as_type_ptr<ov::op::v1::LogicalNot>(op) ||
+             ov::as_type_ptr<ov::op::v0::PRelu>(op) ||
+             ov::as_type_ptr<ov::op::v0::Convert>(op) ||
+             ov::as_type_ptr<ov::op::v1::Select>(op) ||
              std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
              std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
-             std::dynamic_pointer_cast<op::Scalar>(op) ||
+             ov::as_type_ptr<op::Scalar>(op) ||
              std::dynamic_pointer_cast<op::HorizonMax>(op) ||
              std::dynamic_pointer_cast<op::HorizonSum>(op) ||
              std::dynamic_pointer_cast<op::Fill>(op))
