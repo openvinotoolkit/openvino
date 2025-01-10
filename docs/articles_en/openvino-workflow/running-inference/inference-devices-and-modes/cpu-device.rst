@@ -355,6 +355,7 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::num_request``
 - ``ov::hint::scheduling_core_type``
 - ``ov::hint::enable_hyper_threading``
+- ``ov::hint::enable_cpu_reservation``
 - ``ov::hint::enable_cpu_pinning``
 - ``ov::num_streams``
 - ``ov::affinity``
