@@ -299,6 +299,8 @@ TEST(file_util, path_cast_unicode) {
               ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt").generic_u8string());
 #endif
 }
+
+#if !defined(_MSC_VER) || defined(OPENVINO_CPP_VER_AT_LEAST_20)
 // error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
 // reference a deleted function
 TEST(file_util, path_cast_to_u32string) {
@@ -352,6 +354,7 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt") ==
                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt").u32string());
 }
+#endif
 
 #if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
 #    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
