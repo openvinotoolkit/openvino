@@ -24,7 +24,7 @@ public:
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
                 std::vector<uint8_t> blob,
-                const Config& config);
+                Config& config);
 
     void export_blob(std::ostream& stream) const override;
 
