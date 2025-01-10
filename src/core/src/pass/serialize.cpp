@@ -842,7 +842,7 @@ private:
                 std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape()));
         }
         m_cloned_node = op->clone_with_new_inputs(m_parameters);
-        auto typed_cloned_node = std::dynamic_pointer_cast<T>(m_cloned_node);
+        auto typed_cloned_node = ov::as_type_ptr<T>(m_cloned_node);
         OPENVINO_ASSERT(typed_cloned_node);
         typed_cloned_node->set_pads_begin(P(op->get_pads_begin().size(), 0));
         typed_cloned_node->set_pads_end(P(op->get_pads_end().size(), 0));
