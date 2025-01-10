@@ -135,9 +135,9 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__
+      * `Microsoft Visual Studio 2019 or later <https://visualstudio.microsoft.com/downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.16 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.9-3.12
+      * `Python <https://www.python.org/downloads/>`__ 3.9-3.12
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -149,7 +149,7 @@ Operating systems and developer environment
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
       * `CMake <https://cmake.org/download/>`__ 3.13 or higher
-      * `Python <http://www.python.org/downloads/>`__ 3.9-3.12
+      * `Python <https://www.python.org/downloads/>`__ 3.9-3.12
 
    .. tab-item:: DL framework versions:
 

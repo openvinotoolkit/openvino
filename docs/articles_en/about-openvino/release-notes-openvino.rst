@@ -91,7 +91,7 @@ Jupyter Notebooks
 
 
 
-Previous 2024 releases
+Previous 2025 releases
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -117,17 +117,12 @@ Previous 2024 releases
 
 Deprecation And Support
 +++++++++++++++++++++++++++++
+
 Using deprecated features and components is not advised. They are available to enable a smooth
 transition to new solutions and will be discontinued in the future. To keep using discontinued
 features, you will have to revert to the last LTS OpenVINO version supporting them.
 For more details, refer to the `OpenVINO Legacy Features and Components <https://docs.openvino.ai/2024/documentation/legacy-features.html>__`
 page.
-
-
-
-
-
-
 
 
 
@@ -193,7 +188,6 @@ Deprecated and to be removed in the future
 
 
 
-* OpenVINO Model Server components:
 
   * “auto shape” and “auto batch size” (reshaping a model in runtime) will be removed in the
     future. OpenVINO's dynamic shape models are recommended instead.
