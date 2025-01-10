@@ -38,49 +38,44 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        layerErrorPrefix = "Roll layer with name '" + getName() + "'";
         if (inputShapes.size() != 3 || outputShapes.size() != 1) {
-            OPENVINO_THROW(layerErrorPrefix, " has incorrect number of input/output edges!");
+            THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
         }
 
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
         if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) ==
             supportedPrecisionSizes.end())
-            OPENVINO_THROW(layerErrorPrefix, "has unsupported precision: ", dataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("as unsupported precision: ", dataPrecision.get_type_name());
 
         const auto dataRank = getInputShapeAtPort(DATA_INDEX).getRank();
         if (dataRank < 1) {
-            OPENVINO_THROW(layerErrorPrefix, " doesn't support 'data' input tensor with rank: ", dataRank);
+            THROW_CPU_NODE_ERR("doesn't support 'data' input tensor with rank: ", dataRank);
         }
 
         if (dataRank != getOutputShapeAtPort(0).getRank())
-            OPENVINO_THROW(layerErrorPrefix, " has input/output rank mismatch");
+            THROW_CPU_NODE_ERR("has input/output rank mismatch");
 
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
         if (axesTensorPrec != ov::element::i32 && axesTensorPrec != ov::element::i64) {
-            OPENVINO_THROW(layerErrorPrefix,
-                           " has unsupported 'axes' input precision: ",
-                           axesTensorPrec.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesTensorPrec.get_type_name());
         }
 
         const auto axesTensorRank = getInputShapeAtPort(AXES_INDEX).getRank();
         if (axesTensorRank > 1) {
-            OPENVINO_THROW(layerErrorPrefix, " doesn't support 'axes' input tensor with rank: ", axesTensorRank);
+            THROW_CPU_NODE_ERR("doesn't support 'axes' input tensor with rank: ", axesTensorRank);
         }
 
         /* Shift */
         const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
         if (shiftTensorPrec != ov::element::i32 && shiftTensorPrec != ov::element::i64) {
-            OPENVINO_THROW(layerErrorPrefix,
-                           " has unsupported 'shift' input precision: ",
-                           shiftTensorPrec.get_type_name());
+            THROW_CPU_NODE_ERR(" has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
         }
 
         const auto shiftTensorRank = getInputShapeAtPort(SHIFT_INDEX).getRank();
         if (shiftTensorRank > 1) {
-            OPENVINO_THROW(layerErrorPrefix, " doesn't support 'shift' input tensor with rank: ", shiftTensorRank);
+            THROW_CPU_NODE_ERR("doesn't support 'shift' input tensor with rank: ", shiftTensorRank);
         }
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -108,15 +103,15 @@ void Roll::prepareParams() {
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!dataMemPtr || !dataMemPtr->isDefined())
-        OPENVINO_THROW(layerErrorPrefix, " has undefined input memory of 'data'");
+        THROW_CPU_NODE_ERR("has undefined input memory of 'data'");
     if (!shiftMemPtr || !shiftMemPtr->isDefined())
-        OPENVINO_THROW(layerErrorPrefix, " has undefined input memory of 'shift'");
+        THROW_CPU_NODE_ERR("has undefined input memory of 'shift'");
     if (!axesMemPtr || !axesMemPtr->isDefined())
-        OPENVINO_THROW(layerErrorPrefix, " has undefined input memory of 'axes'");
+        THROW_CPU_NODE_ERR("has undefined input memory of 'axes'");
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(layerErrorPrefix, " has undefined output memory");
+        THROW_CPU_NODE_ERR("has undefined output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW(layerErrorPrefix, " has unidentified preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& shiftDims = shiftMemPtr->getStaticDims();
@@ -132,7 +127,7 @@ void Roll::executeDynamicImpl(dnnl::stream strm) {
 
 void Roll::execute(dnnl::stream strm) {
     if (!execPtr)
-        OPENVINO_THROW(layerErrorPrefix, " has no compiled executor");
+        THROW_CPU_NODE_ERR("has no compiled executor");
 
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
@@ -159,7 +154,7 @@ void Roll::execute(dnnl::stream strm) {
         break;
     }
     default:
-        OPENVINO_THROW(layerErrorPrefix, "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("as unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 }
 

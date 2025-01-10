@@ -347,8 +347,6 @@ private:
 
     VectorDims lastOutputDims;
 
-    std::string errorPrefix;
-
     bool canUseAclExecutor = false;
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;
 };

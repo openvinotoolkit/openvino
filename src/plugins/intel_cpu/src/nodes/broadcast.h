@@ -44,8 +44,6 @@ private:
 
     std::vector<int32_t> targetShape;
     std::vector<int32_t> axesMapping;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

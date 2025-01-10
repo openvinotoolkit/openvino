@@ -1876,15 +1876,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "Interpolate node with name '" + getName() + "'";
         dataRank = getInputShapeAtPort(DATA_ID).getRank();
         if (const auto interp = ov::as_type_ptr<const ov::opset4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
             if (numInputs != 3 && numInputs != 4)
-                OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+                THROW_CPU_NODE_ERR("has incorrect number of input edges");
             if (outputShapes.size() != 1)
-                OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+                THROW_CPU_NODE_ERR("has incorrect number of output edges");
             isAxesSpecified = numInputs != 3;
 
             const auto& interpAttr = interp->get_attrs();
@@ -1903,7 +1902,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpMode == ngInterpMode::CUBIC) {
                 interpAttrs.mode = InterpolateMode::cubic;
             } else {
-                OPENVINO_THROW(errorPrefix, " has unsupported interpolate mode");
+                THROW_CPU_NODE_ERR("has unsupported interpolate mode");
             }
 
             const auto& interpCoordTransMode = interpAttr.coordinate_transformation_mode;
@@ -1918,7 +1917,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpCoordTransMode == ngInterpCoordTransf::ALIGN_CORNERS) {
                 interpAttrs.coordTransMode = InterpolateCoordTransMode::align_corners;
             } else {
-                OPENVINO_THROW(errorPrefix, " has unsupported coordination transformation mode");
+                THROW_CPU_NODE_ERR("has unsupported coordination transformation mode");
             }
 
             if (interpAttrs.mode == InterpolateMode::nearest) {
@@ -1934,7 +1933,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 } else if (interpNearestMode == ngInterpNearMode::SIMPLE) {
                     interpAttrs.nearestMode = InterpolateNearestMode::simple;
                 } else {
-                    OPENVINO_THROW(errorPrefix, " has unsupported nearest mode");
+                    THROW_CPU_NODE_ERR("has unsupported nearest mode");
                 }
             } else if (interpAttrs.mode == InterpolateMode::cubic) {
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);
@@ -1947,7 +1946,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
                 interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
-                OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
+                THROW_CPU_NODE_ERR("has unsupported shape calculation mode");
             }
 
             if (interpAttr.pads_begin.empty()) {
@@ -1986,9 +1985,9 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             is_version11 = true;
             const auto numInputs = inputShapes.size();
             if (numInputs != 2 && numInputs != 3)
-                OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+                THROW_CPU_NODE_ERR("has incorrect number of input edges");
             if (outputShapes.size() != 1)
-                OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+                THROW_CPU_NODE_ERR("has incorrect number of output edges");
             isAxesSpecified = numInputs != 2;
 
             const auto& interpAttr = interp->get_attrs();
@@ -1999,7 +1998,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 interpAttrs.mode = InterpolateMode::bicubic_pillow;
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);  // fixed to be -0.5
             } else {
-                OPENVINO_THROW(errorPrefix, " has unsupported interpolate mode");
+                THROW_CPU_NODE_ERR("has unsupported interpolate mode");
             }
 
             // pillow use fixed tf_half_pixel_for_nn style mode for coodinate transformation
@@ -2018,7 +2017,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
                 interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
-                OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
+                THROW_CPU_NODE_ERR("has unsupported shape calculation mode");
             }
 
             if (interpAttr.pads_begin.empty()) {
@@ -2061,9 +2060,9 @@ void Interpolate::getSupportedDescriptors() {
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4)
         // v4: data, target_shape, scale, axis(optional).
         // v11: data, size_or_scale, axis(optional)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
 
     // get pad
     for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
@@ -2360,31 +2359,31 @@ void Interpolate::prepareParams() {
 
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
+        THROW_CPU_NODE_ERR("has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+        THROW_CPU_NODE_ERR("has undefined input memory");
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
         if (!tsMemPtr || !tsMemPtr->isDefined())
-            OPENVINO_THROW(errorPrefix, " has undefined target shape memory");
+            THROW_CPU_NODE_ERR("has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
         if (!scaleMemPtr || !scaleMemPtr->isDefined())
-            OPENVINO_THROW(errorPrefix, " has undefined scales memory");
+            THROW_CPU_NODE_ERR("has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
         if (!axesMemPtr || !axesMemPtr->isDefined())
-            OPENVINO_THROW(errorPrefix, " has undefined axes memory");
+            THROW_CPU_NODE_ERR("has undefined axes memory");
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        OPENVINO_THROW(errorPrefix, " did not set preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
 
     const auto& srcDimsOrign = srcMemPtr->getStaticDims();
     const auto& dstDimsOrign = dstMemPtr->getStaticDims();
@@ -2479,9 +2478,9 @@ void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null input memory");
+        THROW_CPU_NODE_ERR("has null input memory");
     if (!dstMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null destination memory");
+        THROW_CPU_NODE_ERR("has null destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -3110,7 +3109,7 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
         break;
     }
     default: {
-        OPENVINO_THROW("errorPrefix", " does not support specified coordinate transformation mode");
+        OPENVINO_THROW("does not support specified coordinate transformation mode");
         break;
     }
     }
@@ -3146,7 +3145,7 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
             return static_cast<int>(originCoord);
     }
     default: {
-        OPENVINO_THROW("errorPrefix", " does not support specified nearest round mode");
+        OPENVINO_THROW("does not support specified nearest round mode");
         break;
     }
     }

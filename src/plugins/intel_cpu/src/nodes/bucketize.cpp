@@ -36,7 +36,6 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
     if (bucketsize == nullptr)
         OPENVINO_THROW("Operation with name '",
@@ -44,7 +43,7 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
                        "' is not an instance of Bucketize from opset3.");
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
     // check one attribute
@@ -181,7 +180,7 @@ void Bucketize::execute(dnnl::stream strm) {
                   element_type_traits<ov::element::i64>::value_type>();
         break;
     default:
-        OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision_mask);
+        THROW_CPU_NODE_ERR("has unsupported precision: ", precision_mask);
     }
 }
 
@@ -201,11 +200,11 @@ void Bucketize::prepareParams() {
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
     if (input_tensor_dims.size() < 1) {
-        OPENVINO_THROW(errorPrefix, " has incorrect dimensions of the input.");
+        THROW_CPU_NODE_ERR("has incorrect dimensions of the input.");
     }
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();
     if (input_bin_dims.size() != 1) {
-        OPENVINO_THROW(errorPrefix, " has incorrect dimensions of the boundaries tensor.");
+        THROW_CPU_NODE_ERR("has incorrect dimensions of the boundaries tensor.");
     }
     if (input_bin_dims[0] != 0) {
         with_bins = true;

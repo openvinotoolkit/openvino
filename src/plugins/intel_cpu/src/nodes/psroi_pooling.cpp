@@ -66,25 +66,20 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
-
     const auto psroi = ov::as_type_ptr<const ov::opset1::PSROIPooling>(op);
     const auto defPsroi = ov::as_type_ptr<const ov::opset1::DeformablePSROIPooling>(op);
 
     noTrans = op->get_input_size() == 2;
     if (op->get_input_shape(0).size() != 4)
-        OPENVINO_THROW(errorPrefix,
-                       " has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
+        THROW_CPU_NODE_ERR(" has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
     if (op->get_input_shape(1).size() != 2)
-        OPENVINO_THROW(errorPrefix,
-                       " has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
+        THROW_CPU_NODE_ERR(" has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
     if (!noTrans && op->get_input_shape(2).size() != 4)
-        OPENVINO_THROW(errorPrefix,
-                       " has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
+        THROW_CPU_NODE_ERR(" has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
 
     if (psroi) {
         if (psroi->get_input_size() != 2)
-            OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+            THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
         mode = psroi->get_mode();
         if (mode == "average") {
@@ -104,7 +99,7 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     } else if (defPsroi) {
         if (defPsroi->get_input_size() != 2 && defPsroi->get_input_size() != 3)
-            OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+            THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
         algorithm = Algorithm::PSROIPoolingBilinearDeformable;
 
@@ -211,19 +206,17 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
     auto inBlkDims = srcDesc.getBlockDims();
     auto outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize)
-        OPENVINO_THROW(errorPrefix,
-                       " has unexpected size of blocking dims in input (given ",
-                       inBlkDims.size(),
-                       ", expected ",
-                       expectedInBlockDimsSize,
-                       ")");
+        THROW_CPU_NODE_ERR(" has unexpected size of blocking dims in input (given ",
+                           inBlkDims.size(),
+                           ", expected ",
+                           expectedInBlockDimsSize,
+                           ")");
     if (outBlkDims.size() != expectedOutBlockDimsSize)
-        OPENVINO_THROW(errorPrefix,
-                       " has unexpected size of blocking dims in output (given ",
-                       outBlkDims.size(),
-                       ", expected ",
-                       expectedOutBlockDimsSize,
-                       ")");
+        THROW_CPU_NODE_ERR(" has unexpected size of blocking dims in output (given ",
+                           outBlkDims.size(),
+                           ", expected ",
+                           expectedOutBlockDimsSize,
+                           ")");
 
     inBlockSize = (inpIsBlk ? srcDesc.getBlockDims()[4] : 1);
     outBlockSize = (outIsBlk ? dstDesc.getBlockDims()[4] : 1);
@@ -614,8 +607,8 @@ void PSROIPooling::execute(dnnl::stream strm) {
 
     if (!((inputPrec == ov::element::bf16 && outputPrec == ov::element::bf16) ||
           (inputPrec == ov::element::f32 && outputPrec == ov::element::f32))) {
-        OPENVINO_THROW(errorPrefix + " has different precisions on input: " + inputPrec.get_type_name() +
-                       " and output: " + outputPrec.get_type_name());
+        THROW_CPU_NODE_ERR("has different precisions on input: " + inputPrec.get_type_name() +
+                           " and output: " + outputPrec.get_type_name());
     }
 
     PSROIPoolingContext ctx = {

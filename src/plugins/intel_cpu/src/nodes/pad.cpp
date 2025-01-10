@@ -44,20 +44,19 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix = NameFromType(getType()) + " node with name '" + getName() + "' ";
     if (inputShapes.size() != 3 && inputShapes.size() != 4)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     if (outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, "Incorrect number of output edges");
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
 
     const size_t srcDimsRank = inputShapes[DATA_ID].getRank();
     const size_t dstDimsRank = outputShapes[DATA_ID].getRank();
     if (srcDimsRank != dstDimsRank)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input/output dimensions!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
 
     auto pad = ov::as_type<const op::util::PadBase>(op.get());
     if (!pad) {
-        OPENVINO_THROW(errorPrefix, "couldn't be casted to op of opset1");
+        THROW_CPU_NODE_ERR("couldn't be casted to op of opset1");
     }
 
     shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
@@ -74,7 +73,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
                 parameter.push_back(value);
             }
             if (parameter.size() != srcDimsRank)
-                OPENVINO_THROW(errorPrefix, "has incorrect number of input/output dimensions!");
+                THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
         }
     };
 
@@ -88,7 +87,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
             if (!ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
-                OPENVINO_THROW(errorPrefix, "has non scalar 'pad_value' input");
+                THROW_CPU_NODE_ERR("has non scalar 'pad_value' input");
             attrs.padValue = ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
                                  ->cast_vector<float>()[0];
             attrs.constPadValue = true;
@@ -100,7 +99,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     } else if (pad_mode == op::PadMode::SYMMETRIC) {
         attrs.padMode = SYMMETRIC;
     } else {
-        OPENVINO_THROW(errorPrefix, "has unsupported pad_mode: " + ov::as_string(pad_mode));
+        THROW_CPU_NODE_ERR("has unsupported pad_mode: " + ov::as_string(pad_mode));
     }
 }
 
@@ -205,14 +204,12 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
-    execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
+    execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory);
 }
 
 Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
                               const std::vector<MemoryCPtr>& srcMemory,
-                              const std::vector<MemoryCPtr>& dstMemory,
-                              const std::string& errorPrefix)
-    : errorPrefix(errorPrefix) {
+                              const std::vector<MemoryCPtr>& dstMemory) {
     paramsInitialization(attrs, srcMemory, dstMemory);
     workPartition();
     innerParamsInitialization();
@@ -225,9 +222,9 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     auto& srcMemPtr = srcMemory[DATA_ID];
     auto& dstMemPtr = dstMemory[DATA_ID];
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, "has undefined source memory.");
+        OPENVINO_THROW("has undefined source memory.");
     if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, "has undefined destination memory.");
+        OPENVINO_THROW("has undefined destination memory.");
     const auto srcBlockMemDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto dstBlockMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto& srcDims = srcBlockMemDesc->getBlockDims();
@@ -392,7 +389,7 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
 
 void Pad::execute(dnnl::stream strm) {
     if (!execPtr)
-        OPENVINO_THROW(errorPrefix, "has not compiled executor.");
+        THROW_CPU_NODE_ERR("has not compiled executor.");
 
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
 }

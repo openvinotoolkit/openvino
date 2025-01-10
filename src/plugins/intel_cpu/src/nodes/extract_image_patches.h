@@ -63,8 +63,6 @@ private:
     static const std::set<size_t> _supported_precisions_sizes;
     ExtImgPatcherPadType _auto_pad;
 
-    std::string errorPrefix;
-
     struct ExtractImagePatchesExecutor {
         ExtractImagePatchesExecutor() = default;
         virtual void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) = 0;

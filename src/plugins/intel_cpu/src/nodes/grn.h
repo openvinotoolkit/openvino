@@ -30,8 +30,6 @@ private:
     int C = 1;
     int H = 1;
     int W = 1;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

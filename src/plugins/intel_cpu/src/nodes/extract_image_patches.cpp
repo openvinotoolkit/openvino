@@ -364,22 +364,20 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
     auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix,
-                       "has incorrect number of input or output edges!",
-                       " Input: ",
-                       inputShapes.size(),
-                       "); Output: ",
-                       outputShapes.size());
+        THROW_CPU_NODE_ERR("has incorrect number of input or output edges!",
+                           " Input: ",
+                           inputShapes.size(),
+                           "); Output: ",
+                           outputShapes.size());
 
     if (getInputShapeAtPort(0).getRank() != 4)
-        OPENVINO_THROW(errorPrefix, "must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
 
     if (getOutputShapeAtPort(0).getRank() != 4)
-        OPENVINO_THROW(errorPrefix, "must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
 
     if (extImgPatcher->get_auto_pad() == ov::op::PadType::VALID) {
         _auto_pad = ExtImgPatcherPadType::VALID;
@@ -388,7 +386,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
         _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
     } else {
-        OPENVINO_THROW(errorPrefix, "has unsupported pad type: ", extImgPatcher->get_auto_pad());
+        THROW_CPU_NODE_ERR("has unsupported pad type: ", extImgPatcher->get_auto_pad());
     }
 
     _ksizes = extImgPatcher->get_sizes();
@@ -396,7 +394,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     _strides = extImgPatcher->get_strides();
     _rates = extImgPatcher->get_rates();
     if (_ksizes.size() != 2 || _strides.size() != 2 || _rates.size() != 2)
-        OPENVINO_THROW(errorPrefix, "must have the following attributes with shape {2}: sizes, strides, rates.");
+        THROW_CPU_NODE_ERR("must have the following attributes with shape {2}: sizes, strides, rates.");
 }
 
 void ExtractImagePatches::prepareParams() {
@@ -444,7 +442,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
     const auto precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
-        OPENVINO_THROW(errorPrefix, "has unsupported precision: ", precision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported precision: ", precision.get_type_name());
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }

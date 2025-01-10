@@ -129,8 +129,6 @@ private:
                           const std::vector<size_t>& s_str,
                           const std::vector<size_t>& w_str,
                           const std::vector<size_t>& d_str);
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

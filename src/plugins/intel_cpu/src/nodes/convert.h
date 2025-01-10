@@ -60,8 +60,6 @@ private:
     ConvertParams convertParams;
     std::shared_ptr<ConvertExecutor> execPtr = nullptr;
     NodeConfig config;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

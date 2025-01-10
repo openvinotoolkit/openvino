@@ -33,8 +33,6 @@ private:
     float alpha = 0.0f;
     float beta = 0.0f;
     float gamma = 0.0f;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

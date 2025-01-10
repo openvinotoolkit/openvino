@@ -96,7 +96,6 @@ private:
         int64_t classIndex = -1;
         float score = 0.0f;
     };
-    std::string m_errorPrefix;
     const std::string m_inType = "input", m_outType = "output";
     std::vector<int64_t> m_numPerBatch;
     std::vector<std::vector<int64_t>> m_numPerBatchClass;

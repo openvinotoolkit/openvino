@@ -48,20 +48,19 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    m_errorPrefix = "MultiClassNms layer with name '" + getName() + "' ";
 
     if (one_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static()))
         m_outStaticShape = true;
 
     if (getOriginalInputsNumber() != 2 && getOriginalInputsNumber() != 3)
-        OPENVINO_THROW(m_errorPrefix, "has incorrect number of input edges: ", getOriginalInputsNumber());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getOriginalInputsNumber());
 
     if (getOriginalOutputsNumber() != 3)
-        OPENVINO_THROW(m_errorPrefix, "has incorrect number of output edges: ", getOriginalOutputsNumber());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getOriginalOutputsNumber());
 
     auto nmsBase = ov::as_type_ptr<ov::op::util::MulticlassNmsBase>(op);
     if (nmsBase == nullptr)
-        OPENVINO_THROW(m_errorPrefix, " is not an instance of MulticlassNmsBase.");
+        THROW_CPU_NODE_ERR("is not an instance of MulticlassNmsBase.");
     auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
@@ -85,32 +84,23 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     auto boxes_ps = PartialShape(boxes_dims);
     auto scores_ps = PartialShape(scores_dims);
     if (boxes_dims.size() != 3)
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input rank: ", boxes_dims.size());
+        THROW_CPU_NODE_ERR("has unsupported 'boxes' input rank: ", boxes_dims.size());
     if (boxes_dims[2] != 4)
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
+        THROW_CPU_NODE_ERR("has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     if (scores_dims.size() == 3) {
         if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[2]))
-            OPENVINO_THROW(m_errorPrefix,
-                           "has incompatible 'boxes' and 'scores' shape ",
-                           boxes_ps,
-                           " v.s. ",
-                           scores_ps);
+            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ", boxes_ps, " v.s. ", scores_ps);
     } else if (scores_dims.size() == 2) {
         if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static())
-            OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
+            THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
         if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[1]))
-            OPENVINO_THROW(m_errorPrefix,
-                           "has incompatible 'boxes' and 'scores' shape ",
-                           boxes_ps,
-                           " v.s. ",
-                           scores_ps);
+            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ", boxes_ps, " v.s. ", scores_ps);
         if (getOriginalInputsNumber() != 3)
-            OPENVINO_THROW(m_errorPrefix,
-                           "has incorrect number of input edges: ",
-                           getOriginalInputsNumber(),
-                           " when input 'scores' is 2D.");
+            THROW_CPU_NODE_ERR("has incorrect number of input edges: ",
+                               getOriginalInputsNumber(),
+                               " when input 'scores' is 2D.");
     } else {
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
+        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
     }
 }
 
@@ -169,31 +159,28 @@ void MultiClassNms::prepareParams() {
 
     if (shared) {
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2])
-            OPENVINO_THROW(m_errorPrefix,
-                           "has incompatible 'boxes' and 'scores' shape ",
-                           PartialShape(boxes_dims),
-                           " v.s. ",
-                           PartialShape(scores_dims));
+            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ",
+                               PartialShape(boxes_dims),
+                               " v.s. ",
+                               PartialShape(scores_dims));
     } else if (scores_dims.size() == 2) {
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[1])
-            OPENVINO_THROW(m_errorPrefix,
-                           "has incompatible 'boxes' and 'scores' shape ",
-                           PartialShape(boxes_dims),
-                           " v.s. ",
-                           PartialShape(scores_dims));
+            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ",
+                               PartialShape(boxes_dims),
+                               " v.s. ",
+                               PartialShape(scores_dims));
         if (!has_roinum)
-            OPENVINO_THROW(m_errorPrefix,
-                           "has incorrect number of input edges: ",
-                           getOriginalInputsNumber(),
-                           " when input 'scores' is 2D.");
+            THROW_CPU_NODE_ERR("has incorrect number of input edges: ",
+                               getOriginalInputsNumber(),
+                               " when input 'scores' is 2D.");
     } else {
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
+        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
     }
 
     if (has_roinum) {
         const auto& roisnum_dims = getParentEdgeAt(NMS_ROISNUM)->getMemory().getStaticDims();
         if (roisnum_dims.size() != 1)
-            OPENVINO_THROW(m_errorPrefix, "has unsupported 'roisnum' input rank: ", roisnum_dims.size());
+            THROW_CPU_NODE_ERR("has unsupported 'roisnum' input rank: ", roisnum_dims.size());
         m_numBatches = shared ? boxes_dims[0] : roisnum_dims[0];
     } else {
         m_numBatches = boxes_dims[0];
@@ -657,7 +644,7 @@ void MultiClassNms::checkPrecision(const ov::element::Type prec,
                                    const std::string name,
                                    const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
-        OPENVINO_THROW(m_errorPrefix, "has unsupported '", name, "' ", type, " precision: ", prec);
+        THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
 }
 
 }  // namespace node

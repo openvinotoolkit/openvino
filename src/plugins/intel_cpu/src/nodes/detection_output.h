@@ -130,8 +130,6 @@ private:
     std::vector<float> bboxSizes;
     std::vector<int> numPriorsActual;
     std::vector<int> confInfoForPrior;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

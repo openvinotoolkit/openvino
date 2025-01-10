@@ -54,16 +54,14 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    m_errorPrefix = "MatrixNMS layer with name '" + getName() + "' ";
-
     if (one_of(op->get_type_info(), ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>::get_type_info_static()))
         m_outStaticShape = true;
 
     if (getOriginalInputsNumber() != 2)
-        OPENVINO_THROW(m_errorPrefix, "has incorrect number of input edges: ", getOriginalInputsNumber());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getOriginalInputsNumber());
 
     if (getOriginalOutputsNumber() != 3)
-        OPENVINO_THROW(m_errorPrefix, "has incorrect number of output edges: ", getOriginalOutputsNumber());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getOriginalOutputsNumber());
 
     const auto matrix_nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
 
@@ -101,12 +99,12 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
     if (boxes_dims.size() != 3)
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input rank: ", boxes_dims.size());
+        THROW_CPU_NODE_ERR("has unsupported 'boxes' input rank: ", boxes_dims.size());
     if (boxes_dims[2] != 4)
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
+        THROW_CPU_NODE_ERR("has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
     if (scores_dims.size() != 3)
-        OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
+        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
 }
 
 void MatrixNms::initSupportedPrimitiveDescriptors() {
@@ -265,7 +263,7 @@ void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
-        OPENVINO_THROW(m_errorPrefix, "has incompatible 'boxes' and 'scores' input dmensions");
+        THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' input dmensions");
     }
 
     m_numBatches = boxes_dims[0];
@@ -450,7 +448,7 @@ void MatrixNms::checkPrecision(const ov::element::Type prec,
                                const std::string name,
                                const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
-        OPENVINO_THROW(m_errorPrefix, "has unsupported '", name, "' ", type, " precision: ", prec);
+        THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
 }
 
 }  // namespace node

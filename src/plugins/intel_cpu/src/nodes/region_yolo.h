@@ -64,8 +64,6 @@ private:
     std::vector<int64_t> mask;
     ov::element::Type input_prec, output_prec;
 
-    std::string errorPrefix;
-
     int block_size;
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;

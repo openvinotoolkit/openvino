@@ -30,8 +30,6 @@ private:
     size_t reducedAxisStride = 1;
     size_t axisStep = 1;
     bool isLastDim = false;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

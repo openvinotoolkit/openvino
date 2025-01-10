@@ -30,8 +30,6 @@ private:
     const size_t DECODED_CLASSES_INDEX = 0lu;
     const size_t DECODED_CLASSES_LENGTH_INDEX = 1lu;
     bool mergeRepeated;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

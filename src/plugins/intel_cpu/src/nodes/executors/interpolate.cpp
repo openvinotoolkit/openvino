@@ -131,7 +131,7 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
         break;
     }
     default: {
-        OPENVINO_THROW("errorPrefix", " does not support specified coordinate transformation mode");
+        OPENVINO_THROW("does not support specified coordinate transformation mode");
         break;
     }
     }
@@ -167,7 +167,7 @@ int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord,
             return static_cast<int>(originCoord);
     }
     default: {
-        OPENVINO_THROW("errorPrefix", " does not support specified nearest round mode");
+        OPENVINO_THROW("does not support specified nearest round mode");
         break;
     }
     }

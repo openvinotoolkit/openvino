@@ -197,8 +197,6 @@ private:
                           std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>&
     getInitializers();
 
-    std::string errorPrefix;
-
 #if defined(OV_CPU_WITH_ACL)
     ReduceAttrs reduceAttrs;
     bool canUseAclExecutor = false;

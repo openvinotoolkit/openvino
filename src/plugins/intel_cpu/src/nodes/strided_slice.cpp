@@ -39,7 +39,6 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix = NameFromType(getType()) + " node with name '" + getName() + "' ";
 
     attrs.isStridedSliceOp = ov::is_type<ov::op::v1::StridedSlice>(op);
     attrs.isSliceScatterOp = ov::is_type<ov::op::v15::SliceScatter>(op);
@@ -58,10 +57,10 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     if ((attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
         (!attrs.isStridedSliceOp &&
          (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1)))) {
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     }
     if (outputShapes.size() != 1) {
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
 
     if (inputShapes.size() > attrs.STRIDE_ID) {
@@ -128,7 +127,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             attrs.ellipsisPos1 = attrs.ellipsisMask[i] == 1 && attrs.ellipsisPos1 == -1 ? i : attrs.ellipsisPos1;
         }
         if (attrs.ellipsisMaskCounter > 1)
-            OPENVINO_THROW(errorPrefix, "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
+            THROW_CPU_NODE_ERR("has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
@@ -334,7 +333,7 @@ void StridedSlice::prepareParams() {
             dstMemory.push_back(getDstMemoryAtPort(i));
         }
     }
-    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
+    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory);
 }
 
 bool StridedSlice::needShapeInfer() const {
@@ -343,7 +342,7 @@ bool StridedSlice::needShapeInfer() const {
 
 void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
-        OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
+        THROW_CPU_NODE_ERR("doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
 }
@@ -358,9 +357,8 @@ bool StridedSlice::created() const {
 
 StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
                                                                      const std::vector<MemoryCPtr>& srcMemory,
-                                                                     const std::vector<MemoryCPtr>& dstMemory,
-                                                                     const std::string& errorPrefix)
-    : StridedSliceExecutor(attrs, srcMemory, dstMemory, errorPrefix) {
+                                                                     const std::vector<MemoryCPtr>& dstMemory)
+    : StridedSliceExecutor(attrs, srcMemory, dstMemory) {
     paramsInitialization(attrs, srcMemory, dstMemory);
     dimsNormalization();
     dimsGluing();
@@ -442,11 +440,11 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     params.attrs.beginDims = srcMemory[attrs.BEGIN_ID]->getShape().getStaticDims();
     params.attrs.endDims = srcMemory[attrs.END_ID]->getShape().getStaticDims();
     if (params.attrs.beginDims.size() != 1)
-        OPENVINO_THROW(errorPrefix, "should have begin vector with 1 dimension");
+        OPENVINO_THROW("should have begin vector with 1 dimension");
     if (params.attrs.endDims.size() != 1)
-        OPENVINO_THROW(errorPrefix, "should have end vector with 1 dimension");
+        OPENVINO_THROW("should have end vector with 1 dimension");
     if (params.attrs.beginDims[0] != params.attrs.endDims[0])
-        OPENVINO_THROW(errorPrefix, "should have begin vector with size equal to end vector size");
+        OPENVINO_THROW("should have begin vector with size equal to end vector size");
 
     if (params.attrs.begin.empty())
         fillingInParameters(params.attrs.begin, attrs.BEGIN_ID, params.attrs.beginDims[0], 0);
@@ -456,9 +454,9 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > attrs.STRIDE_ID) {
         params.attrs.strideDims = srcMemory[attrs.STRIDE_ID]->getShape().getStaticDims();
         if (params.attrs.strideDims.size() > 1)
-            OPENVINO_THROW(errorPrefix, "should have stride vector with 1 dimension");
+            OPENVINO_THROW("should have stride vector with 1 dimension");
         if (params.attrs.beginDims[0] != params.attrs.strideDims[0])
-            OPENVINO_THROW(errorPrefix, "should have stride vector with size equal to begin vector size");
+            OPENVINO_THROW("should have stride vector with size equal to begin vector size");
 
         if (params.attrs.stride.empty())
             fillingInParameters(params.attrs.stride, attrs.STRIDE_ID, params.attrs.strideDims[0], 1);
@@ -467,9 +465,9 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > attrs.AXES_ID) {
         params.attrs.axesDims = srcMemory[attrs.AXES_ID]->getShape().getStaticDims();
         if (params.attrs.axesDims.size() != 1)
-            OPENVINO_THROW(errorPrefix, "should have axes vector with 1 dimension.");
+            OPENVINO_THROW("should have axes vector with 1 dimension.");
         if (params.attrs.beginDims[0] != params.attrs.axesDims[0])
-            OPENVINO_THROW(errorPrefix, "should have axes vector with size equal to begin vector size.");
+            OPENVINO_THROW("should have axes vector with size equal to begin vector size.");
 
         if (params.attrs.axes.empty())
             fillingInParameters(params.attrs.axes, attrs.AXES_ID, params.attrs.axesDims[0], 0);

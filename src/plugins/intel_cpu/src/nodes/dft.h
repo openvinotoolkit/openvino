@@ -53,7 +53,7 @@ private:
 
     std::vector<int32_t> axes;
     std::vector<size_t> inputShape;
-    std::string layerErrorPrefix;
+    std::string layer;
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
