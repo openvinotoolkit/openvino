@@ -200,7 +200,7 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream,
         read(stream, device);
         std::size_t storage_size = 0;
         read(stream, storage_size);
-        for (std::size_t i = 0; i < bank_size; ++i) {
+        for (std::size_t j = 0; j < storage_size; ++j) {
             int64_t uid = -1;
             read(stream, uid);
             bank->read_and_add_tensor(stream, uid, device);
