@@ -300,7 +300,7 @@ void SyncInferRequest::enqueue() {
         const auto& name = it.first;
         const auto& variable = it.second;
         if (network->has_variable(name)) {
-            auto& prev_var = network->get_variable(name);
+            const auto& prev_var = network->get_variable(name);
             if (prev_var.get_memory() == variable->get_memory()) {
                 network->set_reuse_variable_mem(true);
                 continue;
