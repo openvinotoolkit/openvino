@@ -341,7 +341,6 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, paged_attention_inst& instance) override {
-        const auto& desc = instance.get_impl_params()->typed_desc<paged_attention>();
         const auto stage = get_paged_attention_stage(*instance.get_impl_params());
         const auto is_mixed_mode = stage == PagedAttentionStage::MIXED;
 
