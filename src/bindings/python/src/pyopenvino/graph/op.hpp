@@ -26,7 +26,7 @@ public:
         m_type_info = std::make_shared<DiscreteTypeInfoWrapper>(py_class_name, "extension");
     }
 
-    void initialize_type_info();
+    void update_type_info();
 
     void validate_and_infer_types() override;
 

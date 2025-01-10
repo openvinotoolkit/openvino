@@ -26,9 +26,7 @@ from openvino.utils.data_helpers import (
 class Op(OpBase):
     def __init__(self, py_obj, inputs=None) -> None:
         super().__init__(py_obj)
-        print("super ok")
-        self._initialize_type_info()
-        print("__initialize_type_info ok")
+        self._update_type_info()
         if inputs is not None:
             self.set_arguments(inputs)
             self.constructor_validate_and_infer_types()

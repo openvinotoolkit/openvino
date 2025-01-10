@@ -26,25 +26,11 @@ public:
 
         py::object type_info;
         try {
-            // get_type_info() is a static method
-            std::cout << "before static methods" << std::endl;
-            type_info = py_handle_dtype.attr("get_type_info")();
-            std::cout << "after static methods" << std::endl;
-        } catch (const std::exception&) {
-            try {
-                //  get_type_info() is a class method
-                std::cout << "before class methods" << std::endl;
-                auto obj = py_handle_dtype();
-                std::cout << "afte obj" << std::endl;
-                type_info = obj.attr("get_type_info")();
-                std::cout << "afte class methods" << std::endl;
-            } catch (const std::exception &exc) {
-                OPENVINO_THROW("Creation of OpExtension failed: ", exc.what());
-            }
+            type_info = py_handle_dtype().attr("get_type_info")();
+        } catch (const std::exception &exc) {
+            OPENVINO_THROW("Creation of OpExtension failed: ", exc.what());
         }
-        if (!py::isinstance<ov::DiscreteTypeInfo>(type_info)) {
-            OPENVINO_THROW("operation type_info must be an instance of DiscreteTypeInfo, but ", py::str(py::type::of(type_info)), " is passed.");
-        }
+
         m_type_info = type_info.cast<std::shared_ptr<ov::DiscreteTypeInfo>>();
         OPENVINO_ASSERT(m_type_info->name != nullptr && m_type_info->version_id != nullptr,
                         "Extension type should have information about operation set and operation type.");

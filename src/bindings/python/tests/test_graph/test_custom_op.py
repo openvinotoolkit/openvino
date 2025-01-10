@@ -56,13 +56,12 @@ class CustomAdd(Op):
     class_type_info = DiscreteTypeInfo("CustomAdd", "extension")
 
     def __init__(self, inputs=None):
-        super().__init__(self, inputs)
-        # if inputs is not None:
-        #     self.set_arguments(inputs)
-        #     self.constructor_validate_and_infer_types()
+        super().__init__(self)
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
-        print("from validate")
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
     def clone_with_new_inputs(self, new_inputs):
@@ -89,11 +88,10 @@ class CustomOpWithAttribute(Op):
 
     def __init__(self, inputs=None, attrs=None):
         super().__init__(self, inputs)
-        self._attrs = attrs
-        # if attrs is not None or inputs is not None:
-        #     self._attrs = attrs
-        #     self.set_arguments(inputs)
-        #     self.constructor_validate_and_infer_types()
+        if attrs is not None or inputs is not None:
+            self._attrs = attrs
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
@@ -235,18 +233,13 @@ def test_op_extension(prepared_paths):
     input_shape = [2, 1]
 
     core = Core()
-    print("1")
     core.add_extension(CustomSimpleOp)
-    print("2")
     core.add_extension(OpExtension(CustomSimpleOpWithAttribute))
-    print("3")
     core.add_extension(OpExtension(CustomAdd))
-    print("4")
+
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
-    print("5")
     custom_simple = CustomSimpleOp(inputs=[param1, param2])
-    print("6")
     custom_simple.set_friendly_name("test_add")
     custom_with_attribute = CustomSimpleOpWithAttribute(inputs=[custom_simple], value_str="test_attribute")
     custom_add = CustomAdd(inputs=[custom_with_attribute])
@@ -272,7 +265,8 @@ def test_fail_create_op_extension():
                 self.set_arguments(inputs)
                 self.constructor_validate_and_infer_types()
 
-        def get_type_info(self):
+        @staticmethod
+        def get_type_info():
             return OpWithBadClassTypeInfo.class_type_info
 
     core = Core()
