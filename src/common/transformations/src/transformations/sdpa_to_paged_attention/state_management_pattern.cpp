@@ -159,13 +159,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
     // Baichuan2 13b case
     // TODO: make it stricter, more conservative.
-    auto sub = pattern::wrap_type<v1::Subtract>({pattern::any_input(), pattern::any_input()});
-    auto select = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), sub});
-    auto _alibi = pattern::any_input();
-    auto Unsqueeze140 = pattern::wrap_type<v0::Unsqueeze>({_alibi, pattern::any_input()});
-    auto Add141 = pattern::wrap_type<v1::Add>({pattern::any_input(), Unsqueeze140});
-    auto Slice147 = pattern::wrap_type<v8::Slice>(
-        {Add141, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto baichuan2_alibi = pattern::any_input();
+    auto alibi_slice_to_replace = pattern::wrap_type<v8::Slice>(
+        {baichuan2_alibi, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto alibi_path = pattern::wrap_type<v3::ShapeOf>({alibi_slice_to_replace});
+    alibi_path = pattern::wrap_type<v8::Gather>({alibi_path, pattern::any_input(), pattern::any_input()});
+    alibi_path = pattern::wrap_type<v0::Concat>({pattern::any_input(), pattern::any_input(), alibi_path});
+    alibi_path = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), alibi_path});
+    alibi_path = pattern::wrap_type<v0::Convert>({alibi_path});
+    alibi_path = pattern::wrap_type<v1::Multiply>({alibi_path, pattern::any_input()});
+    alibi_path = pattern::wrap_type<v1::Subtract>({pattern::any_input(), alibi_path});
+    alibi_path = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), alibi_path});
+    auto alibi_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({alibi_slice_to_replace, pattern::any_input()});
+    alibi_path = pattern::wrap_type<v1::Add>({alibi_path, alibi_unsqueeze});
+    auto mul = pattern::wrap_type<v1::Multiply>({pattern::any_input(), pattern::any_input()});
+    alibi_path = pattern::wrap_type<v8::Slice>(
+        {alibi_path, mul, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
@@ -175,7 +184,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
     auto mask_to_sdpa =
-        std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, Slice147, pattern::any_input()});
+        std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, alibi_path, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -348,13 +357,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.count(_alibi)) {
-            alibi_slopes = pattern_map.at(_alibi).get_node_shared_ptr();
+        //Baichuan2 13b case
+        if (pattern_map.count(baichuan2_alibi)) {
+            alibi_slopes = pattern_map.at(baichuan2_alibi).get_node_shared_ptr();
             auto start = v0::Constant::create(element::i64, Shape{2}, {1, 1});
             auto stop = v0::Constant::create(element::i64, Shape{2}, {2, 2});
             auto step = v0::Constant::create(element::i64, Shape{2}, {1, 1});
             auto axes = v0::Constant::create(element::i64, Shape{2}, {1, 2});
-            alibi_slopes = std::make_shared<v8::Slice>(alibi_slopes->input_value(0), start, stop, step, axes);
+            alibi_slopes = std::make_shared<v8::Slice>(alibi_slopes, start, stop, step, axes);
             alibi_slopes =
                 std::make_shared<v1::Reshape>(alibi_slopes, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
             if (alibi_slopes->get_element_type() == element::f32) {
