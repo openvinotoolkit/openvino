@@ -165,7 +165,7 @@ public:
 
 intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                               ov::intel_cpu::MultiCacheWeakPtr cache)
-    : TargetMachine(std::make_shared<CPURuntimeConfigurator>()),
+    : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
       h(new jit_snippet()),
       isa(host_isa),
       compiled_kernel_cache(std::move(cache)) {
@@ -177,9 +177,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::RankNormalization::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::Reshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
+    jitters[snippets::op::Reorder::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
 
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
-    jitters[snippets::op::LoadReshape::get_type_info_static()] =
+    jitters[snippets::op::LoadReorder::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_memory_emitter);
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_load_broadcast_emitter);

@@ -21,16 +21,16 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
         endif()
     endif()
 
+    # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows we don't have such variable
     set(PROGRAMFILES_ENV "ProgramFiles\(X86\)")
-
-    # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows
-    # we don't have such variable
     if(DEFINED ENV{${PROGRAMFILES_ENV}})
         file(TO_CMAKE_PATH $ENV{${PROGRAMFILES_ENV}} PROGRAMFILES)
 
         set(WDK_PATHS "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
                       "${PROGRAMFILES}/Windows Kits/10/bin/x64")
+    endif()
 
+    if(WDK_PATHS)
         message(STATUS "Trying to find apivalidator in: ")
         foreach(wdk_path IN LISTS WDK_PATHS)
             message("    * ${wdk_path}")
@@ -90,6 +90,9 @@ endfunction()
 
 set(VALIDATED_TARGETS "" CACHE INTERNAL "")
 
+#
+# ov_add_api_validator_post_build_step(TARGET <name>)
+#
 function(_ov_add_api_validator_post_build_step)
     return()
     if((NOT ONECORE_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
@@ -212,11 +215,4 @@ function(_ov_add_api_validator_post_build_step)
 
     list(APPEND VALIDATED_TARGETS ${API_VALIDATOR_TARGETS})
     set(VALIDATED_TARGETS "${VALIDATED_TARGETS}" CACHE INTERNAL "" FORCE)
-endfunction()
-
-#
-# ov_add_api_validator_post_build_step(TARGET <name>)
-#
-function(ov_add_api_validator_post_build_step)
-    _ov_add_api_validator_post_build_step(${ARGN})
 endfunction()

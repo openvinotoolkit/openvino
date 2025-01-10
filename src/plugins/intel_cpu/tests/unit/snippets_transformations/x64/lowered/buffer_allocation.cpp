@@ -149,7 +149,7 @@ protected:
         const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[2]);
 
         const auto order = std::vector<size_t>{0, 2, 3, 1};
-        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
+        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReorder>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(store);
         const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, relu0, BRGEMM_TYPE::STAND_ALONE);
@@ -199,7 +199,7 @@ protected:
         const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[2]);
 
         const auto order = std::vector<size_t>{0, 2, 3, 1};
-        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReshape>(parameter1, 1, 0, order);
+        const auto load_reshape = std::make_shared<ov::snippets::op::LoadReorder>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto convert0 = std::make_shared<ov::snippets::op::ConvertSaturation>(store, ov::element::f32);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(convert0);
