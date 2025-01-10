@@ -64,6 +64,20 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 }
 
+TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
+    uint64_t blobSize = 0;
+    std::stringstream stream;
+    auto meta = MetadataTest(blobSize, "some_ov_version");
+
+    constexpr uint32_t dummy_version = MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
+    meta.set_version(dummy_version);
+
+    OV_ASSERT_NO_THROW(meta.write(stream));
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_FALSE(storedMeta->is_compatible());
+}
+
 struct MetadataVersionTestFixture : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<uint32_t> {
 public:
     std::stringstream blob;
@@ -78,28 +92,45 @@ public:
         : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
 
     void TestBody() override {}
+
+    static std::string getTestCaseName(testing::TestParamInfo<MetadataVersionTestFixture::ParamType> info);
 };
 
-TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
-    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(0, ov::get_openvino_version().buildNumber);
-    uint32_t metaVersion = GetParam();
+std::string MetadataVersionTestFixture::getTestCaseName(
+    testing::TestParamInfo<MetadataVersionTestFixture::ParamType> info) {
+    std::ostringstream result;
+    result << "major version=" << MetadataBase::get_major(info.param)
+           << ", minor version=" << MetadataBase::get_minor(info.param);
+    return result.str();
+}
 
+TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
+    uint32_t metaVersion = GetParam();
+    if (CURRENT_METADATA_MAJOR_VERSION == MetadataBase::get_major(metaVersion) && CURRENT_METADATA_MINOR_VERSION == 0) {
+        GTEST_SKIP() << "Skipping single test since there is no case of lower minor version than actual.";
+    }
+
+    MetadataVersionTestFixture dummyMeta = MetadataVersionTestFixture(0, "some_ov_version");
     dummyMeta.set_version(metaVersion);
 
     OV_ASSERT_NO_THROW(dummyMeta.write(blob));
-    ASSERT_ANY_THROW(read_metadata_from(blob));
+    EXPECT_ANY_THROW(read_metadata_from(blob));
+    ASSERT_FALSE(dummyMeta.is_compatible());
 }
 
 constexpr uint16_t currentMajor = MetadataBase::get_major(CURRENT_METADATA_VERSION),
                    currentMinor = MetadataBase::get_minor(CURRENT_METADATA_VERSION);
 
-INSTANTIATE_TEST_CASE_P(MetadataUnitTests,
-                        MetadataVersionTestFixture,
-                        ::testing::Values(MetadataBase::make_version(currentMajor, currentMinor + 1),
-                                          MetadataBase::make_version(currentMajor, currentMinor - 1),
-                                          MetadataBase::make_version(currentMajor + 1, currentMinor),
-                                          MetadataBase::make_version(currentMajor + 1, currentMinor + 1),
-                                          MetadataBase::make_version(currentMajor + 1, currentMinor - 1),
-                                          MetadataBase::make_version(currentMajor - 1, currentMinor),
-                                          MetadataBase::make_version(currentMajor - 1, currentMinor + 1),
-                                          MetadataBase::make_version(currentMajor - 1, currentMinor - 1)));
+const std::vector badMetadataVersions = {
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION - 1),
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION),
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION + 1),
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION - 1),
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION - 1, CURRENT_METADATA_MINOR_VERSION),
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION - 1, CURRENT_METADATA_MINOR_VERSION + 1),
+    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION - 1, CURRENT_METADATA_MINOR_VERSION - 1)};
+
+INSTANTIATE_TEST_SUITE_P(MetadataUnitTests,
+                         MetadataVersionTestFixture,
+                         ::testing::ValuesIn(badMetadataVersions),
+                         MetadataVersionTestFixture::getTestCaseName);
