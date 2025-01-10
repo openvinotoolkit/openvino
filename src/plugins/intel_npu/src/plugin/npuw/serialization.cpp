@@ -41,13 +41,19 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Spati
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     using ov::npuw::s11n::write;
 
-    NPUW_ASSERT(var.is_continuous());
     auto type_str = var.get_element_type().to_string();
     write(stream, type_str);
     write(stream, var.get_shape());
-    // FIXME: Should strides be serialized as well?
     write(stream, var.get_byte_size());
-    stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+
+    if (var.is_continuous()) {
+        stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+    } else {
+        // Just copy strided tensor to a non-strided one
+        ov::Tensor non_strided = ov::Tensor(var.get_element_type(), var.get_shape());
+        var.copy_to(non_strided);
+        stream.write(reinterpret_cast<const char*>(non_strided.data()), non_strided.get_byte_size());
+    }
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
