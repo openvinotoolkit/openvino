@@ -301,6 +301,11 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    const auto all_devices = plugin->get_core()->get_available_devices();
+    if (std::find(all_devices.begin(), all_devices.end(), "NPU") == all_devices.end()) {
+        return std::nullopt;
+    }
+
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
 
