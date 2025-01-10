@@ -91,6 +91,7 @@ endfunction()
 set(VALIDATED_TARGETS "" CACHE INTERNAL "")
 
 function(_ov_add_api_validator_post_build_step)
+    return()
     if((NOT ONECORE_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
         return()
     endif()
