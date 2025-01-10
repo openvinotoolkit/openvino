@@ -123,7 +123,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/image_generation>`__
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/image_generation>`__
 
       .. tab-item:: C++
          :sync: cpp
@@ -225,7 +225,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                   }
 
          For more information, refer to the
-         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/image_generation/>`__
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/image_generation/>`__
 
 
 .. dropdown:: Speech Recognition
@@ -271,7 +271,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/whisper_speech_recognition/>`__.
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/whisper_speech_recognition/>`__.
 
       .. tab-item:: C++
          :sync: cpp
@@ -323,7 +323,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
             }
 
          For more information, refer to the
-         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/whisper_speech_recognition/>`__.
 
 
 .. dropdown:: Using GenAI in Chat Scenario
@@ -367,7 +367,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/chat_sample/>`__.
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/chat_sample/>`__.
 
       .. tab-item:: C++
          :sync: cpp
@@ -415,7 +415,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/chat_sample/>`__
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/chat_sample/>`__
 
 
 .. dropdown:: Using GenAI with Vision Language Models
@@ -483,7 +483,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/visual_language_chat>`__.
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/visual_language_chat>`__.
 
       .. tab-item:: C++
          :sync: cpp
@@ -549,7 +549,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/visual_language_chat/>`__
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/visual_language_chat/>`__
 
 
 |
@@ -803,7 +803,7 @@ runs prediction of the next K tokens, thus repeating the cycle.
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speculative_decoding_lm/>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/speculative_decoding_lm/>`__.
 
 
    .. tab-item:: C++
@@ -859,7 +859,7 @@ runs prediction of the next K tokens, thus repeating the cycle.
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speculative_decoding_lm/>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/speculative_decoding_lm/>`__
 
 
 

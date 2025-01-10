@@ -30,7 +30,7 @@ converts the models to OpenVINO™ IR format. To simplify the user
 experience, we will use `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai>`__ for `Whisper
 automatic speech recognition
-scenarios <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
+scenarios <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/whisper_speech_recognition/README.md>`__.
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -406,7 +406,7 @@ Run inference OpenVINO model with WhisperPipeline
 
 
 To simplify user experience we will use `OpenVINO Generate
-API <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
+API <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/whisper_speech_recognition/README.md>`__.
 Firstly we will create pipeline with ``WhisperPipeline``. You can
 construct it straight away from the folder with the converted model. It
 will automatically load the ``model``, ``tokenizer``, ``detokenizer``
