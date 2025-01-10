@@ -44,8 +44,8 @@ except:
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
-from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import PartialShape
+from openvino import get_version as get_rt_version
+from openvino import PartialShape
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \

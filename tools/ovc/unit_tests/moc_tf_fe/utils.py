@@ -5,7 +5,7 @@ import os
 
 import numpy as np
 
-from openvino.runtime import Core
+from openvino import Core
 from openvino.tools.ovc.convert import convert_model
 
 

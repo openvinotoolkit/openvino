@@ -4,7 +4,7 @@
 import pathlib
 from typing import Any
 
-from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
+from openvino import Model  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
@@ -97,7 +97,7 @@ def convert_model(
             are reused for weights in the converted model.
 
     Returns:
-        openvino.runtime.Model
+        openvino.Model
     """
     params = locals()
     logger_state = get_logger_state()
