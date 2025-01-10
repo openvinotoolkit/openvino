@@ -630,6 +630,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 if (!get_network().is_reuse_variable_mem()) {
                     GPU_DEBUG_TRACE_DETAIL << "Update output mem with new variable mem" << std::endl;
                     _outputs[0] = variable.get_memory();
+                    _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
                     if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                         _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
