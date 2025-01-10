@@ -38,8 +38,8 @@ Pipeline::Pipeline(const Config& config,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
-                   const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors_data,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors_data,
+                   const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
+                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
                    uint32_t group_ordinal)
     : _graph(graph),
       _config(config),
@@ -74,11 +74,11 @@ Pipeline::Pipeline(const Config& config,
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         size_t io_index = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
-            if (input_tensors_data.at(io_index).size() > 1) {
+            if (input_tensors.at(io_index).size() > 1) {
                 void* data = nullptr;
-                auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors_data.at(io_index).at(i));
+                auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(i));
                 if (remote_tensor == nullptr) {
-                    data = input_tensors_data.at(io_index).at(i)->data();
+                    data = input_tensors.at(io_index).at(i)->data();
                 } else {
                     data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
                 }
@@ -90,9 +90,9 @@ Pipeline::Pipeline(const Config& config,
             }
 
             void* data = nullptr;
-            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors_data.at(io_index).at(0));
+            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(0));
             if (remote_tensor == nullptr) {
-                data = input_tensors_data.at(io_index).at(0)->data();
+                data = input_tensors.at(io_index).at(0)->data();
             } else {
                 data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
@@ -100,7 +100,7 @@ Pipeline::Pipeline(const Config& config,
             graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
-                    (i * input_tensors_data.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
+                    (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
 
             ++io_index;
         }
@@ -108,9 +108,9 @@ Pipeline::Pipeline(const Config& config,
         io_index = 0;
         for (const auto& desc : graph->get_output_descriptors()) {
             void* data = nullptr;
-            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors_data.at(io_index));
+            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors.at(io_index));
             if (remote_tensor == nullptr) {
-                data = output_tensors_data.at(io_index)->data();
+                data = output_tensors.at(io_index)->data();
             } else {
                 data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
@@ -118,7 +118,7 @@ Pipeline::Pipeline(const Config& config,
             graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
-                    (i * output_tensors_data.at(io_index)->get_byte_size()) / _number_of_command_lists);
+                    (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
             ++io_index;
         }
 
@@ -226,12 +226,12 @@ void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
-    const size_t _number_of_command_lists = _command_lists.size();
+    const size_t number_of_command_lists = _command_lists.size();
 
-    for (size_t i = 0; i < _number_of_command_lists; i++) {
+    for (size_t i = 0; i < number_of_command_lists; i++) {
         _command_lists.at(i)->updateMutableCommandList(
             arg_index,
-            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / _number_of_command_lists);
+            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
     }
 };
 
@@ -239,9 +239,9 @@ void Pipeline::closeCommandList() {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "closeCommandList");
     _logger.debug("Pipeline - closeCommandList");
 
-    const size_t _number_of_command_lists = _command_lists.size();
+    const size_t number_of_command_lists = _command_lists.size();
 
-    for (size_t i = 0; i < _number_of_command_lists; i++) {
+    for (size_t i = 0; i < number_of_command_lists; i++) {
         _command_lists.at(i)->close();
     }
 };
@@ -250,10 +250,10 @@ void Pipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, 
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
-    const size_t _number_of_command_lists = _command_lists.size();
+    const size_t number_of_command_lists = _command_lists.size();
 
-    OPENVINO_ASSERT(command_list_index < _number_of_command_lists,
-                    "Command list index is higgher than the number of Command lists ",
+    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
+                    "Command list index is higher than the number of Command lists ",
                     command_list_index);
 
     _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
@@ -263,10 +263,10 @@ void Pipeline::closeCommandListIndex(size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "closeCommandListIndex");
     _logger.debug("Pipeline - closeCommandListIndex");
 
-    const size_t _number_of_command_lists = _command_lists.size();
+    const size_t number_of_command_lists = _command_lists.size();
 
-    OPENVINO_ASSERT(command_list_index < _number_of_command_lists,
-                    "Command list index is higgher than the number of Command lists ",
+    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
+                    "Command list index is higher than the number of Command lists ",
                     command_list_index);
 
     _command_lists.at(command_list_index)->close();

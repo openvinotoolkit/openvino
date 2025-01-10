@@ -40,8 +40,9 @@ const ov::AnyMap& RemoteTensor::get_properties() const {
 }
 
 void RemoteTensor::set_shape(ov::Shape new_shape) {
-    if (_shape == new_shape)
+    if (_shape == new_shape) {
         return;
+    }
 
     _shape = std::move(new_shape);
 
