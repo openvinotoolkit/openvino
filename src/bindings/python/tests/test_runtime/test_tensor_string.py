@@ -80,7 +80,7 @@ def test_empty_string_tensor(init_type):
         ([["tex\u0000tttt"], ["abĆ"]]),
         ([["jeszcze więcej słówe"], [u"효#과가 있었어"]]),
         ([["jeszcze\u0000 więcej słówekó"]]),
-         ([["효과가 있었어"]]),
+        ([["효과가 있었어"]]),
         (["ab\u0000Ć"]),
         (["tex\u0000\u0000ttt\u0000\u0000"]),
         (["tex\u0000\u0000ttt\u0000\u0000", "ab\u0000Ć"]),
