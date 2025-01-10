@@ -211,7 +211,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
         Py_ssize_t utf8_size = 0;
         const auto utf8_str = PyUnicode_AsUTF8AndSize(_unicode_obj, &utf8_size);
 
-        *data->insert(data->begin(), utf8_str, utf8_str + utf8_size);  // get_utf8_string_end(utf8_str, utf8_size));
+        *data->insert(data->begin(), utf8_str, utf8_str + utf8_size);
         Py_XDECREF(_unicode_obj);
     }
 }
