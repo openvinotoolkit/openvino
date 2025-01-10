@@ -46,14 +46,16 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     write(stream, var.get_shape());
     write(stream, var.get_byte_size());
 
+    ov::Tensor tensor;
     if (var.is_continuous()) {
-        stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+        tensor = var;
     } else {
         // Just copy strided tensor to a non-strided one
-        ov::Tensor non_strided = ov::Tensor(var.get_element_type(), var.get_shape());
-        var.copy_to(non_strided);
-        stream.write(reinterpret_cast<const char*>(non_strided.data()), non_strided.get_byte_size());
+        tensor = ov::Tensor(var.get_element_type(), var.get_shape());
+        var.copy_to(tensor);
     }
+    NPUW_ASSERT(tensor);
+    stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
@@ -117,30 +119,9 @@ void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ::intel_npu::Config& var) {
-    std::string str_cfg;
-    read(stream, str_cfg);
-
-    // Parse cfg from string
-    std::map<std::string, std::string> config;
-
-    size_t pos = 0;
-    std::string token, key, value;
-    while ((pos = str_cfg.find(' ')) != std::string::npos) {
-        token = str_cfg.substr(0, pos);
-        auto pos_eq = token.find('=');
-        key = token.substr(0, pos_eq);
-        value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
-        config[key] = value;
-        str_cfg.erase(0, pos + 1);
-    }
-
-    // Process tail
-    auto pos_eq = str_cfg.find('=');
-    key = str_cfg.substr(0, pos_eq);
-    value = str_cfg.substr(pos_eq + 2, str_cfg.size() - pos_eq - 3);
-    config[key] = value;
-
-    var.update(config);
+    std::string str;
+    read(stream, str);
+    var.fromString(str);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var) {

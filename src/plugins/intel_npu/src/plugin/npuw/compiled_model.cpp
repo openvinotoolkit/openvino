@@ -494,7 +494,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
-      m_loaded_from_cache(false) {
+      m_loaded_from_cache(serialized) {
     ::intel_npu::registerNPUWOptions(*m_options_desc);
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");

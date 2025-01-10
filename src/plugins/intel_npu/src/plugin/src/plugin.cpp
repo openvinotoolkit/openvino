@@ -757,13 +757,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 
     // If was exported via NPUW
+    auto stream_start_pos = stream.tellg();
     std::array<uint8_t, 6> serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        stream.seekg(0);
+        stream.seekg(stream_start_pos);
         return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
     }
-    stream.seekg(0);
+    stream.seekg(stream_start_pos);
 
     // Drop NPUW properties if there are any
     ov::AnyMap npu_plugin_properties;
