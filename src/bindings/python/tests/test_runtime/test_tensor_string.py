@@ -74,9 +74,17 @@ def test_empty_string_tensor(init_type):
         (["text", "abc", "openvino"]),
         (["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"]),
         ([["text"], ["abc"], ["openvino"]]),
-        ([["jeszcze więcej słów", "효과가 있었어"]]),
-    ],
-)
+        ([["text"]]),
+        (["tex\u0000t\u0000tt"]),
+        ([["abĆ"]]),
+        ([["tex\u0000tttt"], ["abĆ"]]),
+        ([["jeszcze więcej słówe"], [u"효#과가 있었어"]]),
+        ([["jeszcze\u0000 więcej słówekó"]]),
+         ([["효과가 있었어"]]),
+        (["ab\u0000Ć"]),
+        (["tex\u0000\u0000ttt\u0000\u0000"]),
+        (["tex\u0000\u0000ttt\u0000\u0000", "ab\u0000Ć"]),
+    ])
 def test_init_with_list(string_data):
     tensor = ov.Tensor(string_data)
     assert tensor.element_type == ov.Type.string

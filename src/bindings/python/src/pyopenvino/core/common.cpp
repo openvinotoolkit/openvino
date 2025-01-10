@@ -118,15 +118,29 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 
 namespace string_helpers {
 
+namespace {
+auto find_last_not_null(const std::string& str) {
+    return std::find_if(str.rbegin(),
+                        str.rend(),
+                        [](const auto& c) {
+                            return c != '\0';
+                        })
+        .base();
+}
+}  // namespace
+
 py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
     auto data = t.data<std::string>();
+
+    // numpy array stores all bytes of strings but when encode it remove trailing null characters
+    // find max stride as max length of string but without trailing null characters
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
-        return x.length() < y.length();
+        return std::distance(x.begin(), find_last_not_null(x)) < std::distance(y.begin(), find_last_not_null(y));
     });
-    auto max_stride = max_element->length();
+    auto max_stride = static_cast<size_t>(std::distance(max_element->cbegin(), find_last_not_null(*max_element)));
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
     // Adjusting strides to follow the numpy convention:
     py::array array;
@@ -144,7 +158,7 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     auto ptr = array.data();
     for (size_t i = 0; i < t.get_size(); ++i) {
         auto start = &data[i][0];
-        auto length = data[i].length();
+        auto length = std::min(data[i].length(), max_stride);
         auto end = std::copy(start, start + length, (char*)ptr + i * max_stride);
         std::fill_n(end, max_stride - length, 0);
     }
@@ -185,18 +199,20 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
     if (tensor.get_size() != static_cast<size_t>(array.size())) {
         OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
     }
-    py::buffer_info buf = array.request();
+
+    const auto buf = array.request();
     auto data = tensor.data<std::string>();
-    for (size_t i = 0; i < tensor.get_size(); ++i) {
-        char* ptr = reinterpret_cast<char*>(buf.ptr) + (i * buf.itemsize);
+
+    for (auto a_first = reinterpret_cast<const uint8_t*>(buf.ptr), a_last = a_first + array.nbytes(); a_first < a_last;
+         a_first += array.itemsize(), ++data) {
         // TODO: check other unicode kinds? 2BYTE and 1BYTE?
-        PyObject* _unicode_obj =
-            PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, reinterpret_cast<void*>(ptr), buf.itemsize / 4);
-        PyObject* _utf8_obj = PyUnicode_AsUTF8String(_unicode_obj);
-        const char* _tmp_str = PyBytes_AsString(_utf8_obj);
-        data[i] = std::string(_tmp_str);
+        auto _unicode_obj = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, a_first, array.itemsize() / 4);
+
+        Py_ssize_t utf8_size = 0;
+        const auto utf8_str = PyUnicode_AsUTF8AndSize(_unicode_obj, &utf8_size);
+
+        *data->insert(data->begin(), utf8_str, utf8_str + utf8_size);  // get_utf8_string_end(utf8_str, utf8_size));
         Py_XDECREF(_unicode_obj);
-        Py_XDECREF(_utf8_obj);
     }
 }
 
