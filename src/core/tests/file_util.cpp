@@ -398,6 +398,27 @@ TEST(file_util, path_cast_to_wstring) {
                  ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt").generic_wstring().c_str());
     EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt",
                  ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt").generic_wstring().c_str());
+
+    // from char8_t, char16_t to wchar_t
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
+                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt",
+                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt").wstring().c_str());
+}
+
+// error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
+// reference a deleted function
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
+// https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
+
+TEST(file_util, path_cast_from_wstring_to_u32string) {
+    EXPECT_TRUE(std::u32string(U"") == ov::util::Path(L"").u32string());
+    EXPECT_TRUE(std::u32string(U"file.txt") == ov::util::Path(L"file.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"./local/file.txt") == ov::util::Path(L"./local/file.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(L"~/local/file.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(L"/usr/local/file.txt").u32string());
+    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt") ==
+                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt").u32string());
 }
 #endif
 
@@ -431,29 +452,3 @@ TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
               ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22_2.txt").generic_u8string());
 #endif
 }
-
-#if defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
-// error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
-// reference a deleted function
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
-// https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
-
-TEST(file_util, path_cast_from_wstring_to_u32string) {
-    EXPECT_TRUE(std::u32string(U"") == ov::util::Path(L"").u32string());
-    EXPECT_TRUE(std::u32string(U"file.txt") == ov::util::Path(L"file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"./local/file.txt") == ov::util::Path(L"./local/file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(L"~/local/file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(L"/usr/local/file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt") ==
-                ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt").u32string());
-}
-
-TEST(file_util, path_cast_to_wstring_msc_skip) {
-    // from char8_t, char16_t to wchar_t
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
-                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").wstring().c_str());
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt",
-                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt").wstring().c_str());
-}
-
-#endif
