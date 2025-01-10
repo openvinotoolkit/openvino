@@ -71,7 +71,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         OPENVINO_ASSERT(pattern_map.count(weights_m));
         OPENVINO_ASSERT(pattern_map.count(bias_m));
         OPENVINO_ASSERT(pattern_map.count(convert_m));
-        auto fc = std::dynamic_pointer_cast<ov::op::internal::FullyConnected>(
+        auto fc = ov::as_type_ptr<ov::op::internal::FullyConnected>(
             pattern_map.at(fully_connected_m).get_node_shared_ptr());
         if (!fc || transformation_callback(fc)) {
             return false;

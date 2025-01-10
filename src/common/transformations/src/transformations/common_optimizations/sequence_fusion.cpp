@@ -132,7 +132,7 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
         x_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(in_X.get_source_output(), axis_1));
         h_outputs_to_redirect[cells_cnt] = current->output(0);
 
-        if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
+        if (auto augru = ov::as_type_ptr<ov::op::internal::AUGRUCell>(current)) {
             attention_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(augru->input_value(5), axis_1));
         }
 
@@ -254,7 +254,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                                                        first_cell->get_activations_alpha(),
                                                        first_cell->get_activations_beta(),
                                                        first_cell->get_clip());
-    } else if (dynamic_pointer_cast<ov::op::internal::AUGRUCell>(first_cell)) {
+    } else if (ov::as_type_ptr<ov::op::internal::AUGRUCell>(first_cell)) {
         const auto A_in = cp_to.make<ov::op::v0::Concat>(attention_to_concat, 1);
         sequence = cp_to.make<ov::op::internal::AUGRUSequence>(X_in,
                                                                Ht_in,
