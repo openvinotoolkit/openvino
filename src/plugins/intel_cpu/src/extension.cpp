@@ -26,6 +26,7 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/act_sparse_fc.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
@@ -96,6 +97,7 @@ private:
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
     OP_EXTENSION_X64(ov::intel_cpu::QKVProjectionNode)                      \
+    OP_EXTENSION_X64(ov::intel_cpu::ActSparseFCNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
     OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \
