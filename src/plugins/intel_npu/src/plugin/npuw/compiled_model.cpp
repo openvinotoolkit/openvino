@@ -167,13 +167,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_dev_list = ov::DeviceIDParser::get_hetero_devices(dev_list_str);
     m_meta_devices = ov::npuw::get_properties_per_device(plugin, dev_list_str, m_non_npuw_props);
 
-    if (m_name.find(NPUW_NAME_IDENTIFIER) != m_name.npos) {
-        LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
-        // Drop serialized from the name
-        m_name = m_name.substr(std::string(NPUW_NAME_IDENTIFIER).size());
-        return;
-    }
-
     const bool acc_check_opt = m_cfg.get<::intel_npu::NPUW_ACC_CHECK>();
     if (acc_check_opt) {
         const double threshold_opt = m_cfg.get<::intel_npu::NPUW_ACC_THRESH>();
@@ -494,25 +487,27 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
-                                                           const std::size_t& idx,
-                                                           const std::string& device) const {
+ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                       const ov::AnyMap& properties,
+                                       const bool serialized)
+    : ov::npuw::ICompiledModel(model, plugin),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc),
+      m_name(model->get_friendly_name()),
+      m_loaded_from_cache(false) {
+    ::intel_npu::registerNPUWOptions(*m_options_desc);
+    NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Serializing CompiledModelDesc...");
     LOG_BLOCK();
 
-    write(stream, device);
-
     write(stream, replaced_by);
-    // FIXME: is this check enough?
-    if (replaced_by == idx) {
-        NPUW_ASSERT(compiled_model);
-        // FIXME: workaround for import/export model since import model seem to reset the file pointer
-        std::stringstream ss;
-        compiled_model->export_model(ss);
-        write(stream, ss.str());
-    }
 
     write(stream, param_base);
     write(stream, forced_to_fcall);
@@ -553,51 +548,29 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     LOG_DEBUG("DONE.");
 }
 
-ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
-    std::istream& stream,
-    const std::size_t idx,
-    const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& properties) {
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
     LOG_BLOCK();
 
-    CompiledModelDesc desc;
+    read(stream, replaced_by);
 
-    std::string device;
-    read(stream, device);
-    read(stream, desc.replaced_by);
-    // FIXME: is this check enough?
-    if (desc.replaced_by == idx) {
-        // Import model from either NPU or CPU plugin
-        // FIXME: workaround for import/export model since import model seems to reset the file pointer
-        std::string buf;
-        read(stream, buf);
+    read(stream, param_base);
+    read(stream, forced_to_fcall);
 
-        // FIXME: extra copy
-        std::stringstream buffer;
-        buffer.write(&buf[0], buf.size());
+    read(stream, host_gather.dst_idx);
+    read(stream, host_gather.src_idx);
+    read(stream, host_gather.idx_idx);
 
-        // No NPUW properties are present in this config
-        desc.compiled_model = plugin->get_core()->import_model(buffer, device, properties);
-    }
+    read(stream, spatial);
 
-    read(stream, desc.param_base);
-    read(stream, desc.forced_to_fcall);
-
-    read(stream, desc.host_gather.dst_idx);
-    read(stream, desc.host_gather.src_idx);
-    read(stream, desc.host_gather.idx_idx);
-
-    read(stream, desc.spatial);
-
-    read(stream, desc.scales);
-    read(stream, desc.zerops);
-    read(stream, desc.is_remote);
+    read(stream, scales);
+    read(stream, zerops);
+    read(stream, is_remote);
 
     // NOTE: for closure only deserialize uids - full flow
-    read(stream, desc.closure_uid);
+    read(stream, closure_uid);
 
     // Some tensors might be present in CPU closure already - need to deserialize as is
     // FIXME: When weightless serialization is introduced, this should be handled differently
@@ -605,16 +578,14 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     read(stream, closure_size);
     std::vector<std::size_t> cpu_closure_ids;
     read(stream, cpu_closure_ids);
-    desc.closure.resize(closure_size);
+    closure.resize(closure_size);
     for (const auto& cidx : cpu_closure_ids) {
-        read(stream, desc.closure[cidx]);
+        read(stream, closure[cidx]);
     }
 
     // FIXME: support weightless flow!
 
     LOG_DEBUG("DONE.");
-
-    return desc;
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
@@ -623,10 +594,8 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     using namespace ov::npuw::s11n;
 
-    // Serialize name first + NPUW identifier for deserialization
-    // FIXME: consider a better approach then using name there
-    std::string name = std::string(NPUW_NAME_IDENTIFIER) + m_name;
-    write(stream, name);
+    // Serialize name
+    write(stream, m_name);
 
     // Serialize inputs and outputs
     write(stream, inputs());
@@ -638,28 +607,27 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, m_param_subscribers);
     write(stream, m_submodels_input_to_prev_output);
 
-    // Check compiled submodels' devices
-    std::unordered_set<std::string> device_list;
-    for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
-        auto& comp_model_desc = m_compiled_submodels[i];
-        if (comp_model_desc.compiled_model || comp_model_desc.replaced_by) {
-            const auto real_idx = comp_model_desc.replaced_by.value_or(i);
-            auto& func_desc = m_compiled_submodels[real_idx];
-            device_list.insert(*func_desc.device_it);
-        }
-    }
-
-    // FIXME: should heterogeneous structure be supported?
-    if (device_list.size() != 1) {
-        NPUW_ASSERT(false && "Not all of the submodels are compiled for a singular device!");
-    }
-    write(stream, *device_list.begin());
+    // Write device list
+    write(stream, m_dev_list);
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
-    std::size_t idx = 0;
     for (const auto& subm : m_compiled_submodels) {
-        subm.serialize(stream, idx++, *device_list.begin());
+        // Write device idx
+        std::size_t device_idx = subm.device_it - m_dev_list.begin();
+        write(stream, device_idx);
+        // Write ICompiledModel if it's there
+        if (subm.compiled_model) {
+            write(stream, true);
+            // FIXME: workaround for import/export model since import model seem to reset the file pointer
+            std::stringstream ss;
+            subm.compiled_model->export_model(ss);
+            write(stream, ss.str());
+        } else {
+            write(stream, false);
+        }
+        // Write the rest of the submodel desc
+        subm.serialize(stream);
     }
 
     LOG_INFO("Done.");
@@ -678,8 +646,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::string model_name;
     read(stream, model_name);
 
-    NPUW_ASSERT(model_name.find(NPUW_NAME_IDENTIFIER) != model_name.npos && "Model wasn't serialized via NPUW!");
-
     // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
     // to continue deserialization
     ov::ParameterVector parameters;
@@ -690,7 +656,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
 
-    auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, properties);
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, properties, true);
 
     // Deserialize meta
     compiled->m_name = model_name;
@@ -699,12 +665,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     read(stream, compiled->m_param_subscribers);
     read(stream, compiled->m_submodels_input_to_prev_output);
 
-    // NOTE: In serialize() we checked that device for all submodels are set to a singular NPU or CPU device
-    std::string device;
-    read(stream, device);
-    compiled->m_dev_list = {device};
+    // Deserialize device list
+    read(stream, compiled->m_dev_list);
 
-    // Deserialize compiled submodels
     // Drop NPUW-related properties from the config for submodels import
     std::map<std::string, ov::Any> non_npuw_props;
     for (auto it = properties.begin(); it != properties.end(); ++it) {
@@ -713,13 +676,32 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         }
     }
 
+    // Deserialize compiled submodels
     std::size_t subm_size = 0;
     read(stream, subm_size);
-    compiled->m_compiled_submodels.reserve(subm_size);
+    compiled->m_compiled_submodels.resize(subm_size);
     for (std::size_t i = 0; i < subm_size; ++i) {
-        auto desc = CompiledModelDesc::deserialize(stream, i, plugin, non_npuw_props);
-        desc.device_it = compiled->m_dev_list.cbegin();
-        compiled->m_compiled_submodels.push_back(desc);
+        std::size_t device_idx = 0;
+        read(stream, device_idx);
+
+        bool has_compiled_model = false;
+        read(stream, has_compiled_model);
+        if (has_compiled_model) {
+            // Import model from the plugin
+            // FIXME: workaround for import/export model since import model seems to reset the file pointer
+            std::string buf;
+            read(stream, buf);
+
+            // FIXME: extra copy
+            std::stringstream buffer;
+            buffer.write(&buf[0], buf.size());
+
+            // No NPUW properties are present in this config
+            compiled->m_compiled_submodels[i].compiled_model =
+                plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx], non_npuw_props);
+        }
+        compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
+        compiled->m_compiled_submodels[i].deserialize(stream);
     }
 
     compiled->implement_properties();

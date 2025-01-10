@@ -13,7 +13,6 @@
 #include <unordered_set>
 #include <vector>
 
-const constexpr char* NPUW_NAME_IDENTIFIER = "NPUW_serialized_";
 const constexpr uint64_t NPUW_SERIALIZATION_INDICATOR = 0x0123456789abcdef;
 
 // Forward declaration

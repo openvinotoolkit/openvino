@@ -40,6 +40,10 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& properties,
+                  const bool serialized);
 
     void export_model(std::ostream& model) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -164,11 +168,8 @@ private:
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream, const std::size_t& idx, const std::string& device) const;
-        static CompiledModelDesc deserialize(std::istream& stream,
-                                             const std::size_t idx,
-                                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const ov::AnyMap& properties);
+        void serialize(std::ostream& stream) const;
+        void deserialize(std::istream& stream);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

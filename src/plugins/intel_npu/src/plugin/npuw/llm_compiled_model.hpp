@@ -28,6 +28,10 @@ public:
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const ov::AnyMap& properties);
+    LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
+                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                     const ov::AnyMap& properties,
+                     const bool serialized);
     LLMCompiledModel() = delete;
 
     void export_model(std::ostream& model) const override;

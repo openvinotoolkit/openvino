@@ -445,13 +445,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_cfg.update(any_copy(npuw_llm_props));
 
-    if (m_name.find(NPUW_NAME_IDENTIFIER) != m_name.npos) {
-        LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
-        // Drop serialized from the name
-        m_name = m_name.substr(std::string(NPUW_NAME_IDENTIFIER).size());
-        return;
-    }
-
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
@@ -522,6 +515,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Done");
 }
 
+ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
+                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                             const ov::AnyMap& properties,
+                                             const bool serialized)
+    : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc) {
+    NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
@@ -536,10 +541,8 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
 
-    // Serialize name first + NPUW identifier for deserialization
-    // FIXME: consider a better approach then using name there
-    std::string name = std::string(NPUW_NAME_IDENTIFIER) + m_name;
-    write(stream, name);
+    // Serialize name
+    write(stream, m_name);
 
     // Serialize inputs and outputs
     write(stream, inputs());
@@ -597,8 +600,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     std::string model_name;
     read(stream, model_name);
 
-    NPUW_ASSERT(model_name.find(NPUW_NAME_IDENTIFIER) != model_name.npos && "Model wasn't serialized via NPUW!");
-
     // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
     // to continue deserialization
     ov::ParameterVector parameters;
@@ -609,7 +610,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
 
-    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, properties);
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, properties, true);
 
     // Deserialize LLMCompiledModel-specific data
     read(stream, compiled->m_kvcache_desc.max_prompt_size);
