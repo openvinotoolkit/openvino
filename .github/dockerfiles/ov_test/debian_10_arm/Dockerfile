@@ -3,7 +3,6 @@ FROM ${REGISTRY}/library/debian:10.13
 
 USER root
 
-
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
