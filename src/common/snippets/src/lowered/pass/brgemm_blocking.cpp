@@ -146,21 +146,21 @@ bool BrgemmBlockingBase::mark_blocking_loops(snippets::lowered::LinearIR& linear
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     if (!ov::snippets::utils::is_full_dim_value(k_block)) {
-        const std::vector<LoopPort> entries{LoopPort::create(brgemm_expr->get_input_port(0), 0),
-                                            LoopPort::create(brgemm_expr->get_input_port(1), 1)};
+        const std::vector<LoopPort> entries{LoopPort::create<LoopPort::Type::Incremented>(brgemm_expr->get_input_port(0), 0),
+                                            LoopPort::create<LoopPort::Type::Incremented>(brgemm_expr->get_input_port(1), 1)};
         const std::vector<LoopPort> exits{LoopPort::create<LoopPort::Type::NotProcessed>(brgemm_expr->get_output_port(0))};
         mark_k_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, k_block);
     }
     if (!ov::snippets::utils::is_full_dim_value(n_block)) {
         const std::vector<LoopPort> entries{LoopPort::create<LoopPort::Type::NotProcessed>(brgemm_expr->get_input_port(0)),
-                                            LoopPort::create(brgemm_expr->get_input_port(1))};
-        const std::vector<LoopPort> exits{LoopPort::create(brgemm_expr->get_output_port(0))};
+                                            LoopPort::create<LoopPort::Type::Incremented>(brgemm_expr->get_input_port(1))};
+        const std::vector<LoopPort> exits{LoopPort::create<LoopPort::Type::Incremented>(brgemm_expr->get_output_port(0))};
         mark_n_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, n_block);
     }
     if (!ov::snippets::utils::is_full_dim_value(m_block)) {
-        const std::vector<LoopPort> entries{LoopPort::create(brgemm_expr->get_input_port(0), 1),
+        const std::vector<LoopPort> entries{LoopPort::create<LoopPort::Type::Incremented>(brgemm_expr->get_input_port(0), 1),
                                             LoopPort::create<LoopPort::Type::NotProcessed>(brgemm_expr->get_input_port(1))};
-        const std::vector<LoopPort> exits{LoopPort::create(brgemm_expr->get_output_port(0), 1)};
+        const std::vector<LoopPort> exits{LoopPort::create<LoopPort::Type::Incremented>(brgemm_expr->get_output_port(0), 1)};
         mark_m_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, m_block);
     }
     return true;

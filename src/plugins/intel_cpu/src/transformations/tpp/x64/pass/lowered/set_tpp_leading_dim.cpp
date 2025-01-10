@@ -40,7 +40,7 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
                                                            loop_info->get_input_ports() :
                                                            loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
-            if (found == border_points.end() || found->get_type() == LoopPort::Type::Incremented)
+            if (found == border_points.end() || found->is_incremented())
                 return false;
         }
         return true;

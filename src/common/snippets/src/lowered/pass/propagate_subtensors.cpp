@@ -56,7 +56,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     // First step: set new dim value to the corresponding input_ports' dimensions
     if (most_outer_loop) {
         for (const auto& port : loop_info->get_input_ports()) {
-            if (port.get_type() != LoopPort::Type::NotProcessed) {
+            if (port.is_processed()) {
                 const auto& expr = port.get_expr_port()->get_expr();
                 const auto& desc = port.get_expr_port()->get_descriptor_ptr();
                 auto subtensor = desc->get_subtensor();
@@ -77,7 +77,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     }
 
     auto update_only_dim_idx_with_subtensor_value = [&](const LoopPort& port) {
-        if (port.get_type() != LoopPort::Type::NotProcessed) {
+        if (port.is_processed()) {
             const auto desc = port.get_expr_port()->get_descriptor_ptr();
             const auto expr = port.get_expr_port()->get_expr();
             const auto parent_desc = expr->get_input_port_connector(port.get_expr_port()->get_index())->get_source().get_descriptor_ptr();

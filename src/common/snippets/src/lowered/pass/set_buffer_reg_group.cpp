@@ -34,8 +34,8 @@ bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortI
     const auto equal_invariant_shape_paths =
         MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.get_expr_port()) ==
         MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.get_expr_port());
-    const auto lhs_is_incremented = lhs_info.port.get_type() == LoopPort::Type::Incremented;
-    const auto rhs_is_incremented = rhs_info.port.get_type() == LoopPort::Type::Incremented;
+    const auto lhs_is_incremented = lhs_info.port.is_incremented();
+    const auto rhs_is_incremented = rhs_info.port.is_incremented();
     const auto equal_is_incremented = lhs_is_incremented == rhs_is_incremented;
     return equal_invariant_shape_paths && equal_is_incremented &&
            (equal_element_type_sizes || !lhs_is_incremented || (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));

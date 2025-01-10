@@ -105,7 +105,7 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
             return false;
         bool loop_by_m = true;
         outermost_loop->iterate_through_ports([&loop_by_m](const lowered::LoopPort& port) {
-            if (port.get_type() != LoopPort::Type::NotProcessed && port.get_dim_idx() != m_dim_M_idx)
+            if (port.is_processed() && port.get_dim_idx() != m_dim_M_idx)
                 loop_by_m = false;
         });
         return loop_by_m;

@@ -65,10 +65,10 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
         OPENVINO_ASSERT(loop_info, "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
         loop_info->iterate_through_ports(validate_loop_port);
 
-        // Validate that iteration dimnsion is broadcastable
+        // Validate that iteration dimension is broadcastable
         std::set<size_t> unique_dimensions;
         loop_info->iterate_through_ports([&unique_dimensions](const LoopPort& loop_port) {
-            if (loop_port.get_type() != LoopPort::Type::NotProcessed) {
+            if (loop_port.is_processed()) {
                 const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
                 const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.get_expr_port())
                                                    : ov::snippets::utils::get_preordered_vdims(*loop_port.get_expr_port());

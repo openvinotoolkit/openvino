@@ -13,7 +13,7 @@ namespace utils {
 using namespace ov::snippets::lowered;
 namespace {
 inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, size_t port_count) {
-    if (loop_port.get_type() != LoopPort::Type::Incremented)
+    if (!loop_port.is_incremented())
         return 0;
 
     const auto& expr_port = loop_port.get_expr_port();
@@ -47,7 +47,7 @@ inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment
 inline void init_work_amount(const LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
     loop_info->iterate_through_ports([&work_amount](const LoopPort& loop_port) {
-        if (loop_port.get_type() == LoopPort::Type::Incremented) {
+        if (loop_port.is_processed()) {
             const auto& desc = loop_port.get_expr_port()->get_descriptor_ptr();
             const auto& shape = desc->get_shape();
             const auto& layout = desc->get_layout();
