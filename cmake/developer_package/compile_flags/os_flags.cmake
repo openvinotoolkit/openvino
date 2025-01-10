@@ -104,6 +104,7 @@ macro(ov_check_compiler_supports_sve flags)
     int main() {
         svfloat64_t a;
         a = svdup_n_f64(0);
+        (void)a; // to avoid warnings
         return 0;
     }")
 
@@ -259,7 +260,6 @@ endmacro()
 macro(ov_arm_sve_optimization_flags flags)
     # Check for compiler SVE support
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
-
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
