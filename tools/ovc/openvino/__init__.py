@@ -32,6 +32,7 @@ from openvino._pyopenvino import Version
 from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import Input
+from openvino._pyopenvino import OpExtension
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Strides
