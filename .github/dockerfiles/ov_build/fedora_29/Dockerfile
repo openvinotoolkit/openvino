@@ -28,6 +28,11 @@ RUN dnf update -y && dnf install -y \
     pigz \
     xz \
     rpm-devel
+
+# Install build dependencies
+ADD install_build_dependencies.sh /install_build_dependencies.sh
+RUN chmod +x /install_build_dependencies.sh && \
+    bash -e /install_build_dependencies.sh
     
 # Setup Python
 RUN cd /usr/src && \
@@ -36,13 +41,11 @@ RUN cd /usr/src && \
 RUN cd /usr/src/Python-3.9.9 && \
     ./configure --prefix=/usr --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall && ldconfig
-RUN /usr/bin/python3.9 -m pip install $(python3 -m pip freeze)
-    
+
 # Use Python 3.9 as default
-RUN rm -f /usr/bin/python && \
-    rm -f /usr/bin/python3 && \
-    ln -s /usr/bin/python3.9 /usr/bin/python && \
-    ln -s /usr/bin/python3.9 /usr/bin/python3
+RUN python3.9 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
 
 # Setup pip
 ENV PIP_VERSION="24.0"
@@ -52,12 +55,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
     
-# Install build dependencies
-ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && \
-    bash -e /install_build_dependencies.sh && \
-    rm -rf /var/lib/apt/lists/*
-
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
