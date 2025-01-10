@@ -119,9 +119,6 @@ TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
     ASSERT_FALSE(dummyMeta.is_compatible());
 }
 
-constexpr uint16_t currentMajor = MetadataBase::get_major(CURRENT_METADATA_VERSION),
-                   currentMinor = MetadataBase::get_minor(CURRENT_METADATA_VERSION);
-
 const std::vector badMetadataVersions = {
     MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION - 1),
     MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION),
