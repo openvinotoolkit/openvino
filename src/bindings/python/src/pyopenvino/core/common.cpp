@@ -119,9 +119,9 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 namespace string_helpers {
 
 namespace {
-auto find_last_not_null(const std::string& str) {
-    return std::find_if(str.rbegin(),
-                        str.rend(),
+auto find_last_not_null(const char* str, size_t length) {
+    return std::find_if(std::make_reverse_iterator(str + length),
+                        std::make_reverse_iterator(str),
                         [](const auto& c) {
                             return c != '\0';
                         })
@@ -138,9 +138,9 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     // numpy array stores all bytes of strings but when encode it remove trailing null characters
     // find max stride as max length of string but without trailing null characters
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
-        return std::distance(x.begin(), find_last_not_null(x)) < std::distance(y.begin(), find_last_not_null(y));
+        return x.length() < y.length();
     });
-    auto max_stride = static_cast<size_t>(std::distance(max_element->cbegin(), find_last_not_null(*max_element)));
+    auto max_stride = max_element->length();
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
     // Adjusting strides to follow the numpy convention:
     py::array array;
@@ -153,13 +153,13 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
             new_strides[i] = (new_strides[i] / element_stride) * max_stride;
         }
         array = py::array(dtype, t.get_shape(), new_strides);
-    }
-    // Create an empty array and populate it with utf-8 encoded strings:
-    auto ptr = reinterpret_cast<char*>(array.mutable_data());
-    for (size_t i = 0; i < t.get_size(); ++i) {
-        const auto length = std::min(data[i].length(), max_stride);
-        ptr = std::copy_n(data[i].begin(), length, ptr);
-        ptr = std::fill_n(ptr, max_stride - length, '\0');
+        // Create an empty array and populate it with utf-8 encoded strings:
+        auto ptr = reinterpret_cast<char*>(array.mutable_data());
+        for (size_t i = 0; i < t.get_size(); ++i) {
+            const auto length = data[i].length();
+            ptr = std::copy_n(data[i].begin(), length, ptr);
+            ptr = std::fill_n(ptr, max_stride - length, '\0');
+        }
     }
     return array;
 }
@@ -210,7 +210,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
         Py_ssize_t utf8_size = 0;
         const auto utf8_str = PyUnicode_AsUTF8AndSize(_unicode_obj, &utf8_size);
 
-        *data = std::string(utf8_str, utf8_str + utf8_size);
+        *data = std::string(utf8_str, find_last_not_null(utf8_str, utf8_size));
         Py_XDECREF(_unicode_obj);
     }
 }
