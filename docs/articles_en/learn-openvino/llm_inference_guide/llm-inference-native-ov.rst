@@ -98,6 +98,17 @@ Learn more in Loading an LLM with OpenVINO.
 
    optimum-cli export openvino --convert-tokenizer --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 openvino_model
 
+.. note::
+
+   The current Optimum version can convert both the model and tokenizers. To do so, use the
+   standard call:
+
+   .. code-block:: py
+
+      optimum-cli export openvino --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 openvino_model
+
+
+
 Full OpenVINO Text Generation Pipeline
 ######################################################################
 
@@ -110,6 +121,7 @@ Use the model and tokenizer converted from the previous step:
 
    import numpy as np
    from openvino import compile_model
+   import openvino_tokenizers
 
    # Compile the tokenizer, model, and detokenizer using OpenVINO. These files are XML representations of the models optimized for OpenVINO
    compiled_tokenizer = compile_model("openvino_tokenizer.xml")
@@ -154,7 +166,7 @@ and appends it to the existing sequence.
    # Generate new tokens iteratively
    for idx in range(prompt_size, prompt_size + new_tokens_size):
        # Get output from the model
-       output = compiled_model(input_dict)["token_ids"]
+       output = compiled_model(input_dict)[0]
        # Update the input_ids with newly generated token
        input_dict["input_ids"][:, idx] = output[:, idx - 1]
        # Update the attention mask to include the new token
