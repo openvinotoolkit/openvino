@@ -295,13 +295,21 @@ void SyncInferRequest::enqueue() {
         std::move(events.begin(), events.end(), std::back_inserter(dependencies));
     }
 
+    auto network = m_graph->get_network();
     for (const auto& it : m_variables) {
         const auto& name = it.first;
         const auto& variable = it.second;
+        if (network->has_variable(name)) {
+            auto& prev_var = network->get_variable(name);
+            if (prev_var.get_memory() == variable->get_memory()) {
+                network->set_reuse_variable_mem(true);
+                continue;
+            }
+        }
+        network->set_reuse_variable_mem(false);
         prepare_state(name, variable);
     }
 
-    auto network = m_graph->get_network();
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();

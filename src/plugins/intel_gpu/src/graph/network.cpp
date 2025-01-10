@@ -997,5 +997,9 @@ void network::set_variables_state_info(const std::string& variable_id,
     _variables_state_info.at(variable_id).m_primitives.insert(p);
 }
 
+void network::set_reuse_variable_mem(bool reuse) {
+    _reuse_variable_mem = reuse;
+}
+
 
 }  // namespace cldnn
