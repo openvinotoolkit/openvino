@@ -36,7 +36,7 @@ RUN cd /usr/src && \
 RUN cd /usr/src/Python-3.9.9 && \
     ./configure --prefix=/usr --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall && ldconfig
-RUN /usr/bin/python3.9 -m pip install -r $(python3 -m pip freeze)
+RUN /usr/bin/python3.9 -m pip install $(python3 -m pip freeze)
     
 # Use Python 3.9 as default
 RUN rm -f /usr/bin/python && \
