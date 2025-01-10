@@ -1448,12 +1448,10 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
 
     const auto row_step = to->get_strides()[2] / sizeof(uint16_t);
     for (size_t k = 0; k < from->get_size(); k += block_size) {
-        // NB: Helps to avoid 'src' may be used uninitialized warning
-        __m256i src = _mm256_setzero_si256();
         src = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(src_ptr + k));
         for (size_t j = 0; j < block_size; ++j) {
             // NB: Assign particular byte from the block to the column
-            *dst_ptr = reinterpret_cast<uint16_t*>(&src)[j];
+            *dst_ptr = reinterpret_cast<const uint16_t*>(&src)[j];
             // NB: And simply go to the next element in column
             dst_ptr += row_step;
         }
