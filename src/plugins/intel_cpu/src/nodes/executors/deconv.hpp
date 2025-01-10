@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
 #include "executor.hpp"
@@ -29,7 +31,7 @@ struct DeconvAttrs {
 
 class DeconvExecutor {
 public:
-    explicit DeconvExecutor(const ExecutorContext::CPtr& context) : context(context) {}
+    explicit DeconvExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
     virtual bool init(const DeconvAttrs& deconvAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,

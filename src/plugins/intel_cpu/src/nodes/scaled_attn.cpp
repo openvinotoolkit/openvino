@@ -521,15 +521,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     ov::element::Type precision;
 
     MHAKernel() = delete;
-    explicit MHAKernel(GraphContext::CPtr ctx) : context(ctx) {
-        m_block_size = 512;
-        select_nfltmax_at_0 = false;
-        precision = ov::element::from<T>();
-    }
+    explicit MHAKernel(GraphContext::CPtr ctx)
+        : context(std::move(ctx)),
+          m_block_size(512),
+          precision(ov::element::from<T>()),
+          select_nfltmax_at_0(false) {}
 
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
-    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+    void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
     }
@@ -541,7 +541,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(dnnl::stream strm,
+    void operator()(const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
