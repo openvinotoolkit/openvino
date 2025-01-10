@@ -959,7 +959,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::SharedOpOptimization>();
 
             // Move down scalar-multiply layers as much as possible
-            auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, false);
+            auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
