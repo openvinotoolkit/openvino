@@ -43,6 +43,11 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
+#if HAS_ROTATED_BLOCKS
+    const __global INPUT8_TYPE* rotated_block_indices,
+    const __global INPUT9_TYPE* rotation_deltas,
+    const __global INPUT10_TYPE* rotated_block_indices,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -62,7 +67,10 @@ KERNEL(pa_sdpa_opt)(
     // past_lens: [sequences_num]
     // subsequence_begins: [sequences_num + 1]
     // block_indices: [used_blocks_num]
-    // block_indices: [sequences_num + 1]
+    // block_indices_begins: [sequences_num + 1]
+    // rotated_block_indices: [num_rotated_blocks ]
+    // rotation_deltas [num_rotated_blocks, 1 || PAGED_ATTENTION_BLOCK_SIZE ]
+    // rotation_trig_lut [MAX_CONTEXT_LEN, HEAD_SIZE]
     //
     // Output shapes:
     // output: [sequences_num, HEADS_NUM * HEAD_SIZE]
@@ -146,6 +154,10 @@ KERNEL(pa_sdpa_opt)(
             q_val[i] = *scale * q_val[i];
 #endif
         }
+#endif
+
+#ifdef HAS_ROTATED_BLOCKS
+        // TODO (vshampor): add cache block rotation at this spot
 #endif
 
         const uint blocks_num_per_partition = min(total_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);
