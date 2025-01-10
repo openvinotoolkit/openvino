@@ -354,7 +354,7 @@ To find the optimal weight compression parameters for a particular model, refer 
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ ,
 where weight compression parameters are being searched from the subset of values.
 To speed up the search, a self-designed validation pipeline called
-`WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+`WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/tools/who_what_benchmark>`__
 is used. The pipeline can quickly evaluate the changes in the accuracy of the optimized
 model compared to the baseline.
 
@@ -491,7 +491,7 @@ Additional Resources
 - `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
   : Repository containing example pipelines that implement image and text generation
   tasks. It also provides a tool to benchmark LLMs.
-- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/tools/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <quantizing-models-post-training>`
 - :doc:`Training-time Optimization <compressing-models-during-training>`
