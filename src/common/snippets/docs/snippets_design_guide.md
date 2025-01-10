@@ -647,14 +647,14 @@ So if a loop's `work_amount` is not evenly divisible by its `increment`, it mean
 4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
 This information will be used during code emission to eliminate redundant instructions.
 
-Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the main passes in the `Preparation` stage. 
+Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) for more info regarding the main passes in the `Preparation` stage. 
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
 `TargetMachine` also maps the OpenVINO's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
 The mapping is done using the `jitters` map defined in [target_machine.hpp](../include/snippets/target_machine.hpp). 
 In order for this mechanism to work, every `Snippets'` code generation backend should create emitter implementations derived from the `Emitter` base class defined in [emitter.hpp](../include/snippets/emitter.hpp). 
-The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/x64/cpu_generator.cpp) for an implementation example.
+The backend then should create its own target machine class (derived from the common `TargetMachine`) and populate the `jitters` map, see the [cpu_generator.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/cpu_generator.cpp) for an implementation example.
 
 Note that `init_emitters(...)` only initializes the appropriate emitters, but do not actually emit any code. 
 To perform code emission, a `snippets::op::Kernel` operation is constructed (see [generator.cpp](../src/generator.cpp)), its constructor takes the `IR` with all the initialized emitters as an only input argument. 
@@ -663,7 +663,7 @@ Finally, the `kernel->emit_code({}, {})` command initiates the code emission.
 Note that the `emit_code(...)` is called only for the `KernelEmitter`, and the emitter is responsible for calling the same method for the rest of the expressions in the `IR` This encapsulation is needed because the `KernelEmitter` performs mapping of the assigned abstract registers to physical registers available on a particular platform. 
 Another important function of the `KernelEmitter` is to calculate input/output data offsets based on dimension indices provided in runtime, and to shift corresponding data-handling registers accordingly. 
 Keep in mind however, that the required functionality of the `KernelEmitter` depends on how the rest of the emitters are implemented (particularly for `Load`/`Store` `Ops`). 
-We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
+We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
 
 ## See also
 
