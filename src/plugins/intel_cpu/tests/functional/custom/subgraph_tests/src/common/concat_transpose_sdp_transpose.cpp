@@ -98,9 +98,9 @@ public:
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
-        configuration[ov::hint::key_cache_group_size.name()] = keyGroupSize;
-        configuration[ov::hint::value_cache_group_size.name()] = keyGroupSize;
-        configuration[ov::hint::key_cache_quant_bychannel.name()] = quantKeyByChannel;
+        configuration[ov::key_cache_group_size.name()] = keyGroupSize;
+        configuration[ov::value_cache_group_size.name()] = keyGroupSize;
+        configuration[ov::key_cache_quant_bychannel.name()] = quantKeyByChannel;
         //QuantByChannel needs explictly set u8 kv_cache
         if (quantKeyByChannel) {
             configuration[ov::hint::kv_cache_precision.name()] = ov::element::u8;

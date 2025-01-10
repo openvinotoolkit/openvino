@@ -377,12 +377,16 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
-    } else if (name == ov::hint::key_cache_group_size) {
-        return decltype(ov::hint::key_cache_group_size)::value_type(engConfig.keyCacheGroupSize);
-    } else if (name == ov::hint::value_cache_group_size) {
-        return decltype(ov::hint::key_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
-    } else if (name == ov::hint::key_cache_quant_bychannel) {
-        return decltype(ov::hint::key_cache_quant_bychannel)::value_type(engConfig.keyCacheQuantByChannel);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(engConfig.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(engConfig.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(engConfig.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
+    } else if (name == ov::key_cache_quant_bychannel) {
+        return decltype(ov::key_cache_quant_bychannel)::value_type(engConfig.keyCacheQuantByChannel);
     }
     return get_ro_property(name, options);
 }
@@ -426,9 +430,11 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
-            RW_property(ov::hint::key_cache_group_size.name()),
-            RW_property(ov::hint::value_cache_group_size.name()),
-            RW_property(ov::hint::key_cache_quant_bychannel.name()),
+            RW_property(ov::key_cache_precision.name()),
+            RW_property(ov::value_cache_precision.name()),
+            RW_property(ov::key_cache_group_size.name()),
+            RW_property(ov::value_cache_group_size.name()),
+            RW_property(ov::key_cache_quant_bychannel.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -553,7 +559,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
-        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }

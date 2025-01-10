@@ -581,24 +581,6 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
 static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
 /**
- * @brief Hint for device to use group_size for key cache compression
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size{"KEY_CACHE_GROUP_SIZE"};
-
-/**
- * @brief Hint for device to use group_size for value cache compression
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
-
-/**
- * @brief Hint for device to use by channel quantization for key cache compression
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<bool, PropertyMutability::RW> key_cache_quant_bychannel{"KEY_CACHE_QUANT_BYCHANNEL"};
-
-/**
  * @brief This property scales down activations to prevent overflows when inference precision is f16.
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -1319,4 +1301,34 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> exec
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
  */
 static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
+
+/**
+ * @brief The precision of key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> key_cache_precision{"KEY_CACHE_PRECISION"};
+
+/**
+ * @brief The precision of value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> value_cache_precision{"VALUE_CACHE_PRECISION"};
+
+/**
+ * @brief The group_size of key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size{"KEY_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief The group_size of value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief Hint for device to use by channel quantization for key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> key_cache_quant_bychannel{"KEY_CACHE_QUANT_BYCHANNEL"};
 }  // namespace ov

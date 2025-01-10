@@ -48,7 +48,7 @@ public:
         return real_order;
     }
     struct SDPAQuantParam {
-        ov::element::Type prec = ov::element::undefined;
+        ov::element::Type precision = ov::element::undefined;
         size_t groupSize = 0;
         bool isByChannel = false;
     };
