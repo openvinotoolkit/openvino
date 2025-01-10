@@ -88,9 +88,6 @@ bool StringTensorPack::isExecutable() const {
 void StringTensorPack::execute(dnnl::stream strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     StringTensorPackContext ctx = {*this};
-    std::cout << "Input 0 shape: " << getParentEdgeAt(0)->getMemory().getStaticDims() << std::endl;
-    std::cout << "Input 1 shape: " << getParentEdgeAt(1)->getMemory().getStaticDims() << std::endl;
-    std::cout << "Input 2 shape: " << getParentEdgeAt(2)->getMemory().getStaticDims() << std::endl;
     OV_SWITCH(intel_cpu,
               StringTensorPackExecute,
               ctx,
