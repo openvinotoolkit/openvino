@@ -172,7 +172,7 @@ VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
     : VariableStateBase(name, std::move(external_desc)),
       m_internal_mem(std::move(external_buffer)),
       m_internal_desc(m_internal_mem->getDescPtr()) {
-    OPENVINO_ASSERT(external_buffer);
+    OPENVINO_ASSERT(m_internal_mem);
     auto&& shape = m_internal_desc->getShape();
 
     if (shape.isStatic()) {
