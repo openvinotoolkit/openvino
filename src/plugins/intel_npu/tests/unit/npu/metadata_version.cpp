@@ -69,7 +69,8 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     std::stringstream stream;
     auto meta = MetadataTest(blobSize, "some_ov_version");
 
-    constexpr uint32_t dummy_version = MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
+    constexpr uint32_t dummy_version =
+        MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION + 1);
     meta.set_version(dummy_version);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
