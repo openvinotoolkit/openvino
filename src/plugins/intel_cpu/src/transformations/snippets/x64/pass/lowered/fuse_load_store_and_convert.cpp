@@ -22,7 +22,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(
     const auto& load_output = input_connector->get_source();
     const auto& load_expr = load_output.get_expr();
     const auto load = ov::as_type_ptr<snippets::op::Load>(load_expr->get_node());
-    if (!load || ov::is_type<snippets::op::LoadReshape>(load_expr->get_node()) ||
+    if (!load || ov::is_type<snippets::op::LoadReorder>(load_expr->get_node()) ||
         ov::is_type<snippets::op::BroadcastLoad>(load_expr->get_node()))
         return false;
 

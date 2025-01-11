@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.runtime.opset15 import ops
+
 # New operations added in Opset15
 from openvino.opset15.ops import col2im
 from openvino.opset15.ops import embedding_bag_offsets
