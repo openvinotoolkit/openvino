@@ -261,6 +261,69 @@ void Input::cloneBlobIfRequired() {
         needFlushDenormalsToZero = false;
     }
 
+    // The presence of subnormals is better to determined at IR read time.
+    auto checkSubnormalsAndBF16Overflows = [&](bool& has_subnormals, bool& has_bf16_overflows) {
+        if (prec == ov::element::f32) {
+            uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
+            float const* f32data = m_constOp->get_data_ptr<float>();
+
+            if (!size)
+                return;
+
+            const float bf16_max = 3.3895313899137927e38f;
+
+#if defined(OPENVINO_ARCH_X86_64)
+            if (auto fn = jit_has_subnormals_function()) {
+                static const size_t batch_size = 2048;
+                const size_t iterations_num = size / batch_size + 1;
+
+                volatile bool has_subnormals_local = false;
+
+                parallel_for(iterations_num, [&](int n) {
+                    auto ptr = u32data + n * batch_size;
+                    const jit_has_subnormals_base::args_t args = {reinterpret_cast<float const*>(ptr),
+                                                                  std::min(batch_size, (size_t)(u32data + size - ptr)),
+                                                                  false};
+
+                    fn(&args);
+
+                    if (args.hasSubnormals)
+                        has_subnormals_local = true;
+                });
+
+                has_subnormals = has_subnormals_local;
+                //TODO: opt with jit
+                for (size_t i = 0; i < size; ++i) {
+                    if (f32data[i] < -bf16_max || f32data[i] > bf16_max) {
+                        has_bf16_overflows = true;
+                        return;
+                    }
+                }
+                return;
+            }
+#endif
+
+            uint32_t mantissaMask = 0x007fffff;
+            uint32_t exponentMask = 0x7f800000;
+            for (size_t i = 0; i < size; ++i) {
+                if ((u32data[i] & exponentMask) == 0 && (u32data[i] & mantissaMask) != 0) {
+                    has_subnormals = true;
+                }
+                if (f32data[i] < -bf16_max || f32data[i] > bf16_max) {
+                    has_bf16_overflows = true;
+                }
+                if (has_subnormals && has_bf16_overflows) {
+                    return;
+                }
+            }
+        }
+    };
+
+    bool has_subnormals = false;
+    bool has_bf16_overflows = false;
+
+    checkSubnormalsAndBF16Overflows(has_subnormals, has_bf16_overflows);
+
     auto cloneBlob = [&, this]() {
         MemoryPtr memory;
 
@@ -293,7 +356,7 @@ void Input::cloneBlobIfRequired() {
         } else {
             ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
         }
-        ptr->load(*memory.get(), needFlushDenormalsToZero);
+        ptr->load(*memory.get(), needFlushDenormalsToZero, has_bf16_overflows);
 
         return ptr;
     };
@@ -310,51 +373,6 @@ void Input::cloneBlobIfRequired() {
 #endif
     };
 
-    // The presence of subnormals is better to determined at IR read time.
-    auto hasSubnormals = [&]() {
-        if (prec == ov::element::f32) {
-            uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
-
-            if (!size) {
-                return false;
-            }
-
-#if defined(OPENVINO_ARCH_X86_64)
-            if (auto fn = jit_has_subnormals_function()) {
-                static const size_t batch_size = 2048;
-                const size_t iterations_num = size / batch_size + 1;
-
-                volatile bool has_subnormals = false;
-
-                parallel_for(iterations_num, [&](int n) {
-                    auto ptr = u32data + n * batch_size;
-                    const jit_has_subnormals_base::args_t args = {
-                        reinterpret_cast<float const*>(ptr),
-                        std::min(batch_size, static_cast<size_t>(u32data + size - ptr)),
-                        false};
-
-                    fn(&args);
-
-                    if (args.hasSubnormals) {
-                        has_subnormals = true;
-                    }
-                });
-
-                return has_subnormals;
-            }
-#endif
-
-            uint32_t mantissaMask = 0x007fffff;
-            uint32_t exponentMask = 0x7f800000;
-            for (size_t i = 0; i < size; ++i) {
-                if ((u32data[i] & exponentMask) == 0 && (u32data[i] & mantissaMask) != 0) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
-
     auto blobKey = [&]() {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", m_constOp->get_data_ptr());
@@ -366,7 +384,7 @@ void Input::cloneBlobIfRequired() {
         prec != element::string &&
         // IRs already have all subnormals flushed to zero, but in
         // read_model scenario with directly loaded original model still can have subnormals
-        isBlobAligned(m_constOp) && (!needFlushDenormalsToZero || !hasSubnormals()) &&
+        isBlobAligned(m_constOp) && (!needFlushDenormalsToZero || !has_subnormals) && !has_bf16_overflows &&
         // Blob should be cloned in cache only if original weights are stored on other numa node.
         // This is possible only in multistream case on multisocket machine.
         // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where
