@@ -218,47 +218,85 @@ constexpr Type f4e2m1(Type_t::f4e2m1);
 constexpr Type f8e8m0(Type_t::f8e8m0);
 
 template <typename T>
-Type from() {
+constexpr Type from() {
     OPENVINO_THROW("Unknown type");
 }
 template <>
-OPENVINO_API Type from<char>();
+OPENVINO_API constexpr Type from<char>() {
+    return element::boolean;
+}
 template <>
-OPENVINO_API Type from<bool>();
+OPENVINO_API constexpr Type from<bool>() {
+    return element::boolean;
+}
 template <>
-OPENVINO_API Type from<float>();
+OPENVINO_API constexpr Type from<ov::float16>() {
+    return element::f16;
+}
 template <>
-OPENVINO_API Type from<double>();
+OPENVINO_API constexpr Type from<float>() {
+    return element::f32;
+}
 template <>
-OPENVINO_API Type from<int8_t>();
+OPENVINO_API constexpr Type from<double>() {
+    return element::f64;
+}
 template <>
-OPENVINO_API Type from<int16_t>();
+OPENVINO_API constexpr Type from<int8_t>() {
+    return element::i8;
+}
 template <>
-OPENVINO_API Type from<int32_t>();
+OPENVINO_API constexpr Type from<int16_t>() {
+    return element::i16;
+}
 template <>
-OPENVINO_API Type from<int64_t>();
+OPENVINO_API constexpr Type from<int32_t>() {
+    return element::i32;
+}
 template <>
-OPENVINO_API Type from<uint8_t>();
+OPENVINO_API constexpr Type from<int64_t>() {
+    return element::i64;
+}
 template <>
-OPENVINO_API Type from<uint16_t>();
+OPENVINO_API constexpr Type from<uint8_t>() {
+    return element::u8;
+}
 template <>
-OPENVINO_API Type from<uint32_t>();
+OPENVINO_API constexpr Type from<uint16_t>() {
+    return element::u16;
+}
 template <>
-OPENVINO_API Type from<uint64_t>();
+OPENVINO_API constexpr Type from<uint32_t>() {
+    return element::u32;
+}
 template <>
-OPENVINO_API Type from<ov::bfloat16>();
+OPENVINO_API constexpr Type from<uint64_t>() {
+    return element::u64;
+}
 template <>
-OPENVINO_API Type from<ov::float16>();
+OPENVINO_API constexpr Type from<ov::bfloat16>() {
+    return element::bf16;
+}
 template <>
-OPENVINO_API Type from<ov::float8_e4m3>();
+OPENVINO_API constexpr Type from<ov::float8_e4m3>() {
+    return element::f8e4m3;
+}
 template <>
-OPENVINO_API Type from<ov::float8_e5m2>();
+OPENVINO_API constexpr Type from<ov::float8_e5m2>() {
+    return element::f8e5m2;
+}
 template <>
-OPENVINO_API Type from<std::string>();
+OPENVINO_API constexpr Type from<std::string>() {
+    return element::string;
+}
 template <>
-OPENVINO_API Type from<ov::float4_e2m1>();
+OPENVINO_API constexpr Type from<ov::float4_e2m1>() {
+    return element::f4e2m1;
+}
 template <>
-OPENVINO_API Type from<ov::float8_e8m0>();
+OPENVINO_API constexpr Type from<ov::float8_e8m0>() {
+    return element::f8e8m0;
+}
 
 OPENVINO_API Type fundamental_type_for(const Type& type);
 
