@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,18 +18,24 @@
 
 namespace ov {
 namespace npuw {
+// Forward declaration
+class LLMCompiledModel;
+class CompiledModel;
 namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device)
+    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
+                  const std::string& alloc_device,
+                  const std::string& bank_name)
         : m_core(core),
-          m_alloc_device(alloc_device) {}
+          m_alloc_device(alloc_device),
+          m_bank_name(bank_name) {}
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
 
-    // Allocate and evaluate a registered tensor on a specified device (if needed) and return it from the bank
+    // Get registered, allocated and evaluated tensor on a specified device
     ov::Tensor get(int64_t uid, const std::string& device);
 
     // Evaluate and allocate all LazyTensors in the bank
@@ -37,7 +43,12 @@ public:
 
     bool is_remote(int64_t uid) const;
 
+    std::string get_name() const;
+
 private:
+    friend class ov::npuw::LLMCompiledModel;
+    friend class ov::npuw::CompiledModel;
+
     struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
@@ -52,10 +63,18 @@ private:
 
     ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
 
+    void serialize(std::ostream& stream) const;
+    static std::shared_ptr<Bank> deserialize(std::istream& stream,
+                                             const std::shared_ptr<const ov::ICore>& core,
+                                             const std::string& name);
+    // Used during deserialization
+    void read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device);
+
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
     int64_t uid_count = 0;
+    std::string m_bank_name;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

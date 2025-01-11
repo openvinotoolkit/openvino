@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
@@ -14,6 +14,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "serialization.hpp"
 
 namespace opp = ov::pass::pattern;
 class TransposeValueTensors : public ov::pass::MatcherPass {
@@ -297,12 +298,25 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles;
+    bool compiler_dq;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const ov::Any arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{});
-    const ov::Any max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{});
-    return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
+    const auto all_devices = plugin->get_core()->get_available_devices();
+    if (std::find(all_devices.begin(), all_devices.end(), "NPU") == all_devices.end()) {
+        return std::nullopt;
+    }
+
+    const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+
+    bool compiler_dq = false;
+    const auto device_caps =
+        plugin->get_property(ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
+    if (std::find(device_caps.begin(), device_caps.end(), "COMPILER_DYNAMIC_QUANTIZATION") != device_caps.end()) {
+        compiler_dq = true;
+    }
+    return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -349,6 +363,9 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ_FULL", "NO");
+    }
     return config;
 }
 
@@ -363,6 +380,12 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
     config.emplace("NPUW_DQ", "YES");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_DPU_GROUPS", 4);
+    }
+    if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
+        config.emplace("NPUW_UNFOLD_IREQS", "YES");
+    }
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ_FULL", "NO");
     }
     return config;
 }
@@ -401,6 +424,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
     : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
     LOG_DEBUG("Creating LLMCompiledModel");
@@ -461,27 +485,171 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
-    const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
-        OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
+        OPENVINO_THROW("GENERATE_HINT only works with default generate config!");
     }
+    const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     auto generate_config =
-        generate_config_opt.value_or(get_default_generate_config(model, npudesc, generate_hint)).as<ov::AnyMap>();
+        generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
+            .as<ov::AnyMap>();
 
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
 
-    m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
-    m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
+    m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
+    OPENVINO_ASSERT(m_kvcache_compiled,
+                    "Can't create ov::npuw::CompiledModel for passed kvcache "
+                    "model and its config, please check passed config.");
+    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+    OPENVINO_ASSERT(m_prefill_compiled,
+                    "Can't create ov::npuw::CompiledModel for passed prefill "
+                    "model and its config, please check passed config.");
 
     implement_properties();
+
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::LLMCompiledModel::export_model(std::ostream& model) const {
-    OPENVINO_NOT_IMPLEMENTED;
+ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
+                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                             const bool serialized)
+    : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc) {
+    NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
+    LOG_INFO("Serializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Serialize magic number first
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
+
+    // Serialize general meta info
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
+    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+
+    // Serialize name
+    write(stream, m_name);
+
+    // Serialize inputs and outputs
+    write(stream, inputs());
+    write(stream, outputs());
+
+    // Serialize LLMCompiledModel-specific data
+    write(stream, m_kvcache_desc.max_prompt_size);
+    write(stream, m_kvcache_desc.total_size);
+    write(stream, m_kvcache_desc.num_stored_tokens);
+    write(stream, m_kvcache_desc.dim);
+
+    // Serialize CompiledModels
+    m_kvcache_compiled->serialize(stream);
+    m_prefill_compiled->serialize(stream);
+
+    // Serialize weights bank (if required)
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // FIXME: support weightless flow
+    write(stream, kv_bank->get_name());
+    kv_bank->serialize(stream);
+
+    LOG_INFO("Done.");
+}
+
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    LOG_INFO("Deserializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Sanity check magic number
+    std::array<uint8_t, 6> serialization_indicator;
+    read(stream, serialization_indicator);
+    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+
+    // Deserialize general meta info
+    int vmajor, vminor, vpatch;
+    std::string s11n_version;
+    read(stream, vmajor);
+    read(stream, vminor);
+    read(stream, vpatch);
+    read(stream, s11n_version);
+
+    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        OPENVINO_THROW("This blobs was serialized with different OV version!",
+                       " Serialized by OV ",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       " Current OV version ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       " NPUW serialized by version ",
+                       s11n_version,
+                       " NPUW current serialization version ",
+                       NPUW_SERIALIZATION_VERSION);
+    }
+
+    // Deserialize model name first
+    std::string model_name;
+    read(stream, model_name);
+
+    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
+    // to continue deserialization
+    ov::ParameterVector parameters;
+    ov::NodeVector results;
+
+    read(stream, parameters);
+    read(stream, results);
+
+    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
+
+    // Deserialize LLMCompiledModel-specific data
+    read(stream, compiled->m_kvcache_desc.max_prompt_size);
+    read(stream, compiled->m_kvcache_desc.total_size);
+    read(stream, compiled->m_kvcache_desc.num_stored_tokens);
+    read(stream, compiled->m_kvcache_desc.dim);
+
+    // Deserialize CompiledModels
+    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
+    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
+
+    // Deserialize weights bank (if required)
+    std::string bank_name;
+    read(stream, bank_name);
+    auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+
+    // FIXME: support weightless option
+    compiled->m_kvcache_compiled->m_weights_bank = bank;
+    compiled->m_prefill_compiled->m_weights_bank = bank;
+
+    // After bank deserialization - reconstruct NPU closures from the bank
+    compiled->m_kvcache_compiled->reconstruct_closure();
+    compiled->m_prefill_compiled->reconstruct_closure();
+
+    LOG_INFO("Done.");
+    return compiled;
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
