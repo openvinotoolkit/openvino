@@ -92,6 +92,7 @@
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
@@ -338,6 +339,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // fuse following ops into GroupNormalization:
+        // group_norm_gamma * (instance_norm_gamma * MVN(x) + instance_norm_beta) + group_norm_beta
+        // note that instance norm related parameters are optional:
+        // - instance_norm_gamma is assumed to be filled with ones if not present in the graph
+        // - instance_norm_beta is assumed to be filled with zeros if not present in the graph
+        manager.register_pass<ov::pass::GroupNormalizationFusion>();
 
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
