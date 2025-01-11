@@ -84,7 +84,7 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& src, bool ftz = true) const override {
+    void load(const IMemory& src, bool ftz = true, bool bf16saturation = false) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
