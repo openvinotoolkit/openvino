@@ -1012,6 +1012,44 @@ def create_pytorch_module_with_output(tmp_dir):
         ), "output": "some_name"}
 
 
+def create_pytorch_module_with_none_example(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            if b is None:
+                b = torch.tensor(1., dtype=torch.float32)
+            return a + b
+
+    net = PTModel()
+    a = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add = ov.opset10.add(a, np.float32([1.]))
+    ref_model = Model([add], [a], "test")
+    return net, ref_model, {
+        "example_input": (
+            torch.tensor([5, 6], dtype=torch.float32),
+            None
+        ),
+        "compress_to_fp16": False}
+
+
+def create_pytorch_module_with_none_dict_example(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            if b is None:
+                b = torch.tensor(1., dtype=torch.float32)
+            return a + b
+
+    net = PTModel()
+    a = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add = ov.opset10.add(a, np.float32([1.]))
+    ref_model = Model([add], [a], "test")
+    return net, ref_model, {
+        "example_input": {
+            "a": torch.tensor([5, 6], dtype=torch.float32),
+            "b": None,
+        },
+        "compress_to_fp16": False}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         'create_pytorch_nn_module_case1',
@@ -1062,7 +1100,9 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         'create_pytorch_module_with_nested_inputs6',
         'create_pytorch_module_with_nested_list_and_single_input',
         'create_pytorch_module_with_single_input_as_list',
-        'create_pytorch_module_with_nested_dict_input'
+        'create_pytorch_module_with_nested_dict_input',
+        'create_pytorch_module_with_none_example',
+        'create_pytorch_module_with_none_dict_example',
     ]
 
     @pytest.mark.parametrize("create_model", test_data)

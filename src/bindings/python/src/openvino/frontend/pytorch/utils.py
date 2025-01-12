@@ -4,6 +4,7 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import inspect
 import torch
 import numpy as np
 
@@ -162,6 +163,22 @@ class ModelWrapper(torch.nn.Module):
 """
 
 
+def build_wrapper(template, model):
+    """
+    Builds a wrapper around the given model using the provided template.
+    """
+    result = {}
+    try:
+        exec(template, result)
+
+        wrapped_model = result["ModelWrapper"](model)
+        wrapped_model.eval()
+    # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
+    except Exception:
+        wrapped_model = model
+    return wrapped_model
+
+
 def process_dict_inputs(inputs, input_params, model):
     ordered_inputs = []
     for input_name in input_params:
@@ -203,15 +220,8 @@ def process_dict_inputs(inputs, input_params, model):
 
     wrapper_class = wrapper_template.format(input_sign=", ".join(
         input_sign_str), example_input=", ".join(input_params_str))
-    result = {}
-    try:
-        exec(wrapper_class, result)
 
-        wrapped_model = result["ModelWrapper"](model)
-        wrapped_model.eval()
-    # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
-    except Exception:
-        wrapped_model = model
+    wrapped_model = build_wrapper(wrapper_class, model)
 
     return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
 
@@ -265,3 +275,47 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         sub = ops.subtract(convert, zero_point)
         return ops.multiply(sub, scale).outputs()
     assert False, "Unsupported qscheme"
+
+
+def patch_none_example(model: torch.nn.Module, example):
+    """
+    Patches a PyTorch model to handle None values in the input example.
+    """
+    callable_func = getattr(model, "forward", model.__call__)
+    input_params = inspect.signature(callable_func).parameters
+    input_signature = list(input_params)
+    input_sign_str = []
+    input_params_str = []
+    if (isinstance(example, tuple)
+            and any(x is None for x in example)
+            and len(input_signature) >= len(example)):
+        new_example = []
+        for i, x in enumerate(example):
+            if x is None:
+                input_params_str.append("None")
+            else:
+                p_sign = input_signature[i]
+                input_sign_str.append(p_sign)
+                input_params_str.append(p_sign)
+                new_example.append(x)
+        wrapper_class = wrapper_template.format(input_sign=", ".join(
+            input_sign_str), example_input=", ".join(input_params_str))
+        wrapped_model = build_wrapper(wrapper_class, model)
+        return wrapped_model, tuple(new_example)
+    if (isinstance(example, dict)
+            and any(x is None for x in example.values())
+            and len(input_signature) >= len(example)):
+        new_example = {}
+        for i, x in enumerate(example.items()):
+            x_name, x = x
+            if x is None:
+                input_params_str.append(f"{x_name}=None")
+            else:
+                input_sign_str.append(x_name)
+                input_params_str.append(f"{x_name}={x_name}")
+                new_example[x_name] = x
+        wrapper_class = wrapper_template.format(input_sign=", ".join(
+            input_sign_str), example_input=", ".join(input_params_str))
+        wrapped_model = build_wrapper(wrapper_class, model)
+        return wrapped_model, new_example
+    return model, example
