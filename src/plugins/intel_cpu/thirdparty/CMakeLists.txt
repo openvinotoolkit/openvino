@@ -161,6 +161,10 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
+if(AARCH64 OR ARM)
+    set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
+endif()
+
 if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     add_subdirectory(libxsmm)
     ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
