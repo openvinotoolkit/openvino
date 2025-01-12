@@ -43,7 +43,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         "<aten/quantized>::cat is located inside body while inputs are located outside of the body. "
         "This case is not supported.");
     if (list_elems.size() == 1 &&
-        !std::dynamic_pointer_cast<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
+        !ov::as_type_ptr<op::util::FrameworkNode>(context.get_input(0).get_node_shared_ptr()) && !is_fx) {
         // Case when list was merged into tensor. // This case doesn't work with torchfx
         auto tensor = list_elems[0];
         auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));

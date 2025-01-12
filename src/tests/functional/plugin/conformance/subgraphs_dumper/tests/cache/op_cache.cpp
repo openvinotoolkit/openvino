@@ -116,10 +116,10 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
     // check cache
     ASSERT_EQ(m_ops_cache.size(), 2);
     for (const auto& cached_node : this->m_ops_cache) {
-        ASSERT_TRUE(std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first) ||
-                    std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(cached_node.first));
+        ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first) ||
+                    ov::as_type_ptr<ov::op::v0::ShapeOf>(cached_node.first));
         auto meta = cached_node.second;
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(cached_node.first)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(cached_node.first)) {
             // check model_path
             ASSERT_EQ(meta.get_model_info().size(), 1);
             ASSERT_EQ(meta.get_model_info().begin()->first, test_model_name);

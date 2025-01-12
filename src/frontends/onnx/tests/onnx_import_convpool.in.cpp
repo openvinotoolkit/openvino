@@ -334,7 +334,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
     const auto model = convert_model("max_pool_empty_auto_pad.onnx");
 
     for (const auto& op : model->get_ops()) {
-        if (const auto max_pool = std::dynamic_pointer_cast<op::v8::MaxPool>(op)) {
+        if (const auto max_pool = ov::as_type_ptr<op::v8::MaxPool>(op)) {
             EXPECT_EQ(max_pool->get_auto_pad(), op::PadType::EXPLICIT);
             return;
         }
