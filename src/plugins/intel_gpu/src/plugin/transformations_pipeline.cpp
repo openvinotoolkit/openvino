@@ -929,7 +929,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
 
-        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
+        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16 && !enableInt8) {
             using namespace ov::pass::low_precision;
 
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});

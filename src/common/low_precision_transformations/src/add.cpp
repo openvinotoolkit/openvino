@@ -216,11 +216,11 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
 
         auto output_type = scalingMode ? add->get_output_element_type(0) : element::f32;
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{ output_type },
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{output_type},
             ov::op::TemporaryReplaceOutputType(inputs[0], output_type).get(),
             ov::op::TemporaryReplaceOutputType(inputs[1], output_type).get());
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{ add->get_output_element_type(0) },
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{add->get_output_element_type(0)},
             ov::op::TemporaryReplaceOutputType(newAddOrSubtract, output_type).get(),
             ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, output_type).get());
 

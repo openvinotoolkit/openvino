@@ -79,17 +79,17 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
         auto constParent = multiply->input_value(multiplyBranch.first == 0 ? 1 : 0);
         auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second);
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
-        auto input_data_type = scalingMode ? multiply->get_output_element_type(0) : element::f32;
+        auto inputDataType = scalingMode ? multiply->get_output_element_type(0) : element::f32;
 
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<ov::element::Type>{ input_data_type, input_data_type },
+            std::vector<ov::element::Type>{ inputDataType, inputDataType },
             std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
-            ov::op::TemporaryReplaceOutputType(multiplyParentParent, input_data_type).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyParentParent, inputDataType).get(),
             ov::op::TemporaryReplaceOutputType(
                 fold<ov::opset1::Multiply>(
-                    foldConvert(multiplyParentConst, input_data_type),
-                    foldConvert(constParent, input_data_type)),
-                input_data_type).get());
+                    foldConvert(multiplyParentConst, inputDataType),
+                    foldConvert(constParent, inputDataType)),
+                inputDataType).get());
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
