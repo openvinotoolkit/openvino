@@ -23,7 +23,7 @@ namespace intel_cpu {
 
 class MoveReadValueInputsToSubgraph : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveReadValueInputsToSubgraph", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveReadValueInputsToSubgraph");
     MoveReadValueInputsToSubgraph();
 };
 
