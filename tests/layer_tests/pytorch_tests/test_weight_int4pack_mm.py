@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import torch
+from packaging import version
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestWeightInt4PackMMOperation(PytorchLayerTest):
@@ -39,6 +40,11 @@ class TestWeightInt4PackMMOperation(PytorchLayerTest):
         (4096, 64, 8, torch.float32),
     ])
     def test_weight_int4pack_mm_operation(self, input_size, group_size, inner_k_tiles, dtype, ie_device, precision, ir_version):
+        # TODO: Input requirements for aten._convert_weight_to_int4pack changed after PyTorch 2.4 which was used to prepare
+        # weight input for this test. Disabling the test for PyTorch versions later than 2.4 until this issue is resolved.
+        if version.parse(torch.__version__) >= version.parse("2.5"):
+            pytest.skip("Current test is not supported PyTorch versions later than 2.4 due to weight handling updates in aten._convert_weight_to_int4pack.")
+
         # Due to precision errors, the output accuracy may change based on the system this test it running on.
         # The eps is adjusted accordingly, but overall model accuracy should be observed in full model tests as well.
         self._test(
