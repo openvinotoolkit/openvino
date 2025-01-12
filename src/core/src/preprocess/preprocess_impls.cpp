@@ -211,7 +211,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     // Replace parameter
     for (auto consumer : consumers) {
-        if (dynamic_cast<ov::opset8::Result*>(consumer.get_node())) {
+        if (ov::as_type<ov::opset8::Result>(consumer.get_node())) {
             // Some result points to old parameter (Param->Result case), need to trigger revalidation
             need_validate = true;
         }

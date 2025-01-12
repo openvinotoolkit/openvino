@@ -102,7 +102,7 @@ bool check_lstm_cell(const shared_ptr<RNNCellBase>& prev_cell, const shared_ptr<
         const auto& target_inputs = prev_cell->get_output_target_inputs(1);
         bool valid = target_inputs.empty() ||
                      (target_inputs.size() == 1 &&
-                      dynamic_cast<RNNCellBase*>(target_inputs.begin()->get_node()) == current_cell.get() &&
+                      ov::as_type<RNNCellBase>(target_inputs.begin()->get_node()) == current_cell.get() &&
                       target_inputs.begin()->get_index() == 2);
 
         // if intermediate C output is connected to other node, except ov::op::v4::LSTMCell,
