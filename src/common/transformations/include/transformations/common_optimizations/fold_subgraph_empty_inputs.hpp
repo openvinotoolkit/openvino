@@ -40,7 +40,7 @@ public:
 
 class ov::pass::DisableFoldSubgraphEmptyInputs : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("DisableFoldSubgraphEmptyInputs","0", ov::RuntimeAttribute);
+    OPENVINO_RTTI("DisableFoldSubgraphEmptyInputs", "0", ov::RuntimeAttribute);
     DisableFoldSubgraphEmptyInputs() = default;
     bool is_copyable() const override {
         return false;
