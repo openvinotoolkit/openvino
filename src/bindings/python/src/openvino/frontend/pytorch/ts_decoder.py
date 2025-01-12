@@ -38,6 +38,7 @@ class TorchScriptPythonDecoder(Decoder):
         skip_freeze=False,
         constant_cache=None,
         module_extensions=None,
+        trace_kwargs=None,
     ):
         super().__init__()
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
@@ -57,7 +58,7 @@ class TorchScriptPythonDecoder(Decoder):
                     self.config = pt_module.config.to_dict()
             try:
                 pt_module = self._get_scripted_model(
-                    pt_module, example_input, skip_freeze)
+                    pt_module, example_input, skip_freeze, trace_kwargs)
             except Exception as e:
                 if example_input is not None:
                     msg = "tracing"
@@ -109,7 +110,7 @@ class TorchScriptPythonDecoder(Decoder):
                 preserved_attributes.append(name)
         return preserved_attributes
 
-    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
+    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -154,9 +155,11 @@ class TorchScriptPythonDecoder(Decoder):
                         quantized.unpatch_quantized(pt_module)
                         patched = False
 
+                if trace_kwargs is None:
+                    trace_kwargs = {}
                 try:
                     scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False)
+                        pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)
@@ -515,11 +518,11 @@ class TorchScriptPythonDecoder(Decoder):
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             return False
 
-    def inlined_input(self, index):
-        return []
-
     def is_input_inlined(self, index):
         return False
+
+    def get_inlined_input_decoder(self, index):
+        return None
 
     def get_attribute(self, name):
         return OVAny(None)

@@ -6,7 +6,7 @@ import logging as log
 
 from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Model, Layout, PartialShape
+from openvino import Model, Layout, PartialShape
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict
 from openvino.tools.ovc.utils import refer_to_faq_msg
