@@ -163,7 +163,11 @@ if(ENABLE_CPU_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 
-if (ENABLE_SNIPPETS_LIBXSMM_TPP OR AARCH64 OR ARM)
+if(AARCH64 OR ARM)
+    set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
+endif()
+
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     # Note: LIBXSMM_DEFAULT_CONFIG needed so libxsmm_config can be included without issues
     add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
 endif()
