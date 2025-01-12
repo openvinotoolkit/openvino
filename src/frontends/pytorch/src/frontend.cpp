@@ -44,6 +44,7 @@
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
 #include "transforms/torchfx_gptq_pattern_replacer.hpp"
+#include "transforms/torchfx_torchao_pattern_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
@@ -258,6 +259,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         ov::pass::Manager manager("Frontend:Pytorch:normalize::fx_gptq");
         manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
+        manager.register_pass<ov::frontend::pytorch::pass::WeightINT4PackMMReplacer>();
         manager.run_passes(model);
     }
 
