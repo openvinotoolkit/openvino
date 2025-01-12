@@ -23,7 +23,7 @@ TRANSFORMATIONS_API bool is_keep_const_precision(const std::shared_ptr<const Nod
  */
 class TRANSFORMATIONS_API KeepConstPrecision : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("keep_const_precision", "0");
+    OPENVINO_RTTI("keep_const_precision", "0", RuntimeAttribute);
 
     KeepConstPrecision() = default;
 
