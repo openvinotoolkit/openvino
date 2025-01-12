@@ -40,7 +40,6 @@ WeightINT4PackMMReplacer::WeightINT4PackMMReplacer() {
         if (!weight_int4pack_mm) {
             return false;
         }
-        const auto& pattern_map = m.get_pattern_value_map();
         if (!(weight_int4pack_mm = cast_fw_node(m.get_match_root(), "aten._weight_int4pack_mm.default"))) {
             return false;
         }
@@ -110,8 +109,6 @@ WeightINT4PackMMReplacer::WeightINT4PackMMReplacer() {
             std::dynamic_pointer_cast<v0::Constant>(outputs_transpose[0].get_node_shared_ptr())
                 ->get_data_ptr<uint8_t>());
 
-        auto wt_i32_ptr = const_cast<int32_t*>(reinterpret_cast<const int32_t*>(wt_i32->get_data_ptr()));
-
         auto convert_to_u4 = std::make_shared<v0::Convert>(wt_i32, element::u4);
         OutputVector outputs_to_u4(convert_to_u4->get_output_size());
         if (!convert_to_u4->constant_fold(outputs_to_u4, wt_i32->outputs())) {
@@ -163,16 +160,12 @@ WeightINT4PackMMReplacer::WeightINT4PackMMReplacer() {
         if (!convert_scales_to_float->constant_fold(outputs_scales_to_float, new_scales->outputs())) {
             return false;
         }
-        auto new_scales_ptr = const_cast<float*>(reinterpret_cast<const float*>(
-            std::dynamic_pointer_cast<v0::Constant>(outputs_scales_to_float[0].get_node_shared_ptr())->get_data_ptr()));
 
         auto convert_zeros_to_float = std::make_shared<v0::Convert>(new_zeros, element::f32);
         OutputVector outputs_zeros_to_float(convert_zeros_to_float->get_output_size());
         if (!convert_zeros_to_float->constant_fold(outputs_zeros_to_float, new_zeros->outputs())) {
             return false;
         }
-        auto new_zeros_ptr = const_cast<float*>(reinterpret_cast<const float*>(
-            std::dynamic_pointer_cast<v0::Constant>(outputs_zeros_to_float[0].get_node_shared_ptr())->get_data_ptr()));
 
         auto new_convert =
             std::make_shared<v0::Convert>(outputs_to_u4[0].get_node_shared_ptr(), new_zeros->get_element_type());
