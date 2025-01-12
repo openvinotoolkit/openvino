@@ -97,8 +97,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     for (const auto& output_desc : ti->get_output_descriptions()) {
         std::shared_ptr<ov::op::v0::Result> res = results[output_desc->m_body_value_index];
         if (res->input_value(0) == unsqueeze_after_cell) {
-            auto concat_output =
-                ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(output_desc);
+            auto concat_output = ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(output_desc);
             if (!concat_output)
                 return false;
 

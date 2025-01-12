@@ -56,7 +56,7 @@ void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearI
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             continue;
         }
-        if (auto lir_pass = std::dynamic_pointer_cast<Pass>(pass)) {
+        if (auto lir_pass = ov::as_type_ptr<Pass>(pass)) {
             lir_pass->run(linear_ir);
         } else if (auto const_pass = ov::as_type_ptr<ConstPass>(pass)) {
             const_pass->run(linear_ir);

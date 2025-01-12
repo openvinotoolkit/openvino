@@ -79,7 +79,7 @@ bool fuse_type_to_binary_comparision(const std::shared_ptr<ov::Node>& node, cons
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (auto casted = ov::as_type_ptr<T>(node)) {
         auto relaxed_op =
             std::make_shared<ov::op::TypeRelaxed<T>>(*casted, ov::element::TypeVector{}, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
@@ -99,7 +99,7 @@ bool fuse_type_to_logical(const std::shared_ptr<ov::Node>& node, const precision
         for (size_t i = 0; i < node->get_input_size(); ++i)
             type_relaxed->set_origin_input_type(ov::element::boolean, i);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (auto casted = ov::as_type_ptr<T>(node)) {
         ov::element::TypeVector input_types(node->get_input_size(), ov::element::boolean);
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted, input_types, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
@@ -118,7 +118,7 @@ bool fuse_type_to_reduce_logical(const std::shared_ptr<ov::Node>& node, const pr
         type_relaxed->set_overridden_output_type(to);
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (auto casted = ov::as_type_ptr<T>(node)) {
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted,
                                                                    ov::element::TypeVector{ov::element::boolean},
                                                                    ov::element::TypeVector{to});
@@ -139,7 +139,7 @@ bool fuse_type_to_prior_box(const std::shared_ptr<ov::Node>& node, const precisi
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
-    } else if (const auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (const auto casted = ov::as_type_ptr<T>(node)) {
         auto relaxed_op = std::make_shared<op::TypeRelaxed<T>>(
             *casted,
             ov::element::TypeVector{casted->get_input_element_type(0), casted->get_input_element_type(1)},

@@ -114,8 +114,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
 
         // Port map: outputs
         for (const auto& desc : sub_graph_op->get_output_descriptions()) {
-            if (const auto& concat_desc =
-                    ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
+            if (const auto& concat_desc = ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;
                 }
