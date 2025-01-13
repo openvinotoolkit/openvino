@@ -16,7 +16,7 @@ namespace preprocess {
 
 class OPENVINO_API TensorInfoMemoryType : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("memory_type", "0");
+    OPENVINO_RTTI("memory_type", "0", RuntimeAttribute);
 
     TensorInfoMemoryType() = default;
 

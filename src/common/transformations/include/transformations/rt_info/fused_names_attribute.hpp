@@ -28,10 +28,8 @@ namespace ov {
  * all operation names that was fully or partially fused into node
  */
 class TRANSFORMATIONS_API FusedNames : public ov::RuntimeAttribute {
-    std::set<std::string> fused_names;
-
 public:
-    OPENVINO_RTTI("fused_names", "0");
+    OPENVINO_RTTI("fused_names", "0", RuntimeAttribute);
 
     /**
      * A default constructor
@@ -70,6 +68,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::string to_string() const override;
+
+private:
+    std::set<std::string> fused_names;
 };
 
 /**
