@@ -295,13 +295,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*CompilationForSpecificPlatform.*(3800|3900).*",
         });
 
-        // [Track number: E#67741]
-        _skipRegistry.addPatterns(
-                "Cannot call setShape for Blobs", {
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
-        });
-
         // [Track number: E#67749]
         _skipRegistry.addPatterns(
                 "Can't loadNetwork without cache for ReadConcatSplitAssign with precision f32", {
