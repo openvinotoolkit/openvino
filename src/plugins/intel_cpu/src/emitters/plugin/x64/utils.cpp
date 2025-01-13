@@ -31,8 +31,10 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
     return {get_reg_type(xb_reg), static_cast<size_t>(xb_reg.getIdx())};
 }
 
-template <cpu_isa_t isa,
-          typename std::enable_if<dnnl::impl::utils::one_of(isa, sse41, avx2, avx512_core), bool>::type = true>
+template <
+    cpu_isa_t isa,
+    typename std::enable_if<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
+                            bool>::type = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
@@ -58,12 +60,12 @@ struct regs_to_spill {
 
 std::vector<Xbyak::Reg> get_regs_to_spill(cpu_isa_t isa, const std::set<snippets::Reg>& live_regs) {
     switch (isa) {
-    case sse41:
-        return regs_to_spill<sse41>::get(live_regs);
-    case avx2:
-        return regs_to_spill<avx2>::get(live_regs);
-    case avx512_core:
-        return regs_to_spill<avx512_core>::get(live_regs);
+    case cpu_isa_t::sse41:
+        return regs_to_spill<cpu_isa_t::sse41>::get(live_regs);
+    case cpu_isa_t::avx2:
+        return regs_to_spill<cpu_isa_t::avx2>::get(live_regs);
+    case cpu_isa_t::avx512_core:
+        return regs_to_spill<cpu_isa_t::avx512_core>::get(live_regs);
     default:
         OPENVINO_THROW("Unhandled isa in get_regs_to_spill");
     }
@@ -89,7 +91,7 @@ std::set<size_t> get_callee_saved_reg_idxs() {
             Xbyak::Reg::R14,
             Xbyak::Reg::R15};
 #else
-    OPENVINO_THROW("Unhandled platform in get_callee_saved_regs");
+    OPENVINO_THROW("Unhandled platform in get_callee_saved_reg_idxs");
     return {};
 #endif
 }
@@ -116,7 +118,6 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
                         "All callee-saved gpr are already in use. Spill used_gprs manually");
         aux_idx = *callee_it;
     }
-    OPENVINO_ASSERT(aux_idx != SIZE_MAX, "All callee-saved gpr are already in use. Spill used_gprs manually");
     return aux_idx;
 }
 
@@ -232,12 +233,12 @@ cpu_isa_t EmitABIRegSpills::get_isa() {
     // e.g. other emitters isa is avx512, while this emitter isa is avx2, and internal call is used. Internal call may
     // use avx512 and spoil k-reg, ZMM. do not care about platform w/ avx512_common but w/o avx512_core(knight landing),
     // which is obsoleted.
-    if (mayiuse(avx512_core))
-        return avx512_core;
-    if (mayiuse(avx2))
-        return avx2;
-    if (mayiuse(sse41))
-        return sse41;
+    if (mayiuse(cpu_isa_t::avx512_core))
+        return cpu_isa_t::avx512_core;
+    if (mayiuse(cpu_isa_t::avx2))
+        return cpu_isa_t::avx2;
+    if (mayiuse(cpu_isa_t::sse41))
+        return cpu_isa_t::sse41;
     OV_CPU_JIT_EMITTER_THROW("unsupported isa");
 }
 

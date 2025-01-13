@@ -24,7 +24,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
                                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
-    : jit_emitter(h, isa) {
+    : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
@@ -58,7 +58,6 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
-    m_live_regs = expr->get_live_regs();
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -94,6 +93,7 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
+    init_regs(2, mem_ptrs_idxs);
     if (in.size() > 2)
         mem_ptrs_idxs.emplace_back(in[2]);
 
@@ -107,22 +107,11 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
 template <typename T, typename std::enable_if<std::is_base_of<BrgemmBaseKernelExecutor, T>::value, bool>::type>
 void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
-    std::set<snippets::Reg> regs_to_spill = m_live_regs;
-    // Note: these 3 registers will be corrupted by the caller during the ABI call
-    regs_to_spill.emplace(snippets::RegType::gpr, abi_param1.getIdx());
-    regs_to_spill.emplace(snippets::RegType::gpr, abi_param2.getIdx());
-
-    // Note: aux_gpr idx must be non-empty because aux_gprs_count() returns 1 for this emitter
-    Xbyak::Reg64 aux_reg(static_cast<int>(aux_gpr_idxs.back()));
-    aux_gpr_idxs.pop_back();
-    bool spill_required = false;
-    Xbyak::Reg64 callee_saved_reg(
-        static_cast<int>(get_callee_saved_aux_gpr(aux_gpr_idxs, mem_ptrs_idxs, spill_required)));
-    if (spill_required)
-        regs_to_spill.emplace(snippets::RegType::gpr, callee_saved_reg.getIdx());
+    const Xbyak::Reg64& aux_reg = get_call_address_reg();
+    const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
 
     EmitABIRegSpills spill(h);
-    spill.preamble(regs_to_spill);
+    spill.preamble(get_regs_to_spill());
 
     auto reserved_stack_size = sizeof(typename T::call_args);
     // Reserve memory on the stack

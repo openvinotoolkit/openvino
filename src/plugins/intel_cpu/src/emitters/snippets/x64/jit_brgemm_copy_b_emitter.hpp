@@ -5,12 +5,13 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "jit_binary_call_emitter.hpp"
 #include "kernel_executors/brgemm_copy_b.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class jit_brgemm_copy_b_emitter : public jit_emitter {
+class jit_brgemm_copy_b_emitter : public jit_binary_call_emitter {
 public:
     jit_brgemm_copy_b_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                               dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -18,9 +19,6 @@ public:
                               const snippets::KernelExecutorTablePtr& kernel_table,
                               const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
     size_t get_inputs_num() const override {
-        return 1;
-    }
-    size_t aux_gprs_count() const override {
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -35,7 +33,6 @@ private:
     std::vector<size_t> m_memory_offsets{};
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmCopyBKernelExecutor> m_kernel_executor{nullptr};
-    std::set<snippets::Reg> m_live_regs{};
     bool m_with_comp{false};
 
 #ifdef SNIPPETS_DEBUG_CAPS

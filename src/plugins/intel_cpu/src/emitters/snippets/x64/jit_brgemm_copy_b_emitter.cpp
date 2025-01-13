@@ -9,7 +9,6 @@
 
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/utils.hpp"
-#include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
@@ -27,7 +26,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
                                                      const ov::snippets::lowered::ExpressionPtr& expr,
                                                      const snippets::KernelExecutorTablePtr& kernel_table,
                                                      const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
-    : jit_emitter(h, isa) {
+    : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_repack, "expects BrgemmCopyB node");
@@ -57,7 +56,6 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
-    m_live_regs = expr->get_live_regs();
 }
 
 void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in,
@@ -72,23 +70,13 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
     if (out.size() > 1)
         mem_ptrs_idxs.emplace_back(out[1]);
+    init_regs(2, mem_ptrs_idxs);
 
-    std::set<snippets::Reg> regs_to_spill = m_live_regs;
-    // Note: these 3 registers will be corrupted by the caller during the ABI call
-    regs_to_spill.emplace(snippets::RegType::gpr, abi_param1.getIdx());
-    regs_to_spill.emplace(snippets::RegType::gpr, abi_param2.getIdx());
-
-    // Note: aux_gpr idx must be non-empty because aux_gprs_count() returns 1 for this emitter
-    Xbyak::Reg64 aux_reg(static_cast<int>(aux_gpr_idxs.back()));
-    aux_gpr_idxs.pop_back();
-    bool spill_required = false;
-    Xbyak::Reg64 callee_saved_reg(
-        static_cast<int>(get_callee_saved_aux_gpr(aux_gpr_idxs, mem_ptrs_idxs, spill_required)));
-    if (spill_required)
-        regs_to_spill.emplace(snippets::RegType::gpr, callee_saved_reg.getIdx());
+    const Xbyak::Reg64& aux_reg = get_call_address_reg();
+    const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
 
     EmitABIRegSpills spill(h);
-    spill.preamble(regs_to_spill);
+    spill.preamble(get_regs_to_spill());
 
     auto reserved_stack_size = sizeof(BrgemmCopyBKernel::call_args);
     // Reserve memory on the stack

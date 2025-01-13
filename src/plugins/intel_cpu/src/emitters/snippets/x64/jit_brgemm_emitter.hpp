@@ -6,11 +6,12 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "jit_binary_call_emitter.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class jit_brgemm_emitter : public jit_emitter {
+class jit_brgemm_emitter : public jit_binary_call_emitter {
 public:
     jit_brgemm_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -20,9 +21,6 @@ public:
 
     size_t get_inputs_num() const override {
         return m_memory_offsets.size() - 1;
-    }
-    size_t aux_gprs_count() const override {
-        return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
@@ -41,7 +39,6 @@ private:
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
-    std::set<snippets::Reg> m_live_regs{};
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter);
