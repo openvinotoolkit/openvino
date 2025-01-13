@@ -16,17 +16,19 @@ using namespace ov::frontend;
 
 class Relu1 : public Relu {
 public:
-    OPENVINO_OP("relu");
+    OPENVINO_OP("Relu1", "paddle_test", Relu);
     OPENVINO_FRAMEWORK_MAP(paddle, {"X"}, {"Out"})
 };
 
 class Relu2 : public Relu {
 public:
+    OPENVINO_OP("Relu2", "paddle_test", Relu);
     OPENVINO_FRAMEWORK_MAP(paddle, {"X"}, {"Out"}, "CustomRelu_2")
 };
 
 class Relu3 : public Relu {
 public:
+    OPENVINO_OP("Relu3", "paddle_test", Relu);
     OPENVINO_FRAMEWORK_MAP(paddle,
                            {"X"},
                            {"Out"},
@@ -36,6 +38,7 @@ public:
 
 class Relu4 : public Relu {
 public:
+    OPENVINO_OP("Relu4", "paddle_test", Relu);
     OPENVINO_FRAMEWORK_MAP(paddle,
                            {"X"},
                            {"Out"},

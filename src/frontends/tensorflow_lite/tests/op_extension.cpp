@@ -15,17 +15,19 @@ using TFLiteOpExtensionTest = FrontEndOpExtensionTest;
 
 class Relu1 : public Relu {
 public:
-    OPENVINO_OP("CustomRelu_1");
+    OPENVINO_OP("Relu1", "tensorflow_lite_test", Relu);
     OPENVINO_FRAMEWORK_MAP(tensorflow_lite)
 };
 
 class Relu2 : public Relu {
 public:
+    OPENVINO_OP("Relu2", "tensorflow_lite_test", Relu);
     OPENVINO_FRAMEWORK_MAP(tensorflow_lite, "CustomRelu_2")
 };
 
 class Relu3 : public Relu {
 public:
+    OPENVINO_OP("Relu3", "tensorflow_lite_test", Relu);
     OPENVINO_FRAMEWORK_MAP(tensorflow_lite,
                            "CustomRelu_3",
                            {{"ov_attribute_1", "fw_attribute_1"}, {"ov_attribute_2", "fw_attribute_2"}})
@@ -33,6 +35,7 @@ public:
 
 class Relu4 : public Relu {
 public:
+    OPENVINO_OP("Relu4", "tensorflow_lite_test", Relu);
     OPENVINO_FRAMEWORK_MAP(tensorflow_lite,
                            "CustomRelu_4",
                            {{"ov_attribute_1", "fw_attribute_1"}, {"ov_attribute_2", "fw_attribute_2"}},
