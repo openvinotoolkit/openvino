@@ -103,8 +103,8 @@ WeightINT4PackMMReplacer::WeightINT4PackMMReplacer() {
         }
         auto wt_i32 = std::make_shared<v0::Constant>(
             outputs_transpose[0].get_node_shared_ptr()->get_element_type(),
-            Shape({outputs_transpose[0].get_node_shared_ptr()->get_shape()[0] / g,
-                   g,
+            Shape({static_cast<unsigned long>(outputs_transpose[0].get_node_shared_ptr()->get_shape()[0] / g),
+                   static_cast<unsigned long>(g),
                    outputs_transpose[0].get_node_shared_ptr()->get_shape()[1]}),
             std::dynamic_pointer_cast<v0::Constant>(outputs_transpose[0].get_node_shared_ptr())
                 ->get_data_ptr<uint8_t>());
