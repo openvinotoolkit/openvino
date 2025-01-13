@@ -5,6 +5,7 @@
 #include "openvino/pass/manager.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>

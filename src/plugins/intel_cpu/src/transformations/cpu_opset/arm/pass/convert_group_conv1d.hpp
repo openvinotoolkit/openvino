@@ -54,20 +54,20 @@ namespace ov {
 namespace intel_cpu {
 class ConvertConv1DBase : public ov::pass::MatcherPass {
 protected:
-    OPENVINO_RTTI("ConvertConv1DBase", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertConv1DBase");
     template <class Conv>
     ov::matcher_pass_callback convert_conv1d_to_conv2d();
 };
 
 class ConvertConv1D : public ConvertConv1DBase {
 public:
-    OPENVINO_RTTI("ConvertConv1D", "0");
+    OPENVINO_RTTI("ConvertConv1D", "0", ConvertConv1DBase);
     ConvertConv1D();
 };
 
 class ConvertGroupConv1D : public ConvertConv1DBase {
 public:
-    OPENVINO_RTTI("ConvertGroupConv1D", "0");
+    OPENVINO_RTTI("ConvertGroupConv1D", "0", ConvertConv1DBase);
     ConvertGroupConv1D();
 };
 }  // namespace intel_cpu

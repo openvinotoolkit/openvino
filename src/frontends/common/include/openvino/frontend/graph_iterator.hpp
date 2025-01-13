@@ -15,7 +15,7 @@ namespace tensorflow {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class FRONTEND_API GraphIterator : ::ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("Variant::GraphIterator");
+    OPENVINO_RTTI("Variant::GraphIterator", "0", RuntimeAttribute);
 
     using Ptr = std::shared_ptr<GraphIterator>;
 

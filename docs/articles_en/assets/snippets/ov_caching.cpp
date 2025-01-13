@@ -94,6 +94,14 @@ void part5() {
     std::string modelPath = "/tmp/myModel.xml";
     std::string device = "GPU";
     ov::Core core;                                           // Step 1: create ov::Core object
+    bool hasGPU = false;                                     // Step 1a: Check if GPU is available
+    auto devices = core.get_available_devices();
+    for (auto&& supported : devices) {
+        hasGPU |= supported.find(device) != std::string::npos;
+    }
+    if(!hasGPU) {
+        return;
+    }
     core.set_property(ov::cache_dir("/path/to/cache/dir"));  // Step 1b: Enable caching
 //! [ov:caching:part5]
 static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};

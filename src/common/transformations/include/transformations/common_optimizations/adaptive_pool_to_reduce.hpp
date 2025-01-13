@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API AdaptivePoolToReduce;
 
 class ov::pass::AdaptivePoolToReduce : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AdaptivePoolToReduce", "0");
+    OPENVINO_MATCHER_PASS_RTTI("AdaptivePoolToReduce");
     AdaptivePoolToReduce();
 };

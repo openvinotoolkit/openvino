@@ -22,7 +22,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API PadTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("PadTransformation", "0");
+    OPENVINO_RTTI("PadTransformation", "0", LayerTransformation);
     PadTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;

@@ -12,7 +12,6 @@ Generative AI workflow
    Generative Model Preparation <llm_inference_guide/genai-model-preparation>
    Inference with OpenVINO GenAI <llm_inference_guide/genai-guide>
    Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
-   Generative AI with Base OpenVINO (not recommended) <llm_inference_guide/llm-inference-native-ov>
    OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
 
@@ -56,7 +55,10 @@ options:
       as well as conversion on the fly. For integration with the final product it may offer
       lower performance, though.
 
-
+Note that the base version of OpenVINO may also be used to run generative AI. Although it may
+offer a simpler environment, with fewer dependencies, it has significant limitations and a more
+demanding implementation process. For reference, see
+`the article on generative AI usage of OpenVINO 2024.6 <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__.
 
 The advantages of using OpenVINO for generative model deployment:
 
@@ -90,5 +92,6 @@ Proceed to guides on:
 
 * :doc:`OpenVINO GenAI Flavor <./llm_inference_guide/genai-guide>`
 * :doc:`Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>`
+* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
 
 

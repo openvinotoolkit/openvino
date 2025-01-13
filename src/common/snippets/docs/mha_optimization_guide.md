@@ -65,7 +65,7 @@ The supported by decomposition Transpose orders are defined by `TokenizeMHASnipp
 
 [SplitDimensionM](../src/pass/split_dimension_m.cpp) splits M dimension of MHA in 2 parts (`batch_m` and `new_m`) by inserting Reshape on A input of the first Matmul and output of the second Matmul (the rest Subgraph's inputs are reshaped by Unsqueeze-like reshapes in order not to break subgraph semantic).
 This optimization increases parallel work amount by `batch_m` times thus enabling a more efficient parallel execution in some cases.
-The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::get_splited_dimensions` method.
+The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::split` method.
 
 Let's consider an example of the transformation:
 

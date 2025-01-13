@@ -350,7 +350,7 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 #define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                                 \
     class NAME : public ov::pass::MatcherPass {                                         \
     public:                                                                             \
-        OPENVINO_RTTI(STR(NAME), "0");                                                  \
+        OPENVINO_RTTI(STR(NAME), "0", ov::pass::MatcherPass);                           \
         NAME() {                                                                        \
             MATCHER_SCOPE(NAME);                                                        \
             auto match_node = ov::pass::pattern::wrap_type<__VA_ARGS__>();              \

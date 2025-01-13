@@ -177,6 +177,8 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     bool is_input = ov::op::util::is_parameter(port.get_node());
     std::string tensor_type = is_input ? "input" : "output";
 
+    OPENVINO_ASSERT(tensor->is_continuous(), "The tensor is not continuous");
+
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
                     "The tensor element type is not corresponding with output element type (",
                     tensor->get_element_type(),
@@ -314,10 +316,8 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
         tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
-    } else if (allocator) {
-        tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
-        tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape);
+        tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
     }
 
     if (isInput) {
@@ -333,6 +333,12 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
     }
 
     return tensor;
+}
+
+std::shared_ptr<ov::ITensor> SyncInferRequest::create_tensor(ov::element::Type type,
+                                                             const ov::Shape& shape,
+                                                             const ov::Allocator& allocator) const {
+    return ov::make_tensor(type, shape, allocator);
 }
 
 bool SyncInferRequest::is_batched_input(size_t idx) const {

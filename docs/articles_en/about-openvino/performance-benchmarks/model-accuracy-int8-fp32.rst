@@ -1,10 +1,12 @@
 Model Accuracy
 ==============
 
-between OV-accuracy and the original framework accuracy for FP32, and the same for INT8, BF16,
-and FP16 representations of a model on three platform architectures. The third table presents
-the GenAI model accuracies as absolute accuracy values. Refer to notes below the table for more
-information.
+
+
+The following two tables present the absolute accuracy drop calculated as the accuracy difference
+between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
+FP16 representations of a model on three platform architectures. The third table presents the GenAI model accuracies as absolute accuracy values. Please also refer to notes below
+the table for more information.
 
 * A - Intel® Core™ i9-9000K (AVX2), INT8 and FP32
 * B - Intel® Xeon® 6338, (VNNI), INT8 and FP32
@@ -32,31 +34,31 @@ information.
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
-     - -0.84%
+     - -
      - -0.59%
-     - -0.59%
+     - 
      - -0.55%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
      - -0.10%
      - -0.04%
-     - 0.07%
+     - 
      - -0.01%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
-     -
+     - 
      - -0.97%
      - -0.98%
      - -0.95%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - 0.74%
-     - 0.76%
-     - 0.74%
-     - 0.82%
+     - 
+     - 0.97%
+     - 0.94%
+     - 0.95%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
@@ -67,18 +69,17 @@ information.
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
-     - -2.94%
+     - 
      - -0.28%
-     - -0.28%
+     - 
      - -0.26%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
-     - -0.01%
-     - -0.04%
-     - -0.07%
-     - 0.05%
-
+     - -0.11%
+     - -0.05%
+     - 
+     - 
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8480+ only)
    :header-rows: 1
 
@@ -101,15 +102,15 @@ information.
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
-     - 0.01%
-     - 0.01%
+     - 
      - 0.01%
      - 0.00%
+     - 0.01%
      - 0.00%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - -0.01%
+     - 
      - -0.01%
      - -0.01%
      - 0.05%
@@ -135,8 +136,8 @@ information.
      - map
      - 0.02%
      - 0.02%
+     - 0.01%
      - 0.02%
-     - -0.01%
      - 0.02%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
@@ -154,10 +155,9 @@ information.
      - 0.01%
      - 0.05%
      - 0.00%
-
 .. list-table:: Model Accuracy for VNNI-FP16, VNNI-INT4, AMX-FP16 and MTL-INT4 (Core Ultra iGPU)
    :header-rows: 1
-
+   
    * - OpenVINO™  Model name
      - dataset
      - Metric Name
@@ -168,59 +168,59 @@ information.
    * - chatGLM4
      - Wikiset
      - ppl
-     -
-     -
-     -
-     -
+     - 
+     - 
+     - 
+     - 
    * - Gemma-2-9B
      - Wikitext
      - ppl
-     -
+     - 
      - 1.57
      - 1.57
-     -
+     - 
    * - Llama-2-7b-chat
      - Wikiset
      - ppl
-     -
-     -
+     - 
      - 1.59
-     -
+     - 1.59
+     - 
    * - Llama-3-8b
      - Wikiset
      - ppl
      - 1.45
      - 1.48
      - 1.45
-     -
+     - 
    * - Llama-3.2-3b-instruct
      - Wikiset
      - ppl
      - 1.60
      - 1.62
-     - 1.17
-     -
+     - 1.62
+     - 
    * - Mistral-7b
      - Wikitext
      - ppl
      - 1.48
      - 1.49
      - 1.48
-     -
+     - 
    * - Phi3-mini-4k-instruct
      - Wikitext
      - ppl
-     - 1.52
      - 1.55
-     - 1.52
-     - 1.56
+     - 1.55
+     - 1.55
+     - 
    * - Qwen-2-7B
      - Wikitext
      - ppl
      - 1.52
      - 1.53
      - 1.52
-     - 1.56
+     - 
 
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured

@@ -34,12 +34,13 @@ permissions: read-all
 jobs:
   export-workflow-metrics:
     name: Export finished workflow metrics
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-2-cores-8gb-stats
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: '.github'
 
