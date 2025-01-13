@@ -496,10 +496,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
-    auto prefill_config_addition_value = prefill_config_addition.has_value()
-        ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-    auto generate_config_addition_value = generate_config_addition.has_value()
-        ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    auto prefill_config_addition_value =
+        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    auto generate_config_addition_value =
+        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
 
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
