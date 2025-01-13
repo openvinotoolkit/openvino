@@ -18,7 +18,7 @@ namespace pass {
  */
 class BrgemmCPUBlocking : public ov::snippets::lowered::pass::BrgemmBlocking<BrgemmCPU> {
 public:
-    OPENVINO_RTTI("BrgemmCPUBlocking", "BrgemmBlocking")
+    OPENVINO_RTTI("BrgemmCPUBlocking", "BrgemmCPU", ov::snippets::lowered::pass::BrgemmBlocking<BrgemmCPU>);
 
     /**
      * @interface DummyPass
@@ -29,7 +29,7 @@ public:
     class DummyPass : public snippets::lowered::pass::RangedPass {
     public:
         DummyPass() = default;
-        OPENVINO_RTTI("DummyPass", "RangedPass")
+        OPENVINO_RTTI("DummyPass", "0", snippets::lowered::pass::RangedPass);
         bool run(snippets::lowered::LinearIR& linear_ir,
                  snippets::lowered::LinearIR::constExprIt begin,
                  snippets::lowered::LinearIR::constExprIt end) override;

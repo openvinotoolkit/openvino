@@ -23,7 +23,7 @@ namespace pass {
  */
 class InsertPerfCount: public RangedPass {
 public:
-    OPENVINO_RTTI("InsertPerfCount", "RangedPass")
+    OPENVINO_RTTI("InsertPerfCount", "", RangedPass);
     InsertPerfCount(std::map<std::string, std::string> boundary_op_names);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
