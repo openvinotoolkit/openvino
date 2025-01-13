@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import Shape, Type
 
 R_TOLERANCE = 1e-6  # global relative tolerance

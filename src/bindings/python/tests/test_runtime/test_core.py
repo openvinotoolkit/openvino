@@ -21,7 +21,7 @@ from openvino import (
 
 import openvino.properties as props
 import openvino.properties.hint as hints
-from openvino.runtime import Extension
+from openvino import Extension
 from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,

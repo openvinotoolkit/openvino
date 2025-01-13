@@ -10,7 +10,7 @@ import pytest
 import datetime
 import openvino.properties as props
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Core,
     CompiledModel,
@@ -22,7 +22,7 @@ from openvino import (
     Tensor,
     compile_model,
 )
-from openvino.runtime import ProfilingInfo
+from openvino import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests.utils.helpers import (

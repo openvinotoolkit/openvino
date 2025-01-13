@@ -9,7 +9,7 @@ import pytest
 
 from openvino import Dimension, Model, PartialShape, Shape
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 
 
 def test_dimension():

@@ -5,8 +5,8 @@
 import numpy as np
 import pytest
 
-from openvino.runtime.opset15 import parameter
-from openvino.runtime.opset16 import identity
+from openvino.opset15 import parameter
+from openvino.opset16 import identity
 from openvino import PartialShape, Type
 
 

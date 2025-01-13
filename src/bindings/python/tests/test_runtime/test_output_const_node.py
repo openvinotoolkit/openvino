@@ -5,7 +5,7 @@
 import pytest
 from copy import copy, deepcopy
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Shape,
     PartialShape,
@@ -13,7 +13,7 @@ from openvino import (
     Core,
     OVAny,
 )
-from openvino.runtime import (
+from openvino import (
     ConstOutput,
     Output,
     RTMap,

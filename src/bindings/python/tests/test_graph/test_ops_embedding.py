@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from openvino import Type
-from openvino.runtime import opset15
+from openvino import opset15
 
 
 def test_embedding_bag_offsets_15():

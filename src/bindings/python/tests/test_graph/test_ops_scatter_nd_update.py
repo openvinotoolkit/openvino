@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from openvino import PartialShape, Type
-from openvino.runtime import opset4, opset15
+from openvino import opset4, opset15
 
 scatter_version_opset = pytest.mark.parametrize("opset", [opset4, opset15])
 

@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset10 as ov
+import openvino.opset10 as ov
 
 
 @pytest.mark.parametrize(

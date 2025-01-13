@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-import openvino.runtime as ov
+import openvino as ov
 
 
 @pytest.mark.parametrize(("depth", "on_value", "off_value", "axis", "expected_shape"), [

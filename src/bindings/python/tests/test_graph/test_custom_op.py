@@ -9,8 +9,8 @@ from contextlib import nullcontext as does_not_raise
 
 from openvino import Op
 from openvino import CompiledModel, Model, Dimension, Shape, Tensor, compile_model, serialize
-from openvino.runtime import DiscreteTypeInfo
-import openvino.runtime.opset14 as ops
+from openvino import DiscreteTypeInfo
+import openvino.opset14 as ops
 
 from tests.utils.helpers import create_filenames_for_ir
 

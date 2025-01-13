@@ -5,9 +5,9 @@
 import numpy as np
 
 from openvino import Op
-from openvino.runtime import DiscreteTypeInfo, Shape
-import openvino.runtime.opset14 as ops
-from openvino.runtime.utils.node_factory import NodeFactory
+from openvino import DiscreteTypeInfo, Shape
+import openvino.opset14 as ops
+from openvino.utils.node_factory import NodeFactory
 
 
 class CustomAdd(Op):

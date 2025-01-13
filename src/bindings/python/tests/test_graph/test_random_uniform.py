@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.runtime.opset8 as ops
+import openvino.opset8 as ops
 from openvino import Type
 
 

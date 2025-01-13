@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino import Model, PartialShape
-from openvino.runtime import opset13 as ops
+from openvino import opset13 as ops
 from openvino.passes import ModelPass, Matcher, MatcherPass, WrapType
 
 

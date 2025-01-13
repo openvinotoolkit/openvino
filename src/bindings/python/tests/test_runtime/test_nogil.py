@@ -11,7 +11,7 @@ import numpy as np
 import openvino.properties as props
 
 from openvino import Core, Model, AsyncInferQueue, PartialShape, Layout, serialize
-from openvino.runtime import opset13 as ops
+from openvino import opset13 as ops
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_devtest
