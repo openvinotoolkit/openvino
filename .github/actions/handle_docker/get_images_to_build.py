@@ -64,7 +64,10 @@ def main():
             expected_tag = f'pr-{args.pr}'
 
             if head_tag != expected_tag:
-                logger.error(f"Please update docker tag in {args.head_tag_file} to {expected_tag}")
+                logger.error(f"Some of your changes affected Docker environment for CI. "
+                             f"Please update docker tag in {args.head_tag_file} to {expected_tag}. "
+                             f"For more details please see "
+                             f"https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/ci/github_actions/docker_images.md")
                 sys.exit(1)
 
     elif merge_queue_target_branch:

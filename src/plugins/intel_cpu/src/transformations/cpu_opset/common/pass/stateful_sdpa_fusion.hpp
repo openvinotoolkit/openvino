@@ -14,5 +14,12 @@ public:
     StatefulSDPAFusion();
 };
 
+class SDPASubgraphFusion : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("SDPASubgraphFusion");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+};
+
 }  // namespace intel_cpu
 }  // namespace ov

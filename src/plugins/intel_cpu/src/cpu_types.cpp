@@ -144,6 +144,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Loop", Type::TensorIterator},
         {"ReadValue", Type::MemoryInput},  // for construction from name ctor, arbitrary name is used
         {"Assign", Type::MemoryOutput},    // for construction from layer ctor
+        {"ReadValueWithSubgraph", Type::MemoryInput},
         {"Convert", Type::Convert},
         {"NV12toRGB", Type::ColorConvert},
         {"NV12toBGR", Type::ColorConvert},
@@ -196,12 +197,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
         {"Ceiling", Type::Eltwise},
+        {"Negative", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
-        {"Neg", Type::Math},
         {"Reciprocal", Type::Math},
         {"Selu", Type::Math},
         {"Sign", Type::Math},
@@ -424,6 +425,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseFloor);
         CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
+        CASE(EltwiseNegative);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);
         CASE(EltwiseMinimum);

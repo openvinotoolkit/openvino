@@ -13,7 +13,13 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
@@ -44,7 +50,7 @@ namespace ov {
     {                                                                                                \
         [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
             const auto& n = expr->get_node();                                                        \
-            const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                       \
+            const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
             if (gelu == nullptr) {                                                                   \
                 OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
             }                                                                                        \
@@ -70,6 +76,37 @@ namespace ov {
                 } else {                                                                             \
                     OPENVINO_THROW("Unsupported Gelu approximation mode");                           \
                 }                                                                                    \
+            }                                                                                        \
+    }
+
+#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                       \
+    {                                                                                                \
+        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            const auto& n = expr->get_node();                                                        \
+            const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+            if (round == nullptr) {                                                                  \
+                OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+            }                                                                                        \
+            const auto roundingMode = round->get_mode();                                             \
+            if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
+                return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
+            } else if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                 \
+                return std::make_shared<e_type_even>(h.get(), isa, n);                               \
+            } else {                                                                                 \
+                OPENVINO_THROW("Unsupported Round mode");                                            \
+            }                                                                                        \
+        },                                                                                           \
+            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                const auto& round = std::dynamic_pointer_cast<ov::op::v5::Round>(n);                 \
+                if (round == nullptr) {                                                              \
+                    OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
+                }                                                                                    \
+                if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {        \
+                    return e_type_from_zero::get_supported_precisions(n);                            \
+                } else if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {        \
+                    return e_type_even::get_supported_precisions(n);                                 \
+                }                                                                                    \
+                OPENVINO_THROW("Unsupported Round mode");                                            \
             }                                                                                        \
     }
 
@@ -104,10 +141,11 @@ bool CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
-    : TargetMachine(std::make_shared<CPURuntimeConfigurator>()),
+CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
       h(new jit_snippet()),
-      isa(host_isa) {
+      isa(host_isa),
+      compiled_kernel_cache(std::move(cache)) {
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
@@ -136,6 +174,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
     jitters[op::v1::Subtract::get_type_info_static()] = CREATE_CPU_EMITTER(jit_subtract_emitter);
 
+    // Comparison ops
+    jitters[op::v1::Equal::get_type_info_static()] = CREATE_CPU_EMITTER(jit_equal_emitter);
+    jitters[op::v1::Greater::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_emitter);
+    jitters[op::v1::GreaterEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_equal_emitter);
+    jitters[op::v1::LessEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_equal_emitter);
+
     // unary
     jitters[ov::op::v0::Abs::get_type_info_static()] = CREATE_CPU_EMITTER(jit_abs_emitter);
     jitters[ov::op::v0::Ceiling::get_type_info_static()] = CREATE_CPU_EMITTER(jit_ceiling_emitter);
@@ -149,8 +193,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
         CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
     jitters[ov::op::v4::HSwish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_hswish_emitter);
     jitters[ov::op::v4::Mish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mish_emitter);
+    jitters[ov::op::v0::PRelu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_prelu_emitter);
     jitters[ov::op::v0::Relu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_relu_emitter);
+    jitters[ov::op::v5::Round::get_type_info_static()] =
+        CREATE_ROUND_V5_EMITTER(jit_round_half_away_from_zero_emitter, jit_round_half_to_even_emitter);
     jitters[ov::op::v0::Sigmoid::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sigmoid_emitter);
+    jitters[ov::op::v0::Sqrt::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sqrt_emitter);
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
 
@@ -166,7 +214,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
 }
 
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
-    const auto cloned = std::make_shared<CPUTargetMachine>(isa);
+    const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
     return cloned;
 }
@@ -203,14 +251,15 @@ dnnl::impl::cpu::aarch64::cpu_isa_t CPUTargetMachine::get_isa() const {
     return isa;
 }
 
-CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_)
-    : Generator(std::make_shared<CPUTargetMachine>(isa_)) {}
+CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {}
+CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
     const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     OPENVINO_ASSERT(cpu_target_machine,
                     "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
-    return std::make_shared<CPUGenerator>(cpu_target_machine->get_isa());
+    return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
