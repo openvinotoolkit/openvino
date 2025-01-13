@@ -20,7 +20,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API NormalizeL2Transformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("NormalizeL2Transformation", "0");
+    OPENVINO_RTTI("NormalizeL2Transformation", "0", LayerTransformation);
     NormalizeL2Transformation(const Params& params = Params());
     bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;

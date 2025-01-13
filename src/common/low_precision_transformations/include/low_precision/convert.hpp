@@ -13,7 +13,7 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API ConvertTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("ConvertTransformation", "0");
+    OPENVINO_RTTI("ConvertTransformation", "0", LayerTransformation);
     ConvertTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

@@ -62,6 +62,6 @@ public:
  */
 class ov::pass::StridesOptimization : public ov::pass::BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("StridesOptimization", "0");
+    OPENVINO_RTTI("StridesOptimization", "0", ov::pass::BackwardGraphRewrite);
     StridesOptimization();
 };
