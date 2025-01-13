@@ -81,6 +81,10 @@ struct StringTensorPack::StringTensorPackExecute {
     }
 };
 
+bool StringTensorPack::isExecutable() const {
+    return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
+}
+
 void StringTensorPack::execute(dnnl::stream strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     StringTensorPackContext ctx = {*this};
