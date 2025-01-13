@@ -35,7 +35,7 @@ private:
 
 private:
     const std::shared_ptr<ov::Node> ovCoreNode;
-    const std::string additionalErrorMessage;
+    bool hasOutputShapeDataDependency = false; // flag to cache the output shape data dependency check result
 };
 
 }  // namespace node

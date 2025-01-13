@@ -16,8 +16,7 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op,
                      const GraphContext::CPtr& context,
                      const std::string& errorMessage)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      ovCoreNode(op),
-      additionalErrorMessage(errorMessage) {
+      ovCoreNode(op) {
     if (!op->has_evaluate()) {
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Cannot fallback on ngraph reference implementation. Ngraph::Node::evaluate() is not implemented for op: ",
@@ -49,7 +48,9 @@ void Reference::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
 }
 
-void Reference::createPrimitive() {}
+void Reference::createPrimitive() {
+    hasOutputShapeDataDependency = isDynamicNode() && outputShapeDataDependency();
+}
 
 void Reference::execute(dnnl::stream strm) {
     auto inputs = prepareInputs();
@@ -60,6 +61,14 @@ void Reference::execute(dnnl::stream strm) {
 }
 
 void Reference::executeDynamicImpl(dnnl::stream strm) {
+    if (!hasOutputShapeDataDependency) {
+        // if there is no data dependency for the output shape, we can execute the operation as is, similar to the
+        // static case, since the shapes are already calculated
+        execute(std::move(strm));
+        return;
+    }
+
+    // if there is data dependency, we need to perform shape inference first
     auto inputs = prepareInputs();
     ov::TensorVector outputs;
     auto result = Node::shapeInfer();
@@ -113,7 +122,9 @@ bool Reference::created() const {
 }
 
 bool Reference::needShapeInfer() const {
-    return false;
+    // If there is data dependency for the output shape, let's assume the node has internal dynamism (in general case),
+    // so we postpone the shape inference until the actual execution
+    return !hasOutputShapeDataDependency;
 }
 
 ov::TensorVector Reference::prepareInputs() const {
