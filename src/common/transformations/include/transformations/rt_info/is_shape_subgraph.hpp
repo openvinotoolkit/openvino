@@ -23,7 +23,7 @@ TRANSFORMATIONS_API bool is_shape_subgraph(const std::shared_ptr<const Node>& no
  */
 class TRANSFORMATIONS_API ShapeSubgraph : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("shape_subgraph", "0");
+    OPENVINO_RTTI("shape_subgraph", "0", RuntimeAttribute);
 
     ShapeSubgraph() = default;
 

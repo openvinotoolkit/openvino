@@ -21,7 +21,7 @@ TRANSFORMATIONS_API bool is_dequantization_node(const std::shared_ptr<Node>& nod
  */
 class TRANSFORMATIONS_API DequantizationNode : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("dequantization_node", "0");
+    OPENVINO_RTTI("dequantization_node", "0", RuntimeAttribute);
 
     bool is_copyable() const override {
         return false;

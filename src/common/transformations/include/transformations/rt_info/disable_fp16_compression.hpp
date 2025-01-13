@@ -30,7 +30,7 @@ TRANSFORMATIONS_API void do_not_postpone_fp16_compression(RTMap& rt_info);
  */
 class TRANSFORMATIONS_API DisableFP16Compression : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("precise", "0");
+    OPENVINO_RTTI("precise", "0", RuntimeAttribute);
 
     DisableFP16Compression() = default;
 

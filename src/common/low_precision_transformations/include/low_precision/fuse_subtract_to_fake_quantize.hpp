@@ -22,7 +22,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API FuseSubtractToFakeQuantizeTransformation : public FuseElementwiseToFakeQuantizeTransformation {
 public:
-    OPENVINO_RTTI("FuseSubtractToFakeQuantizeTransformation", "0");
+    OPENVINO_RTTI("FuseSubtractToFakeQuantizeTransformation", "0", FuseElementwiseToFakeQuantizeTransformation);
     FuseSubtractToFakeQuantizeTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

@@ -22,7 +22,7 @@ namespace pass {
  */
 class MarkInvariantShapePath: public RangedPass {
 public:
-    OPENVINO_RTTI("MarkInvariantShapePath", "RangedPass")
+    OPENVINO_RTTI("MarkInvariantShapePath", "", RangedPass);
     MarkInvariantShapePath() = default;
 
     /**

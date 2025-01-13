@@ -22,7 +22,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MultiplyToGroupConvolutionTransformation : public CleanupTransformation {
 public:
-    OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0");
+    OPENVINO_RTTI("MultiplyToGroupConvolutionTransformation", "0", CleanupTransformation);
     MultiplyToGroupConvolutionTransformation(
         const Params& params = Params(),
         const PrecisionsRestriction::PrecisionsByPorts& restrictions = {});

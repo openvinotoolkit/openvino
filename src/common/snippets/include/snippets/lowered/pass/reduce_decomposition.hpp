@@ -19,7 +19,7 @@ namespace pass {
  */
 class ReduceDecomposition : public RangedPass {
 public:
-    OPENVINO_RTTI("ReduceDecomposition", "RangedPass")
+    OPENVINO_RTTI("ReduceDecomposition", "", RangedPass);
     explicit ReduceDecomposition(size_t vector_size);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
 

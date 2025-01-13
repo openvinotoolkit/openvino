@@ -23,7 +23,7 @@ TRANSFORMATIONS_API void set_nms_selected_indices(Node* node);
 
 class TRANSFORMATIONS_API NmsSelectedIndices : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("nms_selected_indices", "0");
+    OPENVINO_RTTI("nms_selected_indices", "0", ov::RuntimeAttribute);
     NmsSelectedIndices() = default;
     bool is_copyable() const override {
         return false;

@@ -21,7 +21,7 @@ TRANSFORMATIONS_API void set_is_preprocessing_node(std::shared_ptr<Node> node);
  */
 class TRANSFORMATIONS_API PreprocessingAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("preprocessing", "0");
+    OPENVINO_RTTI("preprocessing", "0", ov::RuntimeAttribute);
     PreprocessingAttribute() = default;
     bool visit_attributes(AttributeVisitor& visitor) override {
         return true;

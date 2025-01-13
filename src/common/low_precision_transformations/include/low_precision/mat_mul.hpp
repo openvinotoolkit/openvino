@@ -21,7 +21,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MatMulTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("MatMulTransformation", "0");
+    OPENVINO_RTTI("MatMulTransformation", "0", LayerTransformation);
     MatMulTransformation(const Params& params = Params());
     bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

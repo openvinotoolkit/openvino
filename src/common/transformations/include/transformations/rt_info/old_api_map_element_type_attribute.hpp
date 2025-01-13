@@ -29,7 +29,7 @@ namespace ov {
  */
 class TRANSFORMATIONS_API OldApiMapElementType : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("old_api_map_element_type", "0");
+    OPENVINO_RTTI("old_api_map_element_type", "0", RuntimeAttribute);
 
     /**
      * A default constructor

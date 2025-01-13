@@ -19,7 +19,9 @@ namespace pass {
 
 class BrgemmTPPBlocking : public ov::snippets::lowered::pass::BrgemmBlocking<ov::intel_cpu::tpp::op::BrgemmTPP> {
 public:
-    OPENVINO_RTTI("BrgemmTPPBlocking", "BrgemmBlockingBase")
+    OPENVINO_RTTI("BrgemmTPPBlocking",
+                  "tpp::op::BrgemmTPP",
+                  snippets::lowered::pass::BrgemmBlocking<ov::intel_cpu::tpp::op::BrgemmTPP>);
 
     /**
      * @interface SetBrgemmBeta
@@ -29,8 +31,8 @@ public:
      */
     class SetBrgemmBeta : public snippets::lowered::pass::RangedPass {
     public:
+        OPENVINO_RTTI("SetBrgemmBeta", "0", snippets::lowered::pass::RangedPass);
         SetBrgemmBeta() = default;
-        OPENVINO_RTTI("SetBrgemmBeta", "RangedPass")
         bool run(ov::snippets::lowered::LinearIR& linear_ir,
                  ov::snippets::lowered::LinearIR::constExprIt begin,
                  ov::snippets::lowered::LinearIR::constExprIt end) override;

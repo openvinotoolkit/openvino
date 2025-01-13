@@ -21,7 +21,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("FakeQuantizeTransformation", "0");
+    OPENVINO_RTTI("FakeQuantizeTransformation", "0", LayerTransformation);
     FakeQuantizeTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;

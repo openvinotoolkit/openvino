@@ -53,7 +53,7 @@ public:
 template <typename ReductionType>
 class ConvertReduction : public ConvertReduceNoKeepDimsBase {
 public:
-    OPENVINO_RTTI("ConvertReduction", "0");
+    OPENVINO_RTTI("ConvertReduction", "0", ConvertReduceNoKeepDimsBase);
     ConvertReduction();
 };
 

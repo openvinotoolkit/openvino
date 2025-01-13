@@ -16,7 +16,7 @@ public:
 
 class SDPASubgraphFusion : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SDPASubgraphFusion", "0");
+    OPENVINO_MODEL_PASS_RTTI("SDPASubgraphFusion");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };

@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSSliceBackward;
 
 class ov::pass::transpose_sinking::TSSliceForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSSliceForward", "0");
+    OPENVINO_RTTI("ov::pass::TSSliceForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSSliceForward();
 };
 

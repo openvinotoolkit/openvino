@@ -18,7 +18,7 @@ namespace pass {
  */
 class SerializeBase : public ConstPass {
 public:
-    OPENVINO_RTTI("SerializeBase", "ConstPass")
+    OPENVINO_RTTI("SerializeBase", "", ConstPass)
     SerializeBase(const std::string& xml_path);
 
 protected:

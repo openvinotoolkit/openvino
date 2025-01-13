@@ -19,7 +19,7 @@ namespace pass {
 class LoadMoveBroadcastToBroadcastLoad: public RangedPass {
 public:
     LoadMoveBroadcastToBroadcastLoad() = default;
-    OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "RangedPass")
+    OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "", RangedPass);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 

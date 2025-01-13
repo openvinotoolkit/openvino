@@ -21,7 +21,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public ConvolutionTransformation {
 public:
-    OPENVINO_RTTI("GroupConvolutionTransformation", "0");
+    OPENVINO_RTTI("GroupConvolutionTransformation", "0", ConvolutionTransformation);
     GroupConvolutionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,

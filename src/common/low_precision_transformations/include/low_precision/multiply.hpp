@@ -21,7 +21,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MultiplyTransformation : public WeightableLayerTransformation {
 public:
-    OPENVINO_RTTI("MultiplyTransformation", "0");
+    OPENVINO_RTTI("MultiplyTransformation", "0", WeightableLayerTransformation);
     MultiplyTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
 

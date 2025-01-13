@@ -23,7 +23,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API FoldConvertTransformation : public CleanupTransformation {
 public:
-    OPENVINO_RTTI("FoldConvertTransformation", "0");
+    OPENVINO_RTTI("FoldConvertTransformation", "0", CleanupTransformation);
     FoldConvertTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
