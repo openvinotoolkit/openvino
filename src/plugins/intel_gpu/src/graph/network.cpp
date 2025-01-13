@@ -281,7 +281,7 @@ void network::preallocate_shape_info_buffers() {
     int64_t sum = 0;
 
     /* Use 512 byte alignment for performance */
-    uint64_t alignment = 512;
+    const size_t alignment = 512;
 
     for (auto const& prim : _exec_order) {
         auto& node = prim->get_node();
@@ -299,7 +299,7 @@ void network::preallocate_shape_info_buffers() {
     int offset = 0;
     for (auto const& prim : _exec_order) {
         auto& node = prim->get_node();
-        int64_t shape_elements = node.get_total_shape_info_size();
+        const auto shape_elements = node.get_total_shape_info_size();
 
         if (shape_elements == 0)
             continue;
