@@ -7,8 +7,8 @@ import shutil
 import tempfile
 import unittest
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape
+import openvino as ov
+from openvino import PartialShape
 
 from openvino.tools.ovc.cli_parser import _InputCutInfo
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \

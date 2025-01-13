@@ -6,10 +6,10 @@
 from functools import partial
 from typing import List, Optional
 
-from openvino.runtime import Node
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.types import (
+from openvino import Node
+from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.decorators import nameable_op
+from openvino.utils.types import (
     NodeInput,
     as_nodes,
     as_node,
