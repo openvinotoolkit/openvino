@@ -30,13 +30,13 @@ bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>
                                            std::string& errorMessage) noexcept {
     try {
         if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
-            auto adaPool = std::dynamic_pointer_cast<const ov::opset8::AdaptiveAvgPool>(op);
+            auto adaPool = ov::as_type_ptr<const ov::opset8::AdaptiveAvgPool>(op);
             if (!adaPool) {
                 errorMessage = "Only opset8 AdaptiveAvgPooling operation is supported";
                 return false;
             }
         } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
-            auto adaPool = std::dynamic_pointer_cast<const ov::opset8::AdaptiveMaxPool>(op);
+            auto adaPool = ov::as_type_ptr<const ov::opset8::AdaptiveMaxPool>(op);
             if (!adaPool) {
                 errorMessage = "Only opset8 AdaptiveMaxPooling operation is supported";
                 return false;

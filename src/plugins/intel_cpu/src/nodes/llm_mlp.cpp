@@ -503,7 +503,7 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
-    const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
+    const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
     m_mlp_config = node_mlp->get_config();
 }
 
@@ -599,7 +599,7 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                   uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
-        const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
+        const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
         if (node_mlp) {
             auto down_proj_w_pshape = op->input_value(1).get_partial_shape();
             if (!down_proj_w_pshape.is_static()) {
