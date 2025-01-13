@@ -17,6 +17,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    bool isExecutable() const override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
     bool needPrepareParams() const override;
