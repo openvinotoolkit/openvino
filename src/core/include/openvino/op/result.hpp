@@ -69,6 +69,12 @@ public:
     /// \param arg Node that produces the input tensor.
     Result(const Output<Node>& arg);
 
+    /// \brief Allows a value to be used as a function result.
+    ///
+    /// \param arg Node that produces the input tensor.
+    /// \param use_input_names  When true Result will use input node tensor names as Result's output names.
+    Result(const Output<Node>& arg, bool use_input_names);
+
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

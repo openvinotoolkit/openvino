@@ -48,8 +48,4 @@ if(TARGET ze_loader)
     ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
     
     add_dependencies(${TARGET_NAME} ze_loader)
-
-    # TODO: remove once https://github.com/oneapi-src/level-zero/pull/243 is merged and made a part of official release
-    ov_developer_package_export_targets(TARGET utils)
-    ov_install_static_lib(utils ${NPU_PLUGIN_COMPONENT})
 endif()
