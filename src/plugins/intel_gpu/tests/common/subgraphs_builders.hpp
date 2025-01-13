@@ -180,7 +180,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
         if (build_state_initializer) {
             auto state_initializer = make_state_initializer(in_new_token, element_type, kv_cache_size, {0, 1, 2, 3});
             for (auto op : model->get_ops()) {
-                if (auto read_value = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(op)) {
+                if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
                     read_value->set_arguments(ov::OutputVector{state_initializer});
                 }
             }
@@ -312,7 +312,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
         ov::pass::MakeStateful({{past_k, present_k}, {past_v, present_v}}).run_on_model(model);
         auto state_initializer = make_state_initializer(in_v_token, element_type, kv_cache_size, qkv_order);
         for (auto op : model->get_ops()) {
-            if (auto read_value = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(op)) {
+            if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
                 read_value->set_arguments(ov::OutputVector{state_initializer});
             }
         }
