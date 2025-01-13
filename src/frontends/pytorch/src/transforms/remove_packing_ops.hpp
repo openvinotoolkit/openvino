@@ -17,7 +17,7 @@ namespace pass {
  */
 class MovePackThroughLstm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::MovePackThroughLstm");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::MovePackThroughLstm");
     MovePackThroughLstm();
 };
 
@@ -26,7 +26,7 @@ public:
  */
 class RemovePackingOps : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::RemovePackingOps");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::RemovePackingOps");
     RemovePackingOps();
 };
 

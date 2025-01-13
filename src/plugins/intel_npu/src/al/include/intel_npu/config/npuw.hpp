@@ -17,6 +17,7 @@ namespace intel_npu {
 //
 
 void registerNPUWOptions(OptionsDesc& desc);
+void registerNPUWLLMOptions(OptionsDesc& desc);
 
 #define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode)                     \
     struct Name final : OptionBase<Name, Type> {                                    \
@@ -66,4 +67,68 @@ DEFINE_OPT(NPUW_DUMP_SUBS, std::string, "", npuw::dump::subgraphs, CompileTime);
 DEFINE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", npuw::dump::subgraphs_on_fail, CompileTime);
 DEFINE_OPT(NPUW_DUMP_IO, std::string, "", npuw::dump::inputs_outputs, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);
+DEFINE_OPT(NPUW_LLM, bool, false, npuw::llm::enabled, CompileTime);
+DEFINE_OPT(NPUW_LLM_BATCH_DIM, uint32_t, 0, npuw::llm::batch_dim, CompileTime);
+DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, CompileTime);
+DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, CompileTime);
+DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, CompileTime);
+DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, false, npuw::llm::optimize_v_tensors, CompileTime);
+
+namespace npuw {
+namespace llm {
+enum class GenerateHint { FAST_COMPILE, BEST_PERF };
+}  // namespace llm
+}  // namespace npuw
+
+struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel_npu::npuw::llm::GenerateHint> {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_hint.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::GenerateHint";
+    }
+
+    static ::intel_npu::npuw::llm::GenerateHint defaultValue() {
+        return ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE;
+    }
+
+    static ::intel_npu::npuw::llm::GenerateHint parse(std::string_view val) {
+        ::intel_npu::npuw::llm::GenerateHint res;
+
+        if (val == "FAST_COMPILE") {
+            res = ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE;
+        } else if (val == "BEST_PERF") {
+            res = ::intel_npu::npuw::llm::GenerateHint::BEST_PERF;
+        } else {
+            OPENVINO_THROW("Unsupported \"GENERATE_HINT\" provided: ",
+                           val,
+                           ". Please select either \"FAST_COMPILE\" or \"BEST_PERF\".");
+        }
+        return res;
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::GenerateHint& val) {
+        std::string res;
+        switch (val) {
+        case ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE:
+            res = "FAST_COMPILE";
+            break;
+        case ::intel_npu::npuw::llm::GenerateHint::BEST_PERF:
+            res = "BEST_PERF";
+            break;
+        default:
+            OPENVINO_THROW("Can't convert provided \"GENERATE_HINT\" : ", int(val), " to string.");
+        }
+        return res;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
 }  // namespace intel_npu

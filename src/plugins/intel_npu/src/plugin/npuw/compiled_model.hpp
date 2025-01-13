@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,10 +22,16 @@ class Plugin;
 
 namespace ov {
 namespace npuw {
+class ICompiledModel : public ov::ICompiledModel {
+public:
+    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                            const ov::AnyMap& properties);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+};
 
 class InferRequest;
-
-class CompiledModel : public ov::ICompiledModel {
+class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -34,6 +40,9 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const bool serialized);
 
     void export_model(std::ostream& model) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
@@ -50,6 +59,7 @@ private:
     friend class UnfoldInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
+    friend class LLMCompiledModel;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -59,6 +69,10 @@ private:
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
     void report_io() const;
+
+    void serialize(std::ostream& stream) const;
+    static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -76,6 +90,9 @@ private:
 
     void log_device_dist() const;
     void implement_properties();
+
+    // For full deserialization flow with weights
+    void reconstruct_closure();
 
     void finalize_weights_bank();
     void detach_memory();
@@ -135,6 +152,7 @@ private:
         //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
         std::vector<weights::LazyTensor> lazy_closure;
+        std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;
@@ -147,6 +165,9 @@ private:
 
         // Metrics
         execution_stats stat;
+
+        void serialize(std::ostream& stream) const;
+        void deserialize(std::istream& stream);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

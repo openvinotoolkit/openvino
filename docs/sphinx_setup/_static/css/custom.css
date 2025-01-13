@@ -69,7 +69,7 @@ a#wap_dns {
 /* Sphinx-design tabs override */
 .sd-tab-set>input:checked+label {
     color: var(--sd-color-black) !important;
-    background-color: #f8f8f8 !important;
+    background-color: white !important;
     border: solid 1px #bdbdbd;
     border-bottom: solid 0px;
     margin-bottom: -1px;
@@ -96,7 +96,7 @@ a#wap_dns {
     cursor: pointer;
     font-size: var(--sd-fontsize-tabs-label);
     font-weight: 400 !important;
-    padding: 5px 16px 2px !important;
+    padding: 5px 16px 0px !important;
     transition: color 250ms;
     width: auto;
     z-index: 1;
@@ -110,7 +110,6 @@ a#wap_dns {
     box-shadow: 0 0 0 0;
     border: solid 1px var(--sd-color-tabs-overline);
     border-color: #bdbdbd;
-    background-color: #f8f8f8;
     padding-right: 4px;
     padding-left: 4px;
     padding-bottom: 6px;
@@ -923,6 +922,8 @@ h5 {
     position: relative;
     bottom: -16px;
     left: 0;
+    margin-left: auto; 
+    padding-right: 30px;
 }
 
 .modal-footer-content {

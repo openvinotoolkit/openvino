@@ -36,7 +36,7 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS, KT_ACL};
+    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS, KT_ACL };
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 
@@ -47,7 +47,10 @@ public:
             real_order = {permute_axes[2], permute_axes[0], permute_axes[1], permute_axes[3]};
         return real_order;
     }
-
+    struct SDPAQuantParam {
+        ov::element::Type precision = ov::element::undefined;
+        size_t groupSize = 0;
+    };
     ov::element::Type getKVCachePrecision();
 
 private:
@@ -62,15 +65,22 @@ private:
     };
 
     struct Executor {
-        virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
-                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
-                             const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
+        virtual void execute(dnnl::stream strm,
+                             const Config& config,
+                             const std::vector<MemoryPtr>& inputs,
+                             const MemoryPtr output,
+                             const MemoryPtr presentk_input,
+                             const MemoryPtr presentv_input,
+                             const MemoryPtr beam_input,
+                             const PlainTensor& k_scale_zp,
+                             const PlainTensor& v_scale_zp) = 0;
         virtual ~Executor() = default;
     };
 
     Config m_config;
     std::shared_ptr<Executor> m_executor;
-    template <KernelTypes KType, typename T> struct AttentionExecutor;
+    template <KernelTypes KType, typename T>
+    struct AttentionExecutor;
     friend struct ScaledDotProductAttentionKey;
 
     std::shared_ptr<VariableStateKVcache> m_k_state;
@@ -79,6 +89,8 @@ private:
     // (0, 1, 2, 3) for BHLS
     // (2, 0, 1, 3) for LBHS
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
+    SDPAQuantParam m_key_quant_param;
+    SDPAQuantParam m_value_quant_param;
 };
 
 }  // namespace node

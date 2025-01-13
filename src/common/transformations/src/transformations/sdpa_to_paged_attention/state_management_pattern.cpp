@@ -15,6 +15,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
@@ -70,10 +71,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
                                                          Output<Node> max_context_len,
-                                                         ParameterVector& block_indices_inputs,
+                                                         ParameterVector& block_indices_inputs_for_each_layer,
                                                          ResultVector& score_results,
-                                                         bool use_block_indices_inputs,
-                                                         bool use_score_outputs) {
+                                                         bool use_per_layer_block_indices_inputs,
+                                                         bool use_score_outputs,
+                                                         bool allow_cache_rotation,
+                                                         ParameterVector& rotated_block_indices_inputs_for_each_layer,
+                                                         ParameterVector& rotation_deltas_inputs_for_each_layer,
+                                                         std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -176,9 +181,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
-                                          &block_indices_inputs,
+                                          &block_indices_inputs_for_each_layer,
                                           &score_results,
-                                          &layer_index](ov::pass::pattern::Matcher& m) {
+                                          &layer_index,
+                                          &rotated_block_indices_inputs_for_each_layer,
+                                          &rotation_deltas_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
@@ -310,20 +317,28 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
-        auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
-        auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
-                                                       v0::Constant::create(element::i64, Shape{}, {-1}),
-                                                       v0::Constant::create(element::i64, Shape{}, {0}));
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
         } else {
-            // most likely `scale` below will always be a constant in real inference, but dynamic dimension
-            // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
-            // instead of just a constant node representing one of the dimensions.
-            scale = std::make_shared<v1::Divide>(
-                v0::Constant::create(element::f32, Shape{}, {1}),
-                std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
+            auto real_q_ps = real_q.get_partial_shape();
+
+            bool rank_is_static = real_q_ps.rank().is_static();
+            if (rank_is_static && real_q_ps[real_q_ps.rank().get_length() - 1].is_static()) {
+                auto hidden_dim_len = static_cast<float>(real_q_ps[real_q_ps.rank().get_length() - 1].get_length());
+                scale = v0::Constant::create(element::f32, Shape{}, {1.0 / std::sqrt(hidden_dim_len)});
+            } else {
+                // most likely `scale` below will always be a constant in real inference, but dynamic dimension
+                // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
+                // instead of just a constant node representing one of the dimensions.
+                auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
+                auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
+                                                               v0::Constant::create(element::i64, Shape{}, {-1}),
+                                                               v0::Constant::create(element::i64, Shape{}, {0}));
+                scale = std::make_shared<v1::Divide>(
+                    v0::Constant::create(element::f32, Shape{}, {1}),
+                    std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
+            }
         }
 
         std::shared_ptr<Node> alibi_slopes;
@@ -374,11 +389,27 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-        if (use_block_indices_inputs) {
+        if (use_per_layer_block_indices_inputs) {
             auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                          "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
-            block_indices_inputs.push_back(block_indices);
+            block_indices_inputs_for_each_layer.push_back(block_indices);
+        }
+
+        OPENVINO_ASSERT(pa_arguments.size() == 13);
+
+        if (allow_cache_rotation) {
+            auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                                 "rotated_block_indices." + std::to_string(layer_index - 1));
+            auto rotation_deltas = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
+                                           "rotation_deltas." + std::to_string(layer_index - 1));
+
+            pa_arguments.insert(pa_arguments.begin() + 13, rotated_block_indices);
+            pa_arguments.insert(pa_arguments.begin() + 14, rotation_deltas);
+            pa_arguments.insert(pa_arguments.begin() + 15, model_rotation_trig_lut);
+
+            rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
+            rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
         }
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
@@ -429,6 +460,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             parameters_to_remove.push_back(param);
         }
 
+        pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
         return true;
     };

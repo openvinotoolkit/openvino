@@ -6,13 +6,10 @@
 
 #pragma once
 
-#include <ze_api.h>
-#include <ze_graph_ext.h>
-
 #include <type_traits>
 #include <utility>
 
-#include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -29,6 +26,8 @@ public:
     std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+
+    uint32_t get_version() const override;
 
 private:
     /**

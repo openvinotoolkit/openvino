@@ -9,6 +9,7 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "read_value_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -89,6 +90,16 @@ private:
     void run(program& p) override;
 };
 
+class mark_state_init_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into state initializer subgraphs
+public:
+    mark_state_init_subgraphs() : base_pass("mark_state_init_subgraphs") {}
+
+private:
+    void run(program& p) override;
+    void mark_init_subgraph(program& p, read_value_node& node);
+};
+
 class mark_shape_of_subgraphs : public base_pass {
     // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
     // There are few key requirements to decide if node belongs to shape_of subgraph or not:
@@ -140,6 +151,7 @@ public:
 private:
     void run(program& p) override;
     void fuse_bias(program &p);
+    void fuse_swiglu(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
     void fuse_constant_transposes(program &p);
@@ -210,9 +222,10 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
-                                                              const ExecutionConfig& config,
-                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+    calculate(engine& engine,
+              const ExecutionConfig& config,
+              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);

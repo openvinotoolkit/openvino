@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
-#include "cpu_shape.h"
 
-#include <string>
 #include <sstream>
+#include <string>
+
+#include "cpu_shape.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,6 +42,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GroupConvolution", Type::Convolution},
         {"MatMul", Type::MatMul},
         {"FullyConnected", Type::FullyConnected},
+        {"FullyConnectedCompressed", Type::FullyConnected},
+        {"FullyConnectedQuantizedLegacy", Type::FullyConnected},
+        {"FullyConnectedQuantized", Type::FullyConnected},
         {"MaxPool", Type::Pooling},
         {"AvgPool", Type::Pooling},
         {"AdaptiveMaxPool", Type::AdaptivePooling},
@@ -140,6 +144,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Loop", Type::TensorIterator},
         {"ReadValue", Type::MemoryInput},  // for construction from name ctor, arbitrary name is used
         {"Assign", Type::MemoryOutput},    // for construction from layer ctor
+        {"ReadValueWithSubgraph", Type::MemoryInput},
         {"Convert", Type::Convert},
         {"NV12toRGB", Type::ColorConvert},
         {"NV12toBGR", Type::ColorConvert},
@@ -192,12 +197,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
         {"Ceiling", Type::Eltwise},
+        {"Negative", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
-        {"Neg", Type::Math},
         {"Reciprocal", Type::Math},
         {"Selu", Type::Math},
         {"Sign", Type::Math},
@@ -257,8 +262,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}
-    };
+        {"LoraSubgraph", Type::LoRA}};
     return type_to_name_tbl;
 }
 
@@ -421,6 +425,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseFloor);
         CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
+        CASE(EltwiseNegative);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);
         CASE(EltwiseMinimum);
@@ -469,6 +474,10 @@ std::string algToString(const Algorithm alg) {
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);
+        CASE(FullyConnectedCommon);
+        CASE(FullyConnectedCompressed);
+        CASE(FullyConnectedQuantized);
+        CASE(FullyConnectedQuantizedLegacy);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

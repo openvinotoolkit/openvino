@@ -10,14 +10,13 @@
 #include "activation_inst.h"
 #include "reorder_inst.h"
 #include "quantize_inst.h"
+#include "swiglu_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
 #include "gemm_inst.h"
 #include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
@@ -770,6 +769,15 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                 ob << casted->_out_hi;
                 ob << casted->_out_scale;
                 ob << casted->_out_shift;
+            } else if (f_desc.f_param->type() == swiglu::type_id()) {
+                auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
             }
 
             ob << f_desc.deps.size();
@@ -975,6 +983,18 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
                                     need_pre_shift, need_clamp, need_min_clamp, need_max_clamp, per_tensor_input_range,
                                     per_tensor_input_scale, per_tensor_input_shift, per_tensor_output_range, per_tensor_output_scale,
                                     per_tensor_output_shift, in_lo, in_hi, in_scale, in_shift, out_lo, out_hi, out_scale, out_shift);
+            } else if (f_param_type == swiglu::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<swiglu> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<swiglu>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<SwigluFuseParams>(param_desc);
+
             } else {
                 f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
             }
@@ -1536,30 +1556,62 @@ void program_node::create_onednn_primitive_attributes(
         } else if (desc.is_type<eltwise>()) {
             auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_input_layout(dep_idx);
-            auto in_origin = in;
-            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
-                if (is_type<fully_connected>()) {
-                    auto prim = this->as<fully_connected>().get_primitive();
-                    if (prim->input_size == 3) {
-                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+            auto fc_needs_full_tensor = [&]() {
+                for (size_t i = 0; i < cldnn_post_ops.size(); i++) {
+                    auto& desc = cldnn_post_ops[i];
+                    if (desc.is_type<eltwise>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        auto dep_idx = desc.outer_dep_start_idx;
+                        auto in = get_input_layout(dep_idx);
+                        if (prim->input_size == 3 && in.batch() > 1 && in.feature() > 1)
+                            return true;
                     }
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                            mem_desc.get_dims(), mem_desc.get_data_type());
-                } else if (is_type<gemm>()) {
+                }
+                return false;
+            };
+            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
+                if (is_type<fully_connected>() || is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
-                    if (ones_to_add > 0) {
-                        layout new_layout = in;
-                        ov::PartialShape new_input_pshape;
-                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
-                        new_input_pshape = ov::PartialShape(dims);
-                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
-                        new_layout.set_partial_shape(new_input_pshape);
-                        in = new_layout;
+                    size_t ones_to_add = 0;
+
+                    if (is_type<fully_connected>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        if (prim->input_size == in_pshape.size()) {
+                            if (prim->input_size == 3 && !fc_needs_full_tensor()) {
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                                in_pshape = in.get_partial_shape();
+                            }
+                            ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        } else {
+                            if (prim->input_size == 3)
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                            ones_to_add = std::max(in_pshape.size(), prim->input_size) - std::min(in_pshape.size(), prim->input_size);
+                        }
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            auto last = in_pshape.begin() + in_pshape.size();
+                            if (in_pshape.size() > prim->input_size)
+                                last -= ones_to_add;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), last);
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
+                    } else {
+                        ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
                     }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);

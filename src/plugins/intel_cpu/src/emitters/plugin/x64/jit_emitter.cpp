@@ -3,9 +3,11 @@
 //
 
 #include "jit_emitter.hpp"
+
 #include <vector>
-#include "utils/general_utils.h"
+
 #include "utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
@@ -19,11 +21,12 @@ size_t jit_emitter::get_max_vecs_count() const {
 }
 
 size_t jit_emitter::get_vec_length() const {
-    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 64 :
-           one_of(host_isa_, cpu::x64::avx2) ? 32 : 16;
+    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 64
+           : one_of(host_isa_, cpu::x64::avx2)                             ? 32
+                                                                           : 16;
 }
 
-void jit_emitter::push_vec(const Xbyak::Address &addr, size_t vec_idx) const {
+void jit_emitter::push_vec(const Xbyak::Address& addr, size_t vec_idx) const {
     if (host_isa_ == cpu::x64::sse41) {
         h->uni_vmovups(addr, Xmm(vec_idx));
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -33,7 +36,7 @@ void jit_emitter::push_vec(const Xbyak::Address &addr, size_t vec_idx) const {
     }
 }
 
-void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address &addr) const {
+void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address& addr) const {
     if (host_isa_ == cpu::x64::sse41) {
         h->uni_vmovups(Xmm(vec_idx), addr);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -60,11 +63,15 @@ std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const
     return {};
 }
 
-void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
+                                   const std::vector<size_t>& out_idxs,
+                                   const std::vector<size_t>& pool_vec_idxs,
+                                   const std::vector<size_t>& pool_gpr_idxs) const {
     using namespace Xbyak::util;
-    bool is_vec_input = (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::vec_to_gpr);
-    bool is_vec_output = (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::gpr_to_vec);
+    bool is_vec_input =
+        (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::vec_to_gpr);
+    bool is_vec_output =
+        (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::gpr_to_vec);
 
     for (auto idx : pool_vec_idxs)
         aux_vec_idxs.push_back(idx);
@@ -73,9 +80,11 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
         size_t idx = 0;
         if (is_vec_input)
-            OV_CPU_JIT_EMITTER_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(), "Xmm(0) cannot be input register in SSE41");
+            OV_CPU_JIT_EMITTER_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(),
+                                      "Xmm(0) cannot be input register in SSE41");
         if (is_vec_output)
-            OV_CPU_JIT_EMITTER_ASSERT(std::find(out_idxs.begin(), out_idxs.end(), idx) == out_idxs.end(), "Xmm(0) cannot be output register in SSE41");
+            OV_CPU_JIT_EMITTER_ASSERT(std::find(out_idxs.begin(), out_idxs.end(), idx) == out_idxs.end(),
+                                      "Xmm(0) cannot be output register in SSE41");
         if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) == aux_vec_idxs.end()) {
             aux_vec_idxs.push_back(idx);
             preserved_vec_idxs.push_back(idx);
@@ -93,16 +102,21 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     }
 
     for (size_t idx = 0; idx < get_max_vecs_count(); idx++) {
-        if (aux_vec_idxs.size() >= aux_vecs_count()) break;
+        if (aux_vec_idxs.size() >= aux_vecs_count())
+            break;
 
         if (is_vec_input) {
-            if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end()) continue;
+            if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end())
+                continue;
         }
         if (is_vec_output) {
-            if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end()) continue;
+            if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end())
+                continue;
         }
-        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) != aux_vec_idxs.end()) continue;
-        if (std::find(preserved_vec_idxs.begin(), preserved_vec_idxs.end(), idx) != preserved_vec_idxs.end()) continue;
+        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) != aux_vec_idxs.end())
+            continue;
+        if (std::find(preserved_vec_idxs.begin(), preserved_vec_idxs.end(), idx) != preserved_vec_idxs.end())
+            continue;
 
         aux_vec_idxs.push_back(idx);
         preserved_vec_idxs.push_back(idx);
@@ -115,18 +129,24 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         aux_gpr_idxs.push_back(idx);
 
     for (size_t gpr_idx = 0; gpr_idx <= Operand::R15; ++gpr_idx) {
-        size_t _idx = Operand::R15 - gpr_idx; // we allocate from the end
+        size_t _idx = Operand::R15 - gpr_idx;  // we allocate from the end
 
-        if (aux_gpr_idxs.size() >= aux_gprs_count()) break;
-        if (_idx == Operand::RSP) continue;
+        if (aux_gpr_idxs.size() >= aux_gprs_count())
+            break;
+        if (_idx == Operand::RSP)
+            continue;
         if (!is_vec_input) {
-            if (std::find(in_idxs.begin(), in_idxs.end(), _idx) != in_idxs.end()) continue;
+            if (std::find(in_idxs.begin(), in_idxs.end(), _idx) != in_idxs.end())
+                continue;
         }
         if (!is_vec_output) {
-            if (std::find(out_idxs.begin(), out_idxs.end(), _idx) != out_idxs.end()) continue;
+            if (std::find(out_idxs.begin(), out_idxs.end(), _idx) != out_idxs.end())
+                continue;
         }
-        if (std::find(aux_gpr_idxs.begin(), aux_gpr_idxs.end(), _idx) != aux_gpr_idxs.end()) continue;
-        if (std::find(preserved_gpr_idxs.begin(), preserved_gpr_idxs.end(), _idx) != preserved_gpr_idxs.end()) continue;
+        if (std::find(aux_gpr_idxs.begin(), aux_gpr_idxs.end(), _idx) != aux_gpr_idxs.end())
+            continue;
+        if (std::find(preserved_gpr_idxs.begin(), preserved_gpr_idxs.end(), _idx) != preserved_gpr_idxs.end())
+            continue;
 
         aux_gpr_idxs.push_back(_idx);
         preserved_gpr_idxs.push_back(_idx);
@@ -153,7 +173,6 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
     if (!entry_map_.empty())
         load_table_addr();
 }
-
 
 void jit_emitter::emitter_postamble() const {
     using namespace Xbyak::util;
@@ -183,7 +202,7 @@ void jit_emitter::emit_data() const {
 
     // Run through the map and insert values stored there
     for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        const auto &te = (*it).second; // get map entry for a given key
+        const auto& te = (*it).second;  // get map entry for a given key
         const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         for (size_t d = 0; d < len; d += sizeof(table_entry_val_t))
             h->dd(te.val);
@@ -199,14 +218,16 @@ void jit_emitter::prepare_table() {
     // prepare_table.
     size_t off = 0;
     for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        auto &te = (*it).second;
+        auto& te = (*it).second;
         te.off = off;
         off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
     }
 }
 
-void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
+                            const std::vector<size_t>& out_idxs,
+                            const std::vector<size_t>& pool_vec_idxs,
+                            const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs);
@@ -214,5 +235,5 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
     emitter_postamble();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

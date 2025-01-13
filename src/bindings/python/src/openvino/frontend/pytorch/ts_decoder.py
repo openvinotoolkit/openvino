@@ -6,7 +6,7 @@
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny
+from openvino import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import (
     ivalue_to_constant,
     get_value_from_getattr,
@@ -15,8 +15,8 @@ from openvino.frontend.pytorch.utils import (
     convert_quantized_tensor,
     graph_has_ops,
 )
-from openvino.runtime import opset11 as ops
-from openvino.frontend.pytorch import gptq, patch_model
+from openvino import opset11 as ops
+from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
 
 import inspect
@@ -38,6 +38,7 @@ class TorchScriptPythonDecoder(Decoder):
         skip_freeze=False,
         constant_cache=None,
         module_extensions=None,
+        trace_kwargs=None,
     ):
         super().__init__()
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
@@ -57,7 +58,7 @@ class TorchScriptPythonDecoder(Decoder):
                     self.config = pt_module.config.to_dict()
             try:
                 pt_module = self._get_scripted_model(
-                    pt_module, example_input, skip_freeze)
+                    pt_module, example_input, skip_freeze, trace_kwargs)
             except Exception as e:
                 if example_input is not None:
                     msg = "tracing"
@@ -109,7 +110,7 @@ class TorchScriptPythonDecoder(Decoder):
                 preserved_attributes.append(name)
         return preserved_attributes
 
-    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
+    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -141,27 +142,27 @@ class TorchScriptPythonDecoder(Decoder):
                     patch_model.patch_model(
                         pt_module, self.module_extensions, orig_forward_name)
 
-                gptq_patched = False
-                if gptq.detect_gptq_model(pt_module):
+                patched = False
+                if quantized.detect_quantized_model(pt_module) is not None:
                     try:
-                        gptq.patch_model(pt_module)
-                        gptq_patched = True
+                        quantized.patch_quantized(pt_module)
+                        patched = True
                     except Exception as error:
                         log.warning(
-                            "Failed patching of AutoGPTQ model. Error message:\n%s"
-                            "\nTracing of the model will likely be unsuccessful or incorrect",
-                            error)
-                        gptq.unpatch_model(pt_module)
-                        gptq_patched = False
+                            "Failed patching of AutoGPTQ model. Error message:\n"
+                            "Tracing of the model will likely be unsuccessful or incorrect",
+                            exc_info=error)
+                        quantized.unpatch_quantized(pt_module)
+                        patched = False
 
+                if trace_kwargs is None:
+                    trace_kwargs = {}
                 try:
                     scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False)
+                        pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
-                    if gptq_patched:
-                        gptq.unpatch_model(pt_module)
-                    if self.module_extensions:
-                        patch_model.unpatch_model(pt_module, orig_forward_name)
+                    if patched:
+                        quantized.unpatch_quantized(pt_module)
 
             have_to_freeze_ops = ["prim::Uninitialized",
                                   "prim::unchecked_cast", "aten::append"]
@@ -517,11 +518,11 @@ class TorchScriptPythonDecoder(Decoder):
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             return False
 
-    def inlined_input(self, index):
-        return []
-
     def is_input_inlined(self, index):
         return False
+
+    def get_inlined_input_decoder(self, index):
+        return None
 
     def get_attribute(self, name):
         return OVAny(None)

@@ -42,15 +42,17 @@ private:
     std::shared_ptr<SplitExecutor> execPtr = nullptr;
 
     struct SplitOptimizedExecutor : public SplitExecutor {
-        public:
-            SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
+    public:
+        SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc,
+                               const std::vector<BlockedMemoryDescCPtr>& outDescs,
+                               const size_t axis);
+        void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
 
-        private:
-            std::vector<size_t> dataSize;
-            std::vector<size_t> srcDataOffsets;
-            size_t srcDataStride;
-            size_t countStrides;
+    private:
+        std::vector<size_t> dataSize;
+        std::vector<size_t> srcDataOffsets;
+        size_t srcDataStride;
+        size_t countStrides;
     };
 
     void optimizedNspc2Ncsp(size_t MB);
@@ -66,6 +68,6 @@ private:
     std::vector<int> splitLengths;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

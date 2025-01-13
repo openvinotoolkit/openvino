@@ -18,10 +18,10 @@ namespace pass {
  *        Fuse Store and ConvertTruncation into one op StoreConvertTruncation
  * @ingroup snippets
  */
-class FuseLoadStoreConvert: public snippets::lowered::pass::RangedPass {
+class FuseLoadStoreConvert : public snippets::lowered::pass::RangedPass {
 public:
     FuseLoadStoreConvert() = default;
-    OPENVINO_RTTI("FuseLoadStoreConvert", "RangedPass");
+    OPENVINO_RTTI("FuseLoadStoreConvert", "0", snippets::lowered::pass::RangedPass);
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;

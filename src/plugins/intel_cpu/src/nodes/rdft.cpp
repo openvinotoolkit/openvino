@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "rdft.h"
+
+#include <cmath>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/irdft.hpp>
+#include <openvino/op/rdft.hpp>
 #include <string>
 #include <vector>
-#include <cmath>
-#include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+
+#include "common/cpu_memcpy.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "common/primitive_hashing_utils.hpp"
-
-#include "rdft.h"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
-#include "common/cpu_memcpy.h"
-#include <openvino/op/rdft.hpp>
-#include <openvino/op/irdft.hpp>
-#include <openvino/op/constant.hpp>
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -30,7 +31,6 @@ static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
 static constexpr size_t SIGNAL_SIZE_INDEX = 2;
 static constexpr double PI = 3.14159265358979323846;
-
 
 bool RDFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -55,7 +55,9 @@ static void normalizeAxes(std::vector<int>& axes, size_t rank) {
     }
 }
 
-static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, const std::vector<int>& axes, bool inverse) {
+static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape,
+                                              const std::vector<int>& axes,
+                                              bool inverse) {
     std::vector<int> signalSizes;
     signalSizes.reserve(axes.size());
 
@@ -141,8 +143,8 @@ void RDFT::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, ov::element::f32},
-                                                 {LayoutType::ncsp, ov::element::i32}});
+    std::vector<PortConfigurator> configurators(
+        {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
         configurators.push_back({LayoutType::ncsp, ov::element::i32});
 
@@ -163,11 +165,16 @@ void RDFT::execute(dnnl::stream strm) {
     const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-    executor->execute(inputPtr, outputPtr,
-                      twiddles, rank,
-                      axes, signalSizes,
-                      inputShape, outputShape,
-                      inputStrides, outputStrides);
+    executor->execute(inputPtr,
+                      outputPtr,
+                      twiddles,
+                      rank,
+                      axes,
+                      signalSizes,
+                      inputShape,
+                      outputShape,
+                      inputStrides,
+                      outputStrides);
 }
 
 void RDFT::executeDynamicImpl(dnnl::stream strm) {
@@ -303,29 +310,57 @@ static void adjustInputSize(VectorDims& inputShape,
     }
 }
 
-void RDFTExecutor::execute(float* inputPtr, float* outputPtr,
+void RDFTExecutor::execute(float* inputPtr,
+                           float* outputPtr,
                            const std::vector<std::vector<float>>& twiddles,
-                           size_t rank, const std::vector<int>& axes,
+                           size_t rank,
+                           const std::vector<int>& axes,
                            std::vector<int> signalSizes,
-                           VectorDims inputShape, const VectorDims& outputShape,
-                           const VectorDims& inputStrides, const VectorDims& outputStrides) {
+                           VectorDims inputShape,
+                           const VectorDims& outputShape,
+                           const VectorDims& inputStrides,
+                           const VectorDims& outputStrides) {
     adjustInputSize(inputShape, signalSizes, outputShape, axes, isInverse);
 
     if (rank == 1) {
         auto twiddlesPtr = twiddles[0].data();
-        dftCommon(inputPtr, twiddlesPtr, outputPtr,
-                   inputShape[0], signalSizes[0], outputShape[0],
-                   isInverse ? complex_to_real : real_to_complex,
-                   canUseFFT(signalSizes[0]), false);
+        dftCommon(inputPtr,
+                  twiddlesPtr,
+                  outputPtr,
+                  inputShape[0],
+                  signalSizes[0],
+                  outputShape[0],
+                  isInverse ? complex_to_real : real_to_complex,
+                  canUseFFT(signalSizes[0]),
+                  false);
     } else {
         if (!isInverse)
-            rdftNd(inputPtr, outputPtr, twiddles, axes, signalSizes, inputShape, inputStrides, outputShape, outputStrides);
+            rdftNd(inputPtr,
+                   outputPtr,
+                   twiddles,
+                   axes,
+                   signalSizes,
+                   inputShape,
+                   inputStrides,
+                   outputShape,
+                   outputStrides);
         else
-            irdftNd(inputPtr, outputPtr, twiddles, axes, signalSizes, inputShape, inputStrides, outputShape, outputStrides);
+            irdftNd(inputPtr,
+                    outputPtr,
+                    twiddles,
+                    axes,
+                    signalSizes,
+                    inputShape,
+                    inputStrides,
+                    outputShape,
+                    outputStrides);
     }
 }
 
-static void coordsFromIndex(size_t index, std::vector<size_t>& coords, const std::vector<size_t>& shape, int excludeAxis) {
+static void coordsFromIndex(size_t index,
+                            std::vector<size_t>& coords,
+                            const std::vector<size_t>& shape,
+                            int excludeAxis) {
     for (size_t i = coords.size(); i > 0; i--) {
         if (static_cast<size_t>(excludeAxis) == i - 1) {
             coords[i - 1] = 0;
@@ -344,9 +379,12 @@ static size_t getOffset(const std::vector<size_t>& coords, const std::vector<siz
     return offset;
 }
 
-static void gatherReal(float* output, const float* input, size_t axis,
-                        const std::vector<size_t>& coords,
-                        size_t size, const std::vector<size_t>& strides) {
+static void gatherReal(float* output,
+                       const float* input,
+                       size_t axis,
+                       const std::vector<size_t>& coords,
+                       size_t size,
+                       const std::vector<size_t>& strides) {
     size_t inputOffset = getOffset(coords, strides);
 
     for (size_t i = 0; i < size; i++) {
@@ -355,9 +393,12 @@ static void gatherReal(float* output, const float* input, size_t axis,
     }
 }
 
-static void gatherComplex(float* output, const float* input, size_t axis,
-                                     const std::vector<size_t>& coords,
-                                     size_t size, const std::vector<size_t>& strides) {
+static void gatherComplex(float* output,
+                          const float* input,
+                          size_t axis,
+                          const std::vector<size_t>& coords,
+                          size_t size,
+                          const std::vector<size_t>& strides) {
     size_t inputOffset = getOffset(coords, strides);
 
     for (size_t i = 0; i < 2 * size; i += 2) {
@@ -367,9 +408,12 @@ static void gatherComplex(float* output, const float* input, size_t axis,
     }
 }
 
-static void scatterReal(float* output, const float* input, size_t axis,
-                         const std::vector<size_t>& coords,
-                         size_t size, const std::vector<size_t>& strides) {
+static void scatterReal(float* output,
+                        const float* input,
+                        size_t axis,
+                        const std::vector<size_t>& coords,
+                        size_t size,
+                        const std::vector<size_t>& strides) {
     size_t offset = getOffset(coords, strides);
 
     for (size_t i = 0; i < size; i++) {
@@ -378,9 +422,12 @@ static void scatterReal(float* output, const float* input, size_t axis,
     }
 }
 
-static void scatterComplex(float* output, const float* input, size_t axis,
-                            const std::vector<size_t>& coords,
-                            size_t size, const std::vector<size_t>& strides) {
+static void scatterComplex(float* output,
+                           const float* input,
+                           size_t axis,
+                           const std::vector<size_t>& coords,
+                           size_t size,
+                           const std::vector<size_t>& strides) {
     size_t offset = getOffset(coords, strides);
 
     for (size_t i = 0; i < 2 * size; i += 2) {
@@ -407,15 +454,15 @@ static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, si
             dst[2 * i + 1] = -src[1];
         }
     } else {
-        parallel_for(signalSize, [&] (size_t i) {
-                if (i < inputSize) {
-                    dst[2 * i] = src[2 * i];
-                    dst[2 * i + 1] = src[2 * i + 1];
-                } else {
-                    size_t src_idx = 2 * inputSize - 2 - i;
-                    dst[2 * i] = src[2 * src_idx];
-                    dst[2 * i + 1] = -src[2 * src_idx + 1];
-                }
+        parallel_for(signalSize, [&](size_t i) {
+            if (i < inputSize) {
+                dst[2 * i] = src[2 * i];
+                dst[2 * i + 1] = src[2 * i + 1];
+            } else {
+                size_t src_idx = 2 * inputSize - 2 - i;
+                dst[2 * i] = src[2 * src_idx];
+                dst[2 * i + 1] = -src[2 * src_idx + 1];
+            }
         });
     }
 }
@@ -427,7 +474,7 @@ static void fftCopyRealInputData(float* dst, float* src, size_t inputSize, bool 
             dst[2 * i + 1] = 0;
         }
     } else {
-        parallel_for(inputSize, [&] (size_t i) {
+        parallel_for(inputSize, [&](size_t i) {
             dst[2 * i] = src[i];
             dst[2 * i + 1] = 0;
         });
@@ -440,15 +487,20 @@ static void fftCopyInverseRealOutput(float* dst, float* src, size_t signalSize, 
             dst[i] = src[2 * i];
         }
     } else {
-        parallel_for(signalSize, [&] (size_t i) {
+        parallel_for(signalSize, [&](size_t i) {
             dst[i] = src[2 * i];
         });
     }
 }
 
-void RDFTExecutor::fft(float* input, const float* twiddlesPtr, float* output,
-                       size_t inputSize, size_t signalSize, size_t outputSize,
-                       enum dft_type type, bool parallelize) {
+void RDFTExecutor::fft(float* input,
+                       const float* twiddlesPtr,
+                       float* output,
+                       size_t inputSize,
+                       size_t signalSize,
+                       size_t outputSize,
+                       enum dft_type type,
+                       bool parallelize) {
     std::vector<float> scratchSpace(4 * signalSize, 0);
 
     float* inputPtr = input;
@@ -465,7 +517,7 @@ void RDFTExecutor::fft(float* input, const float* twiddlesPtr, float* output,
     size_t numBlocks = 0;
     size_t blockSize = 0;
 
-    auto blockIteration = [&] (size_t block) {
+    auto blockIteration = [&](size_t block) {
         size_t inputOffset = block * blockSize;
         size_t outputOffset = block * blockSize / 2;
         float cos = twiddlesPtr[2 * block];
@@ -515,38 +567,48 @@ void RDFTExecutor::fft(float* input, const float* twiddlesPtr, float* output,
     }
 }
 
-void RDFTExecutor::dftCommon(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                              size_t inputSize, size_t signalSize, size_t outputSize,
-                              enum dft_type type, bool useFFT, bool parallelize) {
+void RDFTExecutor::dftCommon(float* inputPtr,
+                             const float* twiddlesPtr,
+                             float* outputPtr,
+                             size_t inputSize,
+                             size_t signalSize,
+                             size_t outputSize,
+                             enum dft_type type,
+                             bool useFFT,
+                             bool parallelize) {
     if (useFFT) {
-        fft(inputPtr, twiddlesPtr, outputPtr,
-            inputSize, signalSize, outputSize,
-            type, parallelize);
+        fft(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, type, parallelize);
     } else {
-        dft(inputPtr, twiddlesPtr, outputPtr,
-            inputSize, signalSize, outputSize,
-            type, parallelize);
+        dft(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, type, parallelize);
     }
 }
 
 void RDFTExecutor::dftOnAxis(enum dft_type type,
-                               float* inputPtr, float* outputPtr,
-                               const float* twiddlesPtr, int axis,
-                               size_t signalSize,
-                               const VectorDims& inputShape,
-                               const VectorDims& inputStrides,
-                               const VectorDims& outputShape,
-                               const VectorDims& outputStrides,
-                               const std::vector<size_t>& iterationRange) {
+                             float* inputPtr,
+                             float* outputPtr,
+                             const float* twiddlesPtr,
+                             int axis,
+                             size_t signalSize,
+                             const VectorDims& inputShape,
+                             const VectorDims& inputStrides,
+                             const VectorDims& outputShape,
+                             const VectorDims& outputStrides,
+                             const std::vector<size_t>& iterationRange) {
     size_t inputSize = inputShape[axis];
     size_t outputSize = outputShape[axis];
 
-    void (*gather)(float* output, const float* input,
-                   size_t axis, const std::vector<size_t>& coords,
-                   size_t size, const std::vector<size_t>& strides) = nullptr;
-    void (*scatter)(float* output, const float* input,
-                    size_t axis, const std::vector<size_t>& coords,
-                    size_t size, const std::vector<size_t>& strides) = nullptr;
+    void (*gather)(float* output,
+                   const float* input,
+                   size_t axis,
+                   const std::vector<size_t>& coords,
+                   size_t size,
+                   const std::vector<size_t>& strides) = nullptr;
+    void (*scatter)(float* output,
+                    const float* input,
+                    size_t axis,
+                    const std::vector<size_t>& coords,
+                    size_t size,
+                    const std::vector<size_t>& strides) = nullptr;
 
     size_t gatherSize = 0;
     size_t scatterSize = 0;
@@ -574,24 +636,27 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
 
     bool useFFT = canUseFFT(signalSize);
 
-    size_t totalWorkSize = std::accumulate(iterationRange.begin(),
-                                           iterationRange.end(),
-                                           1, std::multiplies<size_t>()) / iterationRange[axis];
+    size_t totalWorkSize = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>()) /
+                           iterationRange[axis];
     bool parallelizeOuterAxes = totalWorkSize > signalSize;
 
     if (parallelizeOuterAxes) {
-        parallel_for(totalWorkSize, [&] (size_t i) {
+        parallel_for(totalWorkSize, [&](size_t i) {
             std::vector<size_t> coords(iterationRange.size(), 0);
             std::vector<float> gatherScatterBuffer(gatherSize + scatterSize);
             float* gatherBuffer = &gatherScatterBuffer[0];
             float* scatterBuffer = &gatherScatterBuffer[gatherSize];
             coordsFromIndex(i, coords, iterationRange, axis);
-            gather(gatherBuffer, inputPtr,
-                   axis, coords,
-                   inputSize, inputStrides);
-            dftCommon(gatherBuffer, twiddlesPtr, scatterBuffer,
-                       inputSize, signalSize, outputSize,
-                       type, useFFT, !parallelizeOuterAxes);
+            gather(gatherBuffer, inputPtr, axis, coords, inputSize, inputStrides);
+            dftCommon(gatherBuffer,
+                      twiddlesPtr,
+                      scatterBuffer,
+                      inputSize,
+                      signalSize,
+                      outputSize,
+                      type,
+                      useFFT,
+                      !parallelizeOuterAxes);
             scatter(outputPtr, scatterBuffer, axis, coords, outputSize, outputStrides);
         });
     } else {
@@ -601,19 +666,24 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
         float* scatterBuffer = &gatherScatterBuffer[gatherSize];
         for (size_t i = 0; i < totalWorkSize; i++) {
             coordsFromIndex(i, coords, iterationRange, axis);
-            gather(gatherBuffer, inputPtr,
-                   axis, coords,
-                   inputSize, inputStrides);
-            dftCommon(gatherBuffer, twiddlesPtr, scatterBuffer,
-                       inputSize, signalSize, outputSize,
-                       type, useFFT, !parallelizeOuterAxes);
+            gather(gatherBuffer, inputPtr, axis, coords, inputSize, inputStrides);
+            dftCommon(gatherBuffer,
+                      twiddlesPtr,
+                      scatterBuffer,
+                      inputSize,
+                      signalSize,
+                      outputSize,
+                      type,
+                      useFFT,
+                      !parallelizeOuterAxes);
             scatter(outputPtr, scatterBuffer, axis, coords, outputSize, outputStrides);
         }
     }
 }
 
 // N-dimensional real DFT
-void RDFTExecutor::rdftNd(float* inputPtr, float* outputPtr,
+void RDFTExecutor::rdftNd(float* inputPtr,
+                          float* outputPtr,
                           const std::vector<std::vector<float>>& twiddles,
                           const std::vector<int>& axes,
                           const std::vector<int>& signalSizes,
@@ -623,27 +693,38 @@ void RDFTExecutor::rdftNd(float* inputPtr, float* outputPtr,
                           const VectorDims& outputStrides) {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
 
-    dftOnAxis(real_to_complex, inputPtr, outputPtr,
-                twiddles.back().data(), axes.back(),
-                signalSizes.back(),
-                inputShape, inputStrides,
-                outputShape, outputStrides,
-                iterationRange);
+    dftOnAxis(real_to_complex,
+              inputPtr,
+              outputPtr,
+              twiddles.back().data(),
+              axes.back(),
+              signalSizes.back(),
+              inputShape,
+              inputStrides,
+              outputShape,
+              outputStrides,
+              iterationRange);
     inputPtr = outputPtr;
 
     for (size_t i = 0; i < axes.size() - 1; i++) {
         auto axis = axes[i];
-        dftOnAxis(complex_to_complex, inputPtr, outputPtr,
-                    twiddles[i].data(), axis,
-                    signalSizes[i],
-                    outputShape, outputStrides,
-                    outputShape, outputStrides,
-                    iterationRange);
+        dftOnAxis(complex_to_complex,
+                  inputPtr,
+                  outputPtr,
+                  twiddles[i].data(),
+                  axis,
+                  signalSizes[i],
+                  outputShape,
+                  outputStrides,
+                  outputShape,
+                  outputStrides,
+                  iterationRange);
     }
 }
 
 // N-dimensional real inverse DFT
-void RDFTExecutor::irdftNd(float* inputPtr, float* outputPtr,
+void RDFTExecutor::irdftNd(float* inputPtr,
+                           float* outputPtr,
                            const std::vector<std::vector<float>>& twiddles,
                            const std::vector<int>& axes,
                            const std::vector<int>& signalSizes,
@@ -654,12 +735,17 @@ void RDFTExecutor::irdftNd(float* inputPtr, float* outputPtr,
     const std::vector<size_t> iterationRange(inputShape.begin(), inputShape.end() - 1);
 
     if (axes.size() == 1) {
-        dftOnAxis(complex_to_real, inputPtr, outputPtr,
-                    twiddles[0].data(), axes[0],
-                    signalSizes[0],
-                    inputShape, originalInputStrides,
-                    outputShape, outputStrides,
-                    iterationRange);
+        dftOnAxis(complex_to_real,
+                  inputPtr,
+                  outputPtr,
+                  twiddles[0].data(),
+                  axes[0],
+                  signalSizes[0],
+                  inputShape,
+                  originalInputStrides,
+                  outputShape,
+                  outputStrides,
+                  iterationRange);
         return;
     }
 
@@ -680,20 +766,30 @@ void RDFTExecutor::irdftNd(float* inputPtr, float* outputPtr,
 
     for (size_t i = 0; i < axes.size() - 1; i++) {
         auto axis = axes[i];
-        dftOnAxis(complex_to_complex, inputPtr, output,
-                    twiddles[i].data(), axis,
-                    signalSizes[i],
-                    inputShape, originalInputStrides,
-                    inputShape, inputStrides,
-                    iterationRange);
+        dftOnAxis(complex_to_complex,
+                  inputPtr,
+                  output,
+                  twiddles[i].data(),
+                  axis,
+                  signalSizes[i],
+                  inputShape,
+                  originalInputStrides,
+                  inputShape,
+                  inputStrides,
+                  iterationRange);
         inputPtr = output;
     }
-    dftOnAxis(complex_to_real, inputPtr, outputPtr,
-                twiddles.back().data(), axes.back(),
-                signalSizes.back(),
-                inputShape, inputStrides,
-                outputShape, outputStrides,
-                iterationRange);
+    dftOnAxis(complex_to_real,
+              inputPtr,
+              outputPtr,
+              twiddles.back().data(),
+              axes.back(),
+              signalSizes.back(),
+              inputShape,
+              inputStrides,
+              outputShape,
+              outputStrides,
+              iterationRange);
 }
 
 std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
@@ -708,8 +804,10 @@ std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
     return twiddles;
 }
 
-std::vector<float> RDFTExecutor::generateTwiddlesCommon(size_t signalSize, size_t outputSize,
-                                                          enum dft_type type, bool useFFT) {
+std::vector<float> RDFTExecutor::generateTwiddlesCommon(size_t signalSize,
+                                                        size_t outputSize,
+                                                        enum dft_type type,
+                                                        bool useFFT) {
     if (useFFT) {
         return generateTwiddlesFFT(signalSize);
     }
@@ -740,17 +838,20 @@ struct RDFTJitExecutor : public RDFTExecutor {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
-            primDesc->setImplementationType(jit_avx512);
+            if (primDesc)
+                primDesc->setImplementationType(jit_avx512);
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
-            primDesc->setImplementationType(jit_avx2);
+            if (primDesc)
+                primDesc->setImplementationType(jit_avx2);
         } else if (mayiuse(cpu::x64::sse41)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
-            primDesc->setImplementationType(jit_sse42);
+            if (primDesc)
+                primDesc->setImplementationType(jit_sse42);
         } else {
             OPENVINO_THROW("Can't create RDFT kernel");
         }
@@ -765,10 +866,10 @@ struct RDFTJitExecutor : public RDFTExecutor {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         int simdSize = vlen / sizeof(float);
         if (type == real_to_complex) {
-            simdSize /= 2; // there are two floats per one complex element in the output
+            simdSize /= 2;  // there are two floats per one complex element in the output
         }
 
-        parallel_for2d(outputSize / simdSize, inputSize, [&] (size_t K, size_t n) {
+        parallel_for2d(outputSize / simdSize, inputSize, [&](size_t K, size_t n) {
             if (type == real_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
@@ -782,13 +883,14 @@ struct RDFTJitExecutor : public RDFTExecutor {
                 }
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = isInverse ? std::sin(angle) : -std::sin(angle);
+                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] =
+                        isInverse ? std::sin(angle) : -std::sin(angle);
                 }
             }
         });
         if ((outputSize % simdSize) != 0) {
             size_t start = (outputSize / simdSize) * simdSize;
-            parallel_for2d(outputSize - start, inputSize, [&] (size_t k, size_t n) {
+            parallel_for2d(outputSize - start, inputSize, [&](size_t k, size_t n) {
                 k += start;
                 double angle = 2 * PI * k * n / inputSize;
                 twiddles[2 * (k * inputSize + n)] = std::cos(angle);
@@ -798,40 +900,34 @@ struct RDFTJitExecutor : public RDFTExecutor {
         return twiddles;
     }
 
-    void dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-             size_t inputSize, size_t signalSize, size_t outputSize,
-             enum dft_type type, bool parallelize) override {
+    void dft(float* inputPtr,
+             const float* twiddlesPtr,
+             float* outputPtr,
+             size_t inputSize,
+             size_t signalSize,
+             size_t outputSize,
+             enum dft_type type,
+             bool parallelize) override {
         jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
         if (parallelize) {
             const int cachelineSize = 64;
             size_t blockSize = 4 * cachelineSize / sizeof(float);
             size_t numBlocks = (outputSize + blockSize - 1) / blockSize;
-            parallel_nt(numBlocks, [&] (size_t i, size_t nthr) {
+            parallel_nt(numBlocks, [&](size_t i, size_t nthr) {
                 if (numBlocks > nthr) {
                     auto newBlockSize = (((outputSize / nthr) + blockSize - 1) / blockSize) * blockSize;
                     blockSize = newBlockSize;
                     numBlocks = nthr;
                 }
                 jit_dft_args args{};
-                args.input = inputPtr,
-                args.twiddles = twiddlesPtr,
-                args.output = outputPtr,
-                args.input_size = inputSize,
-                args.signal_size = signalSize,
-                args.output_start = i * blockSize,
-                args.output_end = std::min(outputSize - i * blockSize, blockSize),
-                (*kernel)(&args);
+                args.input = inputPtr, args.twiddles = twiddlesPtr, args.output = outputPtr,
+                args.input_size = inputSize, args.signal_size = signalSize, args.output_start = i * blockSize,
+                args.output_end = std::min(outputSize - i * blockSize, blockSize), (*kernel)(&args);
             });
         } else {
             jit_dft_args args{};
-            args.input = inputPtr,
-            args.twiddles = twiddlesPtr,
-            args.output = outputPtr,
-            args.input_size = inputSize,
-            args.signal_size = signalSize,
-            args.output_start = 0,
-            args.output_end = outputSize,
-            (*kernel)(&args);
+            args.input = inputPtr, args.twiddles = twiddlesPtr, args.output = outputPtr, args.input_size = inputSize,
+            args.signal_size = signalSize, args.output_start = 0, args.output_end = outputSize, (*kernel)(&args);
         }
     }
 
@@ -845,137 +941,140 @@ struct RDFTJitExecutor : public RDFTExecutor {
 struct RDFTRefExecutor : public RDFTExecutor {
     RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
-    private:
-        std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
-            std::vector<float> twiddles(inputSize * outputSize * 2);
-            parallel_for2d(outputSize, inputSize, [&] (size_t k, size_t n) {
-                double angle = 2 * PI * k * n / inputSize;
-                if (!isInverse)
-                    angle = -angle;
-                twiddles[(k * inputSize + n) * 2] = std::cos(angle);
-                twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
-            });
-            return twiddles;
-        }
+private:
+    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
+        std::vector<float> twiddles(inputSize * outputSize * 2);
+        parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
+            double angle = 2 * PI * k * n / inputSize;
+            if (!isInverse)
+                angle = -angle;
+            twiddles[(k * inputSize + n) * 2] = std::cos(angle);
+            twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
+        });
+        return twiddles;
+    }
 
-        void dftRealToComplex(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                     size_t inputSize, size_t outputSize, bool parallelize) {
-            auto dftIteration = [&] (size_t k) {
-                float real = 0, imag = 0;
-                for (size_t n = 0; n < inputSize; n++) {
-                    float cos = twiddlesPtr[2 * (k * inputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
-                    real += inputPtr[n] * cos;
-                    imag += inputPtr[n] * sin;
-                }
-                outputPtr[2 * k] = real;
-                outputPtr[2 * k + 1] = imag;
-            };
-            if (parallelize) {
-                parallel_for(outputSize, dftIteration);
-            } else {
-                for (size_t k = 0; k < outputSize; k++) {
-                    dftIteration(k);
-                }
+    void dftRealToComplex(float* inputPtr,
+                          const float* twiddlesPtr,
+                          float* outputPtr,
+                          size_t inputSize,
+                          size_t outputSize,
+                          bool parallelize) {
+        auto dftIteration = [&](size_t k) {
+            float real = 0, imag = 0;
+            for (size_t n = 0; n < inputSize; n++) {
+                float cos = twiddlesPtr[2 * (k * inputSize + n)];
+                float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
+                real += inputPtr[n] * cos;
+                imag += inputPtr[n] * sin;
+            }
+            outputPtr[2 * k] = real;
+            outputPtr[2 * k + 1] = imag;
+        };
+        if (parallelize) {
+            parallel_for(outputSize, dftIteration);
+        } else {
+            for (size_t k = 0; k < outputSize; k++) {
+                dftIteration(k);
             }
         }
+    }
 
-        void dftComplexToComplex(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                     size_t inputSize, size_t signalSize, size_t outputSize, bool parallelize) {
-            auto dftIteration = [&] (size_t k) {
-                float real = 0, imag = 0;
-                for (size_t n = 0; n < inputSize; n++) {
+    void dftComplexToComplex(float* inputPtr,
+                             const float* twiddlesPtr,
+                             float* outputPtr,
+                             size_t inputSize,
+                             size_t signalSize,
+                             size_t outputSize,
+                             bool parallelize) {
+        auto dftIteration = [&](size_t k) {
+            float real = 0, imag = 0;
+            for (size_t n = 0; n < inputSize; n++) {
+                float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                float inputReal = inputPtr[2 * n];
+                float inputImag = inputPtr[2 * n + 1];
+                real += inputReal * cos - inputImag * sin;
+                imag += inputImag * cos + inputReal * sin;
+            }
+            if (isInverse) {
+                float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
+                for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
                     float cos = twiddlesPtr[2 * (k * outputSize + n)];
                     float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inputPtr[2 * n];
-                    float inputImag = inputPtr[2 * n + 1];
+                    float inputReal = inp[0];
+                    float inputImag = -inp[1];
                     real += inputReal * cos - inputImag * sin;
                     imag += inputImag * cos + inputReal * sin;
                 }
-                if (isInverse) {
-                    float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                        float inputReal = inp[0];
-                        float inputImag = -inp[1];
-                        real += inputReal * cos - inputImag * sin;
-                        imag += inputImag * cos + inputReal * sin;
-                    }
-                    real /= outputSize;
-                    imag /= outputSize;
-                }
-                outputPtr[2 * k] = real;
-                outputPtr[2 * k + 1] = imag;
-            };
-            if (parallelize) {
-                parallel_for(outputSize, dftIteration);
-            } else {
-                for (size_t k = 0; k < outputSize; k++) {
-                    dftIteration(k);
-                }
+                real /= outputSize;
+                imag /= outputSize;
+            }
+            outputPtr[2 * k] = real;
+            outputPtr[2 * k + 1] = imag;
+        };
+        if (parallelize) {
+            parallel_for(outputSize, dftIteration);
+        } else {
+            for (size_t k = 0; k < outputSize; k++) {
+                dftIteration(k);
             }
         }
-
-        void dftComplexToReal(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                     size_t inputSize, size_t signalSize, size_t outputSize, bool parallelize) {
-            auto dftIteration = [&] (size_t k) {
-                float real = 0;
-                for (size_t n = 0; n < inputSize; n++) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inputPtr[2 * n];
-                    float inputImag = inputPtr[2 * n + 1];
-                    real += inputReal * cos - inputImag * sin;
-                }
-                if (isInverse) {
-                    float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                        float inputReal = inp[0];
-                        float inputImag = inp[1];
-                        real += inputReal * cos + inputImag * sin;
-                    }
-                    real /= outputSize;
-                }
-                outputPtr[k] = real;
-            };
-            if (parallelize) {
-                parallel_for(outputSize, dftIteration);
-            } else {
-                for (size_t k = 0; k < outputSize; k++) {
-                    dftIteration(k);
-                }
-            }
-        }
-
-        void dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-                 size_t inputSize, size_t signalSize, size_t outputSize,
-                 enum dft_type type, bool parallelize) override {
-            if (type == real_to_complex) {
-                dftRealToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, outputSize, parallelize);
-            } else if (type == complex_to_complex) {
-                dftComplexToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
-            } else if (type == complex_to_real) {
-                dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
-            }
-        }
-};
-
-struct RDFTKey {
-    bool isInverse;
-
-    size_t hash() const {
-        using namespace dnnl::impl::primitive_hashing;
-
-        size_t seed = 0;
-        seed = hash_combine(seed, isInverse);
-        return seed;
     }
 
-    bool operator==(const RDFTKey& rhs) const {
-        return isInverse == rhs.isInverse;
+    void dftComplexToReal(float* inputPtr,
+                          const float* twiddlesPtr,
+                          float* outputPtr,
+                          size_t inputSize,
+                          size_t signalSize,
+                          size_t outputSize,
+                          bool parallelize) {
+        auto dftIteration = [&](size_t k) {
+            float real = 0;
+            for (size_t n = 0; n < inputSize; n++) {
+                float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                float inputReal = inputPtr[2 * n];
+                float inputImag = inputPtr[2 * n + 1];
+                real += inputReal * cos - inputImag * sin;
+            }
+            if (isInverse) {
+                float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
+                for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
+                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                    float inputReal = inp[0];
+                    float inputImag = inp[1];
+                    real += inputReal * cos + inputImag * sin;
+                }
+                real /= outputSize;
+            }
+            outputPtr[k] = real;
+        };
+        if (parallelize) {
+            parallel_for(outputSize, dftIteration);
+        } else {
+            for (size_t k = 0; k < outputSize; k++) {
+                dftIteration(k);
+            }
+        }
+    }
+
+    void dft(float* inputPtr,
+             const float* twiddlesPtr,
+             float* outputPtr,
+             size_t inputSize,
+             size_t signalSize,
+             size_t outputSize,
+             enum dft_type type,
+             bool parallelize) override {
+        if (type == real_to_complex) {
+            dftRealToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, outputSize, parallelize);
+        } else if (type == complex_to_complex) {
+            dftComplexToComplex(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
+        } else if (type == complex_to_real) {
+            dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
+        }
     }
 };
 
@@ -983,7 +1082,7 @@ void RDFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = inverse;
 
-    auto buildExecutor = [&] (const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
+    auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
         std::shared_ptr<RDFTExecutor> executor;
         NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1003,6 +1102,22 @@ void RDFT::createPrimitive() {
 
     Node::createPrimitive();
 }
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+
+std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDesc) {
+    std::shared_ptr<RDFTExecutor> executor;
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::cpu::x64;
+    if (mayiuse(cpu::x64::sse41)) {
+        executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc);
+        return executor;
+    }
+#endif
+    executor = std::make_shared<RDFTRefExecutor>(inverse);
+    primDesc->setImplementationType(ref_any);
+    return executor;
+}
+
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

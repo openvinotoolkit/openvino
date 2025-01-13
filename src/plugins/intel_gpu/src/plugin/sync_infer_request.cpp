@@ -295,13 +295,21 @@ void SyncInferRequest::enqueue() {
         std::move(events.begin(), events.end(), std::back_inserter(dependencies));
     }
 
+    auto network = m_graph->get_network();
     for (const auto& it : m_variables) {
         const auto& name = it.first;
         const auto& variable = it.second;
+        if (network->has_variable(name)) {
+            const auto& prev_var = network->get_variable(name);
+            if (prev_var.get_memory() == variable->get_memory()) {
+                network->set_reuse_variable_mem(true);
+                continue;
+            }
+        }
+        network->set_reuse_variable_mem(false);
         prepare_state(name, variable);
     }
 
-    auto network = m_graph->get_network();
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
@@ -464,21 +472,6 @@ void SyncInferRequest::wait() {
                 } else {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
-            }
-        } else if (!is_dynamic && is_remote_tensor_impl && output_memory) {
-            auto& stream = m_graph->get_network()->get_stream();
-            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem
-                && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                auto plugin_tensor = m_plugin_outputs.at(port_idx);
-                if (is_convert_required(plugin_tensor.ptr->get_element_type(), iremote_tensor_ptr->get_element_type())) {
-                    auto& stream = m_graph->get_network()->get_stream();
-                    convert_and_copy(plugin_tensor.ptr.get(), iremote_tensor_ptr.get(), stream);
-                } else {
-                    iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
-                }
-            } else {
-                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
             }
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();

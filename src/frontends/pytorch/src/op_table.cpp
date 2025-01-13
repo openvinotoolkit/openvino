@@ -61,7 +61,6 @@ OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
-OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
@@ -77,7 +76,6 @@ OP_CONVERTER(translate_dot);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
-OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
@@ -275,7 +273,6 @@ OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
 OP_CONVERTER(translate_div_fx_);
 OP_CONVERTER(translate_embedding_bag_fx);
-OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_eye_fx);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine_fx);
@@ -299,7 +296,7 @@ OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
-OP_CONVERTER(translate_reshape_fx);
+OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
@@ -325,6 +322,10 @@ OP_CONVERTER(translate_unbind_int_fx);
 OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
+// Extensions
+OP_CONVERTER(translate_conv1d_ext);
+OP_CONVERTER(translate_embedding_ext);
+OP_CONVERTER(translate_linear_awq);
 
 }  // namespace op
 
@@ -699,6 +700,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zero", op::translate_zeros_like},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
+        {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear},
@@ -760,7 +762,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
-        {"aten._unsafe_view.default", op::translate_reshape_fx},
+        {"aten._unsafe_view.default", op::translate_reshape},
         {"aten.abs.default", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten.acos.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>},
         {"aten.acosh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acosh>},
@@ -835,7 +837,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.erfc.default", op::translate_erfc},
         {"aten.exp.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>},
         {"aten.expm1.default", op::translate_expm1},
-        {"aten.expand.default", op::translate_expand_fx},
+        {"aten.expand.default", op::translate_expand},
         {"aten.eye.m", op::translate_eye_fx},
         {"aten.fake_quantize_per_channel_affine_cachemask.default", op::translate_fake_quantize_per_channel_affine_fx},
         {"aten.fill.Scalar", op::translate_fill},
@@ -864,7 +866,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardtanh.default", op::translate_hardtanh},
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
-        {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
         {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
@@ -930,7 +931,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd_fx},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
-        {"aten.repeat.default", op::translate_1to1_match_2_inputs<opset10::Tile>},
+        {"aten.repeat.default", op::translate_repeat_fx},
         {"aten.roll.default", op::translate_roll},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
@@ -976,7 +977,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.upsample_nearest2d.default", op::translate_upsample_nearest2d},
         {"aten.var.correction", op::translate_var_fx},
         {"aten.var_mean.correction", op::translate_var_mean_fx},
-        {"aten.view.default", op::translate_reshape_fx},
+        {"aten.view.default", op::translate_reshape},
         {"aten.where.self", op::translate_where},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.names", op::translate_zeros_fx},
@@ -988,6 +989,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
+        {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
     };
 };
 

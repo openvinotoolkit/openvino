@@ -205,7 +205,7 @@ protected:
 
 class OPENVINO_API LayoutAttribute : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("layout", "0");
+    OPENVINO_RTTI("layout", "0", RuntimeAttribute);
 
     LayoutAttribute() = default;
 

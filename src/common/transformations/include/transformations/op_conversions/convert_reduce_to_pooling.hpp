@@ -35,31 +35,33 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 
 class ConvertReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_pooling();
 };
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0", ConvertReduceBase);
     ConvertReduceMeanToPooling();
 };
 
 class ov::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0", ConvertReduceBase);
     ConvertReduceMaxToPooling();
 };
 
 class ov::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0", ConvertReduceBase);
     ConvertReduceSumToPooling();
 };
 
 class ov::pass::ConvertReduceToPooling : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToPooling", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceToPooling");
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();

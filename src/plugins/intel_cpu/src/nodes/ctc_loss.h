@@ -14,7 +14,7 @@ class CTCLoss : public Node {
 public:
     CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -22,7 +22,9 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void executeDynamicImpl(dnnl::stream strm) override;
-    bool needPrepareParams() const override { return false; };
+    bool needPrepareParams() const override {
+        return false;
+    };
 
 private:
     bool ctcMergeRepeated;
@@ -32,6 +34,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

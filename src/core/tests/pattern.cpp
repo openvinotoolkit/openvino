@@ -82,6 +82,8 @@ static std::shared_ptr<pattern::op::Label> construct_mean_graph() {
 
 class TestGraphRewrite : public ov::pass::GraphRewrite {
 public:
+    OPENVINO_GRAPH_REWRITE_RTTI("TestGraphRewrite");
+
     void construct_multiply_by_one() {
         // pattern #1 : a * 1 = a
         auto iconst1 = construct_constant_node(1);
@@ -558,8 +560,8 @@ TEST(pattern, multiple_optionals_in_row) {
 
     // Pattern:
     auto in = wrap_type<v0::Parameter>();
-    auto pattern_convert = optional<v0::Convert>(in);
-    auto pattern_relu = optional<v0::Relu>(pattern_convert);
+    auto pattern_convert = pattern::optional<v0::Convert>(in);
+    auto pattern_relu = pattern::optional<v0::Relu>(pattern_convert);
     auto pattern_sigmoid = wrap_type<v0::Sigmoid>({pattern_relu});
 
     // Test:
@@ -1255,4 +1257,36 @@ TEST(pattern, pattern_optional_root) {
 
     // Should perfectly match
     ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+}
+
+TEST(pattern, pattern_predicate_operator) {
+    // Sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_add->output(0));
+
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2) ||
+                                                      ov::pass::pattern::type_matches(element::Type_t::boolean)),
+                         model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::Type_t::boolean) ||
+                                                      ov::pass::pattern::rank_equals(2)),
+                         model_add));
+
+    ASSERT_FALSE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2) &&
+                                                       ov::pass::pattern::type_matches(element::Type_t::boolean)),
+                          model_add));
+    ASSERT_FALSE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::Type_t::boolean) &&
+                                                       ov::pass::pattern::rank_equals(2)),
+                          model_add));
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2) &&
+                                                      ov::pass::pattern::type_matches(element::Type_t::i32)),
+                         model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::Type_t::i32) &&
+                                                      ov::pass::pattern::rank_equals(2)),
+                         model_add));
 }

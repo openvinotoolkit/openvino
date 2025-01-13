@@ -5,26 +5,24 @@
 #include "mvn.h"
 
 #include <algorithm>
+#include <memory>
+#include <openvino/opsets/opset6.hpp>
 #include <string>
 #include <vector>
-#include <memory>
 
-#include "fake_quantize.h"
-#include "eltwise.h"
-#include "dnnl_extension_utils.h"
-#include "utils/bfloat16.hpp"
-#include "openvino/core/parallel.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
-
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-
-#include <openvino/opsets/opset6.hpp>
+#include "dnnl_extension_utils.h"
+#include "eltwise.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "fake_quantize.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/core/parallel.hpp"
+#include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
 
 using namespace dnnl;
@@ -68,19 +66,16 @@ size_t MVNKey::hash() const {
 
 bool MVNKey::operator==(const MVNKey& rhs) const {
     bool retVal = true;
-    retVal = retVal &&
-             mvnAttrs.initAcrossChannels_ == rhs.mvnAttrs.initAcrossChannels_ &&
+    retVal = retVal && mvnAttrs.initAcrossChannels_ == rhs.mvnAttrs.initAcrossChannels_ &&
              mvnAttrs.execAcrossChannels_ == rhs.mvnAttrs.execAcrossChannels_ &&
              mvnAttrs.normalizeVariance_ == rhs.mvnAttrs.normalizeVariance_ &&
-             mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ &&
-             mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ &&
-             mvnAttrs.src_prc == rhs.mvnAttrs.src_prc &&
-             mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc &&
+             mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ && mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ &&
+             mvnAttrs.src_prc == rhs.mvnAttrs.src_prc && mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc &&
              mvnAttrs.layout == rhs.mvnAttrs.layout;
     retVal = retVal && *attr.get() == *rhs.attr.get();
     return retVal;
 }
-} // namespace
+}  // namespace
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -111,7 +106,9 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_mean_kernel_f32)
 
-    explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp) : jit_uni_mvn_mean_variance_kernel(jcp), jit_generator(jit_name()) {}
+    explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp)
+        : jit_uni_mvn_mean_variance_kernel(jcp),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -120,15 +117,24 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     void generate() override {
         ov::element::Type dst_prc = isFloatCompatible(jcp_.src_prc) ? ov::element::f32 : ov::element::i32;
-        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
-        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
-        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
-        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
-        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
-        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, ov::element::f32, true, "zero"));
-        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, ov::element::f32, true, "zero"));
-        load_emitter[TAIL2_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, ov::element::f32, true, "zero"));
-        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, ov::element::f32, true, "zero"));
+        load_emitter[VECTOR] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
+        load_emitter[TAIL8] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
+        load_emitter[TAIL4] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
+        load_emitter[TAIL2] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
+        load_emitter[TAIL1] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
+        load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, ov::element::f32, true, "zero"));
+        load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, ov::element::f32, true, "zero"));
+        load_emitter[TAIL2_FILL] = std::unique_ptr<jit_load_emitter>(
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, ov::element::f32, true, "zero"));
+        load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, ov::element::f32, true, "zero"));
 
         this->preamble();
         mov(reg_table, l_table);
@@ -152,10 +158,12 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             }
         }
 
-        size_t data_step = (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+        size_t data_step =
+            (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
         src_stride = data_step * jcp_.src_data_size;
 
-        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
+                              static_cast<size_t>(reg_load_table.getIdx())};
 
         if (jcp_.layout == MVNLayoutType::mvn_planar) {
             worker_vector_unroll();
@@ -188,8 +196,8 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -273,7 +281,7 @@ private:
         mov(rax, reg_rt_shape);
         mov(reg_vector_num, vector_step);
         xor_(rdx, rdx);
-        div(reg_vector_num);    // reg_rt_shape / vector_step, rax is result, rdx is tails(remainder)
+        div(reg_vector_num);  // reg_rt_shape / vector_step, rax is result, rdx is tails(remainder)
         mov(reg_vector_num, rax);
         mov(reg_tail_num, rdx);
 
@@ -304,9 +312,7 @@ private:
         mov(last_unroll_size, rdx);
         jmp(label_reset_last_unroll_size_end);
         L(label_reset_last_unroll_size);
-        {
-            mov(last_unroll_size, reg_unroll_size);
-        }
+        { mov(last_unroll_size, reg_unroll_size); }
         L(label_reset_last_unroll_size_end);
 
         // size_t unroll_number = div_up(vec_num, unroll_size); --> (vec_num + unroll_size - 1) / unroll_size;
@@ -325,7 +331,10 @@ private:
                 uni_vmovups(Vmm(ur_base + 8 + vmm_id), ptr[reg_mean + vmm_id * vlen]);
         };
         auto load_src = [&](int vmm_id) {
-            load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
+            load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+                                            {static_cast<size_t>(ur_base + vmm_id)},
+                                            {},
+                                            {load_pool_gpr_idxs});
             add(reg_src_aux, vector_step * jcp_.src_data_size);
         };
         auto mv = [&](int vmm_id) {
@@ -461,8 +470,10 @@ private:
             } else if (step == 2) {
                 emitter_id = 3;
             }
-            load_emitter[emitter_id]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())}, {static_cast<size_t>(ur_base + vmm_id)},
-                                                {}, {load_pool_gpr_idxs});
+            load_emitter[emitter_id]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
+                                                {static_cast<size_t>(ur_base + vmm_id)},
+                                                {},
+                                                {load_pool_gpr_idxs});
             add(reg_src_aux, step * jcp_.src_data_size);
         };
         auto mv_tails = [&](int step) {
@@ -534,7 +545,8 @@ private:
         Xbyak::Reg64 reg_work_amount_bk = rdi;
         mov(reg_src_bk, reg_src);
         mov(reg_work_amount_bk, reg_work_amount);
-        int repeats = (isa == cpu::x64::sse41) ? 2 : 1; // block size is also 8 on cpu::x64::sse41 with two step process
+        int repeats =
+            (isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41 with two step process
 
         auto reset_with_offset = [&](int offset) {
             add(reg_src_bk, offset * jcp_.src_data_size);
@@ -566,7 +578,8 @@ private:
                 }
                 uni_vmovups(ptr[reg_variance], vmm_variance);
             } else {
-                if (!isFloatCompatible(jcp_.src_prc))  // add with int for int-family data type, other compute go with float
+                if (!isFloatCompatible(
+                        jcp_.src_prc))  // add with int for int-family data type, other compute go with float
                     uni_vcvtdq2ps(vmm_sum, vmm_sum);
 
                 if (!jcp_.across_channels) {
@@ -715,8 +728,10 @@ private:
     }
 
     inline void worker_full_size() {
-        load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                       {}, {load_pool_gpr_idxs});
+        load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                        {static_cast<size_t>(vmm_val.getIdx())},
+                                        {},
+                                        {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             // all with float
@@ -752,20 +767,28 @@ private:
         if (is_zero_pad) {
             switch (block_num) {
             case 8:
-                load_emitter[TAIL8_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL8_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
                 break;
             case 4:
-                load_emitter[TAIL4_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL4_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
                 break;
             case 2:
-                load_emitter[TAIL2_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL2_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
                 break;
             case 1:
-                load_emitter[TAIL1_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL1_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
                 break;
             default:
                 assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
@@ -774,20 +797,28 @@ private:
         } else {
             switch (block_num) {
             case 8:
-                load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
                 break;
             case 4:
-                load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
                 break;
             case 2:
-                load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
                 break;
             case 1:
-                load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                                           {}, {load_pool_gpr_idxs});
+                load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
                 break;
             default:
                 assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
@@ -826,10 +857,10 @@ private:
     }
 
     inline void reduce_sum_store_xmm(Xbyak::Xmm xmm_sum) {
-        uni_vmovshdup(xmm_aux3, xmm_sum);            //  sum:1,2,3,4; aux3:2,2,4,4
-        uni_vaddps(xmm_sum, xmm_sum, xmm_aux3);      //  sum:1+2,2+2,3+4,4+4
-        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_sum);   //  aux3:3+4,4+4,4,4
-        uni_vaddps(xmm_sum, xmm_sum,  xmm_aux3);     //  sum:1+2+3+4,...
+        uni_vmovshdup(xmm_aux3, xmm_sum);           //  sum:1,2,3,4; aux3:2,2,4,4
+        uni_vaddps(xmm_sum, xmm_sum, xmm_aux3);     //  sum:1+2,2+2,3+4,4+4
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_sum);  //  aux3:3+4,4+4,4,4
+        uni_vaddps(xmm_sum, xmm_sum, xmm_aux3);     //  sum:1+2+3+4,...
         if (jcp_.normalize_variance) {
             uni_vmovss(ptr[reg_variance], xmm_sum);
         } else {
@@ -887,16 +918,20 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
-    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator(jit_name()) {
-        const auto &p = attr_.post_ops_;
-        bool opt_scaleshift_applicable = jcp_.layout == MVNLayoutType::mvn_by_channel && isa == cpu::x64::avx512_core && !jcp_.across_channels;
+    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr& attr)
+        : jit_uni_mvn_kernel(jcp, attr),
+          jit_generator(jit_name()) {
+        const auto& p = attr_.post_ops_;
+        bool opt_scaleshift_applicable =
+            jcp_.layout == MVNLayoutType::mvn_by_channel && isa == cpu::x64::avx512_core && !jcp_.across_channels;
         if (opt_scaleshift_applicable) {
             for (int i = 0; i < p.len(); i++) {
-                auto &post_op = p.entry_[i];
+                auto& post_op = p.entry_[i];
                 if (post_op.is_depthwise()) {
                     if (0 == i && post_op.depthwise.alg == alg_kind::depthwise_scale_shift) {
                         optimized_scaleshift_num = 1;
-                    } else if (1 == i && optimized_scaleshift_num == 1 && post_op.depthwise.alg == alg_kind::depthwise_scale_shift) {
+                    } else if (1 == i && optimized_scaleshift_num == 1 &&
+                               post_op.depthwise.alg == alg_kind::depthwise_scale_shift) {
                         optimized_scaleshift_num = 2;
                     }
                 }
@@ -910,31 +945,48 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
     }
 
     void generate() override {
-        const auto &p = attr_.post_ops_;
+        const auto& p = attr_.post_ops_;
         for (int i = 0; i < p.len(); i++) {
-            auto &post_op = p.entry_[i];
+            auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
-                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                                            post_op.eltwise.alg,
+                                                                                            post_op.eltwise.alpha,
+                                                                                            post_op.eltwise.beta,
+                                                                                            post_op.eltwise.scale,
+                                                                                            data_type::f32));
             } else if (post_op.is_depthwise()) {
-                depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
-                        this, post_op));
+                depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
-                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
-                        this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
+                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(this,
+                                                                                                          post_op,
+                                                                                                          vmm_d_weights,
+                                                                                                          vmm_d_bias,
+                                                                                                          reg_d_weights,
+                                                                                                          reg_d_bias));
             }
         }
 
-        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, vector_step));
-        load_emitter[TAIL8] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 8));
-        load_emitter[TAIL4] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 4));
-        load_emitter[TAIL2] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 2));
-        load_emitter[TAIL1] = std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 1));
-        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, vector_step));
-        store_emitter[TAIL8] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 8));
-        store_emitter[TAIL4] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 4));
-        store_emitter[TAIL2] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 2));
-        store_emitter[TAIL1] = std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 1));
+        load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(
+            new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, vector_step));
+        load_emitter[TAIL8] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 8));
+        load_emitter[TAIL4] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 4));
+        load_emitter[TAIL2] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 2));
+        load_emitter[TAIL1] =
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 1));
+        store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(
+            new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, vector_step));
+        store_emitter[TAIL8] =
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 8));
+        store_emitter[TAIL4] =
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 4));
+        store_emitter[TAIL2] =
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 2));
+        store_emitter[TAIL1] =
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 1));
 
         this->preamble();
 
@@ -948,7 +1000,8 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         mov(reg_rt_shape, ptr[reg_params + GET_OFF(rt_shape_size)]);
         mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
 
-        size_t data_step = (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+        size_t data_step =
+            (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
         src_stride = data_step * jcp_.src_data_size;
         dst_stride = data_step * jcp_.dst_data_size;
 
@@ -964,7 +1017,8 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
+                              static_cast<size_t>(reg_load_table.getIdx())};
         store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
         store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx()), static_cast<size_t>(vmm_val.getIdx())};
 
@@ -998,8 +1052,8 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -1017,7 +1071,7 @@ private:
     Xbyak::Reg64 reg_post_ops_data = rsi;
 
     Xbyak::Reg64 reg_rt_shape = r15;
-    Xbyak::Reg64 reg_load_table = r15; // fill not needed, dummy
+    Xbyak::Reg64 reg_load_table = r15;  // fill not needed, dummy
     Xbyak::Reg64 reg_load_store_mask = rbp;
 
     size_t src_stride = 0;
@@ -1040,7 +1094,7 @@ private:
 
     const int tile_size[kTileNum] = {8, 4, 2, 1};
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
@@ -1157,7 +1211,7 @@ private:
         mov(rax, reg_rt_shape);
         mov(addr_vector_num, vector_step);
         xor_(rdx, rdx);
-        div(addr_vector_num);    // reg_rt_shape / vector_step, rax is result, rdx is tails
+        div(addr_vector_num);  // reg_rt_shape / vector_step, rax is result, rdx is tails
         mov(addr_vector_num, rax);
         mov(addr_tail_num, rdx);
 
@@ -1227,7 +1281,9 @@ private:
 
         auto load_src = [&](int vmm_id, int step) {
             load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
-                                           {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
+                                            {static_cast<size_t>(ur_base + vmm_id)},
+                                            {},
+                                            {load_pool_gpr_idxs});
             add(reg_src_aux, step * jcp_.src_data_size);
         };
 
@@ -1240,7 +1296,9 @@ private:
 
         // optimized scaleshift fusion
         auto optimized_ss = [&](int vmm_id, int step) {
-            uni_vfmadd132ps(Vmm(ur_base + vmm_id), Vmm(24 + ss_repeat_id * 4 + vmm_id), Vmm(16 + ss_repeat_id * 4 + vmm_id));
+            uni_vfmadd132ps(Vmm(ur_base + vmm_id),
+                            Vmm(24 + ss_repeat_id * 4 + vmm_id),
+                            Vmm(16 + ss_repeat_id * 4 + vmm_id));
         };
 
         auto post_ops = [&](int vmm_id, int step) {
@@ -1249,8 +1307,10 @@ private:
         };
 
         auto store_dst = [&](int vmm_id, int step) {
-            store_emitter[VECTOR]->emit_code({static_cast<size_t>(ur_base + vmm_id)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_emitter[VECTOR]->emit_code({static_cast<size_t>(ur_base + vmm_id)},
+                                             {static_cast<size_t>(reg_dst_aux.getIdx())},
+                                             {store_pool_vec_idxs},
+                                             {store_pool_gpr_idxs});
             add(reg_dst_aux, step * jcp_.dst_data_size);
         };
 
@@ -1424,14 +1484,18 @@ private:
             int vmm_id = get_tile_vr_id(step);
             int emitter_id = get_tile_emitter_id(step);
             load_emitter[emitter_id]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
-                                                {static_cast<size_t>(ur_base + vmm_id)}, {}, {load_pool_gpr_idxs});
+                                                {static_cast<size_t>(ur_base + vmm_id)},
+                                                {},
+                                                {load_pool_gpr_idxs});
             add(reg_src_aux, step * jcp_.src_data_size);
         };
         auto store_tails = [&](int step) {
             int vmm_id = get_tile_vr_id(step);
             int emitter_id = get_tile_emitter_id(step);
-            store_emitter[emitter_id]->emit_code({static_cast<size_t>(ur_base + vmm_id)}, {static_cast<size_t>(reg_dst_aux.getIdx())},
-                                       {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_emitter[emitter_id]->emit_code({static_cast<size_t>(ur_base + vmm_id)},
+                                                 {static_cast<size_t>(reg_dst_aux.getIdx())},
+                                                 {store_pool_vec_idxs},
+                                                 {store_pool_gpr_idxs});
             add(reg_dst_aux, step * jcp_.dst_data_size);
         };
 
@@ -1578,8 +1642,10 @@ private:
     }
 
     inline void worker_mvn_vector() {
-        load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-            {}, {load_pool_gpr_idxs});
+        load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                        {static_cast<size_t>(vmm_val.getIdx())},
+                                        {},
+                                        {load_pool_gpr_idxs});
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
         if (jcp_.normalize_variance)
@@ -1587,8 +1653,10 @@ private:
 
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
-        store_emitter[VECTOR]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+        store_emitter[VECTOR]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                         {static_cast<size_t>(reg_dst.getIdx())},
+                                         {store_pool_vec_idxs},
+                                         {store_pool_gpr_idxs});
     }
 
     inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
@@ -1608,20 +1676,28 @@ private:
     inline void worker_mvn_block(int block_num) {
         switch (block_num) {
         case 8:
-            load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
             break;
         case 4:
-            load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
             break;
         case 2:
-            load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
             break;
         case 1:
-            load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                {}, {load_pool_gpr_idxs});
+            load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
             break;
         default:
             assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
@@ -1636,20 +1712,28 @@ private:
 
         switch (block_num) {
         case 8:
-            store_emitter[TAIL8]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_emitter[TAIL8]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
             break;
         case 4:
-            store_emitter[TAIL4]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_emitter[TAIL4]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
             break;
         case 2:
-            store_emitter[TAIL2]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_emitter[TAIL2]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
             break;
         case 1:
-            store_emitter[TAIL1]->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                {store_pool_vec_idxs}, {store_pool_gpr_idxs});
+            store_emitter[TAIL1]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
             break;
         default:
             assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
@@ -1658,7 +1742,7 @@ private:
     }
 
     void apply_post_ops(ov::element::Type dst_prc, size_t vmm_idx, bool is_broadcast) {
-        const auto &p = attr_.post_ops_;
+        const auto& p = attr_.post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
@@ -1677,8 +1761,11 @@ private:
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
 
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
-                        vmm_idx, vmm_idx + 1, reg_d_weights, reg_d_weights, is_broadcast);
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_idx,
+                                                                             vmm_idx + 1,
+                                                                             reg_d_weights,
+                                                                             reg_d_weights,
+                                                                             is_broadcast);
 
                 post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
                 depthwise_inj_idx++;
@@ -1686,14 +1773,24 @@ private:
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || isFloatCompatible(dst_prc) || i != p.len() - 1;
 
-                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_post_ops_data + post_ops_data_offset,
+                                                                             reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_crop(vmm_idx, vmm_idx + 1, 0, 0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(vmm_idx, vmm_idx + 1, 0, do_rounding, 0, is_broadcast);
+                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(
+                    reg_post_ops_data + post_ops_data_offset,
+                    reg_oc_off);
+                quantization_injectors[quantization_inj_idx]
+                    ->compute_input_scale_shift(vmm_idx, vmm_idx + 1, 0, do_rounding, 0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_post_ops_data + post_ops_data_offset, reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(vmm_idx, vmm_idx + 1, 0, 0, is_broadcast);
+                quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(
+                    reg_post_ops_data + post_ops_data_offset,
+                    reg_oc_off);
+                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(vmm_idx,
+                                                                                         vmm_idx + 1,
+                                                                                         0,
+                                                                                         0,
+                                                                                         is_broadcast);
 
                 post_ops_data_offset += quantization_injectors[quantization_inj_idx]->memoryStep();
                 quantization_inj_idx++;
@@ -1702,7 +1799,7 @@ private:
     }
 };
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -1726,10 +1823,9 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             }
 
             auto epsMode = mvnOp->get_eps_mode();
-            if (epsMode != ov::op::MVNEpsMode::INSIDE_SQRT &&
-                    epsMode != ov::op::MVNEpsMode::OUTSIDE_SQRT) {
+            if (epsMode != ov::op::MVNEpsMode::INSIDE_SQRT && epsMode != ov::op::MVNEpsMode::OUTSIDE_SQRT) {
                 errorMessage = std::string("Just INSIDE_SQRT and OUTSIDE_SQRT epsilon mods are supported. Actual: ") +
-                        std::to_string(static_cast<int>(epsMode));
+                               std::to_string(static_cast<int>(epsMode));
                 return false;
             }
             // Validates MVN node axes to check whether it can be executed on the current CPU implementation.
@@ -1805,22 +1901,23 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
 void MVN::getSupportedDescriptors() {}
 
 static inline bool isUnaryEltwise(const NodePtr& node) {
-    return one_of(node->getAlgorithm(), Algorithm::EltwiseRelu,
-                                        Algorithm::EltwiseGeluErf,
-                                        Algorithm::EltwiseGeluTanh,
-                                        Algorithm::EltwiseElu,
-                                        Algorithm::EltwiseSigmoid,
-                                        Algorithm::EltwiseClamp,
-                                        Algorithm::EltwiseTanh,
-                                        Algorithm::EltwiseSwish,
-                                        Algorithm::EltwiseHswish,
-                                        Algorithm::EltwiseMish,
-                                        Algorithm::EltwiseHsigmoid,
-                                        Algorithm::EltwiseRoundHalfToEven,
-                                        Algorithm::EltwiseRoundHalfAwayFromZero,
-                                        Algorithm::EltwiseAbs,
-                                        Algorithm::EltwiseSqrt,
-                                        Algorithm::EltwiseSoftRelu);
+    return one_of(node->getAlgorithm(),
+                  Algorithm::EltwiseRelu,
+                  Algorithm::EltwiseGeluErf,
+                  Algorithm::EltwiseGeluTanh,
+                  Algorithm::EltwiseElu,
+                  Algorithm::EltwiseSigmoid,
+                  Algorithm::EltwiseClamp,
+                  Algorithm::EltwiseTanh,
+                  Algorithm::EltwiseSwish,
+                  Algorithm::EltwiseHswish,
+                  Algorithm::EltwiseMish,
+                  Algorithm::EltwiseHsigmoid,
+                  Algorithm::EltwiseRoundHalfToEven,
+                  Algorithm::EltwiseRoundHalfAwayFromZero,
+                  Algorithm::EltwiseAbs,
+                  Algorithm::EltwiseSqrt,
+                  Algorithm::EltwiseSoftRelu);
 }
 
 void MVN::initSupportedPrimitiveDescriptors() {
@@ -1835,7 +1932,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
         onlyUnaryPostOps = true;
-        for (auto &node : fusedWith) {
+        for (auto& node : fusedWith) {
             if (isUnaryEltwise(node)) {
                 continue;
             } else {
@@ -1850,7 +1947,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 #endif
-//Output precision has to be equal to input precision in ACL MVN
+// Output precision has to be equal to input precision in ACL MVN
 #if defined(OV_CPU_WITH_ACL)
     outputPrecision = inputPrecision;
 #endif
@@ -1875,7 +1972,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {
         config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
-        config.outConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
+        config.outConfs[0].setMemDesc(
+            creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
 
         if (useAclExecutor) {
             std::vector<MemoryDescPtr> srcMemoryDescs;
@@ -1887,8 +1985,11 @@ void MVN::initSupportedPrimitiveDescriptors() {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
-            auto factory = std::make_shared<MVNExecutorFactory>(mvnAttrs, srcMemoryDescs, dstMemoryDescs,
-                                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
+            auto factory =
+                std::make_shared<MVNExecutorFactory>(mvnAttrs,
+                                                     srcMemoryDescs,
+                                                     dstMemoryDescs,
+                                                     std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }
@@ -1898,15 +1999,15 @@ void MVN::initSupportedPrimitiveDescriptors() {
     };
 
 #if defined(OV_CPU_WITH_ACL)
-        pushDesc(LayoutType::nspc, undef, true);
-        pushDesc(LayoutType::ncsp, undef, true);
-        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-        if (canUseAclExecutor)
-            return;
-        else
-            // Reference MVN implementation does not support fp16, so set fp32 explicitly
-            inputPrecision = outputPrecision = ov::element::f32;
-#endif // OV_CPU_WITH_ACL
+    pushDesc(LayoutType::nspc, undef, true);
+    pushDesc(LayoutType::ncsp, undef, true);
+    canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+    if (canUseAclExecutor)
+        return;
+    else
+        // Reference MVN implementation does not support fp16, so set fp32 explicitly
+        inputPrecision = outputPrecision = ov::element::f32;
+#endif  // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -1929,7 +2030,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
             if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
                 pushDesc(LayoutType::nCsp16c, impl_type);
             }
-        } else if (impl_desc_type::jit_avx2 ==  impl_type || impl_desc_type::jit_sse42 == impl_type) {
+        } else if (impl_desc_type::jit_avx2 == impl_type || impl_desc_type::jit_sse42 == impl_type) {
             if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
                 pushDesc(LayoutType::nCsp8c, impl_type);
             }
@@ -1947,9 +2048,8 @@ MVN::MVNExecutorBase::MVNExecutorBase(const MVNAttrs& mvnAttrs)
       src_data_size(mvnAttrs.src_prc.size()),
       dst_data_size(mvnAttrs.dst_prc.size()) {}
 
-MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
-                                              const dnnl::primitive_attr& attr):
-                                              MVNExecutorBase(mvnAttrs) {
+MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr)
+    : MVNExecutorBase(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;
     jcp.dst_prc = mvnAttrs.dst_prc;
@@ -1986,7 +2086,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
     } else {
         OPENVINO_THROW("Can't create jit MVN kernel");
     }
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
     if (mvn_kernel)
         mvn_kernel->create_ker();
     if (mvn_mean_kernel)
@@ -1995,7 +2095,10 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs,
         mvn_variance_kernel->create_ker();
 }
 
-void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
+void MVN::MVNJitExecutor::exec(const uint8_t* src_data,
+                               uint8_t* dst_data,
+                               const void* post_ops_data_,
+                               const VectorDims& shape5d) {
     if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
         OPENVINO_THROW("MVN layer doesn't create kernel to execute on sse41 above platform.");
     }
@@ -2008,9 +2111,12 @@ void MVN::MVNJitExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
     }
 }
 
-MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs):MVNExecutorBase(mvnAttrs) {}
+MVN::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs) : MVNExecutorBase(mvnAttrs) {}
 
-void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
+void MVN::MVNRefExecutor::exec(const uint8_t* src_data,
+                               uint8_t* dst_data,
+                               const void* post_ops_data_,
+                               const VectorDims& shape5d) {
     mvn_ref(src_data, dst_data, shape5d);
 }
 
@@ -2029,10 +2135,11 @@ void MVN::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     // New shape5D always need prepare via transformTo5DCase(), which is need in exec().
-    // MVN itself and unary post ops is totally shape agnostic, execPtr can be reused directly w/o recompilation and setPostOps when shape is changed.
-    // As key have not shape, if shape changes and new post ops attr is also the same, execPtr can still hit.
-    // If new shape(channel changes) impact post ops attr, such as entry.quantization.offset, entry.depthwise.offset, entry.quantization.per_channel,
-    // which is participate in compilation, even postOpsData is passed in runtime, still need recompilation.
+    // MVN itself and unary post ops is totally shape agnostic, execPtr can be reused directly w/o recompilation and
+    // setPostOps when shape is changed. As key have not shape, if shape changes and new post ops attr is also the same,
+    // execPtr can still hit. If new shape(channel changes) impact post ops attr, such as entry.quantization.offset,
+    // entry.depthwise.offset, entry.quantization.per_channel, which is participate in compilation, even postOpsData is
+    // passed in runtime, still need recompilation.
     if (execPtr != nullptr && (fusedWith.empty() || onlyUnaryPostOps)) {
         return;
     }
@@ -2058,7 +2165,10 @@ void MVN::prepareParams() {
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs, srcMemoryDescs, dstMemoryDescs, {});
+        aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs,
+                                                                                          srcMemoryDescs,
+                                                                                          dstMemoryDescs,
+                                                                                          {});
         selectedPD->setImplementationType(aclExecPtr->getImplType());
 
         return;
@@ -2087,47 +2197,53 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
     // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
     // otherwise there are not enough data in spatial dimension to process in one kernel.
     switch (rank) {
-        case 1 :  // C
-            if (mvnAttrs.initAcrossChannels_) {
-                shape5D = {1, 1, 1, 1, shape[0]};
-                mvnAttrs.execAcrossChannels_ = false;
-                break;
-            } else {
-                shape5D = {1, shape[0], 1, 1, 1};
-                break;
-            }
-        case 2 :  // NC
-            if (mvnAttrs.initAcrossChannels_) {
-                shape5D = {1, shape[0], 1, shape[1], 1};
-                mvnAttrs.execAcrossChannels_ = false;
-                break;
-            } else {
-                shape5D = {shape[0], shape[1], 1, 1, 1};
-                break;
-            }
-        case 3 : { shape5D = {shape[0], shape[1], 1, shape[2], 1}; break; }
-        case 4 : { shape5D = {shape[0], shape[1], 1, shape[2], shape[3]}; break; }
-        case 5 : { shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]}; break; }
-        default: {
-            OPENVINO_THROW("MVN layer with name '",
-                           getName(),
-                           "' doesn't support planar layout with rank: ",
-                           shape.size());
+    case 1:  // C
+        if (mvnAttrs.initAcrossChannels_) {
+            shape5D = {1, 1, 1, 1, shape[0]};
+            mvnAttrs.execAcrossChannels_ = false;
+            break;
+        } else {
+            shape5D = {1, shape[0], 1, 1, 1};
+            break;
         }
+    case 2:  // NC
+        if (mvnAttrs.initAcrossChannels_) {
+            shape5D = {1, shape[0], 1, shape[1], 1};
+            mvnAttrs.execAcrossChannels_ = false;
+            break;
+        } else {
+            shape5D = {shape[0], shape[1], 1, 1, 1};
+            break;
+        }
+    case 3: {
+        shape5D = {shape[0], shape[1], 1, shape[2], 1};
+        break;
+    }
+    case 4: {
+        shape5D = {shape[0], shape[1], 1, shape[2], shape[3]};
+        break;
+    }
+    case 5: {
+        shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]};
+        break;
+    }
+    default: {
+        OPENVINO_THROW("MVN layer with name '", getName(), "' doesn't support planar layout with rank: ", shape.size());
+    }
     }
 }
 
-void MVN::setPostOps(dnnl::primitive_attr &attr, bool initWeights) {
+void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
-    for (auto &node : fusedWith) {
-        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
+    for (auto& node : fusedWith) {
+        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
             fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
             continue;
         }
 
-        auto* eltwiseNode = dynamic_cast<Eltwise *>(node.get());
+        auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
             continue;
@@ -2150,8 +2266,8 @@ void MVN::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
 
     if (execPtr) {
-        uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
-        uint8_t *src_data = srcMemPtr->getDataAs<uint8_t>();
+        uint8_t* dst_data = dstMemPtr->getDataAs<uint8_t>();
+        uint8_t* src_data = srcMemPtr->getDataAs<uint8_t>();
         execPtr->exec(src_data, dst_data, postOpsDataPtrs.data(), shape5D);
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
@@ -2160,7 +2276,10 @@ void MVN::execute(dnnl::stream strm) {
     }
 }
 
-void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
+void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
+                                  uint8_t* dst_data,
+                                  const void* post_ops_data_,
+                                  const VectorDims& shape5d) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2187,13 +2306,13 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
             // Parallel sum for each channel
             float C3inv = 1.f / static_cast<float>(C3);
             float mean_temp = 0.0f;
-            mean_temp = parallel_sum(C, mean_temp, [&](size_t c)->float {
+            mean_temp = parallel_sum(C, mean_temp, [&](size_t c) -> float {
                 float mean_internal = 0.0f;
                 size_t cc = cb + c * C2;
                 auto arg = jit_mvn_call_args();
                 arg.src = src_data + cc * src_data_size;
                 arg.sum = static_cast<float*>(&mean_internal);
-                arg.work_amount = static_cast<size_t>(C2 / blk_size); // for vector part
+                arg.work_amount = static_cast<size_t>(C2 / blk_size);  // for vector part
                 arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);
                 arg.post_op_data = post_ops_data_;
                 (*mvn_mean_kernel)(&arg);
@@ -2206,14 +2325,14 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
             // parallel sum for each channel
             if (mvnAttrs.normalizeVariance_) {
                 float variance_temp = 0.0f;
-                variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
+                variance_temp = parallel_sum(C, variance_temp, [&](size_t c) -> float {
                     float variance_internal = 0.0f;
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + cc * src_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance_internal);
-                    arg.work_amount = static_cast<size_t>(C2 / blk_size);  // vector part
+                    arg.work_amount = static_cast<size_t>(C2 / blk_size);    // vector part
                     arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
                     arg.post_op_data = post_ops_data_;
                     (*mvn_variance_kernel)(&arg);
@@ -2234,7 +2353,7 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.dst = dst_data + cc * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
-                    arg.work_amount = static_cast<size_t>(C2 / blk_size);  // work amount for vector part
+                    arg.work_amount = static_cast<size_t>(C2 / blk_size);    // work amount for vector part
                     arg.rt_shape_size = static_cast<size_t>(C2 % blk_size);  // for tails
                     arg.oc_off = sizeof(float) * c;
                     arg.post_op_data = post_ops_data_;
@@ -2301,8 +2420,8 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, co
 }
 
 void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d) {
-    const float *src_data_ptr = reinterpret_cast<const float *>(src_data);
-    float *dst_data_ptr = reinterpret_cast<float *>(dst_data);
+    const float* src_data_ptr = reinterpret_cast<const float*>(src_data);
+    float* dst_data_ptr = reinterpret_cast<float*>(dst_data);
     const size_t N = shape5d[0];
     const size_t C = shape5d[1];
     const size_t D = shape5d[2];
@@ -2320,7 +2439,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
             float C3inv = 1.f / static_cast<float>(C3);
             float mean_temp = 0.0f;
 
-            mean_temp = parallel_sum(C, mean_temp, [&](size_t c)->float {
+            mean_temp = parallel_sum(C, mean_temp, [&](size_t c) -> float {
                 float mean_internal = 0.0f;
                 size_t cc = cb + c * C2;
                 for (size_t sp = 0lu; sp < C2; sp++) {
@@ -2334,7 +2453,7 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
             if (mvnAttrs.normalizeVariance_) {
                 // parallel sum for each channel for variance
                 float variance_temp = 0.0f;
-                variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
+                variance_temp = parallel_sum(C, variance_temp, [&](size_t c) -> float {
                     float variance_internal = 0.0f;
                     size_t cc = cb + c * C2;
                     for (size_t sp = 0lu; sp < C2; sp++) {
@@ -2401,7 +2520,10 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
     });
 }
 
-void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
+void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
+                                   uint8_t* dst_data,
+                                   const void* post_ops_data_,
+                                   const VectorDims& shape5d) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2519,7 +2641,10 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     });
 }
 
-void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void *post_ops_data_, const VectorDims& shape5d) {
+void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
+                                  uint8_t* dst_data,
+                                  const void* post_ops_data_,
+                                  const VectorDims& shape5d) {
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2553,7 +2678,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
             // mean for this instance in batch
             float C5inv = 1.f / static_cast<float>(C5);
             float mean_temp = 0.0f;
-            mean_temp = parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h)->float {
+            mean_temp = parallel_sum3d(CB, D, H, mean_temp, [&](size_t cb, size_t d, size_t h) -> float {
                 size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                 float mean_internal = 0.0f;
@@ -2561,7 +2686,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 //          W           //  |
                 //                      //  |
                 //                      //  |
-                //blk +  +  +  +  +  +  //  |  +
+                // blk +  +  +  +  +  +  //  |  +
                 //                      //  |
                 //                      //  |
                 //                      // \|/
@@ -2581,7 +2706,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 // real tail number or tail is 0(for full vector block).
                 arg.rt_shape_size = (C - cb * blk_size) < blk_size ? static_cast<size_t>(C % blk_size) : 0;
                 arg.oc_off = static_cast<size_t>(cb * blk_size * sizeof(float));  // for tail process
-                (*mvn_mean_kernel)(&arg); // for W * blk
+                (*mvn_mean_kernel)(&arg);                                         // for W * blk
 
                 size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
                 for (size_t i = 0; i < min_cb; i++)
@@ -2593,11 +2718,12 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
             if (mvnAttrs.normalizeVariance_) {
                 // variance: sum((x-mean)*(x-mean)) for one instance in batch
                 float variance_temp = 0.0f;
-                variance_temp = parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h)->float {
+                variance_temp = parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h) -> float {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
+                    auto variance_buffer_ptr =
+                        &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++)
                         variance_buffer_ptr[i] = 0.f;
 
@@ -2772,8 +2898,7 @@ bool MVN::canFuse(const NodePtr& node) const {
     // 1D only fused with unary
     int inputRank = getInputShapeAtPort(0).getRank();
     bool unaryEltwise = isUnaryEltwise(node);
-    if ((inputRank == 1 && !unaryEltwise) ||
-        (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
+    if ((inputRank == 1 && !unaryEltwise) || (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
         return false;
     }
 
@@ -2784,6 +2909,6 @@ bool MVN::created() const {
     return getType() == Type::MVN;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -97,8 +97,10 @@ struct sdpa_configuration {
     bool is_paged_attention = false;
     int64_t paged_attention_aligned_seq_len = -1;
     int64_t paged_attention_block_size = 0;
+    int64_t paged_attention_max_len = 0;
     bool has_const_scale_val = false;
     float scale_val = 0.f;
+    bool has_rotated_blocks = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,6 +122,7 @@ struct sdpa_params : public base_params {
     DataTensor value_cache_comp_zp;
 
     sdpa_configuration conf;
+    bool should_use_sdpa_opt = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
