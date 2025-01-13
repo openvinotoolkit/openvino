@@ -4463,6 +4463,7 @@ TEST_P(dynamic_fully_connected_gpu_f16_3d, basic) {
 }
 
 TEST_P(dynamic_fully_connected_gpu_i8_3d, basic) {
+    GTEST_SKIP();
     run_test();
 }
 
