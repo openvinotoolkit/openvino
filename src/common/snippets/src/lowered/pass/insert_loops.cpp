@@ -25,7 +25,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     std::vector<PortConnectorPtr> loop_end_inputs;
     loop_end_inputs.reserve(in_num + out_num);
     loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
-        loop_end_inputs.push_back(port.expr_port->get_port_connector_ptr());
+        loop_end_inputs.push_back(port.get_expr_port()->get_port_connector_ptr());
     });
 
     const auto is_incremented = loop_info->get_is_incremented();
