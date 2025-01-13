@@ -552,6 +552,9 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_kvcache_desc.num_stored_tokens);
     write(stream, m_kvcache_desc.dim);
 
+    // Write config
+    write(stream, m_cfg);
+
     // Serialize CompiledModels
     m_kvcache_compiled->serialize(stream);
     m_prefill_compiled->serialize(stream);
@@ -630,6 +633,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, compiled->m_kvcache_desc.total_size);
     read(stream, compiled->m_kvcache_desc.num_stored_tokens);
     read(stream, compiled->m_kvcache_desc.dim);
+
+    // Deserialize config
+    read(stream, compiled->m_cfg);
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
