@@ -262,6 +262,10 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == ov::util::Path(U"C:\\Users\\file.txt").u16string());
 }
 
+// There are known issues related with usage of std::filesystem::path unocode represenataion:
+// https://jira.devtools.intel.com/browse/CVS-160477
+// * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
+// * https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 #if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
 #    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
 #endif
@@ -277,9 +281,11 @@ TEST(file_util, path_cast_unicode) {
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt") ==
                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt").generic_u16string());
 
-#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
+#if !defined(_MSC_VER) && defined(OPENVINO_CPP_VER_AT_LEAST_20)
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt") ==
                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").generic_u8string());
+#endif
+#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt") ==
                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt") ==
@@ -330,6 +336,9 @@ TEST(file_util, path_cast_unicode_to_string) {
 #endif
 
 #if !defined(_MSC_VER) && !defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && !defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
+// https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
+
 TEST(file_util, path_cast_unicode_from_string_to_wstring) {
     EXPECT_TRUE(std::wstring(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt") ==
                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").generic_wstring());
@@ -417,11 +426,6 @@ TEST(file_util, path_cast_to_wstring) {
     EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗30.txt",
                  ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗30.txt").wstring().c_str());
 }
-
-// error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
-// reference a deleted function
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
-// https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 
 TEST(file_util, path_cast_from_wstring_to_u32string) {
     EXPECT_TRUE(std::u32string(U"") == ov::util::Path(L"").u32string());
