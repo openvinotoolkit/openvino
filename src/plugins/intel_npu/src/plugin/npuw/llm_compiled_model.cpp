@@ -303,8 +303,12 @@ struct NPUDesc {
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
-    const auto compiler_dq =
-        plugin->get_property(ov::intel_npu::compiler_dynamic_quantization.name(), ov::AnyMap{}).as<bool>();
+    bool compiler_dq = false;
+    const auto supported_properties = plugin->get_property("NPU", ov::supported_properties);
+    if (std::find(supported_properties.begin(), supported_properties.end(),
+                      "NPU_COMPILER_DYNAMIC_QUANTIZATION") != supported_properties.end()) {
+        compiler_dq = true;
+    }
     return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
 }
 
@@ -317,7 +321,7 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
-ov::AnyMap get_baseline_common_config() {
+ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
         {"NPUW_DEVICES", "NPU"},
@@ -328,11 +332,19 @@ ov::AnyMap get_baseline_common_config() {
         {"NPUW_WEIGHTS_BANK", "shared"},
         {"NPUW_SLICE_OUT", "YES"},
         {"NPUW_FUNCALL_ASYNC", "YES"}};
+    // FIXME: this config logic is getting more and more complex
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+        config.emplace("NPUW_DQ_FULL", "NO");
+        config.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
+        config.erase("NPUW_DCOFF_TYPE");
+        config.erase("NPUW_DCOFF_SCALE");
+    }
     return config;
 }
 
-ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model) {
-    auto config = get_baseline_common_config();
+ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+    auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
     if (npu_l0 && std::atoi(npu_l0) == 1) {
         config.emplace("NPUW_WEIGHTS_BANK_ALLOC", "CPU");
@@ -343,18 +355,17 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model) {
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
-    auto config = get_default_common_config(model);
-    if (is_cw_compressed(model)) {
-        config.emplace("NPUW_DQ", "YES");
-    } else {
-        config.emplace("NPUW_PMM", "NO");
-    }
+    auto config = get_default_common_config(model, npudesc);
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ_FULL", "NO");
-        config.emplace("NPU_COMPILATION_MODE_PARAMS", "enable-weights-dynamic-dequantization=true");
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        if (is_cw_compressed(model)) {
+            config.emplace("NPUW_DQ", "YES");
+        } else {
+            config.emplace("NPUW_PMM", "NO");
+        }
     }
     return config;
 }
@@ -362,21 +373,19 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
 ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
                                        const std::optional<NPUDesc>& npudesc,
                                        const ::intel_npu::npuw::llm::GenerateHint hint) {
-    auto config = get_default_common_config(model);
+    auto config = get_default_common_config(model, npudesc);
     if (hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
-    // NB: Unconditionally set for generation model
-    config.emplace("NPUW_DQ", "YES");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_DPU_GROUPS", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ_FULL", "NO");
-        config.emplace("NPU_COMPILATION_MODE_PARAMS", "enable-weights-dynamic-dequantization=true");
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
     }
     return config;
 }
