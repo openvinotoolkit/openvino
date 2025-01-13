@@ -5,7 +5,8 @@
 #include "jit_brgemm_emitter.hpp"
 
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "emitters/tpp/common/utils.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -32,8 +33,8 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
                                            brgemm_node->get_input_stride(1),
                                            brgemm_node->get_output_stride(0)};
 
-    auto in_0_prec = ov_to_xsmm_dtype(brgemm_node->get_input_element_type(0));
-    auto in_1_prec = ov_to_xsmm_dtype(brgemm_node->get_input_element_type(1));
+    auto in_0_prec = tpp::ov_to_xsmm_dtype(brgemm_node->get_input_element_type(0));
+    auto in_1_prec = tpp::ov_to_xsmm_dtype(brgemm_node->get_input_element_type(1));
     exec_dtype = in_0_prec == LIBXSMM_DATATYPE_I8 || in_0_prec == LIBXSMM_DATATYPE_U8 ? LIBXSMM_DATATYPE_I32
                                                                                       : LIBXSMM_DATATYPE_F32;
     auto out_0_prec = exec_dtype == LIBXSMM_DATATYPE_I32 ? LIBXSMM_DATATYPE_I32 : LIBXSMM_DATATYPE_F32;

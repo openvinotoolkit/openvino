@@ -7,7 +7,7 @@
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::snippets {
 using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;

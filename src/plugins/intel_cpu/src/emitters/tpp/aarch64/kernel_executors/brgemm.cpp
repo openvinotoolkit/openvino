@@ -4,7 +4,8 @@
 
 #include "brgemm.hpp"
 
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "emitters/tpp/common/utils.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -34,8 +35,8 @@ BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                const element::Type& in1_dtype,
                                                dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa)
     : StaticBaseParams(in0_dtype, in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t::isa_undef, compute_hash(primitive_isa)) {
-    m_type_in0 = ov_to_xsmm_dtype(in0_dtype);
-    m_type_in1 = ov_to_xsmm_dtype(in1_dtype);
+    m_type_in0 = tpp::ov_to_xsmm_dtype(in0_dtype);
+    m_type_in1 = tpp::ov_to_xsmm_dtype(in1_dtype);
     m_type_exec = LIBXSMM_DATATYPE_F32;
     m_type_out0 = LIBXSMM_DATATYPE_F32;
     m_compile_flags = LIBXSMM_GEMM_FLAGS('N', 'N');

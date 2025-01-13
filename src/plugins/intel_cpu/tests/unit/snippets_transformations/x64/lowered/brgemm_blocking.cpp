@@ -13,7 +13,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
+#include "transformations/tpp/common/op/brgemm.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
@@ -33,7 +33,7 @@ SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_s
     switch (backend) {
 #ifdef SNIPPETS_LIBXSMM_TPP
         case BACKEND_TYPE::TPP:
-            handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::BrgemmTPPBlocking::SetBrgemmBeta>();
+            handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::x64::BrgemmTPPBlocking::SetBrgemmBeta>();
             break;
 #endif
         case BACKEND_TYPE::CPU:
@@ -333,7 +333,7 @@ public:
     BrgemmTPPBlockingTest() : BrgemmBlockingTest() {}
 
     void SetUp() override {
-        pipeline.register_pass<ov::intel_cpu::tpp::pass::BrgemmTPPBlocking>();
+        pipeline.register_pass<ov::intel_cpu::tpp::pass::x64::BrgemmTPPBlocking>();
     }
 };
 

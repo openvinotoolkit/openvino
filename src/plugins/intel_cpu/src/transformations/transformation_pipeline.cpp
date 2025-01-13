@@ -162,7 +162,7 @@
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
-#    include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #endif
 
 // Misc
@@ -1129,7 +1129,7 @@ void Transformations::MainSnippets(void) {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type_any_of<ov::op::v0::Abs,
                                    ov::op::v1::Add,

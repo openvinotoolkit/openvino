@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "libxsmm.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -23,6 +22,7 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func);
 #define OV_CPU_JIT_EMITTER_THROW(...)        OPENVINO_THROW(OV_CPU_JIT_EMITTER_NAME, ": ", __VA_ARGS__)
 #define OV_CPU_JIT_EMITTER_ASSERT(cond, ...) OPENVINO_ASSERT((cond), OV_CPU_JIT_EMITTER_NAME, ": ", __VA_ARGS__)
 
+<<<<<<< HEAD
 inline libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
     switch (elemet_type) {
     case ov::element::Type_t::f32:
@@ -42,3 +42,7 @@ inline libxsmm_datatype ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
 }
 
 }  // namespace ov::intel_cpu
+=======
+}  // namespace intel_cpu
+}  // namespace ov
+>>>>>>> refactor tpp on x64 and aarch64
