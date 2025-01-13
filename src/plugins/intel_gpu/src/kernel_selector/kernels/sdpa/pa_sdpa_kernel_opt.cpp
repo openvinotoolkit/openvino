@@ -237,6 +237,9 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
         jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
     }
 
+    if (params.conf.has_rotated_blocks)
+        jit.AddConstant(MakeJitConstant("HAS_ROTATED_BLOCKS", 1));
+
     if (kernel_idx == KernelsTypes::MULTI_TOKENS || kernel_idx == KernelsTypes::FINALIZATION_MULTI_TOKENS)
         jit.AddConstant(MakeJitConstant("MULTI_TOKENS_PROCESSING", 1));
 

@@ -3,7 +3,7 @@
 
 import argparse
 
-from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
+from openvino import Model  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.moc_frontend.preprocessing import apply_preprocessing
 
 

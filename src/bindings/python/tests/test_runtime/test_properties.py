@@ -13,6 +13,7 @@ import openvino.properties.intel_cpu as intel_cpu
 import openvino.properties.intel_auto as intel_auto
 import openvino.properties.intel_gpu as intel_gpu
 import openvino.properties.intel_gpu.hint as intel_gpu_hint
+import openvino.properties.intel_npu as intel_npu
 import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
@@ -190,6 +191,10 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
         (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
+        (intel_npu.device_alloc_mem_size, "NPU_DEVICE_ALLOC_MEM_SIZE"),
+        (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
+        (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -416,6 +421,36 @@ def test_properties_ro(ov_property_ro, expected_value):
             intel_gpu_hint.available_device_mem,
             "AVAILABLE_DEVICE_MEM_SIZE",
             ((128, 128),),
+        ),
+        (
+            intel_npu.compilation_mode_params,
+            "NPU_COMPILATION_MODE_PARAMS",
+            (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
+        ),
+        (
+            intel_npu.turbo,
+            "NPU_TURBO",
+            ((True, True),),
+        ),
+        (
+            intel_npu.tiles,
+            "NPU_TILES",
+            ((128, 128),),
+        ),
+        (
+            intel_npu.max_tiles,
+            "NPU_MAX_TILES",
+            ((128, 128),),
+        ),
+        (
+            intel_npu.bypass_umd_caching,
+            "NPU_BYPASS_UMD_CACHING",
+            ((True, True),),
+        ),
+        (
+            intel_npu.defer_weights_load,
+            "NPU_DEFER_WEIGHTS_LOAD",
+            ((True, True),),
         ),
     ],
 )
