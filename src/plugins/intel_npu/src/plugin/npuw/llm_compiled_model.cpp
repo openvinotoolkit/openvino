@@ -441,6 +441,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // preserve them somewhere.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -494,6 +496,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
+    auto prefill_config_addition_value = prefill_config_addition.has_value()
+        ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    auto generate_config_addition_value = generate_config_addition.has_value()
+        ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+
+    merge_config_with(prefill_config, prefill_config_addition_value);
+    merge_config_with(generate_config, generate_config_addition_value);
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
 
