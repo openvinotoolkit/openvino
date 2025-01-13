@@ -14,7 +14,7 @@ namespace ov {
 namespace intel_cpu {
 namespace tpp {
 namespace pass {
-namespace x64 {
+namespace aarch64 {
 using namespace ov::snippets::utils;
 
 bool BrgemmTPPBlocking::SetBrgemmBeta::run(ov::snippets::lowered::LinearIR& linear_ir,
@@ -56,7 +56,7 @@ ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_h
     return handlers;
 }
 
-}  // namespace x64
+}  // namespace aarch64
 }  // namespace pass
 }  // namespace tpp
 }  // namespace intel_cpu

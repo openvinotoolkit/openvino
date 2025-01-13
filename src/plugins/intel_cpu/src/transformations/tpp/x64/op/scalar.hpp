@@ -5,8 +5,8 @@
 #pragma once
 
 #include "eltwise.hpp"
-#include "modifiers.hpp"
 #include "snippets/op/reduce.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov {
 namespace intel_cpu {

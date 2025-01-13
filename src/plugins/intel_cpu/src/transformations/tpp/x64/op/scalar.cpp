@@ -4,8 +4,6 @@
 
 #include "scalar.hpp"
 
-#include "modifiers.hpp"
-
 namespace ov {
 namespace intel_cpu {
 namespace tpp {

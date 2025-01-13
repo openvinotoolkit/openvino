@@ -11,7 +11,7 @@ namespace ov {
 namespace intel_cpu {
 namespace tpp {
 namespace pass {
-namespace x64 {
+namespace aarch64 {
 /**
  * @interface BrgemmTPPBlocking
  * @brief Covers BrgemmTPP with blocking loops
@@ -48,7 +48,7 @@ private:
                                                                          size_t block_size) const override;
 };
 
-}  // namespace x64
+}  // namespace aarch64
 }  // namespace pass
 }  // namespace tpp
 }  // namespace intel_cpu

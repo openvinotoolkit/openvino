@@ -161,7 +161,7 @@
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
-#    include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #endif
 
 // Misc
@@ -1103,7 +1103,7 @@ void Transformations::MainSnippets(void) {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type<ov::op::v0::Abs>(n) || ov::is_type<ov::op::v1::Add>(n) ||
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
@@ -1119,8 +1119,7 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::PRelu>(n) || ov::is_type<ov::op::v0::Relu>(n) ||
                 ov::is_type<ov::op::v5::Round>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
                 ov::is_type<ov::op::v0::Sqrt>(n) || ov::is_type<ov::op::v1::Subtract>(n) ||
-                ov::is_type<ov::op::v4::Swish>(n) || ov::is_type<ov::op::v0::Tanh>(n) ||
-                (ov::is_type<ov::op::v0::MatMul>(n) && ignoreCallback));
+                ov::is_type<ov::op::v4::Swish>(n) || ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
-#include "emitters/snippets/aarch64/kernel_executors/brgemm.hpp"
+#include "emitters/tpp/aarch64/kernel_executors/brgemm.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -26,7 +26,10 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
-    void emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    void emit_code(const std::vector<size_t>& in_idxs,
+                   const std::vector<size_t>& out_idxs,
+                   const std::vector<size_t>& pool_vec_idxs = {},
+                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
 
 private:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
