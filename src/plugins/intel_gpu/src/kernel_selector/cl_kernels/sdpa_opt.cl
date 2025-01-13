@@ -1610,12 +1610,12 @@ KERNEL(sdpa_opt_finalization_stage)(
     if (num_of_partitions <= SUBGROUP_SIZE * REG_VERSION_MAX_VALUES_PER_WI_LOWER) {
         /* Registers kernel version, can handle up to SEQ_LEN_PARTITION_SIZE(256) * SUBGROUP_SIZE(16) * REG_VERSION_MAX_VALUES_PER_WI_LOWER(8/16) = 32768/65536 tokens */
 
-        __local SOFTMAX_ACCUMULATOR_TYPE max_logits_u_exp_sum_slm[REG_VERSION_MAX_VALUES_PER_WI_LOWER] = {SOFTMAX_ACCUMULATOR_VAL_MIN};
+        SOFTMAX_ACCUMULATOR_TYPE max_logits_u_exp_sum[REG_VERSION_MAX_VALUES_PER_WI_LOWER] = {SOFTMAX_ACCUMULATOR_VAL_MIN};
         SOFTMAX_ACCUMULATOR_TYPE local_max_logit = SOFTMAX_ACCUMULATOR_VAL_MIN;
         const uint reduce_offset = HEAD_SIZE / SUBGROUP_SIZE > SUBGROUP_SIZE ? SUBGROUP_SIZE * SUBGROUP_SIZE : HEAD_SIZE;
         for (uint i = local_id; i < num_of_partitions; i+= reduce_offset) {
-            max_logits_u_exp_sum_slm[i] = cur_max_logits[i];
-            local_max_logit = SOFTMAX_ACCUMULATOR_MAX_FUNC(local_max_logit, max_logits_u_exp_sum_slm[i]);
+            max_logits_u_exp_sum[i] = cur_max_logits[i];
+            local_max_logit = SOFTMAX_ACCUMULATOR_MAX_FUNC(local_max_logit, max_logits_u_exp_sum[i]);
         }
         local_max_logit = sub_group_reduce_max(local_max_logit);
         if (sglid == 0) {
@@ -1631,8 +1631,8 @@ KERNEL(sdpa_opt_finalization_stage)(
         // Update exp_sum with respect to the global maximum
         SOFTMAX_ACCUMULATOR_TYPE local_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
         for (uint i = local_id; i < num_of_partitions; i+= reduce_offset) {
-             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = cur_exp_sums[i] * native_exp(max_logits_u_exp_sum_slm[i] - global_max);
-             max_logits_u_exp_sum_slm[i] = exp_sum_new;
+             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = cur_exp_sums[i] * native_exp(max_logits_u_exp_sum[i] - global_max);
+             max_logits_u_exp_sum[i] = exp_sum_new;
              local_exp_sum += exp_sum_new;
         }
         local_exp_sum = sub_group_reduce_add(local_exp_sum);
@@ -1653,7 +1653,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                                             target_seq_idx * (num_of_partitions * HEAD_SIZE) +
                                             partition_idx * (HEAD_SIZE) + local_id;
                 OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
-                acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum_slm[partition_idx]);
+                acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
         }
         const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * HEAD_SIZE) +
                                 b1_idx * (TARGET_SEQ_LEN * HEAD_SIZE) +
@@ -1663,12 +1663,12 @@ KERNEL(sdpa_opt_finalization_stage)(
         output[out_offset] = TO_OUTPUT_TYPE(acc) / TO_OUTPUT_TYPE(global_exp_sum);
     } else if (num_of_partitions <= SUBGROUP_SIZE * REG_VERSION_MAX_VALUES_PER_WI) {
         /* Registers kernel version, can handle up to SEQ_LEN_PARTITION_SIZE(256) * SUBGROUP_SIZE(16) * REG_VERSION_MAX_VALUES_PER_WI(24/48) = 98304/196608 tokens */
-        __local SOFTMAX_ACCUMULATOR_TYPE max_logits_u_exp_sum_slm[REG_VERSION_MAX_VALUES_PER_WI] = {SOFTMAX_ACCUMULATOR_VAL_MIN};
+        SOFTMAX_ACCUMULATOR_TYPE max_logits_u_exp_sum[REG_VERSION_MAX_VALUES_PER_WI] = {SOFTMAX_ACCUMULATOR_VAL_MIN};
         SOFTMAX_ACCUMULATOR_TYPE local_max_logit = SOFTMAX_ACCUMULATOR_VAL_MIN;
         const uint reduce_offset = HEAD_SIZE / SUBGROUP_SIZE > SUBGROUP_SIZE ? SUBGROUP_SIZE * SUBGROUP_SIZE : HEAD_SIZE;
         for (uint i = local_id; i < num_of_partitions; i+= reduce_offset) {
-            max_logits_u_exp_sum_slm[i] = cur_max_logits[i];
-            local_max_logit = SOFTMAX_ACCUMULATOR_MAX_FUNC(local_max_logit, max_logits_u_exp_sum_slm[i]);
+            max_logits_u_exp_sum[i] = cur_max_logits[i];
+            local_max_logit = SOFTMAX_ACCUMULATOR_MAX_FUNC(local_max_logit, max_logits_u_exp_sum[i]);
         }
         local_max_logit = sub_group_reduce_max(local_max_logit);
         if (sglid == 0) {
@@ -1684,8 +1684,8 @@ KERNEL(sdpa_opt_finalization_stage)(
         // Update exp_sum with respect to the global maximum
         SOFTMAX_ACCUMULATOR_TYPE local_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
         for (uint i = local_id; i < num_of_partitions; i+= reduce_offset) {
-             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = cur_exp_sums[i] * native_exp(max_logits_u_exp_sum_slm[i] - global_max);
-             max_logits_u_exp_sum_slm[i] = exp_sum_new;
+             SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = cur_exp_sums[i] * native_exp(max_logits_u_exp_sum[i] - global_max);
+             max_logits_u_exp_sum[i] = exp_sum_new;
              local_exp_sum += exp_sum_new;
         }
         local_exp_sum = sub_group_reduce_add(local_exp_sum);
@@ -1706,7 +1706,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                                             target_seq_idx * (num_of_partitions * HEAD_SIZE) +
                                             partition_idx * (HEAD_SIZE) + local_id;
                 OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
-                acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum_slm[partition_idx]);
+                acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
         }
         const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * HEAD_SIZE) +
                                 b1_idx * (TARGET_SEQ_LEN * HEAD_SIZE) +
