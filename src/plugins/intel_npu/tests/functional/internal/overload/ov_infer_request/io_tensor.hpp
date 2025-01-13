@@ -5,6 +5,7 @@
 #pragma once
 
 #include <common_test_utils/ov_tensor_utils.hpp>
+
 #include "behavior/ov_infer_request/io_tensor.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "overload/overload_test_utils_npu.hpp"
@@ -159,6 +160,10 @@ TEST_P(OVInferRequestIOTensorTestNPU, canInferAfterIOBlobReallocation) {
     ov::Tensor input_tensor, output_tensor;
     auto in_shape = input.get_shape();
     auto out_shape = output.get_shape();
+
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
 
     // imitates blob reallocation
     OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));

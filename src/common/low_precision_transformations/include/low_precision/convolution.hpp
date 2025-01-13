@@ -20,7 +20,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
 public:
-    OPENVINO_RTTI("ConvolutionTransformation", "0");
+    OPENVINO_RTTI("ConvolutionTransformation", "0", WeightableLayerTransformation);
     ConvolutionTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
