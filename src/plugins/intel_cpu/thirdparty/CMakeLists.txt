@@ -161,11 +161,12 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
-if(AARCH64 OR ARM)
+if(AARCH64 AND (NOT ANDROID))
     set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
 endif()
 
 if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    ov_add_compiler_flags(-Wno-missing-declarations)
     add_subdirectory(libxsmm)
     ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
 endif()
