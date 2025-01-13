@@ -483,7 +483,7 @@ void ZeroInferRequest::infer_async() {
                     const auto inputDescriptor = _metadata.inputs.at(ioIndex);
                     auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
 
-                    if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor || inputDescriptor.isStateInput ||
+                    if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
                         is_remote_tensor(levelZeroTensor.at(SINGLE_TENSOR)) || zeroTensor == nullptr) {
                         ++ioIndex;
                         continue;
@@ -498,7 +498,9 @@ void ZeroInferRequest::infer_async() {
                                                      zeroTensor->get_byte_size());
                         closePipeline = true;
 
-                        zeroTensor->reset_memory_flag();
+                        if (!inputDescriptor.isStateInput) {
+                            zeroTensor->reset_memory_flag();
+                        }
                     }
 
                     ++ioIndex;
@@ -510,8 +512,7 @@ void ZeroInferRequest::infer_async() {
                     const auto outputDescriptor = _metadata.outputs.at(ioIndex);
                     auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
 
-                    if (outputDescriptor.isShapeTensor || outputDescriptor.isStateOutput ||
-                        is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
+                    if (outputDescriptor.isShapeTensor || is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
                         ++ioIndex;
                         continue;
                     }
