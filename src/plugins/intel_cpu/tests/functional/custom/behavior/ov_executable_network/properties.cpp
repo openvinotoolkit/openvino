@@ -155,6 +155,22 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     ASSERT_EQ(streams, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
+    ov::Core core;
+    bool reservation = false;
+    int32_t threads = 0, input_threads = 2;
+
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::AnyMap config = {{ov::hint::enable_cpu_reservation.name(), true}, {ov::inference_num_threads.name(), input_threads}};
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName, config);
+
+    OV_ASSERT_NO_THROW(reservation = compiledModel.get_property(ov::hint::enable_cpu_reservation));
+    OV_ASSERT_NO_THROW(threads = compiledModel.get_property(ov::inference_num_threads));
+    ASSERT_EQ(reservation, true);
+    ASSERT_EQ(threads, input_threads);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompressionRate) {
     ov::Core core;
 
