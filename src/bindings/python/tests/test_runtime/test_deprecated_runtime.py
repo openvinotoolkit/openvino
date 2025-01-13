@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -28,8 +28,9 @@ from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory
 from openvino.runtime.utils.types import get_element_type
 
-from openvino.runtime.passes import Manager
+from openvino.runtime.passes import Manager, ConstantFolding
 from tests.test_transformations.utils.utils import count_ops, PatternReplacement
+from tests.test_graph.util import count_ops_of_type
 from tests.test_transformations.utils.utils import get_relu_model as get_relu_transformations_model, MyModelPass
 
 from tests.utils.helpers import (
@@ -336,3 +337,19 @@ def test_runtime_graph_rewrite():
     manager.run_passes(model)
 
     assert count_ops(model, "Relu") == [2]
+
+
+def test_runtime_passes_manager():
+    node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
+    node_ceil = ops.ceiling(node_constant)
+    model = Model(node_ceil, [], "TestModel")
+
+    assert count_ops_of_type(model, node_ceil) == 1
+    assert count_ops_of_type(model, node_constant) == 1
+
+    pass_manager = Manager()
+    pass_manager.register_pass(ConstantFolding())
+    pass_manager.run_passes(model)
+
+    assert count_ops_of_type(model, node_ceil) == 0
+    assert count_ops_of_type(model, node_constant) == 1
