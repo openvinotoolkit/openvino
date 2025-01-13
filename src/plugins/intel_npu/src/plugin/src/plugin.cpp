@@ -451,7 +451,7 @@ Plugin::Plugin()
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::compiler_dynamic_quantization.name(),
-         {true,
+         {min_compiler_requirement(ICOMPILER_MAKE_VERSION(6,4)),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
