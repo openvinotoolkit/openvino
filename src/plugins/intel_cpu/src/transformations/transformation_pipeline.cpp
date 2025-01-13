@@ -427,7 +427,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto consumers = node->get_output_target_inputs(0);
-            return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+            return std::any_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
                 return !ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
             });
         },
