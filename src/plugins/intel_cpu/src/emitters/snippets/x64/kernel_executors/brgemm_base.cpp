@@ -192,14 +192,12 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         // Quick validation check: Should we check that port is really Brgemm port?
         // If BrgemmCopyB in the Loop by M -> first input port will be BrgemmCopyB with `incremented=false`
         // to avoid extra checks, we validate only first input port
-        // Note: We check `is_incremented` attribute only for not incremented ports because
-        //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
-            return p.dim_idx == 1;
+            return p.get_dim_idx() == 1 && p.is_processed();
         };
-        OPENVINO_ASSERT(in_ports.size() > 1 && std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) &&
-                            out_ports.size() == 1 && check_port(out_ports.back()),
-                        "Incorrect Loop by Brgemm dimension M");
+        OPENVINO_ASSERT(
+            in_ports.size() > 1 && check_port(in_ports[0]) && out_ports.size() == 1 && check_port(out_ports[0]),
+            "Incorrect Loop by Brgemm dimension M");
         M = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(1, M);
         output_pds[0]->set_subtensor_dim(1, M);
@@ -213,13 +211,11 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         const auto& in_ports = current_expanded_loop_info->get_input_ports();
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
-        // Note: We check `is_incremented` attribute only for not incremented ports because
-        //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
-            return p.dim_idx == 0;
+            return p.get_dim_idx() == 0 && p.is_processed();
         };
-        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_incremented &&
-                            std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) && out_ports.size() == 1 &&
+        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() &&
+                            std::all_of(in_ports.cbegin() + 1, in_ports.cend(), check_port) && out_ports.size() == 1 &&
                             check_port(out_ports.back()),
                         "Incorrect Loop by Brgemm dimension N");
         N = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
@@ -240,10 +236,10 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
         const auto& in_ports = current_expanded_loop_info->get_input_ports();
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
-        // Note: We check `is_incremented` attribute only for not incremented ports because
-        //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
-        OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().dim_idx == 0 && in_ports.back().dim_idx == 1 &&
-                            out_ports.size() == 1 && !out_ports.front().is_incremented,
+        OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
+                            in_ports.front().is_processed() && in_ports.back().get_dim_idx() == 1 &&
+                            in_ports.back().is_processed() && out_ports.size() == 1 &&
+                            !out_ports.front().is_processed(),
                         "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);

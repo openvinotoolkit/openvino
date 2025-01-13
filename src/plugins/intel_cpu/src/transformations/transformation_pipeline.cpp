@@ -1064,32 +1064,17 @@ void Transformations::MainSnippets(void) {
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
         const auto is_int8 = in_type0 == ov::element::i8;
+        if (matmul->get_transpose_a())
+            return false;
         if (is_fp32)
-            return true;
-        // Only FP32 dynamic MHA is supported
-        if (matmul->is_dynamic())
-            return false;
-        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
-        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of
-        // brgemm_copy_b kernel
-        if (matmul->get_transpose_a() || matmul->get_transpose_b())
-            return false;
-        // [150842] The execution of Brgemm INT8/BF16/FP16 on AMX platforms depends on the value of "K % VNNIFactor".
-        //          For more details, please teake a look at the ticket 150842
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-            const auto& b_shape = matmul->get_input_partial_shape(1);
-            const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
-            const size_t brgemm_vnni_factor_for_real16 = 2;  // 4/2(size in term of byte for bf16/fp16)
-            if (is_bf16 || is_fp16)
-                return K.is_static() && (K.get_length() % brgemm_vnni_factor_for_real16 == 0);
-            if (is_int8)
-                return K.is_static();
-        }
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
         if (is_int8)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
         if (is_bf16)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
         if (is_fp16)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
         return true;
@@ -1101,6 +1086,7 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto parallel_work_amount =
             std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+        // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
