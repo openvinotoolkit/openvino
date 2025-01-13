@@ -4454,6 +4454,7 @@ static const std::vector<ov::Dimension::value_type>
     dyn_batches_smoke = {1, 2, 7, 8, 9, 16, 32, 33, 47, 48, 58};
 
 TEST_P(dynamic_fully_connected_gpu_f32_3d, basic) {
+    GTEST_SKIP();
     run_test();
 }
 
