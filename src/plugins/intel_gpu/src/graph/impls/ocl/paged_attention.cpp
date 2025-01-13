@@ -214,6 +214,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 if (desc->has_alibi) {
                     args.inputs.push_back(instance.alibi_memory_ptr());
                 }
+
+                if (desc->has_rotated_blocks) {
+                    args.inputs.push_back(instance.rotated_block_indices_memory_ptr());
+                    args.inputs.push_back(instance.rotation_deltas_memory_ptr());
+                    args.inputs.push_back(instance.rotation_trig_lut_memory_ptr());
+                }
             } else if (kernel_idx == 2 || kernel_idx == 3) {
                 // Finalization kernel or mixed stage finalization kernel
                 args.inputs = { instance.past_lens_memory_ptr() };
@@ -681,6 +687,10 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         if (has_alibi)
             inputs_number++;
 
+        const auto has_rotation = impl_param.input_layouts.size() == 16;
+        if (has_rotation)
+            inputs_number += 3;
+
         auto input_idx = 0;
         params.inputs.resize(inputs_number);
         params.inputs[input_idx++] = query_tensor;
@@ -698,6 +708,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (has_alibi)
             params.inputs[input_idx++] = alibi_tensor;
+
+         if (has_rotation) {
+            params.inputs[input_idx++] = input_tensors[13];
+            params.inputs[input_idx++] = input_tensors[14];
+            params.inputs[input_idx++] = input_tensors[15];
+        }
 
         if (has_scores_output) {
             params.outputs.resize(2);
@@ -735,6 +751,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (has_alibi)
             in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(11)});
+
+        if (has_rotation) {
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(13)});
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(14)});
+            in_tensor_to_offset_map.insert({input_idx++, in_offsets_map.at(15)});
+        }
 
         if (has_scores_output)
             out_tensor_to_offset_map.insert({1, out_offsets_map.at(1)});

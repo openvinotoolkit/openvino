@@ -43,10 +43,11 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
+
 #if HAS_ROTATED_BLOCKS
-    const __global INPUT8_TYPE* rotated_block_indices,
-    const __global INPUT9_TYPE* rotation_deltas,
-    const __global INPUT10_TYPE* rotation_trig_lut,
+    const __global INPUT7_TYPE* rotated_block_indices,
+    const __global INPUT8_TYPE* rotation_deltas,
+    const __global INPUT9_TYPE* rotation_trig_lut,
 #endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
