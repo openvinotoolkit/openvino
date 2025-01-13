@@ -146,7 +146,16 @@ inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
         // Pop h and l
         h = stack[top--];
         l = stack[top--];
-
+        bool all_zeroes = true; //when all zeroes algorithm stuck
+        for(int i=l;i<h;i++) {
+            if(arr[i].score != 0.0f) {
+                all_zeroes = false;
+                break;
+            }
+        }
+        if(all_zeroes) {
+            continue;
+        }
         // Set pivot element at its correct position
         // in sorted array
         int p = FUNC_CALL(partition)(arr, l, h);
