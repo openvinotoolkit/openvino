@@ -71,7 +71,7 @@ private:
 };
 
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
-    if (auto sdpa = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(m_op)) {
+    if (auto sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
         if (config.output_BLHxS == false)
             return std::make_shared<SDPAShapeInfer>(config);

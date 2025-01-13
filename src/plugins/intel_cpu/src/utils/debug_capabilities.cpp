@@ -512,7 +512,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
             sep = ",";
         }
 
-        if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
+        if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {
             if (constop->get_element_type() == element::Type_t::f32) {
                 os << printable(constop->get_vector<float>());
             } else if (constop->get_element_type() == element::Type_t::i8) {
@@ -538,7 +538,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
         os << std::endl;
 
         // recursively output subgraphs
-        if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto msubgraph = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (size_t i = 0; i < cnt; i++) {
                 os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << std::endl;
@@ -549,7 +549,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
     os << prefix << "}\n";
     os << prefix << "fp16_compress disabled Ngraph nodes:\n";
     for (const auto& op : f.get_ordered_ops()) {
-        if (ov::fp16_compression_is_disabled(op) && !std::dynamic_pointer_cast<op::v0::Constant>(op))
+        if (ov::fp16_compression_is_disabled(op) && !ov::as_type_ptr<op::v0::Constant>(op))
             os << "\t" << tag << op->get_friendly_name() << "\n";
     }
     return os;

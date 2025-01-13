@@ -59,7 +59,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (getOriginalOutputsNumber() != 3)
         OPENVINO_THROW(m_errorPrefix, "has incorrect number of output edges: ", getOriginalOutputsNumber());
 
-    auto nmsBase = std::dynamic_pointer_cast<ov::op::util::MulticlassNmsBase>(op);
+    auto nmsBase = ov::as_type_ptr<ov::op::util::MulticlassNmsBase>(op);
     if (nmsBase == nullptr)
         OPENVINO_THROW(m_errorPrefix, " is not an instance of MulticlassNmsBase.");
     auto& atrri = nmsBase->get_attrs();

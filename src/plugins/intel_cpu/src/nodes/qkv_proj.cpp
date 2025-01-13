@@ -346,7 +346,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
-    const auto node = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
+    const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);
     m_config = node->get_config();
 }
 
@@ -424,7 +424,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                                          uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
-        const auto node_qkv = std::dynamic_pointer_cast<const QKVProjectionNode>(op);
+        const auto node_qkv = ov::as_type_ptr<const QKVProjectionNode>(op);
         if (node_qkv) {
             if (concurrency > 0) {
                 if (concurrency < 3) {

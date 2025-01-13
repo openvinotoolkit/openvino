@@ -480,7 +480,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         coIdx = 2;
     }
 
-    auto rnnCellBase = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(op);
+    auto rnnCellBase = ov::as_type_ptr<ov::op::util::RNNCellBase>(op);
     if (!rnnCellBase)
         THROW_CPU_NODE_ERR("does not have original layer for RNNCell.");
 
