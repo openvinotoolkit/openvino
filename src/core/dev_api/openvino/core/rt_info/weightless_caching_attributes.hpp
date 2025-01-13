@@ -22,7 +22,7 @@ namespace ov {
  */
 class OPENVINO_API WeightlessCacheAttribute : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("WeightlessCacheAttribute");
+    OPENVINO_RTTI("WeightlessCacheAttribute", "0", RuntimeAttribute);
 
     WeightlessCacheAttribute() = delete;
 

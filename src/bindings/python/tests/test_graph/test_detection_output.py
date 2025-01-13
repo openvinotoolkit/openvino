@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 import pytest
 
 np_types = [np.float32, np.int32]

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -9,8 +9,8 @@ from contextlib import nullcontext as does_not_raise
 
 from openvino import Op, OpExtension
 from openvino import CompiledModel, Core, Model, Dimension, Shape, Tensor, compile_model, serialize
-from openvino.runtime import DiscreteTypeInfo
-import openvino.runtime.opset14 as ops
+from openvino import DiscreteTypeInfo
+import openvino.opset14 as ops
 
 from tests.utils.helpers import create_filenames_for_ir, compare_models
 

@@ -25,7 +25,7 @@ namespace pass {
  */
 class AllocateBuffers: public RangedPass {
 public:
-    OPENVINO_RTTI("AllocateBuffers", "RangedPass")
+    OPENVINO_RTTI("AllocateBuffers", "", RangedPass);
     AllocateBuffers(bool is_optimized = true);
 
     /**

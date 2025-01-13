@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -18,7 +18,7 @@ import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
-from openvino.runtime import properties
+from openvino import properties
 
 
 ###
@@ -194,6 +194,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_alloc_mem_size, "NPU_DEVICE_ALLOC_MEM_SIZE"),
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
+        (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):

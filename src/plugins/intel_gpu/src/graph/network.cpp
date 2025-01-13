@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1026,6 +1026,10 @@ void network::set_variables_state_info(const std::string& variable_id,
     _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
 
     _variables_state_info.at(variable_id).m_primitives.insert(p);
+}
+
+void network::set_reuse_variable_mem(bool reuse) {
+    _reuse_variable_mem = reuse;
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "compiled_model.hpp"
@@ -21,6 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "plugin.hpp"
+#include "serialization.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 
@@ -486,6 +487,222 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
+ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                       const bool serialized)
+    : ov::npuw::ICompiledModel(model, plugin),
+      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
+      m_cfg(m_options_desc),
+      m_name(model->get_friendly_name()),
+      m_loaded_from_cache(serialized) {
+    ::intel_npu::registerNPUWOptions(*m_options_desc);
+    NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream) const {
+    using namespace ov::npuw::s11n;
+
+    LOG_DEBUG("Serializing CompiledModelDesc...");
+    LOG_BLOCK();
+
+    write(stream, replaced_by);
+
+    write(stream, param_base);
+    write(stream, forced_to_fcall);
+
+    write(stream, host_gather.dst_idx);
+    write(stream, host_gather.src_idx);
+    write(stream, host_gather.idx_idx);
+
+    write(stream, spatial);
+
+    write(stream, scales);
+    write(stream, zerops);
+    write(stream, is_remote);
+
+    // NOTE: for closure only serialize uids - full flow
+    write(stream, closure_uid);
+
+    // Some tensors might be present in CPU closure already - need to serialize as is
+    // FIXME: When weightless serialization is introduced, this should be handled differently
+    write(stream, closure.size());
+    std::vector<ov::Tensor> cpu_closures;
+    std::vector<std::size_t> cpu_closure_ids;
+    for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
+        if (closure_uid[cidx] == -1) {  // CPU closure, not in the bank
+            cpu_closure_ids.push_back(cidx);
+            cpu_closures.push_back(closure[cidx]);
+        }
+    }
+
+    write(stream, cpu_closure_ids);
+
+    for (const auto& tensor : cpu_closures) {
+        write(stream, tensor);
+    }
+
+    // FIXME: support weightless flow!
+
+    LOG_DEBUG("DONE.");
+}
+
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream) {
+    using namespace ov::npuw::s11n;
+
+    LOG_DEBUG("Deserializing CompiledModelDesc...");
+    LOG_BLOCK();
+
+    read(stream, replaced_by);
+
+    read(stream, param_base);
+    read(stream, forced_to_fcall);
+
+    read(stream, host_gather.dst_idx);
+    read(stream, host_gather.src_idx);
+    read(stream, host_gather.idx_idx);
+
+    read(stream, spatial);
+
+    read(stream, scales);
+    read(stream, zerops);
+    read(stream, is_remote);
+
+    // NOTE: for closure only deserialize uids - full flow
+    read(stream, closure_uid);
+
+    // Some tensors might be present in CPU closure already - need to deserialize as is
+    // FIXME: When weightless serialization is introduced, this should be handled differently
+    std::size_t closure_size = 0;
+    read(stream, closure_size);
+    std::vector<std::size_t> cpu_closure_ids;
+    read(stream, cpu_closure_ids);
+    closure.resize(closure_size);
+    for (const auto& cidx : cpu_closure_ids) {
+        read(stream, closure[cidx]);
+    }
+
+    // FIXME: support weightless flow!
+
+    LOG_DEBUG("DONE.");
+}
+
+void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
+    LOG_INFO("Serializing CompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Serialize name
+    write(stream, m_name);
+
+    // Serialize inputs and outputs
+    write(stream, inputs());
+    write(stream, outputs());
+
+    // Serialize meta
+    write(stream, m_inputs_to_submodels_inputs);
+    write(stream, m_outputs_to_submodels_outputs);
+    write(stream, m_param_subscribers);
+    write(stream, m_submodels_input_to_prev_output);
+
+    // Write device list
+    write(stream, m_dev_list);
+
+    // Write config
+    write(stream, m_cfg);
+
+    // Serialize compiled submodels
+    write(stream, m_compiled_submodels.size());
+    for (const auto& subm : m_compiled_submodels) {
+        // Write device idx
+        std::size_t device_idx = subm.device_it - m_dev_list.begin();
+        write(stream, device_idx);
+        // Write ICompiledModel if it's there
+        if (subm.compiled_model) {
+            write(stream, true);
+            // FIXME: workaround for import/export model since import model seem to reset the file pointer
+            std::stringstream ss;
+            subm.compiled_model->export_model(ss);
+            write(stream, ss.str());
+        } else {
+            write(stream, false);
+        }
+        // Write the rest of the submodel desc
+        subm.serialize(stream);
+    }
+
+    LOG_INFO("Done.");
+}
+
+std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    LOG_INFO("Deserializing CompiledModel...");
+    LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
+
+    // Deserialize model name first
+    std::string model_name;
+    read(stream, model_name);
+
+    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
+    // to continue deserialization
+    ov::ParameterVector parameters;
+    ov::NodeVector results;
+
+    read(stream, parameters);
+    read(stream, results);
+
+    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
+
+    // Deserialize meta
+    compiled->m_name = model_name;
+    read(stream, compiled->m_inputs_to_submodels_inputs);
+    read(stream, compiled->m_outputs_to_submodels_outputs);
+    read(stream, compiled->m_param_subscribers);
+    read(stream, compiled->m_submodels_input_to_prev_output);
+
+    // Deserialize device list
+    read(stream, compiled->m_dev_list);
+
+    // Deserialize config
+    read(stream, compiled->m_cfg);
+
+    // Deserialize compiled submodels
+    std::size_t subm_size = 0;
+    read(stream, subm_size);
+    compiled->m_compiled_submodels.resize(subm_size);
+    for (std::size_t i = 0; i < subm_size; ++i) {
+        std::size_t device_idx = 0;
+        read(stream, device_idx);
+
+        bool has_compiled_model = false;
+        read(stream, has_compiled_model);
+        if (has_compiled_model) {
+            // Import model from the plugin
+            // FIXME: workaround for import/export model since import model seems to reset the file pointer
+            std::string buf;
+            read(stream, buf);
+            std::stringstream buffer(buf);
+            compiled->m_compiled_submodels[i].compiled_model =
+                plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
+        }
+        compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
+        compiled->m_compiled_submodels[i].deserialize(stream);
+    }
+
+    compiled->implement_properties();
+    compiled->report_io();
+
+    LOG_INFO("Done.");
+
+    return compiled;
+}
+
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
@@ -539,6 +756,33 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::reconstruct_closure() {
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+
+        // Skip optimized out and non-functions
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+        auto& func_desc = m_compiled_submodels[real_idx];
+
+        // At this point closure size should have already been deserialized
+        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
+        for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
+            if (comp_model_desc.closure[cidx]) {
+                // host-side closure - already set, do nothing
+                NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
+                continue;
+            }
+            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != -1);
+            comp_model_desc.closure[cidx] =
+                m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
+        }
+    }
 }
 
 void ov::npuw::CompiledModel::detach_memory() {

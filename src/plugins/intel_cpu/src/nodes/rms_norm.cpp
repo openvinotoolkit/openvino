@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,7 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
-    const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMS>(op);
+    const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
     m_eps = static_cast<float>(rms->get_epsilon());
 }
 
@@ -185,7 +185,7 @@ void RMSNorm::execute(dnnl::stream strm) {
 
 bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto rms = std::dynamic_pointer_cast<const ov::op::internal::RMS>(op);
+        const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
         if (rms) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 errorMessage = "RMSNorm needs avx2+.";
