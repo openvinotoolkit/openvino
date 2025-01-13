@@ -96,6 +96,10 @@
         "ticket": 158401
     },
     {
+        "error_text": "Unable to download artifact",
+        "ticket": 158401
+    },
+    {
         "error_text": "Failure when receiving data from the peer",
         "ticket": 159323
     },
