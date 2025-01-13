@@ -207,6 +207,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     build_insts_deps();
     build_exec_order();
     validate_primitives();
+    preallocate_shape_info_buffers();
     add_default_output_chains();
 }
 
@@ -272,6 +273,41 @@ void network::validate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("validate_primitives");
     for (auto const& prim : _exec_order) {
         prim->validate();
+    }
+}
+
+void network::preallocate_shape_info_buffers() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("preallocate_shape_info_buffers");
+    int64_t sum = 0;
+
+    /* Use 512 byte alignment for performance */
+    uint64_t alignment = 512;
+
+    for (auto const& prim : _exec_order) {
+        auto& node = prim->get_node();
+        int64_t shape_elements = node.get_total_shape_info_size();
+
+        shape_elements = (shape_elements + alignment - 1) / alignment * alignment;
+        sum += shape_elements;
+    }
+
+    if (sum == 0)
+        return;
+
+    auto& engine = get_engine();
+    _shape_info_ptr = engine.allocate_memory(layout{{sum}, data_types::i32, format::bfyx}, false);
+    int offset = 0;
+    for (auto const& prim : _exec_order) {
+        auto& node = prim->get_node();
+        int64_t shape_elements = node.get_total_shape_info_size();
+
+        if (shape_elements == 0)
+            continue;
+
+        auto new_mem = engine.create_subbuffer(*_shape_info_ptr, layout{{shape_elements}, data_types::i32, format::bfyx}, offset);
+        prim->set_shape_info_memory_ptr(new_mem);
+
+        offset += (shape_elements + alignment - 1) / alignment * alignment * 4;
     }
 }
 

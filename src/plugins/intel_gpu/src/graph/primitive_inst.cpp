@@ -1146,6 +1146,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
     }
 }
 
+void primitive_inst::set_shape_info_memory_ptr(memory::ptr addr) {
+    _shape_info_memory = addr;
+}
+
 void primitive_inst::allocate_shape_info_memory() {
     int64_t shape_elements = _node->get_total_shape_info_size();
     _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx}, false);
