@@ -855,6 +855,15 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
+bool Plugin::min_compiler_requirement(uint32_t compiler_version_requirement) {
+    /// Internal helper function to check if compiler_version_requirement param >= actual compiler version in use
+    /// create dummy compiler of <COMPILER_TYPE> from config
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
+    uint32_t compiler_version_in_use = dummyCompiler->get_version();
+    return (compiler_version_in_use >= compiler_version_requirement);
+}
+
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
 
 static const ov::Version version = {CI_BUILD_NUMBER, NPU_PLUGIN_LIB_NAME};

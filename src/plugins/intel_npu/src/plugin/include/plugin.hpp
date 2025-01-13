@@ -65,6 +65,8 @@ private:
     std::vector<ov::PropertyName> _supportedProperties;
 
     static std::atomic<int> _compiledModelLoadCounter;
+
+    bool min_compiler_requirement(uint32_t compiler_version_requirement);
 };
 
 }  // namespace intel_npu
