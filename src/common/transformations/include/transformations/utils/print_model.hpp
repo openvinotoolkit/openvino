@@ -287,7 +287,6 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         return ss.str();
     };
 
-    int _idx = 0;
     // change name convension
     std::map<ov::Node*, std::string> opname;
     std::map<std::string, int> opname_count;
@@ -313,7 +312,6 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
             name += std::to_string(idx);
 
         opname[op.get()] = name;
-        opname[op.get()] = op->get_type_name() + std::to_string(_idx++);
     }
 
     for (auto op : f.get_ordered_ops()) {
