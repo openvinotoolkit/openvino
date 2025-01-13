@@ -160,7 +160,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
@@ -203,7 +203,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          std::nullopt);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -221,8 +221,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> networ
                                          std::optional<std::vector<uint8_t>>(std::move(network)));
 }
 
-ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model, Config& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;

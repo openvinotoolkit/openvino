@@ -16,12 +16,16 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          std::vector<uint8_t> blob,
-                         const Config& config)
+                         Config& config)
     : IGraph(graphHandle, std::move(metadata), config, std::optional<std::vector<uint8_t>>(std::move(blob))),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
       _logger("PluginGraph", config.get<LOG_LEVEL>()) {
+    if (!(config.has<CREATE_EXECUTOR>() || config.has<DEFER_WEIGHTS_LOAD>())) {
+        config.update({{ov::intel_npu::defer_weights_load.name(), "YES"}});
+    }
+
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;

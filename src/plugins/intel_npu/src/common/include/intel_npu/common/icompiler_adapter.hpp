@@ -10,10 +10,9 @@ namespace intel_npu {
 
 class ICompilerAdapter {
 public:
-    virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config) const = 0;
-    virtual std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const = 0;
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
+    virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, Config& config) const = 0;
+    virtual std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, Config& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, Config& config) const = 0;
 
     virtual ~ICompilerAdapter() = default;
 };
