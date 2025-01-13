@@ -712,27 +712,62 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion
     // handling based on internal logic (e.g. fuse conversion with weights reordering)
+
+    auto isSuitableTranspose = [](NodePtr node) {
+        return node->getType() == Type::Transpose && node->getChildEdges().size() == 1 && node->isConstant();
+    };
+    auto isSuitableConvert = [&](NodePtr node) {
+        if (node->getType() != Type::Convert || !node->isConstant() ||
+            !one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
+            !one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16))
+            return false;
+
+        const auto childEdges = node->getChildEdgesAtPort(0);
+        for (auto childEdge : childEdges) {
+            if (childEdge->getChild()->getType() == Type::Transpose) {
+                if (!isSuitableTranspose(childEdge->getChild()))
+                    return false;
+                childEdge = childEdge->getChild()->getChildEdgeAt(0);
+            }
+            if (childEdge->getChild()->getType() != Type::FullyConnected || childEdge->getOutputNum() != 1)
+                return false;
+        }
+        return true;
+    };
+
     auto& graphNodes = graph.GetNodes();
     for (const auto& fullyConnected : graphNodes) {
         if (fullyConnected->getType() != Type::FullyConnected) {
             continue;
         }
-        const auto convert = fullyConnected->getParentEdgeAt(1)->getParent();
-        if (convert->getType() != Type::Convert ||
-            !one_of(convert->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
-            !one_of(convert->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16) ||
-            !convert->isConstant()) {
-            continue;
+
+        NodePtr transpose = nullptr;
+        auto parent = fullyConnected->getParentEdgeAt(1)->getParent();
+        if (parent->getType() == Type::Transpose) {
+            if (!isSuitableTranspose(parent))
+                continue;
+
+            transpose = parent;
+            parent = transpose->getParentEdgeAt(0)->getParent();
         }
+
+        const auto convert = parent;
+        if (!isSuitableConvert(convert))
+            continue;
 
         const auto weights = convert->getParentEdgeAt(0)->getParent();
         const auto weights_out_edge = weights->getChildEdges()[0].lock();
-        const auto fc_weights_path_edge = fullyConnected->getParentEdgeAt(1);
+        const auto fc_weights_path_edge = transpose ? transpose->getParentEdgeAt(0) : fullyConnected->getParentEdgeAt(1);
         const auto inNum = weights_out_edge->getInputNum();
         const auto outNum = fc_weights_path_edge->getOutputNum();
-        fullyConnected->setOriginalInputPrecisionAtPort(1, convert->getOriginalInputPrecisionAtPort(0));
+        const auto originalPrecision = convert->getOriginalInputPrecisionAtPort(0);
+        fullyConnected->setOriginalInputPrecisionAtPort(1, originalPrecision);
+        if (transpose) {
+            transpose->setOriginalInputPrecisionAtPort(0, originalPrecision);
+            transpose->setOriginalOutputPrecisionAtPort(0, originalPrecision);
+        }
         graph.RemoveEdge(fc_weights_path_edge);
-        graph.CreateEdge(weights, fullyConnected, inNum, outNum);
+        graph.CreateEdge(weights, transpose ? transpose : fullyConnected, inNum, outNum);
         if (convert->getChildEdges().empty()) {
             graph.DropNode(convert);
         }
