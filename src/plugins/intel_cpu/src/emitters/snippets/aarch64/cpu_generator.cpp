@@ -64,7 +64,7 @@ namespace ov {
             }                                                                                        \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                   \
+                const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                             \
                 if (gelu == nullptr) {                                                               \
                     OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                \
                 }                                                                                    \
@@ -97,7 +97,7 @@ namespace ov {
             }                                                                                        \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                 \
+                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                           \
                 if (round == nullptr) {                                                              \
                     OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
                 }                                                                                    \
