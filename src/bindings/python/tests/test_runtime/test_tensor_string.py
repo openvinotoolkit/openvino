@@ -71,6 +71,7 @@ def test_empty_string_tensor(init_type):
     [
         ([bytes("text", encoding="utf-8"), bytes("openvino", encoding="utf-8")]),
         ([[b"xyz"], [b"abc"], [b"this is my last"]]),
+        ([[b"text\0with\0null"], [b"openvino\0"]]),
         (["text", "abc", "openvino"]),
         (["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"]),
         ([["text"], ["abc"], ["openvino"]]),
@@ -223,6 +224,7 @@ def test_populate_fails_type_check(string_data):
         (ov.Shape([3]), np.array(["text", "больше текста", "jeszcze więcej słów"])),
         (ov.Shape([3]), [b"xyz", b"abc", b"this is my last"]),
         (ov.Shape([3]), ["text", "abc", "openvino"]),
+        (ov.Shape([2]), [[b"text\0with\0null"], [b"openvino\0"]]),
         (ov.Shape([3]), ["text", "больше текста", "jeszcze więcej słów"]),
         (ov.Shape([2, 2]), np.array(["text", "abc", "openvino", "different"]).astype(np.bytes_)),
         (ov.Shape([2, 2]), np.array(["text", "больше текста", "jeszcze więcej słów", "abcdefg"])),
