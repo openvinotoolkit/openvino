@@ -5,11 +5,14 @@
 # mypy: ignore-errors
 
 import inspect
+import logging
 import torch
 import numpy as np
 
 from openvino import op, Type as OVType, Shape, Tensor
 from openvino import opset11 as ops
+
+log = logging.getLogger(__name__)
 
 
 def make_constant(*args, **kwargs):
@@ -175,6 +178,7 @@ def build_wrapper(template, model):
         wrapped_model.eval()
     # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
     except Exception:
+        log.error("Failed to build model wrapper.")
         wrapped_model = model
     return wrapped_model
 
@@ -301,6 +305,8 @@ def patch_none_example(model: torch.nn.Module, example):
         wrapper_class = wrapper_template.format(input_sign=", ".join(
             input_sign_str), example_input=", ".join(input_params_str))
         wrapped_model = build_wrapper(wrapper_class, model)
+        log.warning("Model has None in the example input. The input "
+                    "with None will be removed from the resulting model.")
         return wrapped_model, tuple(new_example)
     if (isinstance(example, dict)
             and any(x is None for x in example.values())
@@ -317,5 +323,7 @@ def patch_none_example(model: torch.nn.Module, example):
         wrapper_class = wrapper_template.format(input_sign=", ".join(
             input_sign_str), example_input=", ".join(input_params_str))
         wrapped_model = build_wrapper(wrapper_class, model)
+        log.warning("Model has None in the example input. The input "
+                    "with None will be removed from the resulting model.")
         return wrapped_model, new_example
     return model, example
