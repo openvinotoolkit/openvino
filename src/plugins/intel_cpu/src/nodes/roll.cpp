@@ -70,7 +70,7 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         /* Shift */
         const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
         if (shiftTensorPrec != ov::element::i32 && shiftTensorPrec != ov::element::i64) {
-            THROW_CPU_NODE_ERR(" has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
         }
 
         const auto shiftTensorRank = getInputShapeAtPort(SHIFT_INDEX).getRank();

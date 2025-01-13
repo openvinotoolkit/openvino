@@ -71,11 +71,11 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     noTrans = op->get_input_size() == 2;
     if (op->get_input_shape(0).size() != 4)
-        THROW_CPU_NODE_ERR(" has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
+        THROW_CPU_NODE_ERR("has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
     if (op->get_input_shape(1).size() != 2)
-        THROW_CPU_NODE_ERR(" has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
+        THROW_CPU_NODE_ERR("has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
     if (!noTrans && op->get_input_shape(2).size() != 4)
-        THROW_CPU_NODE_ERR(" has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
+        THROW_CPU_NODE_ERR("has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
 
     if (psroi) {
         if (psroi->get_input_size() != 2)
@@ -206,13 +206,13 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
     auto inBlkDims = srcDesc.getBlockDims();
     auto outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize)
-        THROW_CPU_NODE_ERR(" has unexpected size of blocking dims in input (given ",
+        THROW_CPU_NODE_ERR("has unexpected size of blocking dims in input (given ",
                            inBlkDims.size(),
                            ", expected ",
                            expectedInBlockDimsSize,
                            ")");
     if (outBlkDims.size() != expectedOutBlockDimsSize)
-        THROW_CPU_NODE_ERR(" has unexpected size of blocking dims in output (given ",
+        THROW_CPU_NODE_ERR("has unexpected size of blocking dims in output (given ",
                            outBlkDims.size(),
                            ", expected ",
                            expectedOutBlockDimsSize,

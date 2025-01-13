@@ -3117,7 +3117,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             if (scales.size() == 1) {
                 depthwiseData.resize(channelSize, depthwiseData.back());
             } else if (scales.size() != channelSize) {
-                THROW_CPU_NODE_ERR("failed due to scales data size inconsistency");
+                OPENVINO_THROW("Appending Eltwise node with name '",
+                               getName(),
+                               "' failed due to scales data size inconsistency");
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
             if (shifts.empty()) {
@@ -3126,7 +3128,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             } else if (shifts.size() == 1) {
                 depthwiseData.resize(2 * channelSize, depthwiseData.back());
             } else if (shifts.size() != channelSize) {
-                THROW_CPU_NODE_ERR("failed due to shifts data size inconsistency");
+                OPENVINO_THROW("Appending Eltwise node with name '",
+                               getName(),
+                               "' failed due to shifts data size inconsistency");
             }
             depthwiseDataSize = 2 * channelSize;
 

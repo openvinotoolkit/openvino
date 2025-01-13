@@ -222,9 +222,9 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     auto& srcMemPtr = srcMemory[DATA_ID];
     auto& dstMemPtr = dstMemory[DATA_ID];
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW("has undefined source memory.");
+        OPENVINO_THROW("Pad executor has undefined source memory.");
     if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW("has undefined destination memory.");
+        OPENVINO_THROW("Pad executor has undefined destination memory.");
     const auto srcBlockMemDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto dstBlockMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto& srcDims = srcBlockMemDesc->getBlockDims();

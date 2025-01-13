@@ -61,7 +61,7 @@ void Tile::getSupportedDescriptors() {
         return result;
     };
     if (getParentEdges().size() != 2)
-        THROW_CPU_NODE_ERR(" has incorrect number of input edges. "
+        THROW_CPU_NODE_ERR("has incorrect number of input edges. "
                            "Expected: 2, Actual: ",
                            getParentEdges().size());
     if (getChildEdges().empty())
@@ -70,7 +70,7 @@ void Tile::getSupportedDescriptors() {
     for (size_t i = 1lu; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size())
-            THROW_CPU_NODE_ERR(" has output edges 0 and ",
+            THROW_CPU_NODE_ERR("has output edges 0 and ",
                                i,
                                " with different ranks: ",
                                dstDims0.size(),
@@ -78,7 +78,7 @@ void Tile::getSupportedDescriptors() {
                                dstDims.size());
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                THROW_CPU_NODE_ERR(" has output edges 0 and ",
+                THROW_CPU_NODE_ERR("has output edges 0 and ",
                                    i,
                                    " with different dims: ",
                                    vec_to_string(dstDims0),

@@ -440,11 +440,11 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     params.attrs.beginDims = srcMemory[attrs.BEGIN_ID]->getShape().getStaticDims();
     params.attrs.endDims = srcMemory[attrs.END_ID]->getShape().getStaticDims();
     if (params.attrs.beginDims.size() != 1)
-        OPENVINO_THROW("should have begin vector with 1 dimension");
+        OPENVINO_THROW("Strided slice common executor should have begin vector with 1 dimension");
     if (params.attrs.endDims.size() != 1)
-        OPENVINO_THROW("should have end vector with 1 dimension");
+        OPENVINO_THROW("Strided slice common executor should have end vector with 1 dimension");
     if (params.attrs.beginDims[0] != params.attrs.endDims[0])
-        OPENVINO_THROW("should have begin vector with size equal to end vector size");
+        OPENVINO_THROW("Strided slice common executor should have begin vector with size equal to end vector size");
 
     if (params.attrs.begin.empty())
         fillingInParameters(params.attrs.begin, attrs.BEGIN_ID, params.attrs.beginDims[0], 0);
@@ -454,9 +454,10 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > attrs.STRIDE_ID) {
         params.attrs.strideDims = srcMemory[attrs.STRIDE_ID]->getShape().getStaticDims();
         if (params.attrs.strideDims.size() > 1)
-            OPENVINO_THROW("should have stride vector with 1 dimension");
+            OPENVINO_THROW("Strided slice common executor should have stride vector with 1 dimension");
         if (params.attrs.beginDims[0] != params.attrs.strideDims[0])
-            OPENVINO_THROW("should have stride vector with size equal to begin vector size");
+            OPENVINO_THROW(
+                "Strided slice common executor should have stride vector with size equal to begin vector size");
 
         if (params.attrs.stride.empty())
             fillingInParameters(params.attrs.stride, attrs.STRIDE_ID, params.attrs.strideDims[0], 1);
@@ -465,9 +466,10 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > attrs.AXES_ID) {
         params.attrs.axesDims = srcMemory[attrs.AXES_ID]->getShape().getStaticDims();
         if (params.attrs.axesDims.size() != 1)
-            OPENVINO_THROW("should have axes vector with 1 dimension.");
+            OPENVINO_THROW("Strided slice common executor should have axes vector with 1 dimension.");
         if (params.attrs.beginDims[0] != params.attrs.axesDims[0])
-            OPENVINO_THROW("should have axes vector with size equal to begin vector size.");
+            OPENVINO_THROW(
+                "Strided slice common executor should have axes vector with size equal to begin vector size.");
 
         if (params.attrs.axes.empty())
             fillingInParameters(params.attrs.axes, attrs.AXES_ID, params.attrs.axesDims[0], 0);
