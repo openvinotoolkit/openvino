@@ -739,7 +739,7 @@ class OPENVINO_API Any {
                     OPENVINO_THROW("Any does not contains pointer to runtime_attribute. It contains ",
                                    _impl->type_info().name());
                 }
-                auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
+                auto vptr = ov::as_type_ptr<typename T::element_type>(runtime_attribute);
                 if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
                     T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
                     OPENVINO_THROW("Could not as Any runtime_attribute to ",

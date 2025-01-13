@@ -31,8 +31,7 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-        const auto reduce_node =
-            std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
+        const auto reduce_node = ov::as_type_ptr<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         if (!reduce_node) {
             return false;
         }
@@ -57,11 +56,9 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
             return false;
         }
 
-        if (auto arithmetic_reduce_node =
-                std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduce_node)) {
+        if (auto arithmetic_reduce_node = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(reduce_node)) {
             arithmetic_reduce_node->set_keep_dims(true);
-        } else if (auto logical_reduce_node =
-                       std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduce_node)) {
+        } else if (auto logical_reduce_node = ov::as_type_ptr<op::util::LogicalReductionKeepDims>(reduce_node)) {
             logical_reduce_node->set_keep_dims(true);
         }
         reduce_node->validate_and_infer_types();
