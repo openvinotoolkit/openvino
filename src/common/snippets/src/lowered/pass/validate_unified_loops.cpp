@@ -32,7 +32,7 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
     std::vector<size_t> dim_indexes;
 
     auto validate_loop_port = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](const LoopPort& loop_port) {
-        const auto expr = loop_port.expr_port->get_expr();
+        const auto expr = loop_port.get_expr_port()->get_expr();
         const auto& loop_ids = expr->get_loop_ids();
         // If loop_ids of the current port is subsequence of already validated IDs, skip
         if (is_already_verified(loop_ids))
@@ -45,7 +45,7 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
             const auto id = loop_ids[i];
             const auto dim_idx = loop_manager->get_loop_info(id)->get_dim_idx();
             // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
-            if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
+            if (dim_idx == LoopPort::UNDEFINED_DIM_IDX)
                 continue;
             if (i > 0) {
                 if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
@@ -65,14 +65,14 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
         OPENVINO_ASSERT(loop_info, "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
         loop_info->iterate_through_ports(validate_loop_port);
 
-        // Validate that iteration dimnsion is broadcastable
+        // Validate that iteration dimension is broadcastable
         std::set<size_t> unique_dimensions;
         loop_info->iterate_through_ports([&unique_dimensions](const LoopPort& loop_port) {
-            if (loop_port.is_incremented) {
-                const auto is_input = loop_port.expr_port->get_type() == ExpressionPort::Input;
-                const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.expr_port)
-                                                   : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
-                const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
+            if (loop_port.is_processed()) {
+                const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
+                const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.get_expr_port())
+                                                   : ov::snippets::utils::get_preordered_vdims(*loop_port.get_expr_port());
+                const auto& dim = *(planar_shape.rbegin() + loop_port.get_dim_idx());
                 // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
                 if (!utils::is_dynamic_value(dim) && dim != 1)
                     unique_dimensions.insert(dim);
