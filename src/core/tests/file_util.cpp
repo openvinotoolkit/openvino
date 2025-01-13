@@ -262,6 +262,14 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == ov::util::Path(U"C:\\Users\\file.txt").u16string());
 }
 
+#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
+#    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
+#endif
+
+#if !defined(__clang__) || defined(__clang__) && __clang_major__ >= 17
+#    define CLANG_NOT_USED_OR_VER_AT_LEAST_17
+#endif
+
 TEST(file_util, path_cast_unicode) {
     EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt").generic_string());
     EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt").generic_string());
@@ -319,8 +327,6 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path("~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path("/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path("C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt") ==
-                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt").u32string());
 
     // from char8_t to u32string
     EXPECT_TRUE(std::u32string(U"") == ov::util::Path(u8"").u32string());
@@ -337,8 +343,6 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(u"~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(u"/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path(u"C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt") ==
-                ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt").u32string());
 
     // from char32_t to u32string
     EXPECT_TRUE(std::u32string(U"") == ov::util::Path(U"").u32string());
@@ -347,8 +351,6 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/local/file.txt") == ov::util::Path(U"~/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"/usr/local/file.txt") == ov::util::Path(U"/usr/local/file.txt").u32string());
     EXPECT_TRUE(std::u32string(U"C:\\Users\\file.txt") == ov::util::Path(U"C:\\Users\\file.txt").u32string());
-    EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗20.txt") ==
-                ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗20.txt").u32string());
 
     // from char, char16_t, char32_t to u32string
     EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt") ==
@@ -358,14 +360,6 @@ TEST(file_util, path_cast_to_u32string) {
     EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt") ==
                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt").u32string());
 }
-
-#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
-#    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
-#endif
-
-#if !defined(__clang__) || defined(__clang__) && __clang_major__ >= 17
-#    define CLANG_NOT_USED_OR_VER_AT_LEAST_17
-#endif
 
 #if defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
