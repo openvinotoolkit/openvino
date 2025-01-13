@@ -759,9 +759,11 @@ static std::shared_ptr<ov::Node> make_param(const PartialShape& pshape, element:
     return param;
 }
 
-//TODO: split the models in blocks the way it's done for Qwen
-//TODO: write a test for StateManagementPattern only (because changes for Alibi in it)
-TEST_F(TransformationTestsF, Baichuan2_13b_alibi_slopes_andrew) {
+// TODO: split the models in blocks the way it's done for Qwen
+// TODO: write a test for StateManagementPattern only (because changes for Alibi are inside it)
+// TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
+// checking the graph structure and names, other checks are temporarily disabled:
+TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
         auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
@@ -963,7 +965,8 @@ TEST_F(TransformationTestsF, Baichuan2_13b_alibi_slopes_andrew) {
         //PA cannot be instantiated uding makeOP hence creating constatnts for it manually
         auto c1 = makeConst(element::f32, {}, {0.088388f});
         auto c2 = makeConst(element::i32, {}, {0});
-        auto PagedAttentionExtension168 = std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape138, Reshape147, Reshape156, key_cache_0, value_cache_0, past_lens, subsequence_begins, block_indices, block_indices_begins, c1, c2, Convert167, max_context_len});
+        auto PagedAttentionExtension168 = std::make_shared<ov::op::PagedAttentionExtension>(
+            ov::OutputVector{Reshape138, Reshape147, Reshape156, key_cache_0, value_cache_0, past_lens, subsequence_begins, block_indices, block_indices_begins, c1, c2, Convert167, max_context_len});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -981,270 +984,53 @@ TEST_F(TransformationTestsF, Baichuan2_13b_alibi_slopes_andrew) {
     }
 }
 
-TEST(TransformationTests, SDPAToPA_TotalSequenceLengthPatternBaichuan2_13b) {
-    {
-        auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
-        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
-        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
-        auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+// this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
+// ALIBI_CONST content:
+/*
+ * >>> line1 = np.reshape(line1, (40, 4096, 4096))
+    >>> print(line1[0][:][:])
+    [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.839844' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.839844' '1.67969' ... '-inf' '-inf' '-inf']
+     ...
+     ['0' '0.839844' '1.67969' ... '3440' '-inf' '-inf']
+     ['0' '0.839844' '1.67969' ... '3440' '3440' '-inf']
+     ['0' '0.839844' '1.67969' ... '3440' '3440' '3440']]
+    >>> print(line1[1][:][:])
+    [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.707031' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.707031' '1.41406' ... '-inf' '-inf' '-inf']
+     ...
+     ['0' '0.707031' '1.41406' ... '2896' '-inf' '-inf']
+     ['0' '0.707031' '1.41406' ... '2896' '2896' '-inf']
+     ['0' '0.707031' '1.41406' ... '2896' '2896' '2896']]
+    >>> print(line1[3][:][:])
+    [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.5' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.5' '1' ... '-inf' '-inf' '-inf']
+     ...
+     ['0' '0.5' '1' ... '2048' '-inf' '-inf']
+     ['0' '0.5' '1' ... '2048' '2048' '-inf']
+     ['0' '0.5' '1' ... '2048' '2048' '2048']]
+    >>> print(line1[4][:][:])
+    [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.419922' '-inf' ... '-inf' '-inf' '-inf']
+     ['0' '0.419922' '0.839844' ... '-inf' '-inf' '-inf']
+     ...
+     ['0' '0.419922' '0.839844' ... '1720' '-inf' '-inf']
+     ['0' '0.419922' '0.839844' ... '1720' '1720' '-inf']
+     ['0' '0.419922' '0.839844' ... '1720' '1720' '1720']]
 
-        //gen_embeddings() {
-        auto ShapeOf5 = makeOP<v3::ShapeOf>({beam_idx}, {{"output_type", "i64"}});
-        auto Gather8 = makeOP<v8::Gather>({ShapeOf5, {0ll}, 0ll}, {{"batch_dims", 0}});
-        auto Concat12 = makeOP<v0::Concat>({Gather8, {40ll}, {0ll}, {128ll}}, {{"axis", 0}});
-        auto Broadcast13 = makeOP<v3::Broadcast>({0.0f, Concat12}, {{"mode", "numpy"}});
-        auto Constant18 = makeConst(element::u8, ov::Shape({125696, 5120}), MOCK_VALUE);
-        auto Convert19 = makeOP<opset1::Convert>({Constant18}, {{"destination_type", "f16"}});
-        auto Constant20 = makeConst(element::u8, ov::Shape({125696, 1}), MOCK_VALUE);
-        auto Convert21 = makeOP<opset1::Convert>({Constant20}, {{"destination_type", "f16"}});
-        auto Subtract22 = makeOP<opset1::Subtract>({Convert19, Convert21}, {{"auto_broadcast", "numpy"}});
-        auto Constant23 = makeConst(element::f16, ov::Shape({125696, 1}), MOCK_VALUE);
-        auto Multiply24 = makeOP<opset1::Multiply>({Subtract22, Constant23}, {{"auto_broadcast", "numpy"}});
-        auto Convert25 = makeOP<opset1::Convert>({Multiply24}, {{"destination_type", "f32"}});
-        auto Convert26 = makeOP<opset1::Convert>({input_ids}, {{"destination_type", "i32"}});
-        auto Gather28 = makeOP<opset8::Gather>({Convert25, Convert26, 0}, {{"batch_dims", 0}});
-        //}
+     Slicing from {1, 1} to {2, 2} gives us the expected alibi slope constant to pass it to PagedAttention:
+     >>> print(line1[5][1][1])
+        0.353516
+        >>> print(line1[4][1][1])
+        0.419922
+        >>> print(line1[3][1][1])
+        0.5
 
-        auto Constant29 = makeConst(element::f32, ov::Shape({1, 1, 5120}), MOCK_VALUE);
-        auto Constant30 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.0f});
-        auto Constant31 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.0f});
-        auto Power32 = makeOP<opset1::Power>({Gather28, Constant31}, {{"auto_broadcast", "numpy"}});
-        auto ReduceMean34 = makeOP<opset1::ReduceMean>({Power32, {-1}}, {{"keep_dims", true}});
-        auto Constant35 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000001f});
-        auto Add36 = makeOP<opset1::Add>({ReduceMean34, Constant35}, {{"auto_broadcast", "numpy"}});
-        auto Sqrt37 = makeOP<opset1::Sqrt>({Add36});
-        auto Divide38 = makeOP<opset1::Divide>({Constant30, Sqrt37}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-        auto Multiply39 = makeOP<opset1::Multiply>({Gather28, Divide38}, {{"auto_broadcast", "numpy"}});
-        auto Multiply40 = makeOP<opset1::Multiply>({Constant29, Multiply39}, {{"auto_broadcast", "numpy"}});
-
-
-        //gen_attention_weights() {
-        auto Constant41 = makeConst(element::u8, ov::Shape({15360, 5120}), MOCK_VALUE);
-        auto Convert42 = makeOP<opset1::Convert>({Constant41}, {{"destination_type", "f16"}});
-        auto Constant43 = makeConst(element::u8, ov::Shape({15360, 1}), MOCK_VALUE);
-        auto Convert44 = makeOP<opset1::Convert>({Constant43}, {{"destination_type", "f16"}});
-        auto Subtract45 = makeOP<opset1::Subtract>({Convert42, Convert44}, {{"auto_broadcast", "numpy"}});
-        auto Constant46 = makeConst(element::f16, ov::Shape({15360, 1}), MOCK_VALUE);
-        auto Multiply47 = makeOP<opset1::Multiply>({Subtract45, Constant46}, {{"auto_broadcast", "numpy"}});
-        auto Convert48 = makeOP<opset1::Convert>({Multiply47}, {{"destination_type", "f32"}});
-        //}
-
-        auto MatMul49 = makeOP<opset1::MatMul>({Multiply40, Convert48}, {{"transpose_a", false}, {"transpose_b", true}});
-        auto Reshape51 = makeOP<opset1::Reshape>({MatMul49, {0, 0, 3, 5120}}, {{"special_zero", true}});
-        auto Unsqueeze53 = makeOP<opset1::Unsqueeze>({Reshape51, 0});
-        auto Squeeze55 = makeOP<opset1::Squeeze>({Unsqueeze53, {0}});
-        auto Transpose57 = makeOP<opset1::Transpose>({Squeeze55, {2,0,1,3}});
-
-        // Q
-        auto Gather58 = makeOP<opset8::Gather>({Transpose57, 0, 0}, {{"batch_dims", 0}});
-        auto Reshape60 = makeOP<opset1::Reshape>({Gather58, {0,0,40,128}}, {{"special_zero", true}});
-        auto Transpose62 = makeOP<opset1::Transpose>({Reshape60, {0,2,1,3}});
-
-        auto ReadValue63 = makeOP<opset6::ReadValue>({Broadcast13}, {{"variable_id", "varid_2"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 40, DYN, 128}}});
-        auto Gather65 = makeOP<opset8::Gather>({ReadValue63, beam_idx, 0}, {{"batch_dims", 0}});
-
-        //K
-        auto Gather67 = makeOP<opset8::Gather>({Transpose57, 1, 0}, {{"batch_dims", 0}});
-        auto Reshape69 = makeOP<opset1::Reshape>({Gather67, {0,0,40,128}}, {{"special_zero", true}});
-        auto Transpose71 = makeOP<opset1::Transpose>({Reshape69, {0,2,1,3}});
-        auto Concat72 = makeOP<opset1::Concat>({Gather65, Transpose71}, {{"axis", 2}});
-
-        auto ReadValue73 = makeOP<opset6::ReadValue>({Broadcast13}, {{"variable_id", "varid_3"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 40, DYN, 128}}});
-        auto Gather75 = makeOP<opset8::Gather>({ReadValue73, beam_idx, 0}, {{"batch_dims", 0}});
-
-        //V
-        auto Gather77 = makeOP<opset8::Gather>({Transpose57, 2, 0}, {{"batch_dims", 0}});
-        auto Reshape79 = makeOP<opset1::Reshape>({Gather77, {0,0,40,128}}, {{"special_zero", true}});
-        auto Transpose81 = makeOP<opset1::Transpose>({Reshape79, {0,2,1,3}});
-        auto Concat82 = makeOP<opset1::Concat>({Gather75, Transpose81}, {{"axis", 2}});
-
-        auto Constant83 = makeConst(element::f32, ov::Shape({1,1,1,1,}), {1.000000f});
-        auto Convert85 = makeOP<opset1::Convert>({attention_mask}, {{"destination_type", "f32"}});
-        auto Unsqueeze86 = makeOP<opset1::Unsqueeze>({Convert85, 2});
-        auto Unsqueeze87 = makeOP<opset1::Unsqueeze>({Convert85, 1});
-        auto Multiply88 = makeOP<opset1::Multiply>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
-        auto Constant89 = makeConst(element::f32, ov::Shape({1,1,1,}), {0.000000f});
-        auto Greater90 = makeOP<opset1::Greater>({Multiply88, Constant89}, {{"auto_broadcast", "numpy"}});
-        auto ShapeOf91 = makeOP<opset3::ShapeOf>({Greater90}, {{"output_type", "i32"}});
-        auto Gather94 = makeOP<opset8::Gather>({ShapeOf91, 1, 0}, {{"batch_dims", 0}});
-        auto Range96 = makeOP<opset4::Range>({0, Gather94, 1}, {{"output_type", "i32"}});
-        auto Unsqueeze97 = makeOP<opset1::Unsqueeze>({Range96, 0});
-        auto Unsqueeze98 = makeOP<opset1::Unsqueeze>({Range96, 1});
-        auto LessEqual99 = makeOP<opset1::LessEqual>({Unsqueeze97, Unsqueeze98}, {{"auto_broadcast", "numpy"}});
-        auto Constant100 = makeConst(element::boolean, ov::Shape({}), {0});
-        auto Select101 = makeOP<opset1::Select>({LessEqual99, Greater90, Constant100}, {{"auto_broadcast", "numpy"}});
-        auto Subtract102 = makeOP<opset1::Subtract>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
-        auto Constant103 = makeConst(element::f32, ov::Shape({1,1,1,}), {0.000000f});
-        auto Equal104 = makeOP<opset1::Equal>({Subtract102, Constant103}, {{"auto_broadcast", "numpy"}});
-        auto LogicalAnd105 = makeOP<opset1::LogicalAnd>({Select101, Equal104}, {{"auto_broadcast", "numpy"}});
-        auto Unsqueeze106 = makeOP<opset1::Unsqueeze>({LogicalAnd105, 1});
-        auto ShapeOf107 = makeOP<opset3::ShapeOf>({MatMul49}, {{"output_type", "i64"}});
-        auto Gather110 = makeOP<opset8::Gather>({ShapeOf107, {0}, 0}, {{"batch_dims", 0}});
-        auto Constant112 = makeConst(element::f32, ov::Shape({40,4096,4096,}), MOCK_VALUE); //TODO: there can be an error due to fake alibi slopes
-        auto Gather116 = makeOP<opset8::Gather>({ShapeOf107, {1}, 0}, {{"batch_dims", 0}});
-        auto ShapeOf117 = makeOP<opset3::ShapeOf>({Gather65}, {{"output_type", "i64"}});
-        auto Gather120 = makeOP<opset8::Gather>({ShapeOf117, {2}, 0}, {{"batch_dims", 0}});
-        auto Add121 = makeOP<opset1::Add>({Gather116, Gather120}, {{"auto_broadcast", "numpy"}});
-        auto Broadcast123 = makeOP<opset3::Broadcast>({Add121, {2}}, {{"mode", "numpy"}});
-        auto Slice126 = makeOP<opset8::Slice>({Constant112, {0,0}, Broadcast123, {1,1}, {1,2}}); // the very slice we insert
-        auto ShapeOf127 = makeOP<opset3::ShapeOf>({Slice126}, {{"output_type", "i64"}});
-        auto Gather130 = makeOP<opset8::Gather>({ShapeOf127, {1,2}, 0}, {{"batch_dims", 0}});
-        auto Concat131 = makeOP<opset1::Concat>({Gather110, {1L}, Gather130}, {{"axis", 0}});
-        auto Broadcast132 = makeOP<opset3::Broadcast>({Unsqueeze106, Concat131}, {{"mode", "bidirectional"}});
-        auto Convert133 = makeOP<opset1::Convert>({Broadcast132}, {{"destination_type", "f32"}});
-        auto Constant134 = makeConst(element::f32, ov::Shape({1,1,1,1,}), {1.000000f});
-        auto Multiply135 = makeOP<opset1::Multiply>({Convert133, Constant134}, {{"auto_broadcast", "numpy"}});
-        auto Subtract136 = makeOP<opset1::Subtract>({Constant83, Multiply135}, {{"auto_broadcast", "numpy"}});
-        auto Convert137 = makeOP<opset1::Convert>({Subtract136}, {{"destination_type", "boolean"}});
-        auto Select139 = makeOP<opset1::Select>({Convert137, -FLT_MAX, Subtract136}, {{"auto_broadcast", "numpy"}});
-        auto Unsqueeze140 = makeOP<opset1::Unsqueeze>({Slice126, 0});
-        auto Add141 = makeOP<opset1::Add>({Select139, Unsqueeze140}, {{"auto_broadcast", "numpy"}});
-        auto Multiply143 = makeOP<opset1::Multiply>({Gather116, {-1l}}, {{"auto_broadcast", "numpy"}});
-        auto Slice147 = makeOP<opset8::Slice>({Add141, Multiply143, {LLONG_MAX}, {1}, {2}});
-        auto sdpa = makeOP<v13::ScaledDotProductAttention>({Transpose62, Concat72, Concat82, Slice147}, {{"causal", false}});
-
-        auto res = makeOP<v0::Result>({sdpa});
-
-        ParameterVector params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids});
-        auto model = std::make_shared<ov::Model>(OutputVector{res}, params);
-
-        ParameterVector kv_parameters;
-        ParameterVector parameters_to_remove;
-        ParameterVector block_indices_inputs;
-        ResultVector score_results;
-        int layer_index = 0;
-        auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
-        auto max_context_len = make_param(PartialShape{}, element::i32, "max_context_len");
-        ParameterVector model_remaining_params = nodes_to_params({
-            make_param(PartialShape{DYN}, element::i32, "past_lens"),
-            make_param(PartialShape{DYN}, element::i32, "subsequence_begins"),
-            make_param(PartialShape{DYN}, element::i32, "block_indices_begins"),
-            make_param(PartialShape{DYN}, element::i32, "block_indices")
-        });
-
-
-
-        ov::pass::Manager new_manager;
-        new_manager.set_per_pass_validation(false);
-        new_manager.register_pass<ov::pass::PrintModel>("before.txt");
-        new_manager.register_pass<ov::pass::VisualizeTree>("before.svg");
-        new_manager.register_pass<ov::pass::StateManagementPattern>(
-            kv_parameters,
-            model_remaining_params,
-            sliding_window,
-            parameters_to_remove,
-            layer_index,
-            max_context_len->output(0),
-            block_indices_inputs,
-            score_results,
-            false,
-            false
-        );
-        if (new_manager.run_passes(model)) {
-            std::cout << "ALL MATCHED" << std::endl;
-        }
-    }
-}
-
-#if 0
-TEST(TransformationTests, SDPAToPA_TotalSequenceLengthPatternBaichuan2_13b_new) {
-    {
-        auto Transpose_279 = makeOP<opset1::Transpose>({Reshape_277, {0,2,1,3}});   //  tensor_array<f32[?,40,?,128]> Transpose_279(Reshape_277, Constant_278)
-
-        auto Broadcast_230 = makeOP<opset3::Broadcast>({0.000000f, Concat_228}, {{"mode", "numpy"}});   //  tensor_array<f32[?,40,0,128]> Broadcast_230(Constant_229, Concat_228)
-
-        auto ReadValue_280 = makeOP<opset6::ReadValue>({Broadcast_230}, {{"variable_id", varid_2[?,40,?,128]f32}, {"variable_type", "f32"}, {"variable_shape", [?,40,?,128]}});   //  tensor_array<f32[?,40,?,128]> ReadValue_280(Broadcast_230)
-
-        auto Gather_282 = makeOP<opset8::Gather>({ReadValue_280, beam_idx, 0}, {{"batch_dims", 0}});   //  tensor_array<f32[?,40,?,128]> Gather_282(ReadValue_280, beam_idx, Constant_281)
-
-        auto Transpose_289 = makeOP<opset1::Transpose>({Reshape_287, {0,2,1,3}});   //  tensor_array<f32[?,40,?,128]> Transpose_289(Reshape_287, Constant_288)
-
-        auto Concat_290 = makeOP<opset1::Concat>({Gather_282, Transpose_289}, {{"axis", 2}});   //  tensor_array<f32[?,40,?,128]> Concat_290(Gather_282, Transpose_289)
-
-        auto ReadValue_291 = makeOP<opset6::ReadValue>({Broadcast_230}, {{"variable_id", varid_3[?,40,?,128]f32}, {"variable_type", "f32"}, {"variable_shape", [?,40,?,128]}});   //  tensor_array<f32[?,40,?,128]> ReadValue_291(Broadcast_230)
-
-        auto Gather_293 = makeOP<opset8::Gather>({ReadValue_291, beam_idx, 0}, {{"batch_dims", 0}});   //  tensor_array<f32[?,40,?,128]> Gather_293(ReadValue_291, beam_idx, Constant_292)
-
-        auto Transpose_300 = makeOP<opset1::Transpose>({Reshape_298, {0,2,1,3}});   //  tensor_array<f32[?,40,?,128]> Transpose_300(Reshape_298, Constant_299)
-
-            auto Concat_301 = makeOP<opset1::Concat>({Gather_293, Transpose_300}, {{"axis", 2}});   //  tensor_array<f32[?,40,?,128]> Concat_301(Gather_293, Transpose_300)
-
-        auto Unsqueeze_332 = makeOP<opset1::Unsqueeze>({LogicalAnd_330, 1});   //  tensor_array<boolean[?,1,?,?]> Unsqueeze_332(LogicalAnd_330, Constant_331)
-
-        auto Gather_336 = makeOP<opset8::Gather>({ShapeOf_333, {0}, 0}, {{"batch_dims", 0}});   //  tensor_array<i64[1]> Gather_336(ShapeOf_333, Constant_334, Constant_335)
-
-        auto Gather_340 = makeOP<opset8::Gather>({ShapeOf_333, {1}, 0}, {{"batch_dims", 0}});   //  tensor_array<i64[1]> Gather_340(ShapeOf_333, Constant_338, Constant_339)
-
-        auto Broadcast_347 = makeOP<opset3::Broadcast>({Add_345, {2}}, {{"mode", "numpy"}});   //  tensor_array<i64[2]> Broadcast_347(Add_345, Constant_346)
-
-        auto Slice_351 = makeOP<opset8::Slice>({Constant_337, {0,0}, Broadcast_347, {1,1}, {1,2}});   //  tensor_array<f32[40,..4096,..4096]> Slice_351(Constant_337, Constant_348, Broadcast_347, Constant_349, Constant_350)
-
-        auto ShapeOf_416 = makeOP<opset3::ShapeOf>({Slice_351}, {{"output_type", "i64"}});   //  tensor_array<i64[3]> ShapeOf_416(Slice_351)
-
-        auto Gather_419 = makeOP<opset8::Gather>({ShapeOf_416, {1,2}, 0}, {{"batch_dims", 0}});   //  tensor_array<i64[2]> Gather_419(ShapeOf_416, Constant_417, Constant_418)
-
-        auto Concat_421 = makeOP<opset1::Concat>({Gather_336, {1}, Gather_419}, {{"axis", 0}});   //  tensor_array<i64[4]> Concat_421(Gather_336, Constant_420, Gather_419)
-
-        auto Broadcast_422 = makeOP<opset3::Broadcast>({Unsqueeze_332, Concat_421}, {{"mode", "bidirectional"}});   //  tensor_array<boolean[?,1,?,?]> Broadcast_422(Unsqueeze_332, Concat_421)
-
-        auto Convert_425 = makeOP<opset1::Convert>({Broadcast_422}, {{"destination_type", "f32"}});   //  tensor_array<f32[?,1,?,?]> Convert_425(Broadcast_422)
-
-        auto Multiply_427 = makeOP<opset1::Multiply>({Convert_425, Constant_426}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,1,?,?]> Multiply_427(Convert_425, Constant_426)
-
-        auto Subtract_428 = makeOP<opset1::Subtract>({Constant_302, Multiply_427}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,1,?,?]> Subtract_428(Constant_302, Multiply_427)
-
-        auto Convert_429 = makeOP<opset1::Convert>({Subtract_428}, {{"destination_type", "boolean"}});   //  tensor_array<boolean[?,1,?,?]> Convert_429(Subtract_428)
-
-        auto Select_431 = makeOP<opset1::Select>({Convert_429, -FLT_MAX, Subtract_428}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,1,?,?]> Select_431(Convert_429, Constant_430, Subtract_428)
-
-        auto Unsqueeze_433 = makeOP<opset1::Unsqueeze>({Slice_351, 0});   //  tensor_array<f32[1,40,..4096,..4096]> Unsqueeze_433(Slice_351, Constant_432)
-
-        auto Add_434 = makeOP<opset1::Add>({Select_431, Unsqueeze_433}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,40,?,?]> Add_434(Select_431, Unsqueeze_433)
-
-        auto Multiply_436 = makeOP<opset1::Multiply>({Gather_340, {-1}}, {{"auto_broadcast", "numpy"}});   //  tensor_array<i64[1]> Multiply_436(Gather_340, Constant_435)
-
-        auto Slice_440 = makeOP<opset8::Slice>({Add_434, Multiply_436, {LLONG_MAX}, {1}, {2}});   //  tensor_array<f32[?,40,?,?]> Slice_440(Add_434, Multiply_436, Constant_437, Constant_438, Constant_439)
-
-        auto ScaledDotProductAttention_501 = makeOP<opset13::ScaledDotProductAttention>({Transpose_279, Concat_290, Concat_301, Slice_440}, {{"causal", false}});   //  tensor_array<f32[?,40,?,128]> ScaledDotProductAttention_501(Transpose_279, Concat_290, Concat_301, Slice_440)
-
-
-        ParameterVector params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids});
-        auto model = std::make_shared<ov::Model>(OutputVector{res}, params);
-
-        ParameterVector kv_parameters;
-        ParameterVector parameters_to_remove;
-        ParameterVector block_indices_inputs;
-        ResultVector score_results;
-        int layer_index = 0;
-        auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
-        auto max_context_len = make_param(PartialShape{}, element::i32, "max_context_len");
-        ParameterVector model_remaining_params = nodes_to_params({
-            make_param(PartialShape{DYN}, element::i32, "past_lens"),
-            make_param(PartialShape{DYN}, element::i32, "subsequence_begins"),
-            make_param(PartialShape{DYN}, element::i32, "block_indices_begins"),
-            make_param(PartialShape{DYN}, element::i32, "block_indices")
-        });
-
-
-
-        ov::pass::Manager new_manager;
-        new_manager.set_per_pass_validation(false);
-        new_manager.register_pass<ov::pass::VisualizeTree>("before.svg");
-        new_manager.register_pass<ov::pass::StateManagementPattern>(
-            kv_parameters,
-            model_remaining_params,
-            sliding_window,
-            parameters_to_remove,
-            layer_index,
-            max_context_len->output(0),
-            block_indices_inputs,
-            score_results,
-            false,
-            false
-        );
-        if (new_manager.run_passes(model)) {
-            std::cout << "ALL MATCHED" << std::endl;
-        }
-    }
-}
-#endif
+     ALibi slope const shape [40, 4096, 4096]
+     Slicing means that we take only 1 value from each 4096 x 4096 matrix here
+     The resulting constant will be [40, 1, 1]
+     After that we need to insert Reshape to get the expected rank = 1 (shape [40])
+ */

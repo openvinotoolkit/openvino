@@ -280,19 +280,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &score_results,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
-        // for (auto& node : m.get_matched_nodes()) {
-        //     std::cout << "\"" << entry.second.get_node_shared_ptr()->get_friendly_name() << "\", ";
-        // }
-
-        for (auto& entry: pattern_map) {
-            std::cout << "\"" << entry.second.get_node_shared_ptr()->get_name() << "\", ";
-        }
-        std::cout << std::endl;
-
-
-
-
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
