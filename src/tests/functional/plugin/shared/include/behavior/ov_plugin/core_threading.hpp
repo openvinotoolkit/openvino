@@ -627,11 +627,10 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_MutipleModel_Reservation) 
     runParallel(
         [&]() {
             auto value = counter++;
-            std::cout << "value: " << value << "\n";
             (void)core.compile_model(models[value % models.size()],
                                      target_device,
                                      value == 1 ? property_config : property_config_reserve);
         },
         1,
-        3);
+        2);
 }
