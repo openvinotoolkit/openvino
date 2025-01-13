@@ -27,6 +27,8 @@ public:
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
+    uint32_t get_version() const override;
+
 private:
     /**
      * @brief Serialize input / output information to string format.
