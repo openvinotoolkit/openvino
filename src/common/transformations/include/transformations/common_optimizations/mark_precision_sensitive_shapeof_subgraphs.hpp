@@ -41,7 +41,7 @@ protected:
  */
 class ov::pass::MarkShapeOfSubgraphs : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkShapeOfSubgraphs", "0");
+    OPENVINO_RTTI("MarkShapeOfSubgraphs", "0", MarkPrecisionSensitiveShapeOfSubgraphs);
     MarkShapeOfSubgraphs();
 };
 
@@ -53,7 +53,7 @@ public:
  */
 class ov::pass::MarkPrecisionSensitiveConstants : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkPrecisionSensitiveConstants", "0");
+    OPENVINO_RTTI("MarkPrecisionSensitiveConstants", "0", MarkPrecisionSensitiveShapeOfSubgraphs);
     MarkPrecisionSensitiveConstants();
 };
 
@@ -65,6 +65,6 @@ public:
  */
 class ov::pass::MarkDividesInShapeSubgraphs : public MarkPrecisionSensitiveShapeOfSubgraphs {
 public:
-    OPENVINO_RTTI("MarkDividesInShapeSubgraphs", "0");
+    OPENVINO_RTTI("MarkDividesInShapeSubgraphs", "0", MarkPrecisionSensitiveShapeOfSubgraphs);
     MarkDividesInShapeSubgraphs();
 };

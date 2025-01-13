@@ -24,6 +24,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "overload/overload_test_utils_npu.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -780,6 +781,76 @@ TEST_P(ROITensorInference, InferenceROITensor) {
     OV_EXPECT_THROW_HAS_SUBSTRING(req.set_tensor(tensor_name, m_param.m_input_tensor),
                                   ov::Exception,
                                   "The tensor is not continuous");
+}
+
+using SetShapeInferRunTests = InferRequestRunTests;
+
+TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto original_shape = Shape{1, 10, 10, 10};
+    auto dummy_shape = Shape{1, 50, 100, 100};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModel(element::f32, original_shape, "N...");
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    input = compiled_model.input();
+    output = compiled_model.output();
+
+    ov::Tensor input_tensor, first_output_tensor, second_output_tensor;
+    auto in_shape = input.get_shape();
+    auto out_shape = output.get_shape();
+
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 5.f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    OV_ASSERT_NO_THROW(first_output_tensor = inference_request.get_tensor(output));
+    // create dummy Tensors to force the driver to allocate memory for the initial tensor somewhere else
+    [[maybe_unused]] auto l0_host_dummy_tensor_0 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_1 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_2 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_3 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_4 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_5 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_6 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_7 = context.create_host_tensor(ov::element::f32, dummy_shape);
+
+    auto* actual = first_output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+    }
+
+    // imitates blob reallocation
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({1, 50, 20, 20}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
+
+    OV_ASSERT_NO_THROW(second_output_tensor = inference_request.get_tensor(output));
+    OV_ASSERT_NO_THROW(second_output_tensor.set_shape({1, 20, 20, 20}));
+    OV_ASSERT_NO_THROW(second_output_tensor.set_shape(out_shape));
+
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 9.f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    OV_ASSERT_NO_THROW(second_output_tensor = inference_request.get_tensor(output));
+
+    actual = second_output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 10.f, 1e-5) << "Expected=10, actual=" << actual[i] << " for index " << i;
+    }
 }
 
 }  // namespace behavior
