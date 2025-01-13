@@ -7,10 +7,13 @@ USER root
 RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
     echo "retries=10" >> /etc/dnf/dnf.conf
 
+RUN dnf install -y fedora-repos
+    
 RUN dnf update -y && dnf install -y \
     git \
     curl \
     python3 \
+    python3-rpm \
     # To build Python from source
     openssl-devel \
     sqlite-devel \
@@ -24,22 +27,35 @@ RUN dnf update -y && dnf install -y \
     gcc-c++ \
     # parallel gzip
     pigz \
-    xz
+    xz \
+    rpm-devel
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
-    rm -rf /var/lib/apt/lists/*
-
+    bash -e /install_build_dependencies.sh
+    
 # Setup Python
 RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
     tar xvf Python-3.9.9.tar.xz
 RUN cd /usr/src/Python-3.9.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+    ./configure --prefix=/usr --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions && \
+    make altinstall && ldconfig
 
+# Use Python 3.9 as default
+RUN python3.9 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
+
+ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+    
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
@@ -51,19 +67,6 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
-
-# Use Python 3.9 as default
-RUN python3.9 -m venv venv
-ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
-
-# Setup pip
-ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
-
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # Install Node
 ENV NODE_VERSION=21.7.3
