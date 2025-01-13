@@ -329,7 +329,7 @@ TEST(file_util, path_cast_unicode_to_string) {
 }
 #endif
 
-#if !defined(_MSC_VER) && GCC_NOT_USED_OR_VERSION_AT_LEAST_12_3 && CLANG_NOT_USED_OR_VERSION_AT_LEAST_17
+#if !defined(_MSC_VER) && GCC_NOT_USED_OR_VER_AT_LEAST_12_3 && CLANG_NOT_USED_OR_VER_AT_LEAST_17
 TEST(file_util, path_cast_unicode_from_string_to_wstring) {
     EXPECT_TRUE(std::wstring(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt") ==
                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").generic_wstring());
