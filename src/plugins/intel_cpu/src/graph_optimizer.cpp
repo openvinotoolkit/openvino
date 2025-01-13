@@ -713,10 +713,10 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion
     // handling based on internal logic (e.g. fuse conversion with weights reordering)
 
-    auto isSuitableTranspose = [](NodePtr node) {
+    auto isSuitableTranspose = [](const NodePtr& node) {
         return node->getType() == Type::Transpose && node->getChildEdges().size() == 1 && node->isConstant();
     };
-    auto isSuitableConvert = [&](NodePtr node) {
+    auto isSuitableConvert = [&](const NodePtr& node) {
         if (node->getType() != Type::Convert || !node->isConstant() ||
             !one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
             !one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16))
