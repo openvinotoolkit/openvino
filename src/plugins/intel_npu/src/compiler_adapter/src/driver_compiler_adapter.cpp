@@ -253,6 +253,10 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     return result;
 }
 
+uint32_t DriverCompilerAdapter::get_version() const {
+    return _zeroInitStruct->getCompilerVersion();
+}
+
 /**
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
