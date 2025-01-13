@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,6 +11,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#if defined(HAVE_SVE)
+#    include "arm_sve.h"
+#endif
 
 namespace ov {
 namespace Extensions {
@@ -137,6 +140,29 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
         dst[i] = tmp;
     }
 }
+
+#if defined(HAVE_SVE)
+void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
+    size_t i = 0;
+    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    size_t nvec = n / svcntw();
+    size_t lvec = svcntw();
+    auto sve_pg = svptrue_b32();
+    for (size_t j = 0; j < nvec; ++j) {
+        svuint32_t reg1 = svld1ub_u32(sve_pg, src_nc + j * lvec);
+        svfloat32_t reg2 = svcvt_f32_u32_z(sve_pg, reg1);
+        svfloat32_t reg3 = svsub_f32_z(sve_pg, reg2, svdup_n_f32(zp));
+        svfloat32_t reg4 = svmul_f32_z(sve_pg, reg3, svdup_n_f32(scale));
+        svst1_f32(sve_pg, dst + j * lvec, reg4);
+    }
+    i = n - n % svcntw();
+    for (; i < n; ++i) {
+        float tmp = src_nc[i];
+        tmp = (tmp - zp) * scale;
+        dst[i] = tmp;
+    }
+}
+#endif
 
 }  // namespace XARCH
 }  // namespace Cpu

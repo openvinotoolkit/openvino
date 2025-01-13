@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <float.h>
@@ -50,7 +50,7 @@ using namespace ov;
 #endif
 
 template <typename TA, typename TB>
-void cvt_copy(TA* dst, TB* src, size_t n) {
+static void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {

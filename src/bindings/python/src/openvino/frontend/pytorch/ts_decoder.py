@@ -1,8 +1,13 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 # mypy: ignore-errors
+
+import inspect
+import logging
+import typing
+import torch
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -14,15 +19,11 @@ from openvino.frontend.pytorch.utils import (
     prepare_example_inputs_and_model,
     convert_quantized_tensor,
     graph_has_ops,
+    patch_none_example,
 )
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
-
-import inspect
-import logging
-import typing
-import torch
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class TorchScriptPythonDecoder(Decoder):
         skip_freeze=False,
         constant_cache=None,
         module_extensions=None,
+        trace_kwargs=None,
     ):
         super().__init__()
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
@@ -57,7 +59,7 @@ class TorchScriptPythonDecoder(Decoder):
                     self.config = pt_module.config.to_dict()
             try:
                 pt_module = self._get_scripted_model(
-                    pt_module, example_input, skip_freeze)
+                    pt_module, example_input, skip_freeze, trace_kwargs)
             except Exception as e:
                 if example_input is not None:
                     msg = "tracing"
@@ -109,7 +111,7 @@ class TorchScriptPythonDecoder(Decoder):
                 preserved_attributes.append(name)
         return preserved_attributes
 
-    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
+    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -132,6 +134,7 @@ class TorchScriptPythonDecoder(Decoder):
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
+                pt_module, example_inputs = patch_none_example(pt_module, example_inputs)
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
@@ -154,9 +157,11 @@ class TorchScriptPythonDecoder(Decoder):
                         quantized.unpatch_quantized(pt_module)
                         patched = False
 
+                if trace_kwargs is None:
+                    trace_kwargs = {}
                 try:
                     scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False)
+                        pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)

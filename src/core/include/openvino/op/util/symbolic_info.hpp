@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ OPENVINO_API void populate_tensor_with_missing_symbols(ov::descriptor::Tensor& t
  */
 class OPENVINO_API SkipInvalidation : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("SkipInvalidation", "0");
+    OPENVINO_RTTI("SkipInvalidation", "0", RuntimeAttribute);
     SkipInvalidation() = default;
     bool is_copyable() const override {
         return false;
