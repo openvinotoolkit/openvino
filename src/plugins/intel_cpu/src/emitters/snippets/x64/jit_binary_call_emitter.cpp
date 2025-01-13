@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Intel Corporation
+// Copyright (C) 2020-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,15 +24,16 @@ jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_gener
       m_regs_to_spill(std::move(live_regs)),
       m_regs_initialized(false) {}
 
-void jit_binary_call_emitter::init_regs(size_t num_binary_args,
-                                        const std::vector<size_t>& in,
-                                        const std::vector<size_t>& out) const {
+void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
+                                                    const std::vector<size_t>& in,
+                                                    const std::vector<size_t>& out) const {
     std::vector<size_t> mem_ptr_idxs = in;
     mem_ptr_idxs.insert(mem_ptr_idxs.end(), out.begin(), out.end());
-    init_regs(num_binary_args, mem_ptr_idxs);
+    init_binary_call_regs(num_binary_args, mem_ptr_idxs);
 }
 
-void jit_binary_call_emitter::init_regs(size_t num_binary_args, const std::vector<size_t>& mem_ptrs_idxs) const {
+void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
+                                                    const std::vector<size_t>& mem_ptrs_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(sizeof(abi_param_regs) / sizeof(*abi_param_regs) >= num_binary_args,
                               "Requested number of runtime arguments is not supported");
     // This regs will be corrupted, since we'll use them to pass runtime args
@@ -50,16 +51,16 @@ void jit_binary_call_emitter::init_regs(size_t num_binary_args, const std::vecto
 }
 
 const Xbyak::Reg64& jit_binary_call_emitter::get_call_address_reg() const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_regs() before using this method");
+    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_binary_call_regs() before using this method");
     return m_call_address_reg;
 }
 const Xbyak::Reg64& jit_binary_call_emitter::get_callee_saved_reg() const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_regs() before using this method");
+    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_binary_call_regs() before using this method");
     return m_callee_saved_reg;
 }
 
 const std::set<snippets::Reg>& jit_binary_call_emitter::get_regs_to_spill() const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_regs() before using this method");
+    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_binary_call_regs() before using this method");
     return m_regs_to_spill;
 }
 

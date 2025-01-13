@@ -82,7 +82,7 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     // Note: 4 args is currently enough for unary and binary ops.
     // To enable ternary ops, we will have to pass extra regs on stack for Windows,
     std::array<Xbyak::Reg64, 4> abi_params{abi_param1, abi_param2, abi_param3, abi_param4};
-    init_regs(abi_params.size(), in, out);
+    init_binary_call_regs(abi_params.size(), in, out);
 
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();

@@ -73,27 +73,7 @@ std::vector<Xbyak::Reg> get_regs_to_spill(cpu_isa_t isa, const std::set<snippets
 }  // namespace
 
 std::set<size_t> get_callee_saved_reg_idxs() {
-#if defined(_WIN32)
-    return {Xbyak::Reg::RBX,
-            Xbyak::Reg::RBP,
-            Xbyak::Reg::RDI,
-            Xbyak::Reg::RSI,
-            Xbyak::Reg::R12,
-            Xbyak::Reg::R13,
-            Xbyak::Reg::R14,
-            Xbyak::Reg::R15};
-#elif defined(OPENVINO_ARCH_X86_64)
-    return {Xbyak::Reg::RBX,
-            Xbyak::Reg::RSP,
-            Xbyak::Reg::RBP,
-            Xbyak::Reg::R12,
-            Xbyak::Reg::R13,
-            Xbyak::Reg::R14,
-            Xbyak::Reg::R15};
-#else
-    OPENVINO_THROW("Unhandled platform in get_callee_saved_reg_idxs");
-    return {};
-#endif
+    return {std::begin(abi_save_gpr_regs), std::end(abi_save_gpr_regs)};
 }
 
 size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,

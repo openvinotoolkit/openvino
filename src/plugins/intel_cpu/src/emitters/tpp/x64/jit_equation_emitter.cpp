@@ -99,7 +99,7 @@ void EquationTppEmitter::validate_arguments(const std::vector<size_t>& in, const
 }
 
 void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    init_regs(3, in, out);
+    init_binary_call_regs(3, in, out);
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
 

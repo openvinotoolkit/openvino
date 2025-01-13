@@ -44,7 +44,7 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
 }
 
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
-    // RSP, RBP - stack-related registers, abi_param1 - runtime parameter register in the kernel
+    // RSP - stack pointer should be preserved, abi_param1 and abi_param2 - runtime parameter register in the kernel
     static std::unordered_set<size_t> blacklist_gpr_idxs = {Xbyak::Operand::RSP,
                                                             static_cast<size_t>(abi_param1.getIdx()),
                                                             static_cast<size_t>(abi_param2.getIdx())};

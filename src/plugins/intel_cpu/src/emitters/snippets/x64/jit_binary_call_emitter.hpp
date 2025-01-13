@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Intel Corporation
+// Copyright (C) 2020-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,17 +27,18 @@ public:
 protected:
     /**
      * @brief Returns a set of snippets::Reg that should be spilled in the derived emitter. This set includes live_regs
-     * passed in constructor, plus a callee-saved reg, if necessary. This method can be used only after init_regs(...)
+     * passed in constructor, plus a callee-saved reg and regs for ABI params. This method can be used only after
+     * init_binary_call_regs(...)
      */
     const std::set<snippets::Reg>& get_regs_to_spill() const;
     /**
      * @brief Returns a gpr that can be used to store the address of the callable. This method can be used only after
-     * init_regs(...)
+     * init_binary_call_regs(...)
      */
     const Xbyak::Reg64& get_call_address_reg() const;
     /**
      * @brief Returns a calle-saved gpr that can be used align rsp before the call instruction. This method can be used
-     * only after init_regs(...)
+     * only after init_binary_call_regs(...)
      */
     const Xbyak::Reg64& get_callee_saved_reg() const;
     /**
@@ -46,7 +47,7 @@ protected:
      * @param num_binary_args - the number of arguments of the binary that will be called
      * @param mem_ptrs_idxs - indices of in/out registers that must be preserved during aux reg allocation
      */
-    void init_regs(size_t num_binary_args, const std::vector<size_t>& mem_ptrs_idxs) const;
+    void init_binary_call_regs(size_t num_binary_args, const std::vector<size_t>& mem_ptrs_idxs) const;
     /**
      * @brief Initializes registers that can be then obtained via get_regs_to_spill(), get_call_address_reg() or
      * get_callee_saved_reg().
@@ -54,7 +55,9 @@ protected:
      * @param in - indices of input registers that must be preserved during aux reg allocation
      * @param out - indices of output registers that must be preserved during aux reg allocation
      */
-    void init_regs(size_t num_binary_args, const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    void init_binary_call_regs(size_t num_binary_args,
+                               const std::vector<size_t>& in,
+                               const std::vector<size_t>& out) const;
 
 private:
     // Note: init_regs() can be called only from emit_impl, since it needs initialized regs

@@ -93,7 +93,7 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
-    init_regs(2, mem_ptrs_idxs);
+    init_binary_call_regs(2, mem_ptrs_idxs);
     if (in.size() > 2)
         mem_ptrs_idxs.emplace_back(in[2]);
 
