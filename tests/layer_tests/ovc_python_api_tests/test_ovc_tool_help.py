@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -22,7 +22,7 @@ class TestSubprocessMoConvert(unittest.TestCase):
         params = [sys.executable, mo_runner, "--help"]
         _, mo_output, _ = shell(params)
 
-        # We don't expect PyTorch specific parameters to be in help message of the MO tool.
+        # We don't expect PyTorch specific parameters to be in help message of the OVC tool.
         for group in mo_convert_params:
             if group == 'Pytorch-specific parameters:' or group == 'PaddlePaddle-specific parameters:':
                 continue

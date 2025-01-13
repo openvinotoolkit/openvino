@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "utils/general_utils.h"
 
+using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
 
 #define GET_OFF(field) offsetof(NmsCallArgs, field)
@@ -20,7 +21,7 @@ void NonMaxSuppression<isa>::generate() {
     load_scalar_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, scalar_step));
 
     exp_injector.reset(
-        new x64::jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
+        new x64::jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
 
     this->preamble();
 

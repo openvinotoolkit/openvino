@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -199,7 +199,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
         R"(
             Save model into IR files (xml and bin). Floating point weights are compressed to FP16 by default.
             This method saves a model to IR applying all necessary transformations that usually applied
-            in model conversion flow provided by mo tool. Paricularly, floatting point weights are
+            in model conversion flow provided by OVC tool. Paricularly, floatting point weights are
             compressed to FP16, debug information in model nodes are cleaned up, etc.
 
             :param model: model which will be converted to IR representation

@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset16."""
 from functools import partial
 from typing import Optional
 
-from openvino.runtime import Node
-from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.types import NodeInput, as_nodes
+from openvino import Node
+from openvino.utils.decorators import nameable_op
+from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.types import NodeInput, as_nodes
 
 _get_node_factory_opset16 = partial(_get_node_factory, "opset16")
 

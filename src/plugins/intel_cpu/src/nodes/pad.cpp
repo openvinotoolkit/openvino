@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -192,7 +192,7 @@ void Pad::createPrimitive() {
         prepareParams();
         if (padValue) {
             // restore original memory object
-            srcMemory[PAD_VALUE_ID] = padValue;
+            srcMemory[PAD_VALUE_ID] = std::move(padValue);
         }
 
         updateLastInputDims();

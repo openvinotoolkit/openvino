@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
+from openvino.runtime.opset16 import ops
 
 # New operations added in Opset16
 from openvino.opset16.ops import identity

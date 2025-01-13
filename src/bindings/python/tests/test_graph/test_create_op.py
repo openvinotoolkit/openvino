@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 from openvino import PartialShape, Dimension, Model, Type
-from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.utils.types import make_constant_node
+from openvino.exceptions import UserInputError
+from openvino.utils.types import make_constant_node
 
-import openvino.runtime.opset1 as ov_opset1
-import openvino.runtime.opset5 as ov_opset5
-import openvino.runtime.opset10 as ov_opset10
-import openvino.runtime.opset15 as ov_opset15
-import openvino.runtime.opset11 as ov
-from openvino.runtime.op.util import VariableInfo, Variable
+import openvino.opset1 as ov_opset1
+import openvino.opset5 as ov_opset5
+import openvino.opset10 as ov_opset10
+import openvino.opset15 as ov_opset15
+import openvino.opset11 as ov
+from openvino.op.util import VariableInfo, Variable
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
