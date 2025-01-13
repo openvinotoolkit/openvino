@@ -311,8 +311,8 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
     bool compiler_dq = false;
     const auto supported_properties = plugin->get_property("NPU", ov::supported_properties);
-    if (std::find(supported_properties.begin(), supported_properties.end(),
-                      "NPU_COMPILER_DYNAMIC_QUANTIZATION") != supported_properties.end()) {
+    if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
+        supported_properties.end()) {
         compiler_dq = true;
     }
     return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
