@@ -106,7 +106,7 @@ bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
         if (auto envVar = std::getenv("NPU_DISABLE_VERSION_CHECK")) {
             if (envVarStrToBool("NPU_DISABLE_VERSION_CHECK", envVar)) {
-                // message that blob was skipped
+                logger.info("Blob compatibility check skipped.");
                 return true;
             }
         }
