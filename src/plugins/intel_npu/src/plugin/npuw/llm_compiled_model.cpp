@@ -521,6 +521,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
     LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
