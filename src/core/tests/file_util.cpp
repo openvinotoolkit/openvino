@@ -312,15 +312,13 @@ TEST(file_util, path_cast_unicode) {
 }
 
 #if !defined(_MSC_VER)
-TEST(file_util, path_cast_unicode_form_string) {
+TEST(file_util, path_cast_unicode_from_string) {
     EXPECT_TRUE(std::string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt") ==
                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt").generic_u8string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt") ==
                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt").generic_u16string());
     EXPECT_TRUE(std::u32string(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt") ==
                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt").u32string());
-    EXPECT_TRUE(std::wstring(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt") ==
-                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").generic_wstring());
 }
 
 TEST(file_util, path_cast_unicode_to_string) {
@@ -328,6 +326,15 @@ TEST(file_util, path_cast_unicode_to_string) {
               ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt").generic_string());
     EXPECT_EQ(std::string("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗3.txt"),
               ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗3.txt").generic_string());
+}
+#endif
+
+#if !defined(_MSC_VER) && GCC_NOT_USED_OR_VERSION_AT_LEAST_12_3 && CLANG_NOT_USED_OR_VERSION_AT_LEAST_17
+TEST(file_util, path_cast_unicode_from_string_to_wstring) {
+    EXPECT_TRUE(std::wstring(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt") ==
+                ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").generic_wstring());
+}
+TEST(file_util, path_cast_unicode_from_wstring_to_string) {
     EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt",
                  ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt").generic_string().c_str());
 }
