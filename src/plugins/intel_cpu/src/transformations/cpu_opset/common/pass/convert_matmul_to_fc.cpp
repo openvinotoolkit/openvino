@@ -27,7 +27,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
@@ -37,7 +37,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
         bool is_convert = false;
-        if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
+        if (auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
             if (is_decompression(convert_node)) {
                 is_convert = true;
                 fc_input_b = convert_node->get_input_node_shared_ptr(0);
