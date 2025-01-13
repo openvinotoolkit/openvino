@@ -70,13 +70,12 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
          axis_idx++) {
         newAxis = m_new_axis_mask_set.count(axis_idx);
         shrinkAxis = m_shrink_axis_mask_set.count(axis_idx);
-        if (shrinkAxis && newAxis) {
-            // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer
+        if (newAxis) {
+            // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer,
+            // so merge if(newAxis) and if(shrinkAxis && newAxis) together.
             out_idx++;
         } else if (shrinkAxis) {
             in_idx++;
-        } else if (newAxis) {
-            out_idx++;
         } else {
             m_outputShape[out_idx] = gen_new_sliced_value(axis_idx, in_idx);
             in_idx++;
