@@ -44,10 +44,10 @@
 #    include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
 #    include "emitters/tpp/x64/jit_equation_emitter.hpp"
 #    include "emitters/tpp/x64/jit_scalar_emitter.hpp"
-#    include "transformations/tpp/x64/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/eltwise.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
-#    include "transformations/tpp/x64/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"
 // Note: for reference implementations

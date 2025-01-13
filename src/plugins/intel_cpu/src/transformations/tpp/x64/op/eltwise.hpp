@@ -5,7 +5,6 @@
 #pragma once
 
 #include "descriptor.hpp"
-#include "modifiers.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
@@ -14,6 +13,7 @@
 #include "openvino/op/subtract.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 using AutoBroadcastSpec = ov::op::AutoBroadcastSpec;
