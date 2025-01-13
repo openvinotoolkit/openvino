@@ -398,9 +398,9 @@ private:
 
 namespace std {
 template <>
-struct hash<ov::float16> : public __hash_base<size_t, ov::float16> {
-    size_t operator()(ov::float16 __val) const noexcept {
-        return std::hash<float>{}(__val);
+    struct hash<ov::float16> {
+    uint64_t operator()(const ov::float16 __val) const {
+        return std::hash<float>()(__val);
     }
 };
 }
