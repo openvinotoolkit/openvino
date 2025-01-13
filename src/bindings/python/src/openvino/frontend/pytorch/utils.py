@@ -281,6 +281,41 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
     assert False, "Unsupported qscheme"
 
 
+def process_individual_input(x, x_name):
+    """
+    Processes an individual input and generates a signature,
+    parameter string, example entry, and a wrap flag.
+    """
+    sign = None
+    param = None
+    example_entry = None
+    to_wrap = False
+    if isinstance(x, tuple):
+        internal_input = []
+        new_tuple = []
+        index = 0
+        for v in x:
+            if v is None:
+                to_wrap = True
+                internal_input.append("None")
+            else:
+                internal_input.append(f"{x_name}[{index}]")
+                new_tuple.append(v)
+                index += 1
+        param = f"({', '.join(internal_input)},)"
+        if len(new_tuple) > 0:
+            example_entry = tuple(new_tuple)
+            sign = x_name
+    elif x is None:
+        to_wrap = True
+        param = "None"
+    else:
+        sign = x_name
+        param = x_name
+        example_entry = x
+    return sign, param, example_entry, to_wrap
+
+
 def patch_none_example(model: torch.nn.Module, example):
     """
     Patches a PyTorch model to handle None values in the input example.
@@ -290,40 +325,42 @@ def patch_none_example(model: torch.nn.Module, example):
     input_signature = list(input_params)
     input_sign_str = []
     input_params_str = []
-    if (isinstance(example, tuple)
-            and any(x is None for x in example)
-            and len(input_signature) >= len(example)):
+    to_wrap = False
+    if isinstance(example, tuple) and len(input_signature) >= len(example):
         new_example = []
         for i, x in enumerate(example):
-            if x is None:
-                input_params_str.append("None")
-            else:
-                p_sign = input_signature[i]
-                input_sign_str.append(p_sign)
-                input_params_str.append(p_sign)
-                new_example.append(x)
-        wrapper_class = wrapper_template.format(input_sign=", ".join(
-            input_sign_str), example_input=", ".join(input_params_str))
-        wrapped_model = build_wrapper(wrapper_class, model)
-        log.warning("Model has None in the example input. The input "
-                    "with None will be removed from the resulting model.")
-        return wrapped_model, tuple(new_example)
-    if (isinstance(example, dict)
-            and any(x is None for x in example.values())
-            and len(input_signature) >= len(example)):
+            x_name = input_signature[i]
+            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+            to_wrap = to_wrap or _to_wrap
+            if sign is not None:
+                input_sign_str.append(str(input_params[sign]))
+            input_params_str.append(param)
+            if example_entry is not None:
+                new_example.append(example_entry)
+        if to_wrap:
+            wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
+                                                    example_input=", ".join(input_params_str))
+            wrapped_model = build_wrapper(wrapper_class, model)
+            log.warning("Model has None in the example input. The input "
+                        "with None will be removed from the resulting model.")
+            return wrapped_model, tuple(new_example)
+    elif isinstance(example, dict) and len(input_signature) >= len(example):
         new_example = {}
-        for i, x in enumerate(example.items()):
-            x_name, x = x
-            if x is None:
-                input_params_str.append(f"{x_name}=None")
-            else:
-                input_sign_str.append(x_name)
-                input_params_str.append(f"{x_name}={x_name}")
-                new_example[x_name] = x
-        wrapper_class = wrapper_template.format(input_sign=", ".join(
-            input_sign_str), example_input=", ".join(input_params_str))
-        wrapped_model = build_wrapper(wrapper_class, model)
-        log.warning("Model has None in the example input. The input "
-                    "with None will be removed from the resulting model.")
-        return wrapped_model, new_example
+        input_signature = [s for s in input_signature if s in example]
+        for x_name in input_signature:
+            x = example[x_name]
+            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+            to_wrap = to_wrap or _to_wrap
+            if sign is not None:
+                input_sign_str.append(str(input_params[sign]))
+            input_params_str.append(f"{x_name}={param}")
+            if example_entry is not None:
+                new_example[x_name] = example_entry
+        if to_wrap:
+            wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
+                                                    example_input=", ".join(input_params_str))
+            wrapped_model = build_wrapper(wrapper_class, model)
+            log.warning("Model has None in the example input. The input "
+                        "with None will be removed from the resulting model.")
+            return wrapped_model, new_example
     return model, example
