@@ -36,7 +36,6 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Load::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoadReshape::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::BroadcastLoad::get_type_info_static()] = dummy_functor;
 
     jitters[ov::snippets::op::Store::get_type_info_static()] = dummy_functor;
