@@ -19,7 +19,7 @@ GraphContext::GraphContext(const Config& config,
       weightsCache(std::move(w_cache)),
       isGraphQuantizedFlag(isGraphQuantized),
       streamExecutor(streamExecutor),
-      subMemoryManager(sub_memory_manager),
+      subMemoryManager(std::move(sub_memory_manager)),
       memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
     rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
