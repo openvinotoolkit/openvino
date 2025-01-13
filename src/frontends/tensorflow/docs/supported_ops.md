@@ -1007,7 +1007,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ScaleAndTranslate                                       | NO                            |                               |
 | ScaleAndTranslateGrad                                   | NO                            |                               |
 | ScanDataset                                             | NO                            |                               |
-| ScatterAdd                                              | NO                            |                               |
+| ScatterAdd                                              | YES                           |                               |
 | ScatterDiv                                              | NO                            |                               |
 | ScatterMax                                              | NO                            |                               |
 | ScatterMin                                              | NO                            |                               |
