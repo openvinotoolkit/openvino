@@ -13,6 +13,12 @@
 namespace intel_npu {
 
 struct MetadataBase {
+protected:
+    uint32_t _version;
+
+public:
+    MetadataBase(uint32_t version) : _version(version) {}
+
     /**
      * @brief Reads metadata from a stream.
      */
@@ -114,7 +120,6 @@ struct Metadata : public MetadataBase {};
 template <>
 struct Metadata<METADATA_VERSION_1_0> : public MetadataBase {
 protected:
-    uint32_t _version;
     OpenvinoVersion _ovVersion;
     uint64_t _blobDataSize;
 

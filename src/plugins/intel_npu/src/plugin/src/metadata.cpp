@@ -61,7 +61,7 @@ void OpenvinoVersion::write(std::ostream& stream) {
 }
 
 Metadata<METADATA_VERSION_1_0>::Metadata(uint64_t blobSize, std::optional<std::string_view> ovVersion)
-    : _version{METADATA_VERSION_1_0},
+    : MetadataBase{METADATA_VERSION_1_0},
       _ovVersion{ovVersion.value_or(ov::get_openvino_version().buildNumber)},
       _blobDataSize{blobSize} {}
 
