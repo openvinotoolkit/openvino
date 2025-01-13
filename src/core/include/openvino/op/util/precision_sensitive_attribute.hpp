@@ -23,7 +23,7 @@ bool OPENVINO_API is_precision_sensitive(const ov::Input<ov::Node>& node_input);
  */
 class OPENVINO_API PrecisionSensitive : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("precision_sensitive", "0");
+    OPENVINO_RTTI("precision_sensitive", "0", RuntimeAttribute);
 
     PrecisionSensitive() = default;
 
