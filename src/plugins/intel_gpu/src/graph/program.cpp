@@ -655,6 +655,8 @@ void program::post_optimize_graph(bool is_internal) {
     // for OOO queue
     if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
         get_processing_order().calculate_BFS_processing_order();
+
+    apply_opt_pass<mark_state_init_subgraphs>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -830,6 +832,27 @@ void program::reverse_connection(program_node& dep_node, program_node& user_node
     } else {
         throw std::runtime_error("Trying to reverse connection, but nodes are wrongly or not connected.");
     }
+}
+
+void program::set_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    state_initializers[variable_id].push_back(id);
+}
+
+bool program::has_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end()) {
+        const auto& initializers = it->second;
+        return std::find(initializers.begin(), initializers.end(), id) != initializers.end();
+    }
+    return false;
+}
+
+bool program::contains_state(const std::string& variable_id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end())
+        return true;
+    else
+        return false;
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
@@ -1850,6 +1873,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     for (auto const& node_id : allocating_order) {
         ob << node_id;
     }
+
+    ob << state_initializers.size();
+    for (auto& state_initializer : state_initializers) {
+        ob << state_initializer.first;
+        ob << state_initializer.second;
+    }
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib) {
@@ -2017,5 +2046,16 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         primitive_id node_id;
         ib >> node_id;
         allocating_order.emplace_back(node_id);
+    }
+
+    size_t state_initializers_size;
+    ib >> state_initializers_size;
+    state_initializers.clear();
+    for (size_t i = 0; i < state_initializers_size; i++) {
+        std::string variable_id;
+        std::vector<primitive_id> initializers;
+        ib >> variable_id;
+        ib >> initializers;
+        state_initializers[variable_id] = initializers;
     }
 }

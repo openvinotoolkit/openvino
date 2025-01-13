@@ -9,7 +9,7 @@ from functools import reduce
 
 import numpy as np
 import openvino as ov
-from openvino.runtime import op, opset1, opset8
+from openvino import op, opset1, opset8
 
 from data import digits
 

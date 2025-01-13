@@ -12,6 +12,9 @@
 #include <ov_ops/gather_compressed.hpp>
 
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
@@ -431,6 +434,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
+    CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstsPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
@@ -654,16 +658,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_COMMON(
-        manager,
-        [this](const_node_ptr& node) -> bool {
-            std::string errorMsg;
-            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf
-            // regression. Matching the pattern is a little complicated, so we just check if there is any state nodes.
-            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) &&
-                   model->get_variables().size() > 0;
-        },
-        ov::pass::ScaledDotProductAttentionDecomposition);
 
     // List of enabled/disabled transformations
 
@@ -945,9 +939,6 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
@@ -1073,32 +1064,17 @@ void Transformations::MainSnippets(void) {
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
         const auto is_int8 = in_type0 == ov::element::i8;
+        if (matmul->get_transpose_a())
+            return false;
         if (is_fp32)
-            return true;
-        // Only FP32 dynamic MHA is supported
-        if (matmul->is_dynamic())
-            return false;
-        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
-        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of
-        // brgemm_copy_b kernel
-        if (matmul->get_transpose_a() || matmul->get_transpose_b())
-            return false;
-        // [150842] The execution of Brgemm INT8/BF16/FP16 on AMX platforms depends on the value of "K % VNNIFactor".
-        //          For more details, please teake a look at the ticket 150842
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-            const auto& b_shape = matmul->get_input_partial_shape(1);
-            const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
-            const size_t brgemm_vnni_factor_for_real16 = 2;  // 4/2(size in term of byte for bf16/fp16)
-            if (is_bf16 || is_fp16)
-                return K.is_static() && (K.get_length() % brgemm_vnni_factor_for_real16 == 0);
-            if (is_int8)
-                return K.is_static();
-        }
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
         if (is_int8)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
         if (is_bf16)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
         if (is_fp16)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
         return true;
@@ -1110,6 +1086,7 @@ void Transformations::MainSnippets(void) {
             return false;
         const auto parallel_work_amount =
             std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+        // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
@@ -1123,16 +1100,17 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
-                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
-                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
-                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
+                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::Floor>(n) ||
+                ov::is_type<ov::op::v1::FloorMod>(n) || ov::is_type<ov::op::v0::Gelu>(n) ||
+                ov::is_type<ov::op::v7::Gelu>(n) || ov::is_type<ov::op::v1::Greater>(n) ||
+                ov::is_type<ov::op::v1::GreaterEqual>(n) || ov::is_type<ov::op::v4::HSwish>(n) ||
+                ov::is_type<ov::op::v1::LessEqual>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
                 ov::is_type<ov::op::v1::Minimum>(n) || ov::is_type<ov::op::v4::Mish>(n) ||
                 ov::is_type<ov::op::v1::Mod>(n) || ov::is_type<ov::op::v1::Multiply>(n) ||
-                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
-                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
-                ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v1::Greater>(n) ||
-                ov::is_type<ov::op::v1::GreaterEqual>(n) || ov::is_type<ov::op::v1::LessEqual>(n) ||
-                ov::is_type<ov::op::v0::Tanh>(n));
+                ov::is_type<ov::op::v0::PRelu>(n) || ov::is_type<ov::op::v0::Relu>(n) ||
+                ov::is_type<ov::op::v5::Round>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
+                ov::is_type<ov::op::v0::Sqrt>(n) || ov::is_type<ov::op::v1::Subtract>(n) ||
+                ov::is_type<ov::op::v4::Swish>(n) || ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
