@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 import numpy as np
 
 

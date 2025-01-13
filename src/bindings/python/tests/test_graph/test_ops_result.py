@@ -5,8 +5,8 @@
 import numpy as np
 
 from openvino import PartialShape, Model, Type
-import openvino.runtime.opset13 as ops
-from openvino.runtime.op import Result
+import openvino.opset13 as ops
+from openvino.op import Result
 
 
 def test_result():

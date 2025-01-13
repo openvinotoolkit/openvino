@@ -5,9 +5,9 @@
 from openvino.experimental import evaluate_as_partial_shape, evaluate_both_bounds, set_element_type, set_tensor_type
 
 import pytest
-from openvino.runtime import Shape, PartialShape, Dimension, Type
-from openvino.runtime.op import Constant
-import openvino.runtime.opset13 as ops
+from openvino import Shape, PartialShape, Dimension, Type
+from openvino.op import Constant
+import openvino.opset13 as ops
 import numpy as np
 
 

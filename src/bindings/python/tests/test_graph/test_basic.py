@@ -6,8 +6,8 @@
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ops
-import openvino.runtime as ov
+import openvino.opset8 as ops
+import openvino as ov
 
 from openvino import (
     Model,
@@ -20,12 +20,12 @@ from openvino import (
     layout_helpers,
 )
 
-from openvino.runtime.op import Parameter, Constant
-from openvino.runtime.op.util import VariableInfo, Variable
-from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
+from openvino.op import Parameter, Constant
+from openvino.op.util import VariableInfo, Variable
+from openvino import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 from tests.utils.helpers import generate_model_with_memory
 
 

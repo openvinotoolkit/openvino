@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from openvino import Tensor, Type
-from openvino.runtime.op import Constant
+from openvino.op import Constant
 
 from tests.utils.helpers import generate_image
 

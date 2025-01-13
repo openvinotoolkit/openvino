@@ -4,10 +4,10 @@
 
 import pytest
 import numpy as np
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 from openvino import Model, Shape
 
-from openvino.runtime.op.util import (
+from openvino.op.util import (
     InvariantInputDescription,
     BodyOutputDescription,
     SliceInputDescription,
