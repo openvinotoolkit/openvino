@@ -285,7 +285,7 @@ void network::preallocate_shape_info_buffers() {
 
     for (auto const& prim : _exec_order) {
         auto& node = prim->get_node();
-        const auto shape_elements = node.get_total_shape_info_size();
+        auto shape_elements = node.get_total_shape_info_size();
 
         shape_elements = (shape_elements + alignment - 1) / alignment * alignment;
         sum += shape_elements;
