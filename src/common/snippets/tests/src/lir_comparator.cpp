@@ -31,6 +31,12 @@ inline string to_string(const SpecificLoopIterType& type) {
     ss << type;
     return ss.str();
 }
+
+inline string to_string(const LoopPort::Type& type) {
+    stringstream ss;
+    ss << type;
+    return ss.str();
+}
 } // namespace std
 
 namespace ov {
@@ -175,9 +181,10 @@ LIRComparator::Result LIRComparator::compare_loop_ports(const std::vector<LoopPo
     COMPARE("Loop ports size", loop_ports.size(), loop_ports_ref.size());
     for (size_t i = 0; i < loop_ports.size(); ++i) {
         const std::string prefix = "Loop port " + std::to_string(i) + ": ";
-        COMPARE(prefix + "is_incremented", loop_ports[i].is_incremented, loop_ports_ref[i].is_incremented);
-        COMPARE(prefix + "dim_idx", loop_ports[i].dim_idx, loop_ports_ref[i].dim_idx);
-        PROPAGATE_ERROR(prefix + "expr_port", compare_expression_ports(*loop_ports[i].expr_port, *loop_ports_ref[i].expr_port));
+        COMPARE(prefix + "type", loop_ports[i].get_type(), loop_ports_ref[i].get_type());
+        if (loop_ports[i].is_processed())
+            COMPARE(prefix + "dim_idx", loop_ports[i].get_dim_idx(), loop_ports_ref[i].get_dim_idx());
+        PROPAGATE_ERROR(prefix + "expr_port", compare_expression_ports(*loop_ports[i].get_expr_port(), *loop_ports_ref[i].get_expr_port()));
     }
     return Result::ok();
 }

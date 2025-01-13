@@ -49,6 +49,9 @@ public:
     inline uint32_t getDriverVersion() const {
         return driver_properties.driverVersion;
     }
+    inline uint32_t getCompilerVersion() const {
+        return compiler_version;
+    }
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
     }
@@ -85,6 +88,8 @@ private:
     uint32_t mutable_command_list_version = 0;
 
     ze_api_version_t ze_drv_api_version = {};
+
+    uint32_t compiler_version = 0;
 };
 
 }  // namespace intel_npu
