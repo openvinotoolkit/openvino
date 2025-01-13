@@ -107,7 +107,6 @@ def get_aot_decomposition_list():
         torch.ops.aten._scaled_dot_product_flash_attention.default,
         torch.ops.aten._softmax.default,
         torch.ops.aten._softmax_backward_data.default,
-        torch.ops.aten._unsafe_index,
         torch.ops.aten.convolution_backward.default,
         torch.ops.aten.gelu_backward.default,
         torch.ops.aten.native_group_norm.default,
@@ -119,7 +118,10 @@ def get_aot_decomposition_list():
 
 
 def get_inf_decomposition_list():
-    return [torch.ops.aten.nll_loss_forward.default]
+    return [
+        torch.ops.aten._unsafe_index,
+        torch.ops.aten.nll_loss_forward.default,
+    ]
 
 
 def get_export_decomposition_list():
