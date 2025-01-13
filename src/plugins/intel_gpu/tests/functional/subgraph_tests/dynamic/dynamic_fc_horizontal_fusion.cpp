@@ -438,7 +438,7 @@ const std::vector<ShapeParams> input_shapes = {
 
 const std::vector<uint64_t> lora_rank = {0, 16}; // 0 means w/o LoRA
 
-// TODO: will be fix, Skip the test, unexpected CI failure.
+// TODO: will be fix, Skip the test, unexpected validation team failure.
 // INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,
 //                          FullyConnectedHorizontalFusion,
 //                          ::testing::Combine(::testing::ValuesIn(input_shapes),
