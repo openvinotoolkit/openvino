@@ -61,8 +61,6 @@ private:
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
-    ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
-
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<Bank> deserialize(std::istream& stream,
                                              const std::shared_ptr<const ov::ICore>& core,
