@@ -98,6 +98,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+bool Plugin::is_meta_device(const std::string& priorities) const {
+    std::vector<std::string> candidate_devices = m_plugin_config.parse_priorities_devices(priorities);
+    for (const auto& device : candidate_devices) {
+        if (device.find("AUTO") == 0 || device.find("MULTI") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& priorities,
                                                           const ov::AnyMap& properties) const {
     std::vector<DeviceInformation> meta_devices;
@@ -367,13 +377,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto priorities = load_config.get_property(ov::device::priorities);
     if (priorities.empty() && !work_mode_auto)
         OPENVINO_THROW("KEY_MULTI_DEVICE_PRIORITIES key is not set for ", get_device_name());
-    std::vector<std::string> candidate_devices = m_plugin_config.parse_priorities_devices(priorities);
-    for (const auto& device : candidate_devices) {
-        if (device.find("AUTO:") != std::string::npos || device == "AUTO" ||
-            device.find("MULTI:") != std::string::npos || device == "MULTI") {
-            OPENVINO_THROW("The device candidate list should not include the meta plugin for ", get_device_name());
-        }
-    }
+    if (is_meta_device(priorities))
+        OPENVINO_THROW("The meta device should not in the device candidate list: ", priorities);
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
     auto auto_s_context = std::make_shared<ScheduleContext>();
