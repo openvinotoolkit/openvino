@@ -757,7 +757,8 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 
         const auto weights = convert->getParentEdgeAt(0)->getParent();
         const auto weights_out_edge = weights->getChildEdges()[0].lock();
-        const auto fc_weights_path_edge = transpose ? transpose->getParentEdgeAt(0) : fullyConnected->getParentEdgeAt(1);
+        const auto fc_weights_path_edge =
+            transpose ? transpose->getParentEdgeAt(0) : fullyConnected->getParentEdgeAt(1);
         const auto inNum = weights_out_edge->getInputNum();
         const auto outNum = fc_weights_path_edge->getOutputNum();
         const auto originalPrecision = convert->getOriginalInputPrecisionAtPort(0);
