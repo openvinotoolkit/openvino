@@ -52,17 +52,25 @@ void StringTensorPackLayerCPUTest::generate_inputs(const std::vector<ov::Shape>&
         const auto indicesType = funcInputs[0].get_element_type();
         const auto& indicesShape = targetInputStaticShapes[0];
         const auto& symbolsShape = targetInputStaticShapes[2];
-
-        const ov::Tensor beginsTensor = ov::test::utils::create_and_fill_tensor_consistently(indicesType, indicesShape, symbolsShape[0], 0, 3);
-        const ov::Tensor endsTensor = ov::test::utils::create_and_fill_tensor_consistently(indicesType, indicesShape, symbolsShape[0], 3, 3);
+        ov::Tensor beginsTensor;
+        ov::Tensor endsTensor;
+        ov::Tensor symbolsTensor;
+        if (shape_size(symbolsShape) == 0) {
+            symbolsTensor = ov::Tensor(ov::element::u8, symbolsShape);
+            beginsTensor = ov::Tensor(indicesType, indicesShape);
+            endsTensor = ov::Tensor(indicesType, indicesShape);
+            std::fill(beginsTensor.data<int32_t>(), beginsTensor.data<int32_t>() + beginsTensor.get_byte_size(), 0);
+            std::fill(endsTensor.data<int32_t>(), endsTensor.data<int32_t>() + endsTensor.get_byte_size(), 0);
+        } else {
+            ov::test::utils::InputGenerateData in_symbol_data;
+            in_symbol_data.start_from = 0;
+            in_symbol_data.range = 10;
+            symbolsTensor = ov::test::utils::create_and_fill_tensor(ov::element::u8, symbolsShape, in_symbol_data);
+            beginsTensor = ov::test::utils::create_and_fill_tensor_consistently(indicesType, indicesShape, symbolsShape[0], 0, 3);
+            endsTensor = ov::test::utils::create_and_fill_tensor_consistently(indicesType, indicesShape, symbolsShape[0], 3, 3);
+        }
         inputs.insert({ funcInputs[0].get_node_shared_ptr(), beginsTensor });
         inputs.insert({ funcInputs[1].get_node_shared_ptr(), endsTensor });
-
-        ov::Tensor symbolsTensor;
-        ov::test::utils::InputGenerateData in_symbol_data;
-        in_symbol_data.start_from = 0;
-        in_symbol_data.range = 10;
-        symbolsTensor = ov::test::utils::create_and_fill_tensor(ov::element::u8, symbolsShape, in_symbol_data);
         inputs.insert({ funcInputs[2].get_node_shared_ptr(), symbolsTensor });
     }
 
@@ -119,6 +127,10 @@ const std::vector<StringTensorPackSpecificParams> StringTensorPackParamsVector =
     StringTensorPackSpecificParams {
         InputShape{{-1, {1, 4}, {1, 4}}, {{1, 1, 4}, {1, 4, 1}}},                   // begins/ends shape
         InputShape{{{50, 100}}, {{50}, {75}, {100}}},                               // utf-8 encoded symbols shape
+    },
+    StringTensorPackSpecificParams {
+        InputShape{{}, {{1, 1, 4}}},                   // begins/ends shape
+        InputShape{{}, {{0}}},                                                    // utf-8 encoded symbols shape
     },
 };
 
