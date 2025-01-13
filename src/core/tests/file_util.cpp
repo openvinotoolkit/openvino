@@ -306,8 +306,9 @@ TEST(file_util, path_cast_unicode) {
                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt").u32string());
 #endif
 
-#if defined(_MSC_VER) && defined(OPENVINO_CPP_VER_AT_LEAST_20) || \
-    !defined(_MSC_VER) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
+#if defined(OPENVINO_CPP_VER_AT_LEAST_20) && \
+    (defined(_MSC_VER) ||                    \
+     !defined(_MSC_VER) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17))
     EXPECT_TRUE(std::u8string(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt") ==
                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt").generic_u8string());
     EXPECT_TRUE(std::wstring(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗29.txt") ==
