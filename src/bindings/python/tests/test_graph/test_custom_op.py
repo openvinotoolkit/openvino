@@ -88,8 +88,8 @@ class CustomOpWithAttribute(Op):
 
     def __init__(self, inputs=None, attrs=None):
         super().__init__(self)
-        if attrs is not None or inputs is not None:
-            self._attrs = attrs
+        self._attrs = attrs
+        if inputs is not None:
             self.set_arguments(inputs)
             self.constructor_validate_and_infer_types()
 
@@ -202,7 +202,7 @@ def test_custom_op():
 
 
 class CustomSimpleOp(Op):
-    def __init__(self, inputs=None):
+    def __init__(self, *inputs):
         super().__init__(self, inputs)
 
     def validate_and_infer_types(self):
@@ -239,7 +239,8 @@ def test_op_extension(prepared_paths):
 
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
-    custom_simple = CustomSimpleOp([param1, param2])
+    custom_simple = CustomSimpleOp(param1, param2)
+    assert custom_simple.get_type_name() == "CustomSimpleOp"
     custom_simple.set_friendly_name("test_add")
     custom_with_attribute = CustomSimpleOpWithAttribute([custom_simple], value_str="test_attribute")
     custom_add = CustomAdd(inputs=[custom_with_attribute])
