@@ -113,7 +113,7 @@ OpenVINO Components include:
 * [Plugins](../../src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html).
 * [Frontends](../../src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
 * [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html) - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
-* [Samples](https://github.com/openvinotoolkit/openvino/tree/master/samples) - applications in C, C++ and Python languages that show basic OpenVINO use cases.
+* [Samples](https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/samples) - applications in C, C++ and Python languages that show basic OpenVINO use cases.
 
 #### OpenVINO Component Structure
 

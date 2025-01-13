@@ -10,7 +10,7 @@ Interface PartialShapeConstructor
 This interface contains constructor of the :doc:`PartialShape <PartialShape>` class.
 
 * **Defined in:**
-  `addon.ts:640 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L640>`__
+  `addon.ts:640 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L640>`__
 
 
 Constructors
@@ -41,5 +41,5 @@ Constructors
    * **Returns:**  :doc:`PartialShape <PartialShape>`
 
    - **Defined in**
-     `addon.ts:646 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L646>`__
+     `addon.ts:646 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L646>`__
 

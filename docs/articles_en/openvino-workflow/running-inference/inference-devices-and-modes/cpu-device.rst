@@ -16,8 +16,8 @@ CPU Device
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
-- `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/docs>`__.
-- `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
+- `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/src/plugins/intel_cpu/docs>`__.
+- `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/src/plugins/intel_cpu/>`__.
 
 .. note::
 
@@ -512,7 +512,7 @@ Additional Resources
 
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 * :doc:`Optimization guide <../optimize-inference>`
-* `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/README.md>`__
+* `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/plugins/intel_cpu/README.md>`__
 
 
 

@@ -327,5 +327,5 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO™ Toolkit Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-- `Image Classification Async Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/classification_sample_async/README.md>`__
-- `Image Classification Async C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/classification_sample_async/README.md>`__
+- `Image Classification Async Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/python/classification_sample_async/README.md>`__
+- `Image Classification Async C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/cpp/classification_sample_async/README.md>`__

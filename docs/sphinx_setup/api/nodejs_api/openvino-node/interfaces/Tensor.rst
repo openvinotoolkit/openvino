@@ -17,7 +17,7 @@ inference. There are different ways to create a tensor. You can find them
 in :doc:`TensorConstructor <TensorConstructor>` section.
 
 * **Defined in:**
-  `addon.ts:390 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L390>`__
+  `addon.ts:390 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L390>`__
 
 
 Properties
@@ -44,7 +44,7 @@ Properties
    or type of array does not match the tensor.
 
    -  **Defined in:**
-      `addon.ts:403 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L403>`__
+      `addon.ts:403 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L403>`__
 
 
 Methods
@@ -67,7 +67,7 @@ Methods
      element type, e.g. ``Float32Array`` corresponds to float32.
 
    * **Defined in:**
-     `addon.ts:413 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L413>`__
+     `addon.ts:413 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L413>`__
 
 .. rubric:: getElementType
 
@@ -82,7 +82,7 @@ Methods
    * **Returns:** :doc:`element <../enums/element>`
 
    * **Defined in:**
-     `addon.ts:407 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L407>`__
+     `addon.ts:407 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L407>`__
 
 
 .. rubric:: getShape
@@ -98,7 +98,7 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:417 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L417>`__
+     `addon.ts:417 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L417>`__
 
 
 .. rubric:: getSize
@@ -114,5 +114,5 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:421 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L421>`__
+     `addon.ts:421 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L421>`__
 

@@ -12,7 +12,7 @@ To use OpenVINO samples, install OpenVINO using one of the following distributio
 * Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino/install-openvino-archive-macos>`
 * :doc:`APT <../../get-started/install-openvino/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino/install-openvino-yum>` for Linux
 * :doc:`Docker image <../../get-started/install-openvino/install-openvino-docker-linux>`
-* `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
+* `Build from source <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/build.md>`__
 
 If you install OpenVINO Runtime via archive files, sample applications are created in the following directories:
 
@@ -43,7 +43,7 @@ Select a sample you want to use from the :doc:`OpenVINO Samples <../openvino-sam
 
    Some samples may also require `OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ to run properly. Make sure to install it for use with vision-oriented samples.
 
-Instructions below show how to build sample applications with CMake. If you are interested in building them from source, check the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
+Instructions below show how to build sample applications with CMake. If you are interested in building them from source, check the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/build.md>`__ .
 
 .. tab-set::
 
@@ -188,7 +188,7 @@ Instructions below show how to build sample applications with CMake. If you are 
 
             .. note::
 
-               For building samples from the open-source version of OpenVINO toolkit, see the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
+               For building samples from the open-source version of OpenVINO toolkit, see the `build instructions on GitHub <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/build.md>`__ .
 
             To build the C or C++ sample applications for macOS, go to the ``<INSTALL_DIR>/samples/c`` or ``<INSTALL_DIR>/samples/cpp`` directory, respectively, and run the ``build_samples.sh`` script:
 

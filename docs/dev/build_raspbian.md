@@ -1,6 +1,6 @@
 # Build OpenVINO™ Runtime for Raspbian Stretch OS
 
-> **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu) on ARM platforms.
+> **NOTE**: Since 2023.0 release, you can compile [OpenVINO Intel CPU plugin](https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/src/plugins/intel_cpu) on ARM platforms.
 
 ## Hardware Requirements
 * Raspberry Pi with Raspbian Stretch OS or Raspberry Pi OS (32 or 64-bit).
@@ -17,7 +17,7 @@ You can perform native compilation of the OpenVINO Runtime for Raspberry Pi, whi
   ```
 2. Clone the repository:
 ```
-git clone --recurse-submodules --single-branch --branch=master https://github.com/openvinotoolkit/openvino.git 
+git clone --recurse-submodules --single-branch --branch=master https://github.com/openvinotoolkit/openvino.git
 ```
 3. Go to the cloned `openvino` repository:
 
@@ -33,7 +33,7 @@ git clone --recurse-submodules --single-branch --branch=master https://github.co
   ```bash
   cmake -DCMAKE_BUILD_TYPE=Release \
         -DARM_COMPUTE_SCONS_JOBS=$(nproc --all) \
-  .. && cmake --build . --parallel 
+  .. && cmake --build . --parallel
   ```
 
 > **NOTE**: The build command may fail due to insufficient RAM. To fix this issue, you can increase the swap size:

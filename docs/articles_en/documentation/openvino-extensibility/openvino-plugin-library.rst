@@ -89,7 +89,7 @@ Detailed Guides
 *  :doc:`Quantized networks <openvino-plugin-library/advanced-guides/quantized-models>`
 *  :doc:`Low precision transformations <openvino-plugin-library/advanced-guides/low-precision-transformations>` guide
 *  :doc:`Writing OpenVINO™ transformations <transformation-api>` guide
-*  `Integration with AUTO Plugin <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto/docs/integration.md>`__
+*  `Integration with AUTO Plugin <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/plugins/auto/docs/integration.md>`__
 
 API References
 ##############

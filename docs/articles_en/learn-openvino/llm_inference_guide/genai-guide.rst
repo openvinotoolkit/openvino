@@ -925,7 +925,7 @@ Additional Resources
 ####################
 
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
-* `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples>`__
+* `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples>`__
 * A Jupyter notebook demonstrating
   `Visual-language assistant with MiniCPM-V2 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/minicpm-v-multimodal-chatbot>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__

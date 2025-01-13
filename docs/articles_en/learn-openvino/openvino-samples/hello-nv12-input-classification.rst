@@ -210,5 +210,5 @@ Additional Resources
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `API Reference <https://docs.openvino.ai/2024/api/api_reference.html>`__
-- `Hello NV12 Input Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_nv12_input_classification/README.md>`__
-- `Hello NV12 Input Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_nv12_input_classification/README.md>`__
+- `Hello NV12 Input Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/cpp/hello_nv12_input_classification/README.md>`__
+- `Hello NV12 Input Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/c/hello_nv12_input_classification/README.md>`__

@@ -259,6 +259,6 @@ Additional Resources
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `OpenVINO Runtime C API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__c__api.html>`__
-- `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
-- `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
-- `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__
+- `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/python/hello_classification/README.md>`__
+- `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/cpp/hello_classification/README.md>`__
+- `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/c/hello_classification/README.md>`__

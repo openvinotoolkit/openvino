@@ -20,7 +20,7 @@ guide.
 
 .. note::
 
-   This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension>`__,
+   This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/src/core/template_extension>`__,
    which demonstrates extension development details based on minimalistic ``Identity``
    operation that is a placeholder for your real custom operation. You can review the complete code,
    which is fully compilable, to see how it works.

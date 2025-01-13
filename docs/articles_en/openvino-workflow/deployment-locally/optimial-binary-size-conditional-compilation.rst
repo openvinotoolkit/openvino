@@ -9,7 +9,7 @@ Conditional compilation can significantly reduce the binary size of the OpenVINO
     The tradeoff of conditional compilation is that the produced OpenVINO runtime can only run inference for the models and platforms which conditional compilation was applied.
 
 
-Lean more in the `conditional_compilation_guide <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/conditional_compilation.md>`__ and `Conditional_compilation_developer_guide <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/docs/develop_cc_for_new_component.md>`__
+Lean more in the `conditional_compilation_guide <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/conditional_compilation.md>`__ and `Conditional_compilation_developer_guide <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/common/conditional_compilation/docs/develop_cc_for_new_component.md>`__
 
 There are two steps to reduce binary size of the OpenVINO runtime library with conditional compilation:
 
@@ -57,7 +57,7 @@ Stage 1: collecting statistics information about code usage
     If you want to run other application rather than benchmark_app to get statistics data, please make sure to limit inference request number and iterations to avoid too long profiling time and too large statistics data.
 
 
-    You can run this `script <https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/scripts/ccheader.py>`__ to get the generated header file from csv files, and to confirm whether the statistics is correct. This step will be implicitly done in stage 2 of conditional compilation, skip it, if not needed.
+    You can run this `script <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/common/conditional_compilation/scripts/ccheader.py>`__ to get the generated header file from csv files, and to confirm whether the statistics is correct. This step will be implicitly done in stage 2 of conditional compilation, skip it, if not needed.
 
   .. code-block:: sh
 
@@ -224,7 +224,7 @@ Perform the above steps for each SKUs information (CPUID, L1/L2/L3 cache size, c
 How to Enable Conditional Compilation on Windows
 ################################################
 
-Find detailed information in the Building OpenVINO static libraries `document <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__ .
+Find detailed information in the Building OpenVINO static libraries `document <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/static_libaries.md>`__ .
 
 
 Stage 1: Selective build analyzed stage

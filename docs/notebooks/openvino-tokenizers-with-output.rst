@@ -84,7 +84,7 @@ Some tasks only need a tokenizer, like text classification, named entity
 recognition, question answering, and feature extraction. On the other
 hand, for tasks such as text generation, chat, translation, and
 abstractive summarization, both a tokenizer and a detokenizer are
-required.  
+required.
 
 
 This is a self-contained example that relies solely on its own code.
@@ -112,8 +112,8 @@ use ``pip install openvino-tokenizers[transformers]``.
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     tokenizer_dir = Path("tokenizer/")
     model_id = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
 
@@ -141,7 +141,7 @@ constructor.
     Converting Huggingface Tokenizer to OpenVINO...
     Saved OpenVINO Tokenizer: tokenizer/openvino_tokenizer.xml, tokenizer/openvino_tokenizer.bin
     Saved OpenVINO Detokenizer: tokenizer/openvino_detokenizer.xml, tokenizer/openvino_detokenizer.bin
-    
+
 
    ⚠️ If you have any problems with the command above on MacOS, try to
    `install tbb <https://formulae.brew.sh/formula/tbb#default>`__.
@@ -163,8 +163,8 @@ The other method is to pass HuggingFace ``hf_tokenizer`` object to
 
     from transformers import AutoTokenizer
     from openvino_tokenizers import convert_tokenizer
-    
-    
+
+
     hf_tokenizer = AutoTokenizer.from_pretrained(model_id)
     ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
     ov_tokenizer, ov_detokenizer
@@ -202,11 +202,11 @@ from OpenVINO to reuse converted tokenizers later:
 .. code:: ipython3
 
     import openvino as ov
-    
+
     # This import is needed to add all tokenizer-related operations to OpenVINO
     import openvino_tokenizers  # noqa: F401
-    
-    
+
+
     ov.save_model(ov_tokenizer, tokenizer_dir / "openvino_tokenizer.xml")
     ov.save_model(ov_detokenizer, tokenizer_dir / "openvino_detokenizer.xml")
 
@@ -225,10 +225,10 @@ tasks, but not suitable for text generation.
 
     tokenizer, detokenizer = ov.compile_model(ov_tokenizer), ov.compile_model(ov_detokenizer)
     test_strings = ["Test", "strings"]
-    
+
     token_ids = tokenizer(test_strings)["input_ids"]
     print(f"Token ids: {token_ids}")
-    
+
     detokenized_text = detokenizer(token_ids)["string_output"]
     print(f"Detokenized text: {detokenized_text}")
 
@@ -238,7 +238,7 @@ tasks, but not suitable for text generation.
     Token ids: [[   1 4321]
      [   1 6031]]
     Detokenized text: ['Test' 'strings']
-    
+
 
 We can compare the result of converted (de)tokenizer with the original
 one:
@@ -247,7 +247,7 @@ one:
 
     hf_token_ids = hf_tokenizer(test_strings).input_ids
     print(f"Token ids: {hf_token_ids}")
-    
+
     hf_detokenized_text = hf_tokenizer.batch_decode(hf_token_ids)
     print(f"Detokenized text: {hf_detokenized_text}")
 
@@ -256,7 +256,7 @@ one:
 
     Token ids: [[1, 4321], [1, 6031]]
     Detokenized text: ['<s> Test', '<s> strings']
-    
+
 
 Text Generation Pipeline with OpenVINO Tokenizers
 -------------------------------------------------
@@ -277,15 +277,15 @@ command is commented.
 .. code:: ipython3
 
     model_dir = Path(Path(model_id).name)
-    
+
     if not model_dir.exists():
         # Converting the original model
         # %pip install -U "git+https://github.com/huggingface/optimum-intel.git" "nncf>=2.8.0" onnx
         # %optimum-cli export openvino -m $model_id --task text-generation-with-past $model_dir
-    
+
         # Load already converted model
         from huggingface_hub import hf_hub_download
-    
+
         hf_hub_download(
             "chgk13/TinyLlama-1.1B-intermediate-step-1431k-3T",
             filename="openvino_model.xml",
@@ -303,10 +303,10 @@ command is commented.
     from tqdm.notebook import trange
     from pathlib import Path
     from openvino_tokenizers.constants import EOS_TOKEN_ID_NAME
-    
-    
+
+
     core = ov.Core()
-    
+
     ov_model = core.read_model(model_dir / "openvino_model.xml")
     compiled_model = core.compile_model(ov_model)
     infer_request = compiled_model.create_infer_request()
@@ -319,40 +319,40 @@ distinct and separate state.
 .. code:: ipython3
 
     text_input = ["Quick brown fox jumped"]
-    
+
     model_input = {name.any_name: output for name, output in tokenizer(text_input).items()}
-    
+
     if "position_ids" in (input.any_name for input in infer_request.model_inputs):
         model_input["position_ids"] = np.arange(model_input["input_ids"].shape[1], dtype=np.int64)[np.newaxis, :]
-    
+
     # No beam search, set idx to 0
     model_input["beam_idx"] = np.array([0], dtype=np.int32)
-    
+
     # End of sentence token is that model signifies the end of text generation
     # Read EOS token ID from rt_info of tokenizer/detokenizer ov.Model object
     eos_token = ov_tokenizer.get_rt_info(EOS_TOKEN_ID_NAME).value
-    
+
     tokens_result = np.array([[]], dtype=np.int64)
-    
+
     # Reset KV cache inside the model before inference
     infer_request.reset_state()
     max_infer = 5
-    
+
     for _ in trange(max_infer):
         infer_request.start_async(model_input)
         infer_request.wait()
-    
+
         output_tensor = infer_request.get_output_tensor()
-    
+
         # Get the most probable token
         token_indices = np.argmax(output_tensor.data, axis=-1)
         output_token = token_indices[:, -1:]
-    
+
         # Concatenate previous tokens result with newly generated token
         tokens_result = np.hstack((tokens_result, output_token))
         if output_token[0, 0] == eos_token:
             break
-    
+
         # Prepare input for the next inference iteration
         model_input["input_ids"] = output_token
         model_input["attention_mask"] = np.hstack((model_input["attention_mask"].data, [[1]]))
@@ -362,8 +362,8 @@ distinct and separate state.
                 [[model_input["position_ids"].data.shape[-1]]],
             )
         )
-    
-    
+
+
     text_result = detokenizer(tokens_result)["string_output"]
     print(f"Prompt:\n{text_input[0]}")
     print(f"Generated:\n{text_result[0]}")
@@ -381,7 +381,7 @@ distinct and separate state.
     Quick brown fox jumped
     Generated:
     over the fence.
-    
+
 
 Text Generation Pipeline with OpenVINO GenAI and OpenVINO Tokenizers
 --------------------------------------------------------------------
@@ -418,18 +418,18 @@ reached.
 
 Let’s build the same text generation pipeline, but with simplified
 Python `OpenVINO Generate
-API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__.
+API <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/6/src/README.md>`__.
 We will use the same model and tokenizer downloaded in previous steps.
 
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-    
+
     genai_tokenizer = ov_genai.Tokenizer(str(tokenizer_dir))
     pipe = ov_genai.LLMPipeline(str(model_dir), genai_tokenizer, "CPU")
-    
+
     result = pipe.generate(text_input[0], max_new_tokens=max_infer)
-    
+
     print(f"Prompt:\n{text_input[0]}")
     print(f"Generated:\n{result}")
 
@@ -440,7 +440,7 @@ We will use the same model and tokenizer downloaded in previous steps.
     Quick brown fox jumped
     Generated:
     over the lazy dog.
-    
+
 
 Merge Tokenizer into a Model
 ----------------------------
@@ -480,7 +480,7 @@ model has only one input for text input prompt.
 
     model_id = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
     model_dir = Path(Path(model_id).name)
-    
+
     if not model_dir.exists():
         %pip install -qU git+https://github.com/huggingface/optimum-intel.git "onnx<1.16.2"
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
@@ -488,27 +488,27 @@ model has only one input for text input prompt.
 .. code:: ipython3
 
     from openvino_tokenizers import connect_models
-    
-    
+
+
     core = ov.Core()
     text_input = ["Free money!!!"]
-    
+
     ov_tokenizer = core.read_model(model_dir / "openvino_tokenizer.xml")
     ov_model = core.read_model(model_dir / "openvino_model.xml")
     combined_model = connect_models(ov_tokenizer, ov_model)
     ov.save_model(combined_model, model_dir / "combined_openvino_model.xml")
-    
+
     print("Original OpenVINO model inputs:")
     for input in ov_model.inputs:
         print(input)
-    
+
     print("\nCombined OpenVINO model inputs:")
     for input in combined_model.inputs:
         print(input)
-    
+
     compiled_combined_model = core.compile_model(combined_model)
     openvino_output = compiled_combined_model(text_input)
-    
+
     print(f"\nLogits: {openvino_output['logits']}")
 
 
@@ -518,12 +518,12 @@ model has only one input for text input prompt.
     <Output: names[input_ids] shape[?,?] type: i64>
     <Output: names[attention_mask] shape[?,?] type: i64>
     <Output: names[token_type_ids] shape[?,?] type: i64>
-    
+
     Combined OpenVINO model inputs:
     <Output: names[Parameter_4430] shape[?] type: string>
-    
+
     Logits: [[ 1.2007061 -1.469803 ]]
-    
+
 
 Conclusion
 ----------
@@ -548,6 +548,6 @@ Links
    Types <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#supported-tokenizer-types>`__
 -  `OpenVINO.GenAI repository with the C++ example of OpenVINO
    Tokenizers
-   usage <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/greedy_causal_lm>`__
+   usage <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/cpp/lora_greedy_causal_lm>`__
 -  `HuggingFace Tokenizers Comparison
    Table <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#output-match-by-model>`__

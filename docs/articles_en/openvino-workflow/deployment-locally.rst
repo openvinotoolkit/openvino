@@ -33,7 +33,7 @@ Local Deployment Options
 - Grab a necessary functionality of OpenVINO together with your application, also called "local distribution":
 
   - using the :doc:`local distribution <deployment-locally/local-distribution-libraries>` approach;
-  - using `a static version of OpenVINO Runtime linked to the final app <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__.
+  - using `a static version of OpenVINO Runtime linked to the final app <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/static_libaries.md>`__.
 
 The table below shows which distribution type can be used for what target operating system:
 
@@ -52,7 +52,7 @@ The table below shows which distribution type can be used for what target operat
      - See https://pypi.org/project/openvino
    * - :doc:`Libraries for Local Distribution <deployment-locally/local-distribution-libraries>`
      - All operating systems
-   * - `Build OpenVINO statically and link to the final app <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__
+   * - `Build OpenVINO statically and link to the final app <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/static_libaries.md>`__
      - All operating systems
 
 

@@ -65,7 +65,7 @@ you can always ask if you can help.
 
 Choose one of the issues reported in
 `GitHub Issue Tracker <https://github.com/openvinotoolkit/openvino/issues>`__ and
-`create a Pull Request <https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_PR.md>`__
+`create a Pull Request <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/CONTRIBUTING_PR.md>`__
 (PR) addressing it.
 
 If you find a new bug and want to fix it, you should still
@@ -96,17 +96,17 @@ can see how to develop a new plugin for it in the
 #####################################
 
 OpenVINO user documentation is built from several sources, mainly the files in
-the `docs/articles_en <https://github.com/openvinotoolkit/openvino/tree/master/docs/articles_en>`__
+the `docs/articles_en <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/docs/articles_en>`__
 folder, using `Sphinx <https://www.sphinx-doc.org/>`__ and the
 `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`__
 markup language.
 
-OpenVINO `developer documentation <https://github.com/openvinotoolkit/openvino/tree/master/docs/dev>`__
-is available only in markdown in the `docs/dev <https://github.com/openvinotoolkit/openvino/tree/master/docs/dev>`__
+OpenVINO `developer documentation <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/docs/dev>`__
+is available only in markdown in the `docs/dev <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/docs/dev>`__
 folder.
 
 To edit docs, consider using the Editor’s
-`guide <https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_DOCS.md>`__
+`guide <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/CONTRIBUTING_DOCS.md>`__
 and contacting `documentation maintainers <https://github.com/orgs/openvinotoolkit/teams/openvino-docs-maintainers>`__,
 who will help you with information architecture and formatting, as well as
 review, adjust, and merge the PR.
@@ -155,7 +155,7 @@ you can help someone.
 .. note::
 
    By contributing to the OpenVINO project, you agree that your contributions
-   will be licensed under `the terms of the OpenVINO repository <https://github.com/openvinotoolkit/openvino/blob/master/LICENSE>`__.
+   will be licensed under `the terms of the OpenVINO repository <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/LICENSE>`__.
 
 
 Additional Resources
@@ -163,7 +163,7 @@ Additional Resources
 
 - :doc:`Code Contribution Guide <./contributing/code-contribution-guide>`
 - Choose a `"Good First Issue" <https://github.com/orgs/openvinotoolkit/projects/3>`__.
-- Learn more about `OpenVINO architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__.
+- Learn more about `OpenVINO architecture <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/docs/architecture.md>`__.
 - Check out a `blog post on contributing to OpenVINO <https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e>`__.
 - Visit `Intel DevHub Discord server <https://discord.gg/7pVRxUwdWG>`__ to join
   discussions and talk to OpenVINO developers.

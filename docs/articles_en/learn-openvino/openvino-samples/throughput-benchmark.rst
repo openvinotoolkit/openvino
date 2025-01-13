@@ -172,5 +172,5 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-- `Throughput Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/throughput_benchmark/README.md>`__
-- `Throughput Benchmark C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/benchmark/throughput_benchmark/README.md>`__
+- `Throughput Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/python/benchmark/throughput_benchmark/README.md>`__
+- `Throughput Benchmark C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/cpp/benchmark/throughput_benchmark/README.md>`__

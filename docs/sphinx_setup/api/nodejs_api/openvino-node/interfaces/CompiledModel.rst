@@ -22,7 +22,7 @@ CompiledModel represents a model that is compiled for a specific device by apply
 multiple optimization transformations, then mapping to compute kernels.
 
 * **Defined in:**
-  `addon.ts:317 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L317>`__
+  `addon.ts:317 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L317>`__
 
 
 Properties
@@ -40,7 +40,7 @@ Properties
    It gets all inputs of a compiled model.
 
    -  **Defined in:**
-      `addon.ts:319 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L319>`__
+      `addon.ts:319 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L319>`__
 
 
 .. rubric:: outputs
@@ -54,7 +54,7 @@ Properties
    It gets all outputs of a compiled model.
 
    -  **Defined in:**
-      `addon.ts:321 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L321>`__
+      `addon.ts:321 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L321>`__
 
 
 Methods
@@ -81,7 +81,7 @@ Methods
    * **Returns:**  :doc:`OVAny <../types/OVAny>`
 
    * **Defined in:**
-     `addon.ts:327 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L327>`__
+     `addon.ts:327 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L327>`__
 
 
 
@@ -99,7 +99,7 @@ Methods
    * **Returns:** :doc:`InferRequest <InferRequest>`
 
    -  **Defined in:**
-      `addon.ts:332 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L332>`__
+      `addon.ts:332 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L332>`__
 
 
 .. rubric:: exportModelSync
@@ -114,7 +114,7 @@ Methods
    * **Returns:** Buffer
 
    -  **Defined in:**
-      `addon.ts:339 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L339>`__
+      `addon.ts:339 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L339>`__
 
 
 .. rubric:: input
@@ -133,7 +133,7 @@ Methods
      A compiled model input.
 
    * **Defined in:**
-     `addon.ts:363 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L363>`__
+     `addon.ts:363 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L363>`__
 
 
    .. code-block:: ts
@@ -153,7 +153,7 @@ Methods
      A compiled model input.
 
    * **Defined in:**
-     `addon.ts:369 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L369>`__
+     `addon.ts:369 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L369>`__
 
 
    .. code-block:: ts
@@ -173,7 +173,7 @@ Methods
      A compiled model input.
 
    * **Defined in:**
-     `addon.ts:375 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L375>`__
+     `addon.ts:375 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L375>`__
 
 
 .. rubric:: output
@@ -191,7 +191,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-     `addon.ts:345 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L345>`__
+     `addon.ts:345 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L345>`__
 
 
    .. code-block:: ts
@@ -215,7 +215,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-     `addon.ts:351 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L351>`__
+     `addon.ts:351 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L351>`__
 
 
    .. code-block:: ts
@@ -239,7 +239,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-     `addon.ts:357 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L357>`__
+     `addon.ts:357 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L357>`__
 
 
 .. rubric:: setProperty
@@ -267,5 +267,5 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:382 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L382>`__
+     `addon.ts:382 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L382>`__
 

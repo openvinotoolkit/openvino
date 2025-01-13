@@ -641,7 +641,7 @@ Previous 2024 releases
    * New samples and pipelines are now available:
 
      * An example IterableStreamer implementation in
-       `multinomial_causal_lm/python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/multinomial_causal_lm>`__
+       `multinomial_causal_lm/python sample <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/multinomial_causal_lm>`__
 
    * GenAI compilation is now available as part of OpenVINO via the –DOPENVINO_EXTRA_MODULES CMake
      option.

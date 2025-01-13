@@ -65,4 +65,4 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-- `Bert Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/bert_benchmark/README.md>`__
+- `Bert Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/python/benchmark/bert_benchmark/README.md>`__

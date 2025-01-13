@@ -28,7 +28,7 @@ Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
 used to convert the models to OpenVINO™ IR format and to create
 inference pipeline. The inference pipeline can also be created using
 `OpenVINO Generate
-API <https://github.com/openvinotoolkit/openvino.genai/tree/master/src>`__,
+API <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/src>`__,
 the example of that, please, see in the notebook `LLM chatbot with
 OpenVINO Generate API <llm-chatbot-generate-api-with-output.html>`__
 

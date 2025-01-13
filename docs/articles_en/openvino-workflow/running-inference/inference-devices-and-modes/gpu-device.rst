@@ -17,8 +17,8 @@ GPU Device
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
 
-- `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
-- `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/>`__
+- `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/plugins/intel_gpu/README.md>`__
+- `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/src/plugins/intel_gpu/>`__
 - `Start AI Development with Intel <https://www.intel.com/content/www/us/en/developer/topic-technology/artificial-intelligence/overview.html>`__
 
 The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <../../../get-started/configurations/configurations-intel-gpu>`.
@@ -477,6 +477,6 @@ Additional Resources
 * `Working with GPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/gpu-device/gpu-device.ipynb>`__
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
 * :doc:`Optimization guide <../optimize-inference>`.
-* `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
+* `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/plugins/intel_gpu/README.md>`__
 
 
