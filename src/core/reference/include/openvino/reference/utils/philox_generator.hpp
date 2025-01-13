@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporationno/src/frontends/pytorch/src/*
+// Copyright (C) 2018-2025 Intel Corporationno/src/frontends/pytorch/src/*
 // SPDX-License-Identifier: Apache-2.0
 //
 

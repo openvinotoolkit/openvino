@@ -65,4 +65,4 @@ Contributions are always welcome! Read the [Contribution Guide](https://github.c
 
 [License](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE)
 
-Copyright © 2018-2024 Intel Corporation
+Copyright © 2018-2025 Intel Corporation
