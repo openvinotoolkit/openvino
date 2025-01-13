@@ -383,7 +383,7 @@ private:
     static std::vector<int> generate_rotation_deltas_data(tests::random_generator& rg, size_t max_tokens_num, size_t rotated_blocks_num, size_t block_size, bool per_block) {
         const size_t total_elements_num = per_block ? rotated_blocks_num
                                                     : rotated_blocks_num * block_size;
-        auto data = rg.generate_random_1d<int>(total_elements_num, 0, max_tokens_num - 1);
+        auto data = rg.generate_random_1d<int>(total_elements_num, 0, static_cast<int>(max_tokens_num - 1));
 
         return data;
     }
