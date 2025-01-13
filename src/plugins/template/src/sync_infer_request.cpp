@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
                        ov::op::util::VariableContext& variable_context,
                        std::vector<ov::SoPtr<ov::IVariableState>>& list_of_variables) {
     for (const auto& op : ov_model->get_ordered_ops()) {
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 collect_variables(sub_graph, variable_context, list_of_variables);
             }

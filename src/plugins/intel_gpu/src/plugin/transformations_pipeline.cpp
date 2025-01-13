@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,6 +82,7 @@
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -929,8 +930,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
                                !disable_fc_swiglu_fusion;
-        if (!disable_horizontal_fc_fusion)
+        if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
+            manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
+        }
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
         // Therefore, run MarkDequantization again to fold ZP constant.

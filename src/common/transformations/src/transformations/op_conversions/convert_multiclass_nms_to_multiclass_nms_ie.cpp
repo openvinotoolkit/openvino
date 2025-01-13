@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
     auto nms = pattern::wrap_type<op::util::MulticlassNmsBase>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<op::util::MulticlassNmsBase>(m.get_match_root());
+        auto nms = ov::as_type_ptr<op::util::MulticlassNmsBase>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }

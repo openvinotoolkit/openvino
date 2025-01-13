@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ TRANSFORMATIONS_API void remove_strides_prop(Input<Node>& node);
 
 class TRANSFORMATIONS_API StridesPropagation : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("strides_propagation", "0");
+    OPENVINO_RTTI("strides_propagation", "0", ov::RuntimeAttribute);
     StridesPropagation() = default;
     StridesPropagation(const ov::Strides& value) : value{value} {}
 

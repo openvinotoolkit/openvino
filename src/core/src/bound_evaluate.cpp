@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -590,7 +590,7 @@ bool ov::tensor_has_max_value(const Tensor& bound) {
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
     OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+    return ov::as_type_ptr<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::tensor_has_zero_value(const Tensor& bound) {
@@ -611,7 +611,7 @@ bool ov::tensor_has_zero_value(const Tensor& bound) {
     folded = std::make_shared<op::v1::ReduceLogicalOr>(equal[0], axes)->constant_fold(all, {equal[0], axes});
     OPENVINO_ASSERT(folded && ov::is_type<op::v0::Constant>(all[0].get_node_shared_ptr()));
     OPENVINO_ASSERT(all[0].get_shape() == Shape{});
-    return std::dynamic_pointer_cast<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
+    return ov::as_type_ptr<op::v0::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>()[0];
 }
 
 bool ov::has_and_set_equal_bounds(const Output<Node>& source) {

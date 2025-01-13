@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,12 @@
 
 using namespace ov::op;
 
-ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inputs, bool use_score_outputs)
-    : m_use_block_indices_inputs(use_block_indices_inputs),
-      m_use_score_outputs(use_score_outputs) {}
+ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
+                                                     bool use_score_outputs,
+                                                     bool allow_cache_rotation)
+    : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
+      m_use_score_outputs(use_score_outputs),
+      m_allow_cache_rotation(allow_cache_rotation) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -46,9 +49,16 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
-    if (!m_use_block_indices_inputs) {
+    if (!m_use_per_layer_block_indices_inputs) {
         auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
         model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
+    }
+
+    std::shared_ptr<v0::Parameter> model_rotation_trig_lut;
+
+    if (m_allow_cache_rotation) {
+        model_rotation_trig_lut =
+            setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
     }
 
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
@@ -91,7 +101,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
-    ParameterVector block_indices_inputs;
+    ParameterVector block_indices_inputs_for_each_layer;
+    ParameterVector rotated_block_indices_inputs_for_each_layer;
+    ParameterVector rotation_deltas_inputs_for_each_layer;
+
     ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
@@ -99,7 +112,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
     } else {
-        position_ids = std::dynamic_pointer_cast<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
+        position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         position_ids->set_partial_shape(PartialShape{-1});
         position_ids->validate_and_infer_types();
     }
@@ -120,11 +133,14 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
-                                                  block_indices_inputs,
+                                                  block_indices_inputs_for_each_layer,
                                                   score_results,
-                                                  m_use_block_indices_inputs,
-                                                  m_use_score_outputs);
-
+                                                  m_use_per_layer_block_indices_inputs,
+                                                  m_use_score_outputs,
+                                                  m_allow_cache_rotation,
+                                                  rotated_block_indices_inputs_for_each_layer,
+                                                  rotation_deltas_inputs_for_each_layer,
+                                                  model_rotation_trig_lut);
     manager.register_pass<PrevSequenceLengthPattern>(unsqueezed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
@@ -174,12 +190,18 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->remove_parameter(parameter);
     }
 
-    if (m_use_block_indices_inputs) {
-        model->add_parameters(block_indices_inputs);
+    if (m_use_per_layer_block_indices_inputs) {
+        model->add_parameters(block_indices_inputs_for_each_layer);
     }
 
     if (m_use_score_outputs) {
         model->add_results(score_results);
+    }
+
+    if (m_allow_cache_rotation) {
+        model->add_parameters(rotated_block_indices_inputs_for_each_layer);
+        model->add_parameters(rotation_deltas_inputs_for_each_layer);
+        model->add_parameters({model_rotation_trig_lut});
     }
 
     model->add_parameters(kv_parameters);

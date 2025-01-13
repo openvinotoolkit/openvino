@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,7 +101,7 @@ bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inp
         return false;
     }
 
-    if (auto data_const = std::dynamic_pointer_cast<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+    if (auto data_const = ov::as_type_ptr<v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
         output_values[0] = std::make_shared<v0::Constant>(*data_const, get_output_shape(0));
         return true;
     } else {
