@@ -335,7 +335,7 @@ TEST(file_util, path_cast_unicode_to_string) {
 }
 #endif
 
-#if !defined(_MSC_VER) && !defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && !defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
+#if !defined(_MSC_VER) && defined(GCC_NOT_USED_OR_VER_AT_LEAST_12_3) && defined(CLANG_NOT_USED_OR_VER_AT_LEAST_17)
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
 // https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 
