@@ -4,6 +4,11 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import inspect
+import logging
+import typing
+import torch
+
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino import op, PartialShape, Type as OVType, OVAny
@@ -14,15 +19,11 @@ from openvino.frontend.pytorch.utils import (
     prepare_example_inputs_and_model,
     convert_quantized_tensor,
     graph_has_ops,
+    patch_none_example,
 )
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
-
-import inspect
-import logging
-import typing
-import torch
 
 log = logging.getLogger(__name__)
 
@@ -133,6 +134,7 @@ class TorchScriptPythonDecoder(Decoder):
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
+                pt_module, example_inputs = patch_none_example(pt_module, example_inputs)
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
