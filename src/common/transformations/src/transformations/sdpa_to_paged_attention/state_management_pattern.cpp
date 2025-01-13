@@ -37,7 +37,8 @@ using ov::OutputVector;
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
     auto general_alibi = pattern::any_input();
-    auto general_sdpa_mask = pattern::wrap_type<v1::Multiply>({pattern::any_input(), general_alibi});  // apply input position_ids
+    auto general_sdpa_mask =
+        pattern::wrap_type<v1::Multiply>({pattern::any_input(), general_alibi});  // apply input position_ids
     general_sdpa_mask = pattern::wrap_type<v1::Reshape>({general_sdpa_mask, pattern::any_input()});
     general_sdpa_mask = pattern::wrap_type<v1::Reshape>({general_sdpa_mask, pattern::any_input()});
     general_sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), general_sdpa_mask});
@@ -76,9 +77,10 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan
 }
 
 static std::shared_ptr<ov::Node> handle_general_alibi(const std::shared_ptr<ov::Node>& matched_general_alibi_slopes) {
-    std::shared_ptr<ov::Node> res_alibi_slopes = std::make_shared<v1::Reshape>(matched_general_alibi_slopes,
-                                                    v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
-                                                    false);
+    std::shared_ptr<ov::Node> res_alibi_slopes =
+        std::make_shared<v1::Reshape>(matched_general_alibi_slopes,
+                                      v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
+                                      false);
     if (res_alibi_slopes->get_element_type() == ov::element::f32) {
         res_alibi_slopes = std::make_shared<v0::Convert>(res_alibi_slopes, ov::element::f32);
     }
@@ -104,29 +106,31 @@ static std::shared_ptr<ov::Node> handle_jais_13b_alibi(const std::shared_ptr<ov:
             });
 
         if (all_values_nagative) {
-            res_alibi_slopes = std::make_shared<v1::Multiply>(
-                res_alibi_slopes,
-                v0::Constant::create(res_alibi_slopes->get_element_type(), {}, {-1}));
+            res_alibi_slopes =
+                std::make_shared<v1::Multiply>(res_alibi_slopes,
+                                               v0::Constant::create(res_alibi_slopes->get_element_type(), {}, {-1}));
         }
     } else {
-        res_alibi_slopes = std::make_shared<v1::Multiply>(
-            res_alibi_slopes,
-            v0::Constant::create(res_alibi_slopes->get_element_type(), {}, {-1}));
+        res_alibi_slopes =
+            std::make_shared<v1::Multiply>(res_alibi_slopes,
+                                           v0::Constant::create(res_alibi_slopes->get_element_type(), {}, {-1}));
     }
 
     return res_alibi_slopes;
 }
 
-static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(const std::shared_ptr<ov::Node>& matched_baichuan2_13b_alibi_slopes) {
+static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
+    const std::shared_ptr<ov::Node>& matched_baichuan2_13b_alibi_slopes) {
     std::shared_ptr<ov::Node> res_alibi_slopes = matched_baichuan2_13b_alibi_slopes;
 
     auto start = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
-    auto stop =  v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
-    auto step =  v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
-    auto axes =  v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
+    auto stop = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
+    auto step = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+    auto axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
     res_alibi_slopes = std::make_shared<v8::Slice>(res_alibi_slopes, start, stop, step, axes);
-    res_alibi_slopes =
-        std::make_shared<v1::Reshape>(res_alibi_slopes, v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), false);
+    res_alibi_slopes = std::make_shared<v1::Reshape>(res_alibi_slopes,
+                                                     v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
+                                                     false);
     if (res_alibi_slopes->get_element_type() == ov::element::f32) {
         res_alibi_slopes = std::make_shared<v0::Convert>(res_alibi_slopes, ov::element::f32);
     }
@@ -261,8 +265,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
-    auto mask_to_sdpa =
-        std::make_shared<pattern::op::Or>(OutputVector{general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, pattern::any_input()});
+    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(
+        OutputVector{general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
