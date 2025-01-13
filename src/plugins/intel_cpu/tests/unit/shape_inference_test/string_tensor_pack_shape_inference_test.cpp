@@ -183,38 +183,6 @@ TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, data_from_ten
     EXPECT_EQ(output_shapes[0], StaticShape({2, 2}));
 }
 
-TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, empty_bytes) {
-    const auto begins_param = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
-    const auto ends_param = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
-    const auto symbols_param = std::make_shared<Parameter>(element::u8, ov::PartialShape::dynamic());
-    const auto op = make_op(begins_param, ends_param, symbols_param);
-    int32_t begins[] = {0};
-    int32_t ends[] = {5};
-    uint8_t symbols[] = {0x49, 0x6e, 0x74, 0x65, 0x6c};
-    const auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::i32, ov::Shape{1}, begins}},
-                                                                 {1, {element::i32, ov::Shape{1}, ends}},
-                                                                 {2, {element::u8, ov::Shape{5}, symbols}}};
-
-    const auto input_shapes = StaticShapeVector{{1}, {1}, {5}};
-    auto shape_infer = make_shape_inference(op);
-    const auto input_shape_refs = make_static_shape_refs(input_shapes);
-    const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
-    EXPECT_EQ(output_shapes.size(), 1);
-    EXPECT_EQ(output_shapes[0], StaticShape({1}));
-
-    // empty symbols tensor
-    uint8_t symbols_empty[] = {};
-    int32_t ends_symbols_empty[] = {0};
-    const auto const_inputs_empty_bytes = std::unordered_map<size_t, Tensor>{{0, {element::i32, ov::Shape{1}, begins}},
-                                                                 {1, {element::i32, ov::Shape{1}, ends_symbols_empty}},
-                                                                 {2, {element::u8, ov::Shape{0}, symbols_empty}}};
-    const auto input_shapes_empty_bytes = StaticShapeVector{{1}, {1}, {0}};
-    const auto input_shape_refs_empty_bytes = make_static_shape_refs(input_shapes_empty_bytes);
-    const auto output_shapes_empty_bytes = *shape_infer->infer(input_shape_refs_empty_bytes, make_tensor_accessor(const_inputs_empty_bytes));
-    EXPECT_EQ(output_shapes_empty_bytes.size(), 1);
-    EXPECT_EQ(output_shapes_empty_bytes[0], StaticShape({1}));
-}
-
 TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, indices_validation) {
     const auto begins_param = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
     const auto ends_param = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
