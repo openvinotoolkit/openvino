@@ -13,6 +13,12 @@
 namespace intel_npu {
 
 struct MetadataBase {
+protected:
+    uint32_t _version;
+
+public:
+    MetadataBase(uint32_t version) : _version(version) {}
+
     /**
      * @brief Reads metadata from a stream.
      */
