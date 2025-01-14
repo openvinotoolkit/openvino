@@ -119,7 +119,7 @@ const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
 namespace string_helpers {
 
 namespace {
-auto find_last_not_null(const char* str, size_t length) {
+const char* find_last_not_null(const char* str, size_t length) {
     return std::find_if(std::make_reverse_iterator(str + length),
                         std::make_reverse_iterator(str),
                         [](const auto& c) {
@@ -140,19 +140,21 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     });
     auto max_stride = max_element->length();
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
-    // Adjusting strides to follow the numpy convention:
-    py::array array;
 
-    if (auto new_strides = t.get_strides(); new_strides.empty()) {
-        array = py::array(dtype, t.get_shape(), std::move(new_strides));
-    } else {
-        auto element_stride = new_strides[new_strides.size() - 1];
-        for (size_t i = 0; i < new_strides.size(); ++i) {
-            new_strides[i] = (new_strides[i] / element_stride) * max_stride;
+    // Adjusting strides to follow the numpy convention:
+    const auto py_array_strides = [&t, &max_stride] {
+        auto new_strides = t.get_strides();
+        if (!new_strides.empty()) {
+            const auto& element_stride = new_strides.back();
+            for (auto&& stride : new_strides) {
+                stride = (stride / element_stride) * max_stride;
+            }
         }
-        array = py::array(dtype, t.get_shape(), std::move(new_strides));
-    }
+        return new_strides;
+    };
+
     // Create an empty array and populate it with utf-8 encoded strings:
+    auto array = py::array(dtype, t.get_shape(), py_array_strides());
     auto ptr = reinterpret_cast<char*>(array.mutable_data());
     for (size_t i = 0; i < t.get_size(); ++i) {
         const auto length = data[i].length();
@@ -198,7 +200,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array) {
         OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
     }
 
-    const auto buf = array.request();
+    const py::buffer_info buf = array.request();
     auto data = tensor.data<std::string>();
 
     for (auto a_first = reinterpret_cast<const uint8_t*>(buf.ptr), a_last = a_first + array.nbytes(); a_first < a_last;
