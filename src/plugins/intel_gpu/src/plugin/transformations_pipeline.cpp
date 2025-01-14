@@ -82,6 +82,7 @@
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -92,6 +93,7 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
@@ -181,10 +183,14 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                            ov::op::v8::Gather::get_type_info_static(),
                                                            ov::op::v1::Convolution::get_type_info_static(),
                                                            ov::opset1::Convolution::get_type_info_static(),
+                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                           ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                            ov::opset1::GroupConvolution::get_type_info_static() };
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
+                                                       ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                       ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                        ov::opset1::GroupConvolution::get_type_info_static() };
 
     auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
@@ -292,10 +298,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
-        if (enableInt8) {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-                std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
-        }
+
+        manager.register_pass<ov::pass::MarkDequantization>(
+            std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
+            !device_info.supports_immad);
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
@@ -373,8 +379,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
-        pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
+        manager.register_pass<ov::pass::KeepConstsPrecision>(supported_woq_types, !device_info.supports_immad);
+        pass_config->set_callback<ov::pass::MarkDequantization,
+                ov::pass::KeepConstsPrecision>([&](const std::shared_ptr<const ov::Node> node) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
@@ -923,12 +930,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
                                !disable_fc_swiglu_fusion;
-        if (!disable_horizontal_fc_fusion)
+        if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
+            manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
+        }
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
-        // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
+        // Therefore, run MarkDequantization again to fold ZP constant.
+        manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, true);
         if (device_info.supports_immad) {
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
@@ -936,6 +945,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::pass::ConstantFolding>();
 
+        manager.register_pass<ov::pass::SDPAScaleFusion>();
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
@@ -991,7 +1001,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 // AZP does not support 8bit weight
-                if (debug_config->dynamic_quantize_asym
+                // XXX: This is currently wrapped as GPU_DEBUG_IF as dynamic_quantize_asym is not exposed through public API.
+                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym
                     && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
                     return true;

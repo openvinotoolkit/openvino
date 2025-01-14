@@ -4,20 +4,20 @@
 #include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
-#include "verbose.h"
-#include <node.h>
-#include "cpu_types.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#    include <node.h>
 
-#include "dnnl_types.h"
-#include "dnnl_debug.h"
-#include "../src/common/c_types_map.hpp"
-#include "../src/common/verbose.hpp"
+#    include <cstdlib>
+#    include <iostream>
+#    include <sstream>
+#    include <string>
 
-#include <string>
-#include <cstdlib>
-#include <sstream>
-#include <iostream>
+#    include "../src/common/c_types_map.hpp"
+#    include "../src/common/verbose.hpp"
+#    include "cpu_types.h"
+#    include "dnnl_debug.h"
+#    include "dnnl_types.h"
+#    include "memory_desc/cpu_memory_desc_utils.h"
+#    include "verbose.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -42,42 +42,42 @@ bool Verbose::shouldBePrinted() const {
  * Can be rewritten in pure C++ if necessary
  */
 void Verbose::printInfo() {
-    enum Color {
-        RED,
-        GREEN,
-        YELLOW,
-        BLUE,
-        PURPLE,
-        CYAN
-    };
+    enum Color { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
 
     auto colorize = [&](const Color color, const std::string& str) {
         if (!colorUp)
             return str;
 
-        const std::string     red("\033[1;31m");
-        const std::string   green("\033[1;32m");
-        const std::string  yellow("\033[1;33m");
-        const std::string    blue("\033[1;34m");
-        const std::string  purple("\033[1;35m");
-        const std::string    cyan("\033[1;36m");
-        const std::string   reset("\033[0m");
+        const std::string red("\033[1;31m");
+        const std::string green("\033[1;32m");
+        const std::string yellow("\033[1;33m");
+        const std::string blue("\033[1;34m");
+        const std::string purple("\033[1;35m");
+        const std::string cyan("\033[1;36m");
+        const std::string reset("\033[0m");
         std::string colorCode;
 
         switch (color) {
-        case RED:    colorCode = red;
+        case RED:
+            colorCode = red;
             break;
-        case GREEN:  colorCode = green;
+        case GREEN:
+            colorCode = green;
             break;
-        case YELLOW: colorCode = yellow;
+        case YELLOW:
+            colorCode = yellow;
             break;
-        case BLUE:   colorCode = blue;
+        case BLUE:
+            colorCode = blue;
             break;
-        case PURPLE: colorCode = purple;
+        case PURPLE:
+            colorCode = purple;
             break;
-        case CYAN:   colorCode = cyan;
+        case CYAN:
+            colorCode = cyan;
             break;
-        default:     colorCode = reset;
+        default:
+            colorCode = reset;
             break;
         }
 
@@ -107,7 +107,7 @@ void Verbose::printInfo() {
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str(desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        std::string fmt_str = dnnl::impl::md2fmt_str("", desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
@@ -119,15 +119,17 @@ void Verbose::printInfo() {
 
     for (size_t i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
-                          node->getParentEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
+        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(node->getParentEdgeAt(i)->getMemory().getDesc().clone())
+                          ->getDnnlDesc()
+                          .get(),
                       prefix);
     }
 
     for (size_t i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
-                          node->getChildEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
+        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(node->getChildEdgeAt(i)->getMemory().getDesc().clone())
+                          ->getDnnlDesc()
+                          .get(),
                       prefix);
     }
 
@@ -135,8 +137,10 @@ void Verbose::printInfo() {
     if (!node->getFusedWith().empty()) {
         post_ops += "post_ops:'";
         for (const auto& fusedNode : node->getFusedWith()) {
-            post_ops.append(colorize(GREEN, fusedNode->getName())).append(":")
-                .append(colorize(CYAN, NameFromType(fusedNode->getType()))).append(":")
+            post_ops.append(colorize(GREEN, fusedNode->getName()))
+                .append(":")
+                .append(colorize(CYAN, NameFromType(fusedNode->getType())))
+                .append(":")
                 .append(algToString(fusedNode->getAlgorithm()))
                 .append(";");
         }
@@ -145,20 +149,16 @@ void Verbose::printInfo() {
 
     std::string nodeImplementer = "cpu";
     if (node->getType() == Type::Reference)
-        nodeImplementer = "ngraph_ref"; // ngraph reference
+        nodeImplementer = "ngraph_ref";  // ngraph reference
 
     const std::string& nodeName = colorize(GREEN, node->getName());
     const std::string& nodeType = colorize(CYAN, NameFromType(node->getType()));
-    const std::string& nodeAlg  = algToString(node->getAlgorithm());
-    const std::string& nodePrimImplType =  impl_type_to_string(node->getSelectedPrimitiveDescriptor()->getImplementationType());
+    const std::string& nodeAlg = algToString(node->getAlgorithm());
+    const std::string& nodePrimImplType =
+        impl_type_to_string(node->getSelectedPrimitiveDescriptor()->getImplementationType());
 
-    stream << "ov_cpu_verbose" << ','
-           << "exec" << ','
-           << nodeImplementer << ','
-           << nodeName << ":" << nodeType << ":" << nodeAlg << ','
-           << nodePrimImplType << ','
-           << portsInfo << ','
-           << post_ops << ',';
+    stream << "ov_cpu_verbose" << ',' << "exec" << ',' << nodeImplementer << ',' << nodeName << ":" << nodeType << ":"
+           << nodeAlg << ',' << nodePrimImplType << ',' << portsInfo << ',' << post_ops << ',';
 }
 
 void Verbose::printDuration() {
@@ -170,7 +170,7 @@ void Verbose::flush() const {
     std::cout << stream.rdbuf() << "\n";
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
 
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS

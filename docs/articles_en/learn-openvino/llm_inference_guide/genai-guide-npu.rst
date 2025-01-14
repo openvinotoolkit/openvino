@@ -44,7 +44,7 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
       .. code-block:: console
          :name: group-quant
 
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size 128 TinyLlama-1.1B-Chat-v1.0
+         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group-size 128 TinyLlama-1.1B-Chat-v1.0
 
    .. tab-item:: Channel-wise quantization
 
@@ -63,12 +63,12 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
             If you want to improve accuracy, make sure you:
 
             1. Update NNCF: ``pip install nncf==2.13``
-            2. Use ``--scale_estimation --dataset=<dataset_name>`` and accuracy aware quantization ``--awq``:
+            2. Use ``--scale_estimation --dataset <dataset_name>`` and accuracy aware quantization ``--awq``:
 
                .. code-block:: console
                   :name: channel-wise-data-aware-quant
 
-                  optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 --awq --scale-estimation --dataset=wikitext2  Llama-2-7b-chat-hf
+                  optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 --awq --scale-estimation --dataset wikitext2  Llama-2-7b-chat-hf
 
 
       .. important::
@@ -90,6 +90,7 @@ which do not require specifying quantization parameters:
 | Below is a list of such models:
 
 * meta-llama/Meta-Llama-3-8B-Instruct
+* meta-llama/Llama-3.1-8B
 * microsoft/Phi-3-mini-4k-instruct
 * Qwen/Qwen2-7B
 * mistralai/Mistral-7B-Instruct-v0.2
@@ -133,6 +134,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
 
          int main(int argc, char* argv[]) {
             std::string model_path = "TinyLlama";
+            ov::genai::LLMPipeline pipe(models_path, "NPU");
             ov::genai::GenerationConfig config;
             config.do_sample=false;
             config.max_new_tokens=100;
