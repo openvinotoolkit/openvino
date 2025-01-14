@@ -49,7 +49,8 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
         dispatchData.gws = {output.Y().v, output.Feature().v, output.Batch().v};
     }
 
-    const size_t threads = dispatchData.gws[0] < 32 ? dispatchData.gws[0] : 32;
+    const int wantedThreadsPerBlock = 128;
+    const size_t threads = dispatchData.gws[0] < wantedThreadsPerBlock ? dispatchData.gws[0] : wantedThreadsPerBlock;
 
     dispatchData.lws = {threads, 1, 1};
 

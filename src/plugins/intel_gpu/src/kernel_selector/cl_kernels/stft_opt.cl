@@ -29,9 +29,12 @@ KERNEL(stft_ref)(
     const int frame_step = (int)frame_step_buff[0];
     const int window_size = INPUT1_SIZE_X;
 
-    __local float signal_for_this_frame_shared[window_size];
+    __local float x_i_shared[window_size];
 
     const size_t block_size = get_local_size(0)*get_local_size(1)*get_local_size(2);
+
+    // const int bla = 1;
+    // const int test = sub_group_reduce_add(bla);
 
 //     if(freq_id == 0 && frame_id == 0 && batch == 0) {
 //         printf("Printing from thread 0!\n");
@@ -44,19 +47,30 @@ KERNEL(stft_ref)(
 //         const int FREQS = OUTPUT_SIZE_Y;
 // #endif 
 //         printf("FREQS: %i\n", FREQS);
+//         printf("get_sub_group_size(): %i\n", get_sub_group_size());
+//         printf("get_num_sub_groups(): %i\n", get_num_sub_groups());
+//         printf("test: %i\n", test);
 //     }
 
+    // if(get_local_linear_id() == 0) {
+    //     printf("get_group_id(0): %i \n", get_group_id(0));
+    //     printf("get_group_id(1): %i \n", get_group_id(1));
+    //     printf("get_group_id(2): %i \n", get_group_id(2));
+    // }
 
     // Handling case where window size is smaller than frame size.
     const int start_offset = (frame_size - window_size) / 2;
 
-     const INPUT0_TYPE* restrict signal_for_this_frame = signal + batch*INPUT0_SIZE_X + frame_id*frame_step + start_offset;
+    const INPUT0_TYPE* restrict signal_for_this_frame = signal + batch*INPUT0_SIZE_X + frame_id*frame_step + start_offset;
 
     // Preload into shared mem:
-    for( size_t i = get_local_linear_id(); i < window_size; i+= block_size) {
-
-        signal_for_this_frame_shared[i] = (float)signal_for_this_frame[i];
+    for(size_t i = get_local_linear_id(); i < window_size; i+= block_size) {
+        const float signal_val = (float)signal_for_this_frame[i];
+        const float window_val = (float)window[i];
+        x_i_shared[i] = signal_val*window_val;
     }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     // FT from def for single freq for given frame:
     cfloat freq_val = czero();
@@ -66,18 +80,11 @@ KERNEL(stft_ref)(
 
     cfloat err = czero();
     for(int i = 0; i < window_size; ++i) {
-        const float signal_val = signal_for_this_frame_shared[i];
-        const float window_val = (float)window[i];
-        const float x_i = signal_val*window_val;
+        const float x_i =  x_i_shared[i];
         const cfloat e_i = expmi(dft_power*(float)(i+start_offset));
         const cfloat val_i = crmult(e_i, x_i);
 
-        // Kahan sum algo:
-        const cfloat y = csub(val_i, err);
-        const cfloat newSum = cadd(freq_val, y);
-        err = csub(newSum, freq_val);
-        err = csub(err, y);
-        freq_val = newSum;
+        freq_val = cadd(freq_val, val_i);
     }
 
 #if TRANSPOSE_FRAMES
