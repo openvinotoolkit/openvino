@@ -124,7 +124,7 @@ bool Reference::created() const {
 bool Reference::needShapeInfer() const {
     // If there is data dependency for the output shape, let's assume the node has internal dynamism (in general case),
     // so we postpone the shape inference until the actual execution
-    return !hasOutputShapeDataDependency;
+    return !hasOutputShapeDataDependency && Node::needShapeInfer();
 }
 
 ov::TensorVector Reference::prepareInputs() const {
