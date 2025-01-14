@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1449,16 +1449,25 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
     const auto row_step = to->get_strides()[2] / sizeof(uint16_t);
     for (size_t k = 0; k < from->get_size(); k += BLOCK_SIZE) {
         const uint16_t* pSrcBlock = pSrc + k;
-        int16_t tmp[BLOCK_SIZE];
-        __m256i* vtmp = reinterpret_cast<__m256i*>(tmp);
         __m256i vsrc = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcBlock));
-        _mm256_storeu_si256(vtmp, vsrc);
-        for (size_t j = 0; j < BLOCK_SIZE; ++j) {
-            // NB: Assign particular byte from the block to the column
-            *pDst = tmp[j];
-            // NB: And simply go to the next element in column
-            pDst += row_step;
-        }
+        // NB: Assign particular byte from the block to the column
+        pDst[0  * row_step] = _mm256_extract_epi16(vsrc, 0);
+        pDst[1  * row_step] = _mm256_extract_epi16(vsrc, 1);
+        pDst[2  * row_step] = _mm256_extract_epi16(vsrc, 2);
+        pDst[3  * row_step] = _mm256_extract_epi16(vsrc, 3);
+        pDst[4  * row_step] = _mm256_extract_epi16(vsrc, 4);
+        pDst[5  * row_step] = _mm256_extract_epi16(vsrc, 5);
+        pDst[6  * row_step] = _mm256_extract_epi16(vsrc, 6);
+        pDst[7  * row_step] = _mm256_extract_epi16(vsrc, 7);
+        pDst[8  * row_step] = _mm256_extract_epi16(vsrc, 8);
+        pDst[9  * row_step] = _mm256_extract_epi16(vsrc, 9);
+        pDst[10 * row_step] = _mm256_extract_epi16(vsrc, 10);
+        pDst[11 * row_step] = _mm256_extract_epi16(vsrc, 11);
+        pDst[12 * row_step] = _mm256_extract_epi16(vsrc, 12);
+        pDst[13 * row_step] = _mm256_extract_epi16(vsrc, 13);
+        pDst[14 * row_step] = _mm256_extract_epi16(vsrc, 14);
+        pDst[15 * row_step] = _mm256_extract_epi16(vsrc, 15);
+        pDst += BLOCK_SIZE * row_step;
     }
 #else
     from->copy_to(to._ptr);
