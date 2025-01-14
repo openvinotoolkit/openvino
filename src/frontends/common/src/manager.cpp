@@ -172,7 +172,7 @@ private:
 #endif
         }
         if (!model_path.empty()) {
-            auto ext = ov::util::get_file_ext(model_path);
+            auto ext = ov::util::get_file_ext(model_path).string();
             auto it = priority_fe_extensions.find(ext);
             if (it != priority_fe_extensions.end()) {
                 // Priority FE is found by file extension, try this first

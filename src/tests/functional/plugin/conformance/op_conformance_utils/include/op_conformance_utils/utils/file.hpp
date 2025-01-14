@@ -8,15 +8,17 @@
 #include <string>
 #include <regex>
 
+#include "openvino/util/file_util.hpp"
+
 namespace ov {
 namespace util {
 
-std::vector<std::string>
-get_filelist_recursive(const std::vector<std::string>& dir_paths,
+std::vector<ov::util::Path>
+get_filelist_recursive(const std::vector<ov::util::Path>& dir_paths,
                        const std::vector<std::regex>& patterns);
 
-std::vector<std::string>
-read_lst_file(const std::vector<std::string>& file_paths,
+std::vector<ov::util::Path>
+read_lst_file(const std::vector<ov::util::Path>& file_paths,
               const std::vector<std::regex>& patterns = {std::regex(".*")});
 
 std::string replace_extension(std::string file, const std::string& new_extension);

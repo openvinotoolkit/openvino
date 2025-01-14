@@ -83,9 +83,9 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
     if (model_to_update == nullptr) {
         std::string serialized_model_path = "";
         for (const auto& extractor : m_manager.get_extractors()) {
-            auto tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, m_cache_subdir, extractor.first, graph_name + ".xml" });
+            const auto& tmp_serialized_model_path = ov::util::path_join({ m_serialization_dir, m_cache_subdir, extractor.first, graph_name + ".xml" });
             if (ov::util::file_exists(tmp_serialized_model_path)) {
-                serialized_model_path = tmp_serialized_model_path;
+                serialized_model_path = tmp_serialized_model_path.string();
                 break;
             }
         }
@@ -195,7 +195,7 @@ void GraphCache::serialize_cache() {
         auto rel_dir = ov::util::path_join({ m_cache_subdir,
                                              ov::util::get_model_type(cache_item->first),
                                              cache_item->second.get_any_extractor() });
-        serialize_model(*cache_item, rel_dir);
+        serialize_model(*cache_item, rel_dir.string());
         m_graph_cache.erase(cache_item);
     }
 }

@@ -7,27 +7,24 @@
 #include <set>
 #include <cstring>
 
-#include "openvino/util/file_util.hpp"
-
 namespace ov {
 namespace util {
 
-std::vector<std::string>
-get_filelist_recursive(const std::vector<std::string>& dir_paths,
+std::vector<ov::util::Path>
+get_filelist_recursive(const std::vector<ov::util::Path>& dir_paths,
                        const std::vector<std::regex>& patterns) {
-    std::vector<std::string> result;
+    std::vector<ov::util::Path> result;
     for (auto&& dir_path : dir_paths) {
         if (!ov::util::directory_exists(dir_path)) {
-            std::string msg = "Input directory (" + dir_path + ") doesn't not exist!";
+            std::string msg = "Input directory (" + dir_path.string() + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
         ov::util::iterate_files(
             dir_path,
-            [&result, &patterns](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
+            [&result, &patterns](const ov::util::Path& file_path, bool is_dir) {
                 if (ov::util::file_exists(file_path)) {
                     for (const auto& pattern : patterns) {
-                        if (std::regex_match(file_path, pattern)) {
+                        if (std::regex_match(file_path.string(), pattern)) {
                             result.push_back(file_path);
                             break;
                         }
@@ -40,13 +37,13 @@ get_filelist_recursive(const std::vector<std::string>& dir_paths,
     return result;
 }
 
-std::vector<std::string>
-read_lst_file(const std::vector<std::string>& file_paths,
+std::vector<ov::util::Path>
+read_lst_file(const std::vector<ov::util::Path>& file_paths,
               const std::vector<std::regex>& patterns) {
-    std::vector<std::string> res;
+    std::vector<ov::util::Path> res;
     for (const auto& file_path : file_paths) {
         if (!ov::util::file_exists(file_path)) {
-            std::string msg = "Input directory (" + file_path + ") doesn't not exist!";
+            std::string msg = "Input directory (" + file_path.string() + ") doesn't not exist!";
             throw std::runtime_error(msg);
         }
         std::ifstream file(file_path);
@@ -55,7 +52,7 @@ read_lst_file(const std::vector<std::string>& file_paths,
             while (getline(file, buffer)) {
                 if (buffer.find("#") == std::string::npos && !buffer.empty()) {
                     for (const auto& pattern : patterns) {
-                        if (std::regex_match(file_path, pattern)) {
+                        if (std::regex_match(file_path.string(), pattern)) {
                             res.emplace_back(buffer);
                             break;
                         }
@@ -63,10 +60,9 @@ read_lst_file(const std::vector<std::string>& file_paths,
                 }
             }
         } else {
-            std::string msg = "Error in opening file: " + file_path;
+            std::string msg = "Error in opening file: " + file_path.string();
             throw std::runtime_error(msg);
         }
-        file.close();
     }
     return res;
 }

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
 
 namespace ov {
@@ -87,6 +88,12 @@ template <class Path,
 const std::string& path_to_string(const Path& path) {
     return path;
 }
+template <
+    class Path,
+    typename std::enable_if<std::is_same<typename std::decay<Path>::type, ov::util::Path>::value>::type* = nullptr>
+std::string path_to_string(const Path& path) {
+    return path.string();
+}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -122,7 +129,7 @@ std::string sanitize_path(const std::string& path);
 
 /// \brief Returns the name with extension for a given path
 /// \param path The path to the output file
-std::string get_file_name(const std::string& path);
+ov::util::Path get_file_name(const ov::util::Path& path);
 
 /**
  * @brief Interface function to get absolute path of file
@@ -161,7 +168,7 @@ void create_directory_recursive(const std::wstring& path);
  * @param path - path to directory
  * @return true if directory exists, false otherwise
  */
-bool directory_exists(const std::string& path);
+bool directory_exists(const ov::util::Path& path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -255,12 +262,16 @@ inline bool file_exists(const std::string& path) {
     return file_exists(path.c_str());
 }
 
-std::string get_file_ext(const std::string& path);
-std::string get_directory(const std::string& path);
-std::string path_join(const std::vector<std::string>& paths);
+inline bool file_exists(const ov::util::Path& path) {
+    return ov::util::fs::exists(path);
+}
 
-void iterate_files(const std::string& path,
-                   const std::function<void(const std::string& file, bool is_dir)>& func,
+ov::util::Path get_file_ext(const ov::util::Path& path);
+std::string get_directory(const std::string& path);
+ov::util::Path path_join(const std::vector<ov::util::Path>& paths);
+
+void iterate_files(const ov::util::Path& path,
+                   const std::function<void(const ov::util::Path& file, bool is_dir)>& func,
                    bool recurse = false,
                    bool include_links = false);
 
@@ -384,7 +395,7 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  * @param fname  Pointer to OpenVINO file name path.
  * @return Pointer to trimmed file name path.
  */
-const char* trim_file_name(const char* const fname);
+ov::util::Path trim_file_name(const ov::util::Path& fname);
 
 template <typename C>
 using enableIfSupportedChar =

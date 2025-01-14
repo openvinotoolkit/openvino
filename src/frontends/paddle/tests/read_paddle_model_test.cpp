@@ -24,8 +24,8 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
                                                     "conv2d_relu/conv2d_relu.pdiparams");
 
     ov::Core core;
-    auto read_file = [&](const std::string& file_name, size_t& size) {
-        FILE* sFile = fopen(file_name.c_str(), "r");
+    auto read_file = [&](const ov::util::Path& file_name, size_t& size) {
+        FILE* sFile = fopen(file_name.string().c_str(), "r");
         fseek(sFile, 0, SEEK_END);
         size = ftell(sFile);
         uint8_t* ss = (uint8_t*)malloc(size);

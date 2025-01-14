@@ -15,12 +15,12 @@ namespace util {
 
 void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std::string>>& caching_status,
                                const std::string& output_dir) {
-    std::string cache_status_path = ov::util::path_join({output_dir, "model_caching_status"});
+    std::string cache_status_path = ov::util::path_join({output_dir, "model_caching_status"}).string();
     if (!ov::util::directory_exists(cache_status_path)) {
         ov::util::create_directory_recursive(cache_status_path);
     }
     for (const auto& status_info : caching_status) {
-        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + LST_EXTENSION});
+        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + LST_EXTENSION}).string();
         vector_to_file(status_info.second, output_file_path);
     }
 }
@@ -28,9 +28,10 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
 // { models, { not_read_model }}
 std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
 find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
-    std::vector<std::string> models, full_content, not_read_model;
+    std::vector<std::string> models, not_read_model;
+    std::vector<ov::util::Path> full_content{};
     for (const auto& dir : dirs) {
-        std::vector<std::string> dir_content;
+        std::vector<ov::util::Path> dir_content{};
         if (ov::util::directory_exists(dir)) {
             dir_content = ov::util::get_filelist_recursive({dir}, FROTEND_REGEXP);
         } else if (ov::util::file_exists(dir) && std::regex_match(dir, std::regex(".*" + std::string(LST_EXTENSION)))) {
@@ -45,17 +46,17 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
     std::multimap<size_t, std::string> models_sorted_by_size;
     auto in_regex = std::regex(regexp);
     for (const auto& model_file : full_content) {
-        if (std::regex_match(model_file, in_regex)) {
+        if (std::regex_match(model_file.string(), in_regex)) {
             try {
                 // models.emplace_back(file);
                 if (ov::util::file_exists(model_file)) {
                     auto model_size = core->read_model(model_file)->get_graph_size();
-                    models_sorted_by_size.insert({ model_size, model_file});
+                    models_sorted_by_size.insert({ model_size, model_file.string()});
                 } else {
                     continue;
                 }
             } catch (std::exception) {
-                not_read_model.emplace_back(model_file);
+                not_read_model.emplace_back(model_file.string());
                 // std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
             }
         }
