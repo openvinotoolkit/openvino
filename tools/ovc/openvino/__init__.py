@@ -32,6 +32,7 @@ from openvino._pyopenvino import Version
 from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import Input
+from openvino._pyopenvino import OpExtension
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Strides
@@ -49,7 +50,6 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import layout_helpers
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
-from openvino._pyopenvino import Op
 
 # Import public classes from _ov_api
 from openvino._ov_api import Model
@@ -57,6 +57,7 @@ from openvino._ov_api import Core
 from openvino._ov_api import CompiledModel
 from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
+from openvino._ov_api import Op
 
 # Import all public modules
 from openvino import runtime as runtime

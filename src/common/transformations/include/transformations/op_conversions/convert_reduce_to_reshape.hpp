@@ -101,7 +101,7 @@ public:
 template <class T>
 ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
     return [&](ov::pass::pattern::Matcher& m) {
-        auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
+        auto reduce = ov::as_type_ptr<T>(m.get_match_root());
         if (!reduce)
             return false;
 

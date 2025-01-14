@@ -109,7 +109,7 @@ bool AssignAndReadValueTransformation::canBeTransformed(const TransformationCont
         return false;
     }
 
-    const auto readValue = std::dynamic_pointer_cast<op::util::ReadValueBase>(op->get_control_dependencies()[0]);
+    const auto readValue = ov::as_type_ptr<op::util::ReadValueBase>(op->get_control_dependencies()[0]);
     if (!readValue) {
         return false;
     }

@@ -20,6 +20,7 @@
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
 #include <pyopenvino/graph/op.hpp>
+#include <pyopenvino/graph/op_extension.hpp>
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
@@ -228,7 +229,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     You might want to use this function if you are developing a dynamically-loaded library which should clean up all
                     resources after itself when the library is unloaded.
                 )");
-
+    regclass_Extension(m);
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
     regclass_graph_Symbol(m);     // Symbol must be registered before Dimension
@@ -238,6 +239,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
     regclass_graph_Op(m);
+    regclass_graph_OpExtension(m);
     regclass_graph_Input(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
@@ -284,7 +286,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_Version(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
-    regclass_Extension(m);
 
     regclass_RemoteContext(m);
     regclass_RemoteTensor(m);

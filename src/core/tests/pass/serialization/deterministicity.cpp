@@ -296,7 +296,7 @@ TEST_P(SerializationDeterministicityInputOutputTest, FromIrModel) {
     EXPECT_TRUE(files_equal(xml_2, xml_1));
 }
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(SerializationDeterministicityInputOutputTest, FromOvModelBybPath) {
     auto irVersion = GetParam();
 

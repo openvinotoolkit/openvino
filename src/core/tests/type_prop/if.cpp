@@ -118,7 +118,7 @@ TEST(type_prop, if_clone_test) {
     if_op->set_input(X, Xt, Xe);
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
-    auto new_if = std::dynamic_pointer_cast<op::v8::If>(if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
+    auto new_if = ov::as_type_ptr<op::v8::If>(if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
     EXPECT_EQ(true, true);
 }
 
