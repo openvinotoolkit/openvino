@@ -110,7 +110,7 @@ TEST_P(rms_eltwise, basic) {
         reorder("reorder_bfyx", input_info("eltw"), p.input_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = default_tolerance(p.input_type);
     execute(p);
 }
 
