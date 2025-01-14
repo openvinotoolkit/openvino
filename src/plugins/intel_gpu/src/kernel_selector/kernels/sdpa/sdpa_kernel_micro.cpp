@@ -661,7 +661,7 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 2}); // Q
 
     if (params.conf.is_kv_compressed) {
-        uint32_t input_idx = params.inputs.size();
+        uint32_t input_idx = static_cast<uint32_t>(params.inputs.size());
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 0});     // K scales
         if (params.conf.use_asymmetric_quantization)
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 2}); // K zp
