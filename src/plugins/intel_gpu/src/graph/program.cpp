@@ -491,9 +491,8 @@ void program::build_program(bool is_internal) {
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    if (debug_config->dry_run_path.empty() || is_internal) {
+    if (get_config().get_dry_run_path().empty() || is_internal) {
 #else
     {
 #endif
@@ -608,7 +607,7 @@ void program::post_optimize_graph(bool is_internal) {
     auto partial_build = _config.get_partial_build_program();
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    if (!is_internal && (!partial_build || !debug_config->dry_run_path.empty())) {
+    if (!is_internal && (!partial_build || !_config.get_dry_run_path().empty())) {
 #else
     if (!is_internal && !partial_build) {
 #endif
