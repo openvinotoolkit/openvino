@@ -638,16 +638,16 @@ Consequently, all the ports connected to the same `PortConnector` will have the 
 In other words, when all the `Expressions` that required input data in a certain register are evaluated, the register may be reused to hold another `Expression's` output. 
 `AssignRegisters` also supports two types of registers: general-purpose and vector ones. 
 Different types of registers are managed and assigned independently, and a particular register type required by an `Expression` is provided by the `ov::snippets::Generator` (or a derived generator for target-specific `Ops`).  
-2. `InsertTailLoop` injects tail-processing section after a loop body if needed. 
+2. `InsertSpecificIterations` injects initialization section before a loop body and tail-processing section after a loop body if needed. 
 Note that every loop has two parameters that specify how its body is evaluated: `work_amount` and `increment` The `work_amount` indicates how much of the data needs to be processed, it often equals to the dimension's size the loop is working on. 
 The `increment` defines how many data entries are processed on every loop iteration (it usually equals to vector size for the innermost loops of elementwise subgraph). 
 So if a loop's `work_amount` is not evenly divisible by its `increment`, it means that a tail processing is required. 
-`InsertTailLoop` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
+`InsertSpecificIterations` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
 3. `CleanupLoopOffsets` "fuses" the finalization offsets of loop with an outer loop's pointer increments and zeroes the offsets before `Result` operations.
 4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
 This information will be used during code emission to eliminate redundant instructions.
 
-Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) for more info regarding the main passes in the `Preparation` stage. 
+Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage. 
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
