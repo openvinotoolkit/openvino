@@ -68,12 +68,12 @@ TEST_F(TransformationTestsF, ClampFp16OutputTest2) {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 3, 2, 2 });
         auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 2, 2 });
         auto matmul = std::make_shared<ov::op::v0::MatMul>(input1, input2, true, false);
+        auto target_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, { 3, 4 });
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, target_shape, false);
         auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
         auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
-        auto clamp = std::make_shared<ov::op::v0::Clamp>(matmul, min, max);
-        auto target_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, { 3, 4 });
-        auto reshape = std::make_shared<ov::op::v1::Reshape>(clamp, target_shape, false);
-        auto softmax = std::make_shared<ov::op::v8::Softmax>(reshape, 1);
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(reshape, min, max);
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(clamp, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ softmax }, ov::ParameterVector{ input1, input2 });
     }
@@ -128,12 +128,12 @@ TEST_F(TransformationTestsF, ClampFp16OutputTest5) {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 3, 2, 2 });
         auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 1, 2, 2 });
         auto matmul = std::make_shared<ov::op::v0::MatMul>(input1, input2, true, false);
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 3, 2, 2 });
+        auto add = std::make_shared<ov::op::v1::Add>(matmul, data);
         auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
         auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
-        auto clamp = std::make_shared<ov::op::v0::Clamp>(matmul, min, max);
-        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{ 3, 2, 2 });
-        auto add = std::make_shared<ov::op::v1::Add>(clamp, data);
-        auto softmax = std::make_shared<ov::op::v8::Softmax>(add, 1);
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(add, min, max);
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(clamp, 1);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ softmax }, ov::ParameterVector{ input1, input2, data });
     }

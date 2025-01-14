@@ -47,17 +47,14 @@ ClampFP16Output::ClampFP16Output() {
         }
 
         auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
-        auto target_inputs = matmul->get_output_target_inputs(0);
 
         auto min = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
         auto max = static_cast<double>(std::numeric_limits<ov::float16>::max());
-        auto clamp = std::make_shared<v0::Clamp>(matmul, min, max);
+        auto clamp = std::make_shared<v0::Clamp>(softmax->get_input_source_output(0), min, max);
         clamp->set_friendly_name(matmul->get_friendly_name() + "/ClampFP16Output");
         ov::copy_runtime_info({matmul, softmax}, clamp);
 
-        for (auto& in : target_inputs) {
-            in.replace_source_output(clamp);
-        }
+        softmax->input(0).replace_source_output(clamp);
 
         return true;
     };

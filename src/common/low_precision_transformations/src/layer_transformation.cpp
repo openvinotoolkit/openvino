@@ -45,6 +45,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     deqPrecision(params.deqPrecision),
     defaultPrecisions(params.defaultPrecisions),
     reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
+    scalingMode(params.scalingMode),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {

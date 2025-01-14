@@ -61,7 +61,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::kv_cache_precision, ov::element::undefined),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
         std::make_tuple(ov::weights_path, ""),
-        std::make_tuple(ov::hint::activations_scale_factor, 0.f),
+        std::make_tuple(ov::hint::activations_scale_factor, -1.f),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
