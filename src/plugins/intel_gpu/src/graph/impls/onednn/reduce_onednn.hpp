@@ -15,7 +15,7 @@ namespace onednn {
 inline bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
-    auto input_layout = node.get_input_layout();
+    const auto& input_layout = node.get_input_layout();
     if (node.get_output_layout().format == format::any)
         return false;
 
