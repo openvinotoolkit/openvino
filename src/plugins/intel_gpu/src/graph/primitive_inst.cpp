@@ -1146,7 +1146,7 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
     }
 }
 
-void primitive_inst::set_shape_info_memory_ptr(memory::ptr addr) {
+void primitive_inst::set_shape_info_memory_subbuffer(memory::ptr addr) {
     _shape_info_memory = addr;
 }
 
