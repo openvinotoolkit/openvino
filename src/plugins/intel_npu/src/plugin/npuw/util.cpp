@@ -18,12 +18,19 @@
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
-bool ov::npuw::util::is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx) {
+bool ov::npuw::util::is_set(const std::size_t sub_idx,
+                            const std::string& opt,
+                            const std::size_t real_idx,
+                            const std::size_t end_idx) {
     if (opt.empty() || opt == "NO") {
         return false;
     }
     if (opt == "YES") {
         return true;
+    }
+
+    if (opt == "MIN") {
+        return sub_idx == real_idx;
     }
 
     std::string str(opt);

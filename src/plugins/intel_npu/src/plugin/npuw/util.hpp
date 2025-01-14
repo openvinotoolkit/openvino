@@ -15,7 +15,10 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-bool is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx = SIZE_MAX);
+bool is_set(const std::size_t sub_idx,
+            const std::string& opt,
+            const std::size_t real_idx = SIZE_MAX,
+            const std::size_t end_idx = SIZE_MAX);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt

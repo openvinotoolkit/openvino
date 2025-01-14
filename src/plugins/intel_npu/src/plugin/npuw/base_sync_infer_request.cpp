@@ -491,11 +491,12 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, end_idx)) {
+    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
         return;
     }
 
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
     const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const auto& comp_submodel = comp_submodel_desc.compiled_model;
 
@@ -569,11 +570,12 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
 void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, end_idx)) {
+    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
         return;
     }
 
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
     const auto& comp_submodel_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const auto& comp_submodel = comp_submodel_desc.compiled_model;
 
