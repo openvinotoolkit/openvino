@@ -104,7 +104,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 
 #if ASYMMETRIC_QUANTIZATION
     // If the range of input data is zero, it is adjusted to the minimum value(0.001).
-     half diff_value = max_val == min_val ? ((max_val + grp_max) - min_val) : (max_val - min_val);
+     half diff_value = max_val == min_val ? (grp_max) : (max_val - min_val);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
 #   if UNSIGNED_OUTPUT
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp);
