@@ -183,3 +183,18 @@ endif()
 
 add_subdirectory(standalone_build)
 add_dependencies(ov_onnx_frontend_tests onnx_fe_standalone_build_test)
+
+# Files produced by protobuf may contain missing declarations
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+    target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-declarations>)
+endif()
+# Protobuf generates files which cause a following warnings
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
+    ov_add_compiler_flags(/wd4244)
+    # '<': signed/unsigned mismatch
+    ov_add_compiler_flags(/wd4018)
+endif()
