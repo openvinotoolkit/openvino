@@ -79,7 +79,11 @@ ov_add_frontend(NAME onnx
 
 # Required to build it in a strict order in case onnx_common contains onnx headers
 if(NOT ONNX_FOUND)
+    message (STATUS "ONNX DBG Linked Frontend with own onnx_proto and onnx")
     add_dependencies(openvino_onnx_frontend openvino_onnx_common)
+else()
+    message (STATUS "ONNX DBG Linked Frontend with system onnx_proto and onnx")
+    ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
 endif()
 
 set(ONNX_OPSET_VERSION 21 CACHE INTERNAL "Supported version of ONNX operator set")
