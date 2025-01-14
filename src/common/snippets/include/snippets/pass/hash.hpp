@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace pass {
  */
 class Hash : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("HashPass", "0");
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::Hash");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 

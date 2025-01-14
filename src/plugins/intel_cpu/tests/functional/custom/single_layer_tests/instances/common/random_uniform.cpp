@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,11 @@ static const std::vector<std::tuple<double, double>> min_max = {
         {-50, 0}
 };
 
+static const std::vector<ov::op::PhiloxAlignment> alignment = {
+        ov::op::PhiloxAlignment::TENSORFLOW,
+        ov::op::PhiloxAlignment::PYTORCH
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,
         ::testing::Combine(
                 ::testing::ValuesIn(output_shapes),
@@ -42,6 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,
                 ::testing::Values(ElementType::f32, ElementType::i32),
                 ::testing::ValuesIn(global_seed),
                 ::testing::ValuesIn(operational_seed),
+                ::testing::ValuesIn(alignment),
                 ::testing::Values(false),
                 ::testing::Values(false),
                 ::testing::Values(false),
@@ -57,6 +63,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ParamConst, RandomUniformLayerTestCPU,
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(1),
                 ::testing::Values(0),
+                ::testing::ValuesIn(alignment),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),

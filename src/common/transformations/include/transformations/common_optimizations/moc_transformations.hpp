@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,9 @@ class TRANSFORMATIONS_API MOCTransformations;
  */
 
 class ov::pass::MOCTransformations : public ov::pass::ModelPass {
-    bool m_use_shapes;
-    bool m_low_precision_enabled;
-
 public:
-    OPENVINO_RTTI("MOCTransformations", "0");
+    OPENVINO_MODEL_PASS_RTTI("MOCTransformations");
+
     /**
      * use_shapes = True enables transformations which are depends on shapes and also it
      * enables ConstantFolding for all ShapeOf operations.
@@ -41,4 +39,8 @@ public:
           m_low_precision_enabled(low_precision_enabled) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    bool m_use_shapes;
+    bool m_low_precision_enabled;
 };

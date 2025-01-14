@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,5 +72,5 @@ public:
 template <class Key, class Value>
 using caseless_unordered_map = std::unordered_map<Key, Value, CaselessHash<Key>, CaselessEq<Key>>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

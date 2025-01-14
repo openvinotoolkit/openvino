@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ using namespace ov::pass;
 
 class RenameReLU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RanameReLU");
+    OPENVINO_MATCHER_PASS_RTTI("RenameReLU");
     RenameReLU() : MatcherPass() {
         auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>();
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -35,7 +35,7 @@ public:
 
 class RenameSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RenameSigmoid");
+    OPENVINO_MATCHER_PASS_RTTI("RenameSigmoid");
     RenameSigmoid() : MatcherPass() {
         auto sigmoid = pattern::wrap_type<ov::op::v0::Sigmoid>();
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -51,7 +51,7 @@ public:
 
 class TestModelPass : public pass::ModelPass {
 public:
-    OPENVINO_RTTI("TestModelPass");
+    OPENVINO_MODEL_PASS_RTTI("TestModelPass");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         pass::Manager manager(get_pass_config());
@@ -66,7 +66,7 @@ public:
 
 class TestGraphRewritePass : public pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TestGraphRewritePass");
+    OPENVINO_GRAPH_REWRITE_RTTI("TestGraphRewritePass");
     TestGraphRewritePass() {
         add_matcher<RenameReLU, false /*disabled by default*/>();
         add_matcher<RenameSigmoid>();
@@ -259,17 +259,17 @@ TEST(PassConfig, EnableDisablePasses9) {
 
 class TestNestedMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TestNestedMatcher");
+    OPENVINO_MATCHER_PASS_RTTI("TestNestedMatcher");
     TestNestedMatcher() : MatcherPass() {
         auto any_op = pattern::any_input();
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
             auto root = m.get_match_root();
             auto pass_config = this->get_pass_config();
-            if (std::dynamic_pointer_cast<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
+            if (ov::as_type_ptr<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
                 auto pass = std::make_shared<RenameReLU>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);
-            } else if (std::dynamic_pointer_cast<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
+            } else if (ov::as_type_ptr<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
                 auto pass = std::make_shared<RenameSigmoid>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);
@@ -284,7 +284,7 @@ public:
 
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TestNestedGraphRewrite");
+    OPENVINO_GRAPH_REWRITE_RTTI("TestNestedGraphRewrite");
     TestNestedGraphRewrite() {
         add_matcher<TestNestedMatcher>();
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -624,16 +624,24 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
-                _outputs[0] = variable.get_memory();
+                GPU_DEBUG_TRACE_DETAIL
+                    << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared"
+                    << std::endl;
+                if (!get_network().is_reuse_variable_mem()) {
+                    GPU_DEBUG_TRACE_DETAIL << "Update output mem with new variable mem" << std::endl;
+                    _outputs[0] = variable.get_memory();
+                    _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
-                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
-                    _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                        _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
 
-                    if (compressed_cache_variable->has_zp_state()) {
-                        _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        if (compressed_cache_variable->has_zp_state()) {
+                            _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        }
                     }
+                } else {
+                    GPU_DEBUG_TRACE_DETAIL << "Can reuse variable mem of prev request" << std::endl;
                 }
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
         } else {
             variable.set_layout(_impl_params->output_layouts[0]);
@@ -2415,11 +2423,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             if ((_node.is_output() && is_reorder_weights) || (!_node.is_output() && _node.is_type<input_layout>()))
                 reset = false;
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
-            return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
+            return _engine.allocate_memory(layout, alloc_type, reset);
         }
     } else if (!_node.can_share_buffer() || impl_params.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
-        return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
+        return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
                                     net_id,
@@ -2662,6 +2670,27 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>())
             can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
+        // Check if broadcast happens more than single axis.
+        // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
+        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length()) {
+            uint8_t broadcast_more_than_single_axis = 0;
+            auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
+
+            // Update outer_dep_pshape to merged_shape rank
+            if (merged_shape.rank().get_length() > outer_dep_pshape.rank().get_length()) {
+                updated_outer_dep_pshape.insert(updated_outer_dep_pshape.begin(),
+                                                merged_shape.rank().get_length() - outer_dep_pshape.rank().get_length(), ov::Dimension(1));
+            }
+
+            for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
+                if (merged_shape[i] != updated_outer_dep_pshape[i])
+                    broadcast_more_than_single_axis++;
+            }
+
+            if (broadcast_more_than_single_axis > 1)
+                can_broadcast = false;
+        }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
         // batch dimension mismatch in OneDNN tensor descriptors as follow:
@@ -2675,7 +2704,6 @@ bool primitive_inst::is_valid_fusion() const {
             auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                          cldnn::format::dimension(gemm_layout.format),
                                                          false);
-
             auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
@@ -2689,8 +2717,19 @@ bool primitive_inst::is_valid_fusion() const {
             const auto fc_dims = fc_layout.get_dims();
             const auto data_dims = data_layout.get_dims();
 
+            auto same_spatial = [](layout a, layout b) {
+                if (a.get_spatial_rank() != b.get_spatial_rank())
+                    return false;
+                for (size_t i = 0; i < a.get_spatial_rank(); i++) {
+                    if (a.spatial(i) != b.spatial(i))
+                        return false;
+                }
+                return true;
+            };
+
             if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
                 !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !((data_dims[0] == 1 || data_dims[1] == 1) && same_spatial(fc_layout, data_layout)) &&
                 !(fc_layout.count() == data_layout.count())) {
                 return false;
             }

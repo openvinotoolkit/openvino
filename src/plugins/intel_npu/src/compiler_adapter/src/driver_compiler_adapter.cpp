@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "driver_compiler_adapter.hpp"
-
-#include <ze_graph_ext.h>
 
 #include <regex>
 #include <string_view>
@@ -21,7 +19,6 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 
@@ -254,6 +251,10 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     _logger.debug("query end");
     return result;
+}
+
+uint32_t DriverCompilerAdapter::get_version() const {
+    return _zeroInitStruct->getCompilerVersion();
 }
 
 /**

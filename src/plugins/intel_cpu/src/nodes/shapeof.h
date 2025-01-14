@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
 #include "dnnl_extension_utils.h"
 
 namespace ov {
@@ -23,8 +25,12 @@ public:
     void initOptimalPrimitiveDescriptor() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    bool needPrepareParams() const override {return false;};
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    bool needPrepareParams() const override {
+        return false;
+    };
+    void executeDynamicImpl(dnnl::stream strm) override {
+        execute(strm);
+    }
 
     bool isExecutable() const override;
 
@@ -34,6 +40,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

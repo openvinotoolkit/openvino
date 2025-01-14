@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Tensor, PartialShape
+from openvino import Tensor, PartialShape
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 
@@ -75,7 +75,11 @@ def get_pytorch_decoder(model, example_inputs, args):
     else:
         decoder = model
     args['input_model'] = decoder
-    args["example_input"] = inputs
+    ei = getattr(decoder, "_example_input", None)
+    if ei is not None:
+        args["example_input"] = ei
+    else:
+        args["example_input"] = inputs
 
     return args
 
@@ -250,6 +254,8 @@ def to_torch_tensor(tensor):
         return tuple(to_torch_tensor(x) for x in tensor)
     if isinstance(tensor, dict) and all(isinstance(k, str) for k in tensor.keys()):
         return dict((k, to_torch_tensor(x)) for k, x in tensor.items())
+    if tensor is None:
+        return None
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,15 +22,27 @@ primitive_db::primitive_db()
     : primitives({
 #include "ks_primitive_db.inc"
       }),
+      cm_primitives({
+#include "ks_cm_primitive_db.inc"
+      }),
       batch_headers({
 #include "ks_primitive_db_batch_headers.inc"
+      }),
+      cm_batch_headers({
+#include "ks_cm_primitive_db_batch_headers.inc"
       }) {
 }
 
-std::vector<code> primitive_db::get(const primitive_id& id) const {
+std::vector<code> primitive_db::get(const primitive_id& id, bool is_cm) const {
 #ifndef NDEBUG
     {
-        std::ifstream kernel_file{id + ".cl", std::ios::in | std::ios::binary};
+        std::string filename = id;
+        if (!is_cm) {
+            filename += ".cl";
+        } else {
+            filename += ".cpp";
+        }
+        std::ifstream kernel_file{filename, std::ios::in | std::ios::binary};
         if (kernel_file.is_open()) {
             code ret;
             auto beg = kernel_file.tellg();
@@ -46,7 +58,11 @@ std::vector<code> primitive_db::get(const primitive_id& id) const {
     }
 #endif
     try {
-        const auto codes = primitives.equal_range(id);
+        auto* primitives_ptr = &primitives;
+        if (is_cm) {
+            primitives_ptr = &cm_primitives;
+        }
+        const auto codes = primitives_ptr->equal_range(id);
         std::vector<code> temp;
         std::for_each(codes.first, codes.second, [&](const std::pair<const std::string, std::string>& c) {
             temp.push_back(c.second);

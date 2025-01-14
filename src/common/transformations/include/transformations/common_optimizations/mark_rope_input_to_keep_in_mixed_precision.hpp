@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API MarkRopeInputsToKeepInMixedPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkRopeInputsToKeepInMixedPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkRopeInputsToKeepInMixedPrecision");
     MarkRopeInputsToKeepInMixedPrecision();
 
 private:

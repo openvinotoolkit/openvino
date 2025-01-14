@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,8 @@ private:
         virtual ~ExecutorBase() = default;
     };
     std::shared_ptr<ExecutorBase> m_executor;
-    template <typename T> struct Executor;
+    template <typename T>
+    struct Executor;
     LLMMLPNode::Config m_mlp_config;
 };
 

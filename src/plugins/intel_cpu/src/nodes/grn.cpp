@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "grn.h"
+
 #include <string>
 
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/parallel.hpp"
-#include "grn.h"
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,7 +15,7 @@ namespace node {
 
 bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
+        const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
         if (!grn) {
             errorMessage = "Only opset1 GRN operation is supported";
             return false;
@@ -33,7 +34,7 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     }
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
-    const auto grn = std::dynamic_pointer_cast<const ov::opset1::GRN>(op);
+    const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
     if (grn == nullptr)
         OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of GRN from opset1.");
 
@@ -97,11 +98,12 @@ void GRN::execute(dnnl::stream strm) {
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;
         for (int c = 0; c < C; c++) {
-            variance += std::pow(src_data[b*C*H*W + c*H*W + h*W + w], 2);
+            variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);
         }
         variance = std::pow(variance + bias, 0.5f);
         for (int c = 0; c < C; c++) {
-            dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] / static_cast<float>(variance);
+            dst_data[b * C * H * W + c * H * W + h * W + w] =
+                src_data[b * C * H * W + c * H * W + h * W + w] / static_cast<float>(variance);
         }
     });
 }
@@ -110,6 +112,6 @@ bool GRN::created() const {
     return getType() == Type::GRN;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

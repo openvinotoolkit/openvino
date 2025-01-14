@@ -109,5 +109,5 @@ Additional Resources
 - `BitBake Tool <https://docs.yoctoproject.org/bitbake/>`__
 - `Poky <https://git.yoctoproject.org/poky>`__
 - `Meta-intel <https://git.yoctoproject.org/meta-intel/tree/README.md>`__
-- `Meta-openembedded <http://cgit.openembedded.org/meta-openembedded/tree/README.md>`__
+- `Meta-openembedded <https://cgit.openembedded.org/meta-openembedded/tree/README.md>`__
 - `Meta-clang <https://github.com/kraj/meta-clang/tree/master/#readme>`__

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/tensor.hpp"
@@ -43,7 +43,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
-                        InstanceMethod("getSize", &TensorWrap::get_size)});
+                        InstanceMethod("getSize", &TensorWrap::get_size),
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -66,6 +67,12 @@ Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
 }
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getData() does not accept any arguments.");
+        return env.Undefined();
+    }
+
     auto type = _tensor.get_element_type();
 
     switch (type) {
@@ -174,4 +181,13 @@ Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
     }
     const auto size = static_cast<double>(_tensor.get_size());
     return Napi::Number::New(env, size);
+}
+
+Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "isContinuous() does not accept any arguments.");
+        return env.Undefined();
+    }
+    return Napi::Boolean::New(env, _tensor.is_continuous());
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
         return false;
     }
     void executeDynamicImpl(dnnl::stream strm) override {
-        execute(strm);
+        execute(std::move(strm));
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,12 @@ class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
     CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape);
 
-    CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
-                         const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
+    CpuBlockedMemoryDesc(ov::element::Type prc,
+                         const Shape& shape,
+                         const VectorDims& blockedDims,
+                         const VectorDims& order,
+                         size_t offsetPadding = 0,
+                         const VectorDims& offsetPaddingToData = {},
                          const VectorDims& strides = {});
 
     MemoryDescPtr clone() const override {
@@ -26,8 +30,8 @@ public:
 
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const override;
-    bool isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
-    bool isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
+    bool isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
+    bool isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK) const;
 
     ov::element::Type getPrecision() const override {
         return precision;
@@ -105,5 +109,5 @@ private:
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
 using CpuBlockedMemoryDescCPtr = std::shared_ptr<const CpuBlockedMemoryDesc>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

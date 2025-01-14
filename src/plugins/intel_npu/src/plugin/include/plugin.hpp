@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,6 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    std::unique_ptr<ICompilerAdapter> getCompiler(const Config& config) const;
-
     std::shared_ptr<NPUBackends> _backends;
 
     std::map<std::string, std::string> _config;

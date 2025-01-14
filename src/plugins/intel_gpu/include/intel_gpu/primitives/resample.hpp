@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace cldnn {
 struct resample : public primitive_base<resample> {
     CLDNN_DECLARE_PRIMITIVE(resample)
 
-    resample() : primitive_base("", {}) {}
+    resample() : primitive_base("", {}), scales_port(0) {}
 
     using InterpolateOp = ov::op::util::InterpolateBase;
 

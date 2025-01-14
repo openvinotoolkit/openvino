@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API SliceSequenceToSingleSlice;
  */
 class ov::pass::UselessSliceEraser : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UselessSliceEraser", "0");
+    OPENVINO_MODEL_PASS_RTTI("UselessSliceEraser");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::GroupedStridedSliceOptimizer : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedStridedSliceOptimizer", "0");
+    OPENVINO_MODEL_PASS_RTTI("GroupedStridedSliceOptimizer");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -53,7 +53,7 @@ public:
  */
 class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
+    OPENVINO_MODEL_PASS_RTTI("GroupedSliceToVSplitOptimization");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -71,7 +71,7 @@ public:
  */
 class ov::pass::SliceSequenceToSingleSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SliceSequenceToSingleSlice", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SliceSequenceToSingleSlice");
     SliceSequenceToSingleSlice();
 };
 
@@ -82,9 +82,9 @@ public:
  */
 class ov::pass::StridedSliceOptimization : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("StridedSliceOptimization");
     StridedSliceOptimization(bool use_shapes = true);
 
-    OPENVINO_RTTI("StridedSliceOptimization", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

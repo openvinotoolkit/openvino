@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,19 +49,6 @@ public:
         std::vector<int> rank;
         void* buf;
         Task task;
-    };
-
-    /**
-     * @brief Defines inference thread binding type
-     */
-    enum ThreadBindingType : std::uint8_t {
-        NONE,   //!< Don't bind the inference threads
-        CORES,  //!< Bind inference threads to the CPU cores (round-robin)
-        // the following modes are implemented only for the TBB code-path:
-        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
-               //!< not implemeneted)
-        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
-                      //!< hybrid CPUs)
     };
 
     /**

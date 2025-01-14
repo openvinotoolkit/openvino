@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,21 +16,22 @@ std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamI
 
     std::ostringstream result;
 
-    result << "IS={"              << out_shape.size();
-    result << "}_OS="             << out_shape;
+    result << "IS=["              << out_shape.size();
+    result << "]_OS="             << out_shape;
     result << "_Min="             << std::get<0>(min_max);
     result << "_Max="             << std::get<1>(min_max);
     result << "_ShapePrc="        << std::get<2>(obj.param);
     result << "_OutPrc="          << std::get<3>(obj.param);
     result << "_GlobalSeed="      << std::get<4>(obj.param);
     result << "_OperationalSeed=" << std::get<5>(obj.param);
-    result << "_ConstIn={"        << utils::bool2str(std::get<6>(obj.param)) << ","
-                                  << utils::bool2str(std::get<7>(obj.param)) << ","
-                                  << utils::bool2str(std::get<8>(obj.param)) << "}";
+    result << "_Alignment="       << std::get<6>(obj.param);
+    result << "_ConstIn={"        << utils::bool2str(std::get<7>(obj.param)) << ","
+                                  << utils::bool2str(std::get<8>(obj.param)) << ","
+                                  << utils::bool2str(std::get<9>(obj.param)) << "}";
 
-    result << CPUTestsBase::getTestCaseName(std::get<9>(obj.param));
+    result << CPUTestsBase::getTestCaseName(std::get<10>(obj.param));
 
-    const auto& config = std::get<10>(obj.param);
+    const auto& config = std::get<11>(obj.param);
     if (!config.empty()) {
         result << "_PluginConf={";
         for (const auto& conf_item : config) {
@@ -53,11 +54,12 @@ void RandomUniformLayerTestCPU::SetUp() {
     const auto& output_prc = std::get<3>(params);
     m_global_seed          = std::get<4>(params);
     m_operational_seed     = std::get<5>(params);
-    const auto& const_in_1 = std::get<6>(params);
-    const auto& const_in_2 = std::get<7>(params);
-    const auto& const_in_3 = std::get<8>(params);
-    const auto& cpu_params = std::get<9>(params);
-    configuration          = std::get<10>(params);
+    const auto& alignment  = std::get<6>(params);
+    const auto& const_in_1 = std::get<7>(params);
+    const auto& const_in_2 = std::get<8>(params);
+    const auto& const_in_3 = std::get<9>(params);
+    const auto& cpu_params = std::get<10>(params);
+    configuration          = std::get<11>(params);
 
     m_min_val = std::get<0>(min_max);
     m_max_val = std::get<1>(min_max);
@@ -118,7 +120,7 @@ void RandomUniformLayerTestCPU::SetUp() {
 
     init_input_shapes(in_shapes);
 
-    const auto rnd_op = std::make_shared<ov::op::v8::RandomUniform>(inputs[0], inputs[1], inputs[2], output_prc, m_global_seed, m_operational_seed);
+    const auto rnd_op = std::make_shared<ov::op::v8::RandomUniform>(inputs[0], inputs[1], inputs[2], output_prc, m_global_seed, m_operational_seed, alignment);
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnd_op)};
 
     function = std::make_shared<ov::Model>(results, in_params, "RandomUniformLayerTestCPU");
@@ -129,6 +131,14 @@ void RandomUniformLayerTestCPU::SetUp() {
     }
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
         convert_precisions.insert({ ov::element::f16, ov::element::f32 });
+    }
+
+    if (m_global_seed != 0lu || m_operational_seed != 0lu) {
+        // When seeds are non-zero, generator output should be exactly the same
+        // but due to some rounding errors, these thresholds are still necessary
+        // albeit the number of these 'rounding errors' is minimal (1 in 1000).
+        abs_threshold = 1e-6;
+        rel_threshold = 1e-3;
     }
 }
 
@@ -195,10 +205,8 @@ void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected,
         SubgraphBaseTest::compare(expected, actual);
         return;
     }
-
     // When both seed values are equal to zero, RandomUniform should generate non-deterministic sequence.
     // In this case will use Mean and Variance metrics.
-
 #define CASE(X) case X : rndUCompare<ov::element_type_traits<X>::value_type>(expected[0], actual[0]); break;
 
     switch (expected[0].get_element_type()) {

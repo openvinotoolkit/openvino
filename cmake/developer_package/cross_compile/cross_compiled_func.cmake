@@ -1,16 +1,26 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 ## list of available instruction sets
-set(_ARCH_LIST ANY SSE42 AVX AVX2 AVX512F NEON_FP16)
+set(_AVAILABLE_ARCHS_LIST ANY SSE42 AVX AVX2 AVX512F NEON_FP16 SVE)
 
-set(_ACCEPTED_ARCHS_ANY     "^(ANY)$")
-set(_ACCEPTED_ARCHS_SSE42   "^(ANY|SSE42)$")
-set(_ACCEPTED_ARCHS_AVX     "^(ANY|SSE42|AVX)$")
-set(_ACCEPTED_ARCHS_AVX2    "^(ANY|SSE42|AVX|AVX2)$")
-set(_ACCEPTED_ARCHS_AVX512F "^(ANY|SSE42|AVX|AVX2|AVX512F)$")
-set(_ACCEPTED_ARCHS_NEON_FP16 "^(ANY|NEON_FP16)$")
+if(ENABLE_SVE)
+    list(APPEND _ENABLED_ARCHS_LIST SVE)
+endif()
+if(ENABLE_NEON_FP16)
+    list(APPEND _ENABLED_ARCHS_LIST NEON_FP16)
+endif()
+if(ENABLE_AVX512F)
+    list(APPEND _ENABLED_ARCHS_LIST AVX512F)
+endif()
+if(ENABLE_AVX2)
+    list(APPEND _ENABLED_ARCHS_LIST AVX2)
+endif()
+if(ENABLE_SSE42)
+    list(APPEND _ENABLED_ARCHS_LIST SSE42)
+endif()
+list(APPEND _ENABLED_ARCHS_LIST ANY)
 
 ## Arch specific definitions
 set(_DEFINE_ANY       "")
@@ -19,12 +29,24 @@ set(_DEFINE_AVX       "HAVE_AVX"      ${_DEFINE_SSE42})
 set(_DEFINE_AVX2      "HAVE_AVX2"     ${_DEFINE_AVX})
 set(_DEFINE_AVX512F   "HAVE_AVX512F"  ${_DEFINE_AVX2})
 set(_DEFINE_NEON_FP16 "HAVE_NEON_FP16" ${_DEFINE_ANY})
+set(_DEFINE_SVE       "HAVE_SVE"      ${_DEFINE_SVE})
 
 ## Arch specific compile options
-ov_avx512_optimization_flags(_FLAGS_AVX512F)
-ov_avx2_optimization_flags  (_FLAGS_AVX2)
-ov_sse42_optimization_flags (_FLAGS_SSE42)
-ov_arm_neon_fp16_optimization_flags(_FLAGS_NEON_FP16)
+if(ENABLE_AVX512F)
+    ov_avx512_optimization_flags(_FLAGS_AVX512F)
+endif()
+if(ENABLE_AVX2)
+    ov_avx2_optimization_flags(_FLAGS_AVX2)
+endif()
+if(ENABLE_SSE42)
+    ov_sse42_optimization_flags(_FLAGS_SSE42)
+endif()
+if(ENABLE_NEON_FP16)
+    ov_arm_neon_fp16_optimization_flags(_FLAGS_NEON_FP16)
+endif()
+if(ENABLE_SVE)
+    ov_arm_sve_optimization_flags(_FLAGS_SVE)
+endif()
 set(_FLAGS_AVX "")  ## TBD is not defined for OV project yet
 set(_FLAGS_ANY "")  ##
 
@@ -72,18 +94,15 @@ function(cross_compiled_file TARGET)
         message(FATAL_ERROR "Unknown argument: " ${X_UNPARSED_ARGUMENTS})
     endif()
     if((NOT TARGET) OR (NOT X_NAME) OR (NOT X_NAMESPACE) OR (NOT X_API) OR (NOT X_ARCH))
-        message(FATAL_ERROR "Missed arguments")
+        message(FATAL_ERROR "Missed arguments in 'cross_compiled_file'")
     endif()
 
-    _currently_requested_top_arch(TOP_ARCH)
-    set(_CURRENT_ARCH_FILTER  "${_ACCEPTED_ARCHS_${TOP_ARCH}}")
-
     ## format: ARCH1 ARCH2 <src1> ARCH3 <src2> ...
-    foreach(_it ${X_ARCH})
-        if (_it IN_LIST _ARCH_LIST)
+    foreach(_it IN LISTS X_ARCH)
+        if(_it IN_LIST _AVAILABLE_ARCHS_LIST)
             ## that is arch ID
             set(_arch ${_it})
-            if(_arch MATCHES ${_CURRENT_ARCH_FILTER})
+            if(_arch IN_LIST _ENABLED_ARCHS_LIST)
                 # make non/less-optimized version coming first
                 list(INSERT _CUR_ARCH_SET 0 ${_arch})
                 list(APPEND _FULL_ARCH_SET ${_arch})
@@ -92,8 +111,11 @@ function(cross_compiled_file TARGET)
             ## that is source file name
             set(_src_name ${_it})
             _remove_source_from_target(${TARGET} ${_src_name})
-            _clone_source_to_target(${TARGET} ${_src_name} "${_CUR_ARCH_SET}")
-            set(_CUR_ARCH_SET "")
+
+            if(_CUR_ARCH_SET)
+                _clone_source_to_target(${TARGET} ${_src_name} "${_CUR_ARCH_SET}")
+                unset(_CUR_ARCH_SET)
+            endif()
         endif()
     endforeach()
 
@@ -176,25 +198,6 @@ function(_add_dispatcher_to_target TARGET HEADER FUNC_NAME NAMESPACE ARCH_SET)
             "${CMAKE_CURRENT_SOURCE_DIR}/${DISPATCHER_INCLUDE_DIR}")
 
     target_sources(${TARGET} PRIVATE ${DISPATCHER_SOURCE})
-endfunction()
-
-#######################################
-#
-#  Return currently requested ARCH id
-#
-function(_currently_requested_top_arch VAR)
-    if(ENABLE_NEON_FP16)
-        set(RES NEON_FP16)
-    elseif(ENABLE_AVX512F)
-        set(RES AVX512F)
-    elseif(ENABLE_AVX2)
-        set(RES AVX2)
-    elseif(ENABLE_SSE42)
-        set(RES SSE42)
-    else()
-        set(RES ANY)
-    endif()
-    set (${VAR} "${RES}" PARENT_SCOPE)
 endfunction()
 
 #####################################

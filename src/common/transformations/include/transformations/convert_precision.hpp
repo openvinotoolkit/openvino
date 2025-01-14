@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ using type_to_fuse_map =
 
 class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ConvertPrecision", "0");
+    OPENVINO_MODEL_PASS_RTTI("ConvertPrecision");
     ConvertPrecision(ov::element::Type_t from,
                      ov::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {},

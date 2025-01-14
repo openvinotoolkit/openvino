@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,9 +60,12 @@ public:
      * @param model_path path to IR file
      * @param bin_path path to bin file, if path is empty, will try to read bin file with the same name as xml and
      * if bin file with the same name was not found, will load IR without weights.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return shared pointer to ov::Model
      */
-    virtual std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const = 0;
+    virtual std::shared_ptr<ov::Model> read_model(const std::string& model_path,
+                                                  const std::string& bin_path,
+                                                  const AnyMap& properties) const = 0;
 
     virtual ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const = 0;
 

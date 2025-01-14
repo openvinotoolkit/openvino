@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,14 +69,6 @@ const ov::descriptor::Tensor& ov::descriptor::Input::get_tensor() const {
 
 ov::descriptor::Tensor& ov::descriptor::Input::get_tensor() {
     return m_output->get_tensor();
-}
-
-std::shared_ptr<const ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() const {
-    return m_output->get_tensor_ptr();
-}
-
-std::shared_ptr<ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() {
-    return m_output->get_tensor_ptr();
 }
 
 const ov::Shape& ov::descriptor::Input::get_shape() const {

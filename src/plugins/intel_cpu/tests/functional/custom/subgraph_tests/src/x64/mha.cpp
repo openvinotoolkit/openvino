@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,7 +189,7 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (funcInput.get_element_type() == ov::element::bf16) {
+            if (funcInput.get_element_type() == ov::element::bf16 || funcInput.get_element_type() == ov::element::f16) {
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -1;
                 in_data.range = 2;
@@ -232,6 +232,9 @@ protected:
             configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         }
 
+        if (inputPrecisions[0] == ElementType::f16)
+            configuration.insert({ov::hint::inference_precision(ov::element::f16)});
+
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
@@ -251,6 +254,9 @@ TEST_P(MHATest, CompareWithRefs) {
         this->GetParam();
 
     if (inputPrecisions[0] == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    if (inputPrecisions[0] == ElementType::f16 && !ov::with_cpu_x86_avx512_core_amx_fp16())
         GTEST_SKIP();
 
     if (!ov::with_cpu_x86_avx512_core())
@@ -290,7 +296,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA,
                                                                                        ElementType::f32}),
                                             ::testing::ValuesIn(matMulIn0Precisions),
                                             ::testing::ValuesIn(patternTypes),
-                                            ::testing::Values(ExpectedNodes{{"Subgraph", 1}}),
+                                            ::testing::Values(ExpectedNodes{{"Subgraph", 2}}), // MHA + Decomposed Transpose on input
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
@@ -303,7 +309,21 @@ INSTANTIATE_TEST_SUITE_P(
             std::vector<ElementType>{ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16}),
         ::testing::ValuesIn(matMulIn0Precisions),
         ::testing::ValuesIn(patternTypes),
-        ::testing::Values(ExpectedNodes{{"Subgraph", 1},
+        ::testing::Values(ExpectedNodes{{"Subgraph", 2}, // MHA + Decomposed Transpose on input
+                                        {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    MHATest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MHA_FP16,
+    MHATest,
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
+        ::testing::Values(
+            std::vector<ElementType>{ElementType::f16, ElementType::f16, ElementType::f16, ElementType::f16}),
+        ::testing::ValuesIn(matMulIn0Precisions),
+        ::testing::ValuesIn(patternTypes),
+        ::testing::Values(ExpectedNodes{{"Subgraph", 2}, // MHA + Decomposed Transpose on input
                                         {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     MHATest::getTestCaseName);
@@ -674,7 +694,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0,
                                             ::testing::Values(0),
                                             ::testing::Values(ExpectedNodes{
                                                 {"Subgraph", 5},     // FQs on inputs x 3 + MHA + Deq Mul
-                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
+                                                {"Transpose", 2}}),  // Decomposed Transpose on input + Transpose between MHA and Deq Mul
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 
@@ -686,7 +706,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1,
                                             ::testing::Values(1),
                                             ::testing::Values(ExpectedNodes{
                                                 {"Subgraph", 4},     // FQ on input x 2 + MHA + Deq Mul
-                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
+                                                {"Transpose", 2}}),  // Decomposed Transpose on input + Transpose between MHA and Deq Mul
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 
@@ -697,7 +717,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2,
                                             ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                             ::testing::Values(2),
                                             ::testing::Values(ExpectedNodes{{"Subgraph", 3},     // FQ on inputs x 2 + MHA
-                                                                            {"Transpose", 0}}),  // Transpose is fused
+                                                                            {"Transpose", 1}}),  // Decomposed Transpose on input
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 

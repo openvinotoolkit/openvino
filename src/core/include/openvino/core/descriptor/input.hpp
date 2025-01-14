@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,18 +13,13 @@
 
 namespace ov {
 class Node;
-namespace op {
-namespace v0 {
-class Result;
-}  // namespace v0
-}  // namespace op
+
 namespace descriptor {
 class Output;
 
 // Describes a tensor that is an input to an op, directly or indirectly via a tuple
 class OPENVINO_API Input {
     friend class ov::Node;
-    friend class ov::op::v0::Result;
 
 public:
     /// \param node The node that owns this input
@@ -111,12 +106,6 @@ public:
     Input& operator=(const Input&) = default;
 
 protected:
-    /// \return the tensor for the connected output
-    std::shared_ptr<const Tensor> get_tensor_ptr() const;
-
-    /// \return the tensor for the connected output
-    std::shared_ptr<Tensor> get_tensor_ptr();
-
     // owner of an argument node (in lieu of m_arguments)
     std::shared_ptr<Node> m_src_node;
     Node* m_node;    // The node we are an input for

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -162,7 +163,11 @@ protected:
 private:
     std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     // Mutable to return reference to ov::Tensor
-    mutable std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_tensors;
+    mutable std::unordered_map<std::shared_ptr<descriptor::Tensor>,
+                               ov::SoPtr<ov::ITensor>,
+                               descriptor::TensorExtension::Hasher,
+                               descriptor::TensorExtension::Equal>
+        m_tensors;
     // Cache ports
     mutable std::unordered_map<size_t, FoundPort> m_cached_ports;
     mutable std::mutex m_cache_mutex;

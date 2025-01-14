@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,25 +11,25 @@ namespace intel_gpu {
 
 class TransposeFusion: public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TransposeFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("TransposeFusion");
     TransposeFusion(bool supports_immad = false);
 };
 
 class TransposeMatMulMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeMatMulMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeMatMulMatcher");
     TransposeMatMulMatcher(bool supports_immad);
 };
 
 class TransposeMatMulTransposeMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeMatMulTransposeMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeMatMulTransposeMatcher");
     TransposeMatMulTransposeMatcher(bool supports_immad);
 };
 
 class TransposeSDPAMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeSDPAMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeSDPAMatcher");
     TransposeSDPAMatcher();
 };
 

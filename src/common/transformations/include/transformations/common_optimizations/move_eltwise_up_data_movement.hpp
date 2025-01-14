@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ namespace pass {
 ///   └────────────────┘                      └────────────────┘
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovScalar : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveEltwiseUpThroughDataMovScalar", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovScalar");
     MoveEltwiseUpThroughDataMovScalar(std::vector<DiscreteTypeInfo> allowed_data_movement_ops);
 };
 
@@ -50,13 +50,13 @@ public:
 ///            └────────────────┘    └────────────────────┘                   └───────────┘    └─────────────┘
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovPerChannel : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveEltwiseUpThroughDataMovPerChannel", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovPerChannel");
     MoveEltwiseUpThroughDataMovPerChannel();
 };
 
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMov : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("MoveEltwiseUpThroughDataMov", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("MoveEltwiseUpThroughDataMov");
     MoveEltwiseUpThroughDataMov(std::vector<DiscreteTypeInfo> allowed_data_movement_ops = get_default_allowed_ops()) {
         this->add_matcher<MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
         this->add_matcher<MoveEltwiseUpThroughDataMovPerChannel>();

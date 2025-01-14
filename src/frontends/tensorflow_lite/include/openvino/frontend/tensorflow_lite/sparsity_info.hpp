@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@ namespace tensorflow_lite {
 
 class TENSORFLOW_LITE_API SparsityInfo : public ov::RuntimeAttribute {
 public:
+    OPENVINO_RTTI("SparsityInfo", "0", RuntimeAttribute);
+
     struct SparsityDataDesc {
         uint8_t segments_type;
         const void* segments;
@@ -25,7 +27,6 @@ public:
         const void* indices;
     };
 
-    OPENVINO_RTTI("SparsityInfo");
     SparsityInfo() = default;
     explicit SparsityInfo(const std::vector<int32_t>& shape,
                           const std::vector<int32_t>& traversal_order,

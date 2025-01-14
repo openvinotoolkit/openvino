@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,6 +162,7 @@ REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(rope);
 REGISTER_OCL(search_sorted);
+REGISTER_OCL(STFT);
 
 #undef REGISTER_OCL
 

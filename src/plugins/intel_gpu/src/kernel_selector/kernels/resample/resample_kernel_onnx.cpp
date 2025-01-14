@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,6 +84,14 @@ DeviceFeaturesKey ResampleKernelOnnx::get_required_device_features_key(const Par
     return get_common_subgroups_device_features_key(params);
 }
 
+static size_t get_vec_size(const resample_params &params) {
+    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
+        return 2;
+    } else {
+        return 1;
+    }
+}
+
 ResampleKernelBase::DispatchData ResampleKernelOnnx::SetDefault(const kernel_selector::resample_params& arg) const {
     DispatchData dispatchData;
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
@@ -96,7 +104,7 @@ ResampleKernelBase::DispatchData ResampleKernelOnnx::SetDefault(const kernel_sel
     }
 
     dispatchData.gws[0] = CeilDiv(out.X().v, opt_x_block_size) * out.Y().v * out.Z().v;
-    dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
+    dispatchData.gws[1] = Align(CeilDiv(out.Feature().v, get_vec_size(arg)), sub_group_size);
     dispatchData.gws[2] = arg.outputs[0].Batch().v;
 
     dispatchData.lws[0] = 1;
@@ -151,14 +159,9 @@ JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params& params) 
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, opt_x_block_size)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
 
-    size_t vec_size = 0;
-    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        vec_size = 2;
-        jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 32));
-    } else {
-        vec_size = 1;
-        jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 16));
-    }
+    size_t vec_size = get_vec_size(params);
+    jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 16 * vec_size));
+
     if (IsThreeSpatialResample(params))
         jit.AddConstant(MakeJitConstant("THREE_SPATIAL_RESAMPLE", ""));
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,10 @@ void IEngineBackend::registerOptions(OptionsDesc&) const {}
 
 IDevice::Uuid IDevice::getUuid() const {
     OPENVINO_THROW("Get UUID not supported");
+}
+
+const std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
+    return nullptr;
 }
 
 ov::device::LUID IDevice::getLUID() const {

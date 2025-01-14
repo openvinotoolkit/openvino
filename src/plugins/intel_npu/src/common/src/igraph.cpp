@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ void IGraph::set_last_submitted_id(uint32_t id_index) {
     _last_submitted_id = id_index;
 }
 
-const uint32_t IGraph::get_last_submitted_id() const {
+uint32_t IGraph::get_last_submitted_id() const {
     return _last_submitted_id;
 }
 

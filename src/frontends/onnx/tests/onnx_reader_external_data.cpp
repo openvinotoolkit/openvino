@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -251,6 +251,82 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_in_constant_node) {
     auto test_case = test::TestCase(model);
     test_case.add_input<float>({3.f, 5.f, 8.f, 13.f});
     test_case.add_expected_output<float>(Shape{2, 2}, {4.f, 7.f, 11.f, 17.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_int16) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_int16.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<int16_t>({-100});
+    test_case.add_expected_output<int16_t>(Shape{2, 2}, {-100, 16156, -100, 16284});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_uint16) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_uint16.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint16_t>({100});
+    test_case.add_expected_output<uint16_t>(Shape{2, 2}, {100, 16356, 100, 16484});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_int8) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_int8.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<int8_t>({-100});
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, {-100, 106, -100, -37});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_uint8) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_uint8.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({100});
+    test_case.add_expected_output<uint8_t>(Shape{2, 2}, {100, 100, 228, 163});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_int4) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_int4.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, {static_cast<int8_t>(0x80), 0x3f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_uint4) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_uint4.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<uint8_t>(Shape{2, 2}, {0x80, 0x3f});
 
     test_case.run();
 }

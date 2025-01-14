@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "common/permute_kernel.h"
-#include "executors/transpose_list.hpp"
-
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "common/permute_kernel.h"
+#include "executors/transpose_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -63,6 +63,6 @@ private:
     bool isOptimized = false;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,13 @@ namespace pass {
 
 class U4BlockRepack : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::U4BlockRepack");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::U4BlockRepack");
     U4BlockRepack(bool is_symmetrical = false);
 };
 
 class U4ConvertReshape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::U4ConvertReshape");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::U4ConvertReshape");
     U4ConvertReshape();
 };
 

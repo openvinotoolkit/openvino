@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2371,6 +2371,7 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
                                 { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {2, 32, 14, 14},  {2, 32, 28, 28},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32, {}, {}},
                             }
                         ));
 

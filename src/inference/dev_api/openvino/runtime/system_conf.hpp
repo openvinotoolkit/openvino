@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,6 +82,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
  * @return     `True` is ARM NEON FP16 instructions are available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
+
+/**
+ * @brief      Checks whether CPU supports ARM SVE capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` if ARM SVE instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_sve();
 
 /**
  * @brief      Checks whether CPU supports AVX capability

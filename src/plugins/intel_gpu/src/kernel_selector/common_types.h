@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,8 @@ enum class KernelType {
     SWIGLU,
     ROPE,
     DYNAMIC_QUANTIZE,
-    SEARCH_SORTED
+    SEARCH_SORTED,
+    STFT
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

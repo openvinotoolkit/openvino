@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "common/tile_broadcast_utils.h"
-
 #include <string>
+
+#include "common/tile_broadcast_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -43,6 +43,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
