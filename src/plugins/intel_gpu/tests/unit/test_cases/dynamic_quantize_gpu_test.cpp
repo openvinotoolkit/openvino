@@ -294,9 +294,9 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered_asym_planar_i8_zp) {
     this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Asymmetric, UINT64_MAX,
                                 data_types::i8, data_types::i8, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+}
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_inner_most_dim_zero_values_asym) {
     this->test_dynamic_quantization(false, {-1, 8, -1, 128}, {1, 8, 52, 128}, QuantizationType::Asymmetric, UINT64_MAX,
                                 data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache", true);
-
 }
