@@ -207,7 +207,7 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
         }
     }
 }
-memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) {
+memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to create a subbuffer from a buffer allocated by a different engine");
     try {
         if (new_layout.format.is_image_2d()) {
@@ -215,7 +215,7 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             auto& new_buf = reinterpret_cast<const ocl::gpu_usm&>(memory);
             auto ptr = new_buf.get_buffer().get();
-            auto sub_buffer = cl::UsmMemory(get_usm_helper(), ptr, offset);
+            auto sub_buffer = cl::UsmMemory(get_usm_helper(), ptr, byte_offset);
 
             return std::make_shared<ocl::gpu_usm>(this,
                                      new_layout,
@@ -224,7 +224,7 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
                                      memory.get_mem_tracker());
         } else {
             auto buffer = reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer();
-            cl_buffer_region sub_buffer_region = { offset, new_layout.get_linear_size() };
+            cl_buffer_region sub_buffer_region = { byte_offset, new_layout.get_linear_size() };
             auto sub_buffer = buffer.createSubBuffer(CL_MEM_READ_WRITE| CL_MEM_USE_HOST_PTR,
                             CL_BUFFER_CREATE_TYPE_REGION, &sub_buffer_region);
 
