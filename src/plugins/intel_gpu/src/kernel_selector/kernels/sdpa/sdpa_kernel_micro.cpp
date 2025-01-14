@@ -253,7 +253,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     bool is_quantized = (K.GetDType() == Datatype::UINT8 || K.GetDType() == Datatype::INT8) ||
                         (V.GetDType() == Datatype::UINT8 || V.GetDType() == Datatype::INT8);
-    
+
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
             config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
