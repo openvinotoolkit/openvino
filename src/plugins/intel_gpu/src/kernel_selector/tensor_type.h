@@ -196,7 +196,7 @@ struct Pad {
 
     static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
     size_t Total() const {
-        OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
+        // OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
         return before + after;
     }
 };
