@@ -36,7 +36,8 @@ public:
                                    data_types quant_dt = data_types::i8,
                                    data_types zp_dt = data_types::undefined,
                                    OutputStorageType storage_type = OutputStorageType::Planar,
-                                   const std::string& impl_name = "") {
+                                   const std::string& impl_name = "",
+                                   bool set_inner_most_dim_values_zero = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -48,6 +49,8 @@ public:
         group_sizes.back() = group_size;
 
         auto input_data = rg.generate_random_1d<float>(ov::shape_size(data_shape), -16.0f, 20.0f);
+        if (set_inner_most_dim_values_zero)
+           std::fill(input_data.begin(), input_data.begin() + data_shape[data_shape.size() - 1], 0.0f);
         set_values(input_mem, input_data);
 
         auto in_layout_f32 = input_shape.is_dynamic() ? layout{ dyn_input_ps, data_types::f32, format::bfyx }
@@ -225,4 +228,9 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_asym) 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym) {
     this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, UINT64_MAX,
                                 data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache");
+}
+
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_inner_most_dim_zero_values_asym) {
+    this->test_dynamic_quantization(false, {-1, 8, -1, 128}, {1, 8, 52, 128}, QuantizationType::Asymmetric, UINT64_MAX,
+                                data_types::i8, data_types::f16, OutputStorageType::InterleavedScalesZP, "dynamic_quantize_gpu_kv_cache", true);
 }
