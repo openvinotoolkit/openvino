@@ -114,7 +114,7 @@ TEST_F(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
 
 #endif
 
-#if defined(OPENVINO_CPP_VER_17) && defined(ENABLE_OV_IR_FRONTEND)
+#if defined(OPENVINO_CPP_VER_AT_LEAST_17) && defined(ENABLE_OV_IR_FRONTEND)
 namespace ov::test {
 TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     generate_test_model_files("test-model");
