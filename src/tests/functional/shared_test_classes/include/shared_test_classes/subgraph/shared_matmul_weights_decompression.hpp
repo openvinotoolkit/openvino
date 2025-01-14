@@ -37,7 +37,7 @@ using MatmulSharedWeightsDecompressionParams = std::tuple<std::string,          
                                                           ElementType,                 // weights precision
                                                           ElementType,                 // decompression precision
                                                           bool,                        // transpose on weights
-                                                          DecompressionSubtractType,   // decompression subtract type
+                                                          DecompressionType,           // decompression subtract type
                                                           bool>;                       // use matmul decompression implementation
 
 class SharedMatmulWeightsDecompression : public testing::WithParamInterface<MatmulSharedWeightsDecompressionParams>,
@@ -53,7 +53,7 @@ protected:
                                             const ov::element::Type weights_precision,
                                             const ov::element::Type decompression_precision,
                                             const bool transpose_weights,
-                                            const DecompressionSubtractType decompression_subtract_type);
+                                            const DecompressionType decompression_subtract_type);
     void SetUp() override;
     void check_results();
 };
