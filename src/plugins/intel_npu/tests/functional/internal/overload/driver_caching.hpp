@@ -104,6 +104,7 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
     auto startFirstCompilationTime = std::chrono::high_resolution_clock::now();
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[1.1][EmptyConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
     ;
     EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored"));
     auto endFirstCompilationTime = std::chrono::high_resolution_clock::now();
@@ -115,6 +116,7 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
     auto endSecondCompilationTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> durationSecondCompilation = startSecondCompilationTime - endSecondCompilationTime;
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[1.2][EmptyConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
     EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
 
     EXPECT_LT(durationSecondCompilation, durationFirstCompilation)
@@ -132,12 +134,14 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
     // first compilation
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[2.1][OVCacheConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
     EXPECT_TRUE(!containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored") &&
                 !containsCacheStatus(firstCompilationDriverLog, "cache_status_t::found"));
 
     // second compilation
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[2.2][OVCacheConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
     EXPECT_TRUE(!containsCacheStatus(secondCompilationDriverLog, "cache_status_t::stored") &&
                 !containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
 }
@@ -152,12 +156,14 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
     // first compilation
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[3.1][bypassConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
     EXPECT_TRUE(!containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored") &&
                 !containsCacheStatus(firstCompilationDriverLog, "cache_status_t::found"));
 
     // second compilation
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[3.1][bypassConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
     EXPECT_TRUE(!containsCacheStatus(secondCompilationDriverLog, "cache_status_t::stored") &&
                 !containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
 }
