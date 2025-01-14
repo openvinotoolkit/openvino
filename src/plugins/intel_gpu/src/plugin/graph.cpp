@@ -206,9 +206,8 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {
-        ov::pass::Serialize(debug_config->dry_run_path, "").run_on_model(get_runtime_model());
+    GPU_DEBUG_IF(!m_config.get_dry_run_path().empty()) {
+        ov::pass::Serialize(m_config.get_dry_run_path(), "").run_on_model(get_runtime_model());
         exit(0);
     }
 
