@@ -56,20 +56,33 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         }
     };
 
-    for (size_t in_idx = 0, out_idx = 0; in_idx < shapeIn.size(); ++in_idx) {
-        if (m_new_axis_mask_set.count(in_idx)) {
-            // deal with new_axis_mask
-            m_outputShape[out_idx] = 1;
+    const auto shapeInSize = shapeIn.size();
+    const auto newAxisMaskSize = m_new_axis_mask_set.size();
+    const auto maxAxisSize = shapeInSize + newAxisMaskSize;
+    const auto outputShapeSize = m_outputShape.size();
+    bool newAxis = false;
+    bool shrinkAxis = false;
+    // because has already initialized the elements of m_outputShape as value 1,
+    // so don't need m_outputShape[out_idx] = 1 when newAxis,
+    // so also don't need to check if there are new axis at the end of ShapeIn.
+    for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
+         axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
+         axis_idx++) {
+        newAxis = m_new_axis_mask_set.count(axis_idx);
+        shrinkAxis = m_shrink_axis_mask_set.count(axis_idx);
+        if (newAxis) {
+            // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer,
+            // so merge if(newAxis) and if(shrinkAxis && newAxis) together.
             out_idx++;
-            // deal with current axis
-            m_outputShape[out_idx] = gen_new_sliced_value(out_idx, in_idx);
-            out_idx++;
-        } else if (!m_shrink_axis_mask_set.count(in_idx)) {
-            // deal with begin_mask and end_mask
-            m_outputShape[out_idx] = gen_new_sliced_value(in_idx, in_idx);
+        } else if (shrinkAxis) {
+            in_idx++;
+        } else {
+            m_outputShape[out_idx] = gen_new_sliced_value(axis_idx, in_idx);
+            in_idx++;
             out_idx++;
         }
     }
+
     return {{m_outputShape}, ShapeInferStatus::success};
 }
 
