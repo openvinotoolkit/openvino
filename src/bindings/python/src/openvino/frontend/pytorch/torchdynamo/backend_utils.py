@@ -83,3 +83,10 @@ def _is_testing(options) -> Optional[Any]:
             return True
     return False
 
+def _executorch(options) -> Optional[Any]:
+    if options is not None and "executorch" in options:
+        is_testing = options["executorch"]
+        if bool(is_testing) and str(is_testing).lower not in ["false", "0"]:
+            return True
+    return False
+

@@ -305,10 +305,8 @@ class TorchFXPythonDecoder (Decoder):
         return decoder
 
     def get_op_type(self):
-        if "getitem" in str(self.pt_module.target):
-             return str(self.pt_module.target)
-        elif self.pt_module.op == 'call_function':
-            return str(self.pt_module.target).split(': ')[1].strip('>')
+        if self.pt_module.op == 'call_function':
+            return str(self.pt_module.target)
         elif self.pt_module.op == 'get_attr':
             return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
         else:
@@ -380,3 +378,32 @@ class TorchFXPythonDecoder (Decoder):
     def get_rt_info(self):
         rt_info = {}
         return rt_info
+
+class ExecuTorchPythonDecoder (TorchFXPythonDecoder):
+
+    def __init__(self, pt_module, fx_gm=None, nodes=None,
+                 mark_node_callback=None, input_shapes=[], input_types=[], dynamic_shapes=False):
+        TorchFXPythonDecoder.__init__(self, pt_module, fx_gm, nodes, mark_node_callback, input_shapes, input_types, dynamic_shapes)
+
+    def visit_subgraph(self, node_visitor):
+        # make sure topological order is satisfied
+        for node in self._nodes:
+            if node.op == 'placeholder' or node.op == 'output':
+                continue  # skipping non-operational nodes
+            if node.op == 'call_function' and str(node.target) in ["aten._assert_async.msg"]:
+                continue
+            decoder = ExecuTorchPythonDecoder(
+                node, self.fx_gm, self._nodes, mark_node_callback=self.mark_node_callback)
+            self.m_decoders.append(decoder)
+            node_visitor(decoder)
+
+    def get_op_type(self):
+        if "getitem" in str(self.pt_module.target):
+            return str(self.pt_module.target)
+        elif self.pt_module.op == 'call_function':
+            return self.pt_module.target.__name__
+        elif self.pt_module.op == 'get_attr':
+            return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
+        else:
+            return 'UNKNOWN_TYPE_' + str(self.pt_module.op)
+

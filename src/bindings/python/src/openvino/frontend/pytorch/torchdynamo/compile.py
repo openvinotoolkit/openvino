@@ -13,9 +13,9 @@ from hashlib import sha256
 from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder, ExecuTorchPythonDecoder
 from openvino.runtime import Core, Type, PartialShape, serialize
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config, _executorch
 
 from typing import Callable, Optional
 
@@ -84,6 +84,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     device = _get_device(options)
     cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
+    executorch = _executorch(options)
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
         om = core.read_model(file_name + ".xml")
@@ -101,7 +102,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                 input_types.append(input_data.type())
                 input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm)
+        if executorch:
+            decoder = ExecuTorchPythonDecoder(gm)
+        else:
+            decoder = TorchFXPythonDecoder(gm)
 
         im = fe.load(decoder)
 
