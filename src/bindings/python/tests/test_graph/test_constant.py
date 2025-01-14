@@ -774,3 +774,16 @@ def test_const_from_tensor(shared_flag):
 
     assert ov_const.strides == [72, 36, 12, 4]
     assert ov_const.get_tensor_view().get_strides() == Strides([72, 36, 12, 4])
+
+
+def test_const_from_tensor_with_shared_memory_by_default():
+    shape = [1, 2, 3, 3]
+    arr = np.ones(shape).astype(np.float32)
+    ov_tensor = Tensor(arr, shape, Type.f32)
+    ov_const = ops.constant(tensor=ov_tensor)
+
+    assert isinstance(ov_const, Constant)
+    assert np.all(list(ov_const.shape) == shape)
+    arr += 1
+    assert np.array_equal(ov_const.data, arr)
+    assert np.shares_memory(arr, ov_const.data)

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Type
+from typing import Any, Iterable, Union, Optional, Dict, Tuple, Type, List
 from pathlib import Path
 
 
@@ -11,8 +11,8 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import Node
+from openvino._pyopenvino import Op as OpBase
+from openvino._pyopenvino import Node, Output, Tensor
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -20,6 +20,19 @@ from openvino.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
+
+
+class Op(OpBase):
+    def __init__(self, py_obj: "Op", inputs: Optional[Union[List[Union[Node, Output]], Tuple[Union[Node, Output, List[Union[Node, Output]]]]]] = None) -> None:
+        super().__init__(py_obj)
+        self._update_type_info()
+        if isinstance(inputs, tuple):
+            inputs = None if len(inputs) == 0 else list(inputs)
+            if inputs is not None and len(inputs) == 1 and isinstance(inputs[0], list):
+                inputs = inputs[0]
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
 
 
 class ModelMeta(type):

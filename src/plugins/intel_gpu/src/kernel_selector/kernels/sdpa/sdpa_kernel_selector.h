@@ -35,6 +35,20 @@ public:
     KernelsData GetBestKernels(const Params& params) const override;
 };
 
+class kv_cache_rotate_kernel_selector : public kernel_selector_base {
+public:
+    static kv_cache_rotate_kernel_selector& Instance() {
+        static kv_cache_rotate_kernel_selector instance_;
+        return instance_;
+    }
+
+    kv_cache_rotate_kernel_selector();
+
+    virtual ~kv_cache_rotate_kernel_selector() {}
+
+    KernelsData GetBestKernels(const Params& params) const override;
+};
+
 class pa_sdpa_kernel_selector : public kernel_selector_base {
 public:
     static pa_sdpa_kernel_selector& Instance() {
