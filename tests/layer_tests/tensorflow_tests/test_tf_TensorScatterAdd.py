@@ -81,6 +81,8 @@ class TestTensorScatterAdd(CommonTFLayerTest):
                                 tensor_shape, updates_shape, indices_shape,
                                 ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("160549: ScatterNDUpdate(opset15) is not supported on GPU")
         self._test(*self.create_tensor_scatter_add_net(data_type, indices_type,
                                                        tensor_shape, updates_shape, indices_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
