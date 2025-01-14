@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace node {
 
 bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto batchToSpace = std::dynamic_pointer_cast<const ov::opset2::BatchToSpace>(op);
+        const auto batchToSpace = ov::as_type_ptr<const ov::opset2::BatchToSpace>(op);
         if (!batchToSpace) {
             errorMessage = "Only opset2 BatchToSpace operation is supported";
             return false;
@@ -156,6 +156,7 @@ void BatchToSpace::batchToSpaceKernel() {
     size_t channels = (inShape5D[1] / blockSize);
     channels = channels == 0 ? 1 : channels;
     const size_t workAmount = inShape5D[0] * channels;
+    OPENVINO_ASSERT(workAmount > 0, errorPrefix, " has unsupported work amount == 0");
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);

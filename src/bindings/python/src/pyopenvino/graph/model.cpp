@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1326,10 +1326,6 @@ void regclass_graph_Model(py::module m) {
 
         return "<" + class_name + ": '" + self.get_friendly_name() + "'\ninputs[\n" + inputs_str + "\n]\noutputs[\n" +
                outputs_str + "\n]>";
-    });
-
-    model.def("__copy__", [](ov::Model& self) {
-        throw py::type_error("Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead.");
     });
 
     model.def("get_rt_info",

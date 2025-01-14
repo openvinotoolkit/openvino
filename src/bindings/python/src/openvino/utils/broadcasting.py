@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
 from typing import Optional
 
-from openvino.runtime import AxisSet
+from openvino import AxisSet
 from openvino.utils.types import (
     TensorShape,
 )

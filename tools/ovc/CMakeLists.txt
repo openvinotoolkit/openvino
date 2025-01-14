@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,6 +38,7 @@ install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
 #
 # Tests
 #
+
 if(ENABLE_TESTS)
     install(DIRECTORY unit_tests
             DESTINATION tests/ovc

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,11 +66,12 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
         for (int i = 0; i < end_idx; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this,
-                                                                                                post_op.eltwise,
-                                                                                                true,
-                                                                                                eltwise_reserved,
-                                                                                                mask_post_op_reserved));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                                            post_op.eltwise,
+                                                                                            data_type::f32,
+                                                                                            true,
+                                                                                            eltwise_reserved,
+                                                                                            mask_post_op_reserved));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(
                     std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op, mask_post_op_reserved));
@@ -217,7 +218,7 @@ private:
 
     Xbyak::Label l_table;
 
-    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
     nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
     void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand& op, bool scalar_load) {
@@ -920,7 +921,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Nod
             return false;
         }
 
-        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
+        const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
         if (!binConv) {
             errorMessage = "Only opset1 BinaryConvolution operation is supported";
             return false;
@@ -940,7 +941,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
-        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
+        const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
         for (size_t i = 0; i < binConv->get_strides().size(); i++) {

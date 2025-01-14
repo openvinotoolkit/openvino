@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API UnrollIf;
 
 class ov::pass::UnrollIf : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UnrollIf", "0");
+    OPENVINO_MODEL_PASS_RTTI("UnrollIf");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

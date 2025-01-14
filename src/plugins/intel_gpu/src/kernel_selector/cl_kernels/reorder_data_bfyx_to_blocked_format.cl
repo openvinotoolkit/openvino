@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,18 @@
 #define FUNC_VLOAD(inner, outer)    unroll_for (uint lh = 0; lh < outer; ++lh) { \
                                         const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER); \
                                         INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx)); \
+                                        unroll_for (uint lw = 0; lw < inner; ++lw) { \
+                                            const uint dst = local_buf_offset + lw; \
+                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                        } \
+                                    }
+
+#define FUNC_LOAD_LEFTOVERS(inner, outer)    unroll_for (uint lh = 0; lh < outer; ++lh) { \
+                                        const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER); \
+                                        INPUTVTYPE read_data; \
+                                        unroll_for (uint lw = 0; lw < inner; ++lw) { \
+                                            read_data[lw] = input[input_idx + lw]; \
+                                        } \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
                                             transpose_buf[dst][lh] = read_data[lw]; \
@@ -109,7 +121,15 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 
     if (F_NO_REMAINDER_CONDITION) {
         // read and transpose
+#ifdef X_REMAINDER_CONDITION
+        if (X_NO_REMAINDER_CONDITION) {
+            FUNC_VLOAD(TILE_SIZE, TILE_SIZE)
+        } else {
+            FUNC_LOAD_LEFTOVERS(X_REMAINDER_SIZE, TILE_SIZE)
+        }
+#else
         FUNC_VLOAD(TILE_SIZE, TILE_SIZE)
+#endif
 
         // write to ddr
 #ifdef X_REMAINDER_CONDITION
@@ -125,7 +145,15 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 #ifdef F_REMAINDER_CONDITION
     else if (F_REMAINDER_CONDITION) {
         // read and transpose
+    #ifdef X_REMAINDER_CONDITION
+        if (X_NO_REMAINDER_CONDITION) {
+            FUNC_VLOAD(TILE_SIZE, F_REMAINDER_SIZE)
+        } else {
+            FUNC_LOAD_LEFTOVERS(X_REMAINDER_SIZE, F_REMAINDER_SIZE)
+        }
+    #else
         FUNC_VLOAD(TILE_SIZE, F_REMAINDER_SIZE)
+    #endif
 
         // write to ddr
     #ifdef X_REMAINDER_CONDITION

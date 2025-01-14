@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ public:
     /// configuration.
     /// This object allows to disable/enable transformations execution, set callback to
     /// particular
-    /// transformation. For mo details see PassConfig class.
+    /// transformation. For more details see PassConfig class.
     std::shared_ptr<PassConfig> get_pass_config() {
         return m_pass_config;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -553,7 +554,14 @@ void regclass_graph_PrePostProcessor(py::module m) {
         "PrePostProcessor");
     proc.doc() = "openvino.runtime.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init<const std::shared_ptr<ov::Model>&>(), py::arg("model"));
+    proc.def(py::init([](const py::object& ie_api_model) {
+                 const auto model = Common::utils::convert_to_model(ie_api_model);
+                 return std::make_shared<ov::preprocess::PrePostProcessor>(model);
+             }),
+             py::arg("model"),
+             R"(
+             It creates PrePostProcessor.
+    )");
 
     proc.def("input", [](ov::preprocess::PrePostProcessor& self) {
         return &self.input();
@@ -591,7 +599,15 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
+    proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
+        std::shared_ptr<ov::Model> model;
+        {
+            py::gil_scoped_release release;
+            model = self.build();
+        }
+        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        return model_class(py::cast(model));
+    });
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;

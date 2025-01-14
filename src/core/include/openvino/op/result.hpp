@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,12 @@ public:
     ///
     /// \param arg Node that produces the input tensor.
     Result(const Output<Node>& arg);
+
+    /// \brief Allows a value to be used as a function result.
+    ///
+    /// \param arg Node that produces the input tensor.
+    /// \param use_input_names  When true Result will use input node tensor names as Result's output names.
+    Result(const Output<Node>& arg, bool use_input_names);
 
     void validate_and_infer_types() override;
 

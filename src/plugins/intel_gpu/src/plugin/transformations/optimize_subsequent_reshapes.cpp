@@ -41,7 +41,7 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
     auto first_reshape_data = any_input(dynamic_batch_only);
     auto first_reshape_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto first_reshape = wrap_type<ov::op::v1::Reshape>({ first_reshape_data, first_reshape_pattern },
-                                                        ov::pass::pattern::all_of({ dynamic_batch_only, ov::pass::pattern::consumers_count(1) }));
+                                                        dynamic_batch_only && ov::pass::pattern::consumers_count(1));
 
     auto second_reshape_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto second_reshape = wrap_type<ov::op::v1::Reshape>({ first_reshape, second_reshape_pattern }, dynamic_batch_only);

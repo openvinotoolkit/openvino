@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API HSwishFusionWithClamp;
  */
 class ov::pass::HSwishFusionWithReluDiv : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSwishFusionWithReluDiv", "0");
+    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithReluDiv");
     HSwishFusionWithReluDiv();
 };
 
@@ -38,7 +38,7 @@ public:
  */
 class ov::pass::HSwishFusionWithReluMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSwishFusionWithReluMul", "0");
+    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithReluMul");
     HSwishFusionWithReluMul();
 };
 
@@ -48,7 +48,7 @@ public:
  */
 class ov::pass::HSwishFusionWithHSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSwishFusionWithHSigmoid", "0");
+    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithHSigmoid");
     HSwishFusionWithHSigmoid();
 };
 
@@ -58,7 +58,7 @@ public:
  */
 class ov::pass::HSwishFusionWithClamp : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSwishFusionWithClamp", "0");
+    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithClamp");
     HSwishFusionWithClamp();
 };
 
@@ -68,7 +68,7 @@ public:
  */
 class ov::pass::HSwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("HSwishFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("HSwishFusion");
     HSwishFusion() {
         add_matcher<ov::pass::HSwishFusionWithReluDiv>();
         add_matcher<ov::pass::HSwishFusionWithReluMul>();

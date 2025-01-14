@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,7 +70,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     for (const auto& input_desc : ti->get_input_descriptions()) {
         auto param = params[input_desc->m_body_parameter_index];
         if (param == data.get_node_shared_ptr()) {
-            auto slice_input = std::dynamic_pointer_cast<ov::op::v0::TensorIterator::SliceInputDescription>(input_desc);
+            auto slice_input = ov::as_type_ptr<ov::op::v0::TensorIterator::SliceInputDescription>(input_desc);
             if (!slice_input)
                 return false;
 
@@ -97,8 +97,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     for (const auto& output_desc : ti->get_output_descriptions()) {
         std::shared_ptr<ov::op::v0::Result> res = results[output_desc->m_body_value_index];
         if (res->input_value(0) == unsqueeze_after_cell) {
-            auto concat_output =
-                std::dynamic_pointer_cast<ov::op::v0::TensorIterator::ConcatOutputDescription>(output_desc);
+            auto concat_output = ov::as_type_ptr<ov::op::v0::TensorIterator::ConcatOutputDescription>(output_desc);
             if (!concat_output)
                 return false;
 
@@ -568,7 +567,7 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
 
         const auto& pattern_map = matcher.get_pattern_value_map();
         std::shared_ptr<Node> found_cell = pattern_map.at(cell).get_node_shared_ptr();
-        const auto lstm_cell = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(found_cell);
+        const auto lstm_cell = ov::as_type_ptr<ov::op::util::RNNCellBase>(found_cell);
         if (lstm_cell == nullptr)
             return false;
 
@@ -859,7 +858,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         if (output_descs.size() != 1)
             return false;
         const auto body_output_desc =
-            std::dynamic_pointer_cast<op::util::MultiSubGraphOp::BodyOutputDescription>(output_descs[0]);
+            ov::as_type_ptr<op::util::MultiSubGraphOp::BodyOutputDescription>(output_descs[0]);
         if (!body_output_desc || body_output_desc->m_iteration != -1)
             return false;
 
@@ -932,7 +931,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
         const auto& input_descs = loop->get_input_descriptions();
         for (const auto& desc : input_descs) {
             if (body_parameters[desc->m_body_parameter_index] == X_body) {
-                if (!std::dynamic_pointer_cast<op::util::MultiSubGraphOp::InvariantInputDescription>(desc)) {
+                if (!ov::as_type_ptr<op::util::MultiSubGraphOp::InvariantInputDescription>(desc)) {
                     return false;
                 }
                 if (loop->input_value(desc->m_input_index) != pattern_map.at(scatter_label)) {
@@ -940,7 +939,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == H_body) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
@@ -951,7 +950,7 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == C_body) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
@@ -962,13 +961,13 @@ ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpda
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == sequence_index) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
             }
             if (body_parameters[desc->m_body_parameter_index] == iteration_counter) {
-                auto merged_desc = std::dynamic_pointer_cast<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
+                auto merged_desc = ov::as_type_ptr<op::util::MultiSubGraphOp::MergedInputDescription>(desc);
                 if (!merged_desc) {
                     return false;
                 }
@@ -1319,6 +1318,7 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
 
 class EliminateGatherWithRange : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateGatherWithRange");
     EliminateGatherWithRange() {
         using namespace ov;
         using namespace ov::pass;

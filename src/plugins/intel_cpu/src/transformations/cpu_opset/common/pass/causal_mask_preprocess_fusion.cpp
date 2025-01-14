@@ -24,7 +24,7 @@ using namespace ov::gen_pattern;
 
 class CausalMaskPreprocess : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CausalMaskPreprocess", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CausalMaskPreprocess");
     CausalMaskPreprocess();
 
 private:
@@ -207,8 +207,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         ov::intel_cpu::CausalMaskPreprocessNode::Config config;
         config.type = "CausalMaskPreprocess";
 
-        auto triu =
-            std::dynamic_pointer_cast<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
+        auto triu = ov::as_type_ptr<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
 
         auto triu_shape = triu->get_output_shape(0);
         if (triu_shape.size() != 4)

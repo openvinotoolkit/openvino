@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API SqueezeStridedSlice;
 
 class ov::pass::StridedSliceSqueeze : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("StridedSliceSqueeze", "0");
+    OPENVINO_MATCHER_PASS_RTTI("StridedSliceSqueeze");
     StridedSliceSqueeze();
 };
 
@@ -39,6 +39,6 @@ public:
 
 class ov::pass::SqueezeStridedSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SqueezeStridedSlice", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SqueezeStridedSlice");
     SqueezeStridedSlice();
 };

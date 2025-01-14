@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 
 import numpy as np
 from typing import Union
-from openvino.runtime import Type, Shape
+from openvino import Type, Shape
 
 
 def pack_data(array: np.ndarray, type: Type) -> np.ndarray:

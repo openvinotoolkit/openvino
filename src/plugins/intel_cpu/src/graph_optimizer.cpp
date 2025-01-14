@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2935,12 +2935,19 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
 
-        ov::optional<Shape> input_shape;
-        ov::optional<ov::element::Type> input_prc;
-
+        ov::optional<std::vector<Shape>> inputShapes;
+        ov::optional<std::vector<ov::element::Type>> inputPrcs;
         if (!node->getParentEdges().empty()) {
-            input_shape = ov::optional<Shape>(node->getInputShapeAtPort(0));
-            input_prc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
+            inputShapes = ov::optional<std::vector<Shape>>(std::vector<Shape>{});
+            inputPrcs = ov::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+
+            auto& input_shape_vec = *inputShapes;
+            auto& input_prc_vec = *inputPrcs;
+
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                input_shape_vec.push_back(node->getInputShapeAtPort(i));
+                input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(i));
+            }
         }
 
         // search for SDPA
@@ -2966,8 +2973,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
                                                               memInputNode->getOutputShapeAtPort(0),
                                                               memInputNode->getOriginalOutputPrecisionAtPort(0),
                                                               graph.getGraphContext(),
-                                                              input_shape,
-                                                              input_prc,
+                                                              inputShapes,
+                                                              inputPrcs,
                                                               sdpa);
 
         if (!memInputNode->getParentEdges().empty()) {
@@ -3064,12 +3071,18 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
         auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
 
-        ov::optional<Shape> inputShape;
-        ov::optional<ov::element::Type> inputPrc;
-
+        ov::optional<std::vector<Shape>> inputShapes;
+        ov::optional<std::vector<ov::element::Type>> inputPrcs;
         if (!node->getParentEdges().empty()) {
-            inputShape = ov::optional<Shape>(node->getInputShapeAtPort(0));
-            inputPrc = ov::optional<ov::element::Type>(node->getOriginalInputPrecisionAtPort(0));
+            inputShapes = ov::optional<std::vector<Shape>>(std::vector<Shape>{});
+            inputPrcs = ov::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+
+            auto& input_shape_vec = *inputShapes;
+            auto& input_prc_vec = *inputPrcs;
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                input_shape_vec.push_back(node->getInputShapeAtPort(i));
+                input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(i));
+            }
         }
 
         // search for the MemoryOutputNode
@@ -3086,6 +3099,10 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
         graph.RemoveEdge(memoryOutputNode->getParentEdgeAt(0));
         // there are no output edges from MemoryOutput nodes
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(DropRedundantMemoryOutput_SubGraph);
+        auto memInpNd = std::dynamic_pointer_cast<node::MemoryInput>(node);
+        OPENVINO_ASSERT(memInpNd, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
+
         // now replace the existing MemoryInput with a special type that works without the corresponding MemoryOutput
         auto memInputSingle = std::make_shared<MemoryInputSingle>(memInputNode->getId(),
                                                                   memInputNode->getName(),
@@ -3093,17 +3110,24 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
                                                                   memInputNode->getOutputShapeAtPort(0),
                                                                   memInputNode->getOriginalOutputPrecisionAtPort(0),
                                                                   graph.getGraphContext(),
-                                                                  inputShape,
-                                                                  inputPrc);
-
+                                                                  inputShapes,
+                                                                  inputPrcs,
+                                                                  memInpNd->getSubGraph());
         graph.AddNode(memInputSingle);
 
         if (!memInputNode->getParentEdges().empty()) {
-            auto parentEdge = memInputNode->getParentEdgeAt(0);
-            auto parent = parentEdge->getParent();
-            const auto inputNum = parentEdge->getInputNum();
-            graph.RemoveEdge(parentEdge);
-            graph.CreateEdge(parent, memInputSingle, inputNum, 0);
+            auto parentEdgeNum = memInputNode->getParentEdges().size();
+            std::vector<ov::intel_cpu::EdgePtr> parentEdges;
+            for (size_t i = 0; i < parentEdgeNum; i++) {
+                auto parentEdge = memInputNode->getParentEdgeAt(i);
+                auto parent = parentEdge->getParent();
+                const auto inputNum = parentEdge->getInputNum();
+                parentEdges.push_back(parentEdge);
+                graph.CreateEdge(parent, memInputSingle, inputNum, parentEdge->getOutputNum());
+            }
+            for (auto parentEdge : parentEdges) {
+                graph.RemoveEdge(parentEdge);
+            }
         }
 
         for (auto&& edge : memInputNode->getChildEdgesAtPort(0)) {

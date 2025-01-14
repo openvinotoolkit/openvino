@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
  */
 class EnumerateNodes : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("EnumerateNodes", "0");
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::EnumerateNodes");
     EnumerateNodes() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
@@ -59,6 +59,8 @@ public:
  */
 class SnippetsTokenization : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::SnippetsTokenization");
+
     /**
      * @interface Config
      * @brief Allow to adjust tokenization passes
@@ -123,7 +125,6 @@ public:
         std::set<size_t> m_mha_supported_transpose_ranks = { 3, 4 };
     };
 
-    OPENVINO_RTTI("SnippetsTokenization", "0");
     SnippetsTokenization(const Config& config) : m_config(config) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 

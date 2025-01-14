@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -316,10 +316,8 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
                         "The link between state descriptors is missing, state name: ",
                         descriptor.nameFromCompiler);
         tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
-    } else if (allocator) {
-        tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
-        tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape);
+        tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
     }
 
     if (isInput) {
@@ -335,6 +333,12 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
     }
 
     return tensor;
+}
+
+std::shared_ptr<ov::ITensor> SyncInferRequest::create_tensor(ov::element::Type type,
+                                                             const ov::Shape& shape,
+                                                             const ov::Allocator& allocator) const {
+    return ov::make_tensor(type, shape, allocator);
 }
 
 bool SyncInferRequest::is_batched_input(size_t idx) const {

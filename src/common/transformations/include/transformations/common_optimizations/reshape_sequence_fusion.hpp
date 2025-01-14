@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 
 class ov::pass::ReshapeSequenceFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeSequenceFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapeSequenceFusion");
     ReshapeSequenceFusion(bool use_shape_for_elimination = true);
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,13 +179,8 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
                                                 "(including HETERO and MULTI cases).";
 
 // @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] =
-    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):\n"
-    "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
-    "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on "
-    "the hybrid CPUs) \n"
-    "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
-    "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
+static const char infer_threads_pinning_message[] = "Optional. Explicit threads->cores pinning for CPU inference tasks "
+                                                    "(leave empty to let the OpenVINO make a choice).";
 
 // @brief message for switching memory allocation type option
 static const char use_device_mem_message[] =
@@ -426,8 +421,7 @@ static void show_usage() {
     std::cout << std::endl;
     std::cout << "Device-specific performance options:" << std::endl;
     std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
-              << infer_threads_pinning_message << std::endl;
+    std::cout << "    -pin  <string>  \"YES\" / \"NO\" " << infer_threads_pinning_message << std::endl;
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
     std::cout << std::endl;
     std::cout << "Statistics dumping options:" << std::endl;

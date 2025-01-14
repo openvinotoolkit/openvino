@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "broadcast_inst.h"
 #include "shape_of_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
@@ -84,6 +85,13 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.is_type<strided_slice>() && node.get_dependency(0).is_constant() &&
         node.get_dependency(0).get_output_layout().count() > 128 * 1024) {
         return false;
+    }
+
+    // skip mark_node for broadcast node if dependency nodes are data and shape_of
+    auto& dependencies = node.get_dependencies();
+    if (node.is_type<broadcast>() && dependencies.size() == 2) {
+        if (dependencies[0].first->is_type<data>() && dependencies[1].first->is_type<shape_of>())
+            return false;
     }
 
     return true;

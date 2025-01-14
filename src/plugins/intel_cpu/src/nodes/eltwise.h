@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,7 @@ struct jit_eltwise_params {
 
     size_t work_amount;
     bool use_runtime_ptrs;
+    bool do_output_saturation;
 };
 
 struct jit_eltwise_call_args_indexes {

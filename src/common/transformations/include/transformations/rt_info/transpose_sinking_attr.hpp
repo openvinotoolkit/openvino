@@ -24,7 +24,7 @@ TRANSFORMATIONS_API bool is_sinking_node(ov::Output<ov::Node> output);
  */
 class TRANSFORMATIONS_API NoTransposeSinkingAttr : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("no_transpose_sinking", "0");
+    OPENVINO_RTTI("no_transpose_sinking", "0", RuntimeAttribute);
 
     bool is_copyable() const override {
         return false;

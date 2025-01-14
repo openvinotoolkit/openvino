@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
     auto ops = m->get_ordered_ops();
     // Going in reverse order
     for (auto it = ops.rbegin(); it != ops.rend(); ++it) {
-        auto multi_subgraph_op = std::dynamic_pointer_cast<MultiSubGraphOp>(*it);
+        auto multi_subgraph_op = ov::as_type_ptr<MultiSubGraphOp>(*it);
         if (!multi_subgraph_op)
             continue;
         auto if_op = ov::as_type_ptr<ov::op::v8::If>(multi_subgraph_op);

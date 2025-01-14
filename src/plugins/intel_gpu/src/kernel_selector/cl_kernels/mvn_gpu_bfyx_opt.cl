@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,36 +25,24 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
+    uint iters_num = items_num;
+    if (in_data_set_idx < leftovers)
+        ++iters_num;
 
     float my_sum = 0;
     float tmp;
 
     //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<items_num; ++i)
+    for (uint i=0; i<iters_num; ++i)
     {
         my_sum += (float)input[my_data_offset + i * workers_per_data_set];
-    }
-
-    if (in_data_set_idx < leftovers)
-    {
-        my_sum += (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
     }
 
     my_sum = work_group_reduce_add(my_sum) / data_set_size;
 
 #if NORMALIZE_VARIANCE == 0
-    for (uint i=0; i<items_num; ++i) {
+    for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
-#   if HAS_FUSED_OPS
-        FUSED_OPS;
-        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
-#   else
-        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-#   endif
-    }
-    if (in_data_set_idx < leftovers) {
-        uint iteration_in_data_set_offset = items_num * workers_per_data_set;
         ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
@@ -67,16 +55,9 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     float my_variance = 0.f;
     //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<items_num; ++i)
+    for (uint i=0; i<iters_num; ++i)
     {
         tmp = (float)input[my_data_offset + i * workers_per_data_set];
-        tmp -= my_sum;
-        my_variance = fma(tmp, tmp, my_variance);
-    }
-
-    if (in_data_set_idx < leftovers)
-    {
-        tmp = (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
         tmp -= my_sum;
         my_variance = fma(tmp, tmp, my_variance);
     }
@@ -96,18 +77,8 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     my_variance = work_group_broadcast(my_variance, 0);
 
-    for (uint i=0; i<items_num; ++i) {
+    for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
-#   if HAS_FUSED_OPS
-        FUSED_OPS;
-        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
-#   else
-        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-#   endif
-    }
-    if (in_data_set_idx < leftovers) {
-        uint iteration_in_data_set_offset = items_num * workers_per_data_set;
         ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
 #   if HAS_FUSED_OPS
         FUSED_OPS;

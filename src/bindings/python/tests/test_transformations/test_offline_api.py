@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -16,7 +16,7 @@ from openvino._offline_transformations import (
 )
 
 from openvino import Model, PartialShape, Core, serialize, save_model
-import openvino.runtime as ov
+import openvino as ov
 
 from tests.utils.helpers import create_filenames_for_ir, compare_models, _compare_models
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,8 @@ class TRANSFORMATIONS_API ConvertReduceLogicalOrToReshape;
 
 class CvtReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("CvtReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_reshape();
 
@@ -40,49 +42,49 @@ public:
 
 class ov::pass::ConvertReduceMeanToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMeanToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceMeanToReshape", "0", CvtReduceBase);
     ConvertReduceMeanToReshape();
 };
 
 class ov::pass::ConvertReduceSumToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSumToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceSumToReshape", "0", CvtReduceBase);
     ConvertReduceSumToReshape();
 };
 
 class ov::pass::ConvertReduceProdToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceProdToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceProdToReshape", "0", CvtReduceBase);
     ConvertReduceProdToReshape();
 };
 
 class ov::pass::ConvertReduceMaxToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMaxToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceMaxToReshape", "0", CvtReduceBase);
     ConvertReduceMaxToReshape();
 };
 
 class ov::pass::ConvertReduceMinToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMinToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceMinToReshape", "0", CvtReduceBase);
     ConvertReduceMinToReshape();
 };
 
 class ov::pass::ConvertReduceLogicalAndToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceLogicalAndToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceLogicalAndToReshape", "0", CvtReduceBase);
     ConvertReduceLogicalAndToReshape();
 };
 
 class ov::pass::ConvertReduceLogicalOrToReshape : public CvtReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceLogicalOrToReshape", "0");
+    OPENVINO_RTTI("ConvertReduceLogicalOrToReshape", "0", CvtReduceBase);
     ConvertReduceLogicalOrToReshape();
 };
 
 class ov::pass::ConvertReduceToReshape : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToReshape", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceToReshape");
     // Handling reduce if it can be converted to reshape (check input/output tensor)
     ConvertReduceToReshape() {
         // Redundant reduce based on its mode
@@ -99,7 +101,7 @@ public:
 template <class T>
 ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
     return [&](ov::pass::pattern::Matcher& m) {
-        auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
+        auto reduce = ov::as_type_ptr<T>(m.get_match_root());
         if (!reduce)
             return false;
 

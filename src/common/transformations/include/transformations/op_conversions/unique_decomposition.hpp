@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API UniqueDecomposition;
 // This transformation expresses Unique with a sub-graph of OpenVINO operations
 class ov::pass::UniqueDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("UniqueDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("UniqueDecomposition");
     UniqueDecomposition();
 };

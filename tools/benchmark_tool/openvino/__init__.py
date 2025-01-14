@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
@@ -73,6 +73,7 @@ from openvino._ov_api import compile_model
 
 
 # Import opsets
+from openvino import op
 from openvino import opset1
 from openvino import opset2
 from openvino import opset3

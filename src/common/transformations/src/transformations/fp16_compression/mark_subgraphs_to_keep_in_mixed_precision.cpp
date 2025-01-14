@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ const std::shared_ptr<Node> propagate_through_ops =
  */
 class PropagateUpMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateUpMarkToKeepInMixedPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateUpMarkToKeepInMixedPrecision");
     PropagateUpMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateUpMarkToKeepInMixedPrecision);
 
@@ -159,7 +159,7 @@ public:
  */
 class PropagateDownMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateDownMarkToKeepInMixedPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateDownMarkToKeepInMixedPrecision");
     PropagateDownMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateDownMarkToKeepInMixedPrecision);
 
@@ -197,7 +197,7 @@ public:
 
 class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InitMarkReduceOpPath", "0");
+    OPENVINO_MATCHER_PASS_RTTI("InitMarkReduceOpPath");
     InitMarkReduceOpPath() {
         MATCHER_SCOPE(InitMarkReduceOpPath);
 
@@ -217,7 +217,7 @@ public:
 
 class PropagateMarkUpReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateMarkUpReduceOpPath", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateMarkUpReduceOpPath");
     PropagateMarkUpReduceOpPath() {
         MATCHER_SCOPE(PropagateMarkUpReduceOpPath);
 
@@ -244,8 +244,8 @@ public:
 
 class MarkExp : public pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkExp");
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
-    OPENVINO_RTTI("MarkExp", "0");
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
         auto exp_pattern = pattern::wrap_type<ov::op::v0::Exp>();
@@ -271,7 +271,7 @@ public:
  */
 class MarkExpInReduceOpPath : public BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("MarkExpInReduceOpPath", "0");
+    OPENVINO_RTTI("MarkExpInReduceOpPath", "0", BackwardGraphRewrite);
     MarkExpInReduceOpPath() {
         // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
         ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);
@@ -288,7 +288,7 @@ public:
  */
 class MarkDivWithEps : public MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDivWithEps", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkDivWithEps");
     MarkDivWithEps() {
         MATCHER_SCOPE(MarkDivWithEps);
 
@@ -367,7 +367,7 @@ public:
 
 class PropagateDownDisableSensitivityForQuantized : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DisableMarkingForQuantizedNodes", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
     PropagateDownDisableSensitivityForQuantized() {
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 

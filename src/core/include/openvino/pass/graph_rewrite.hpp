@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,18 @@
 #include <memory>
 #include <set>
 
+#include "openvino/core/rtti.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+
+#define _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "0")
+
+#define _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
+    _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::pass::GraphRewrite)
+
+#define OPENVINO_GRAPH_REWRITE_RTTI(...)                                                                       \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_2(__VA_ARGS__,                                    \
+                                                               _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE_VERSION, \
+                                                               _OPENVINO_GRAPH_REWRITE_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 namespace ov {
 namespace pass {
@@ -34,7 +45,7 @@ namespace pass {
 /// \ingroup ov_pass_cpp_api
 class OPENVINO_API GraphRewrite : public ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::GraphRewrite");
+    OPENVINO_MODEL_PASS_RTTI("ov::pass::GraphRewrite");
 
     GraphRewrite() = default;
 
@@ -80,7 +91,7 @@ public:
     ///
     ///    class ov::pass::LinFusions: public ov::pass::GraphRewrite {
     ///    public:
-    ///         OPENVINO_RTTI("LinFusion");
+    ///         OPENVINO_GRAPH_REWRITE_RTTI("LinFusion");
     ///         Fusions() {
     ///             add_matcher<ov::pass::AddFusion>();
     ///             add_matcher<ov::pass::MulFusion>();
