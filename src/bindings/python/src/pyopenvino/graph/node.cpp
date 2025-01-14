@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -439,6 +439,7 @@ void regclass_graph_Node(py::module m) {
     node.def_property_readonly("type_info", &ov::Node::get_type_info);
     node.def_property("friendly_name", &ov::Node::get_friendly_name, &ov::Node::set_friendly_name);
 
+    node.def("visit_attributes", &ov::Node::visit_attributes);
     node.def("get_attributes", [](const std::shared_ptr<ov::Node>& self) {
         util::DictAttributeSerializer dict_serializer(self);
         return dict_serializer.get_attributes();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,7 +101,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 result->output(0).get_tensor().add_names({res_name});
                 new_result->output(0).get_tensor().add_names({res_name});
             }
-            auto r = std::dynamic_pointer_cast<ov::op::v0::Result>(new_result);
+            auto r = ov::as_type_ptr<ov::op::v0::Result>(new_result);
             r->set_layout(result->get_layout());
             new_result->output(0).get_rt_info() = result->output(0).get_rt_info();
             auto old_tensor = result->output(0).get_tensor_ptr();

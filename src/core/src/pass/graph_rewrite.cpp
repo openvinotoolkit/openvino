@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,7 +117,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
         // pattern::op::AnyOutput operation automatically appends for multi output operations inside
         // Matcher and to gen actual root node we need to take it's parent.
-        if (auto any_type = std::dynamic_pointer_cast<pattern::op::AnyOutput>(root)) {
+        if (auto any_type = ov::as_type_ptr<pattern::op::AnyOutput>(root)) {
             root = any_type->input_value(0).get_node_shared_ptr();
         }
 
@@ -126,7 +126,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
         if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = std::dynamic_pointer_cast<ov::pass::pattern::op::WrapType>(p)) {
+            if (auto any_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(p)) {
                 for (const auto& root_type_info : any_type->get_wrapped_types()) {
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
@@ -186,7 +186,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             if (sub_graph_node->get_transformations_allowed()) {
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
