@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -577,7 +577,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     // Read meta data from legacy representation
     if (root.child("rt_info").empty()) {
         // Legacy representation
-        // meta_data - MO meta
+        // meta_data - IR meta
         // quantization_parameters - NNCF quantization section
         std::unordered_set<std::string> meta_names = {"meta_data", "quantization_parameters"};
         read_legacy_meta_data(function, meta_names, root);
@@ -1033,7 +1033,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
                 // Copy names if parent node is not parameter, model's input names should not be dedicated
                 // output names as they could be removed from Parameter's tensor during model transformations.
-                ov::descriptor::copy_tensor_names(result->get_output_tensor(0), result->get_input_tensor(0));
+                result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
             }
         }
     }

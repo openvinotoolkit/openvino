@@ -367,7 +367,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/chat_sample/>`__.
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text_generation/chat_sample/>`__.
 
       .. tab-item:: C++
          :sync: cpp
@@ -415,7 +415,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 
          For more information, refer to the
-         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/chat_sample/>`__
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation/chat_sample/>`__
 
 
 .. dropdown:: Using GenAI with Vision Language Models
@@ -803,7 +803,7 @@ runs prediction of the next K tokens, thus repeating the cycle.
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speculative_decoding_lm/>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text_generation/speculative_decoding_lm/>`__.
 
 
    .. tab-item:: C++
@@ -859,7 +859,7 @@ runs prediction of the next K tokens, thus repeating the cycle.
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speculative_decoding_lm/>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation/speculative_decoding_lm/>`__
 
 
 

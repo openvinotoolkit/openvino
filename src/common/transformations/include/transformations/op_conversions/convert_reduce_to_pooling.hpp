@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,19 +43,19 @@ public:
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0", ConvertReduceBase);
     ConvertReduceMeanToPooling();
 };
 
 class ov::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0", ConvertReduceBase);
     ConvertReduceMaxToPooling();
 };
 
 class ov::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0", ConvertReduceBase);
     ConvertReduceSumToPooling();
 };
 

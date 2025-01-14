@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ namespace node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto interp = std::dynamic_pointer_cast<const ov::opset7::Roll>(op);
+        const auto interp = ov::as_type_ptr<const ov::opset7::Roll>(op);
         if (!interp) {
             errorMessage = "Only opset7 Roll operation is supported";
             return false;

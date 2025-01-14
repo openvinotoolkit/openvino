@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -6,7 +6,7 @@
 
 import jax.core
 from openvino.frontend.jax.py_jax_frontend import _FrontEndJaxDecoder as Decoder
-from openvino.runtime import PartialShape, Type as OVType, OVAny
+from openvino import PartialShape, Type as OVType, OVAny
 from openvino.frontend.jax.utils import jax_array_to_ov_const, get_ov_type_for_value, \
     ivalue_to_constant, param_to_constants
 

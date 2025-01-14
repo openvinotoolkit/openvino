@@ -11,7 +11,7 @@ from sphinx.util import parselinenos
 import requests
 import re
 import json
-
+import html
 import csv
 
 logger = logging.getLogger(__name__)
@@ -147,7 +147,9 @@ class DataTable(Directive):
                    'file': directives.path,
                    'class': directives.unchanged,
                    'name': directives.unchanged,
-                   'hidden': directives.unchanged
+                   'data-column-hidden': directives.unchanged,
+                   'data-page-length': directives.unchanged,
+                   'data-order': directives.unchanged
                    }
 
     def run(self) -> List[Node]:
@@ -159,10 +161,12 @@ class DataTable(Directive):
         csv_node = []
         with open(csv_file, 'r') as j:
             csv_data = list(csv.reader(j))
-            class_table_tag = ' class="' + "".join(c for c in str(self.options['class']) + '"') if 'class' in self.options is not None else ""
-            id_table_tag = ' id="' + "".join(c for c in str(self.options['name']) + '"') if 'name' in self.options is not None else ""
-            hidden_table_tag = ' data-columns-hidden="' + "".join(c for c in str(self.options['hidden']) + '"') if 'hidden' in self.options is not None else ""
-            csv_table_html = '<table' + class_table_tag + id_table_tag + hidden_table_tag + '>'
+            class_table_tag = f' class="{html.escape(self.options["class"])}"' if "class" in self.options else ""
+            id_table_tag = f' id="{html.escape(self.options["name"])}"' if "name" in self.options else ""
+            data_column_hidden_tag = f' data-column-hidden="{html.escape(self.options["data-column-hidden"])}"' if "data-column-hidden" in self.options else ""
+            data_order_tag = f' data-order="{html.escape(self.options["data-order"])}"' if "data-order" in self.options else ""
+            data_page_length_tag = f' data-page-length="{html.escape(self.options["data-page-length"])}"' if "data-page-length" in self.options else ""
+            csv_table_html = f'<table{class_table_tag}{id_table_tag}{data_column_hidden_tag}{data_order_tag}{data_page_length_tag}>'
             head_rows = 0
             head_rows += self.options.get('header-rows', 0)
             row_count = 0

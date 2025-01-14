@@ -72,6 +72,8 @@ public:
         Result infer(const std::vector<snippets::VectorDimsRef>& input_shapes) override;
     };
 
+    static bool is_transposed(const std::vector<size_t>& layout);
+
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
     void validate_element_type(const ov::element::Type& element_type);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
 
         const auto vnni_factor = brgemm_utils::compute_vnni_factor(src_dt);
         const auto inner_k_blk = brgemm_utils::repacking::compute_inner_k_block(src_dt);
+        OPENVINO_ASSERT(inner_k_blk > 0, "inner_k_blk cannot be zero!");
         const auto tile_scratch_size = BrgemmCPU::SCRATCH_BYTE_SIZE;
         const auto current_scratch_size = scratch_expr->get_byte_size();
         OPENVINO_ASSERT(current_scratch_size == tile_scratch_size,

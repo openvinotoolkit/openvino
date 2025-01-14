@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/reshape.hpp"
+#include "op/reorder.hpp"
 #include "op/nop.hpp"
 #include "op/scalar.hpp"
 #include "op/powerstatic.hpp"

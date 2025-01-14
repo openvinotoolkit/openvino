@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
         totalCharLength += srcData[i].length();
     }
     redefineOutputMemory({srcDataDims, srcDataDims, {totalCharLength}});
-    execute(strm);
+    execute(std::move(strm));
 }
 
 void StringTensorUnpack::execute(dnnl::stream strm) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ template <>
 bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_ptr<ov::Node> node,
                                                   ov::TensorVector& outputs,
                                                   const ov::TensorVector& inputs) {
-    auto string_tensor_pack = std::dynamic_pointer_cast<ov::op::v15::StringTensorPack>(node);
+    auto string_tensor_pack = ov::as_type_ptr<ov::op::v15::StringTensorPack>(node);
     OPENVINO_ASSERT(string_tensor_pack, "Node passed to StringTensorPack evaluate function is invalid.");
     ov::Shape output_shape;
     output_shape = ov::op::v15::shape_infer(string_tensor_pack.get(),

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime import Core, Model, Tensor, PartialShape, Type
@@ -91,12 +91,12 @@ class IEB:
         fmt = "@4sHBB7IB3BLLLL"
 
         magic, ver = b'IEB0', 256
-        
+
         precision = -1
         for k,v in IEB.precision_table.items():
             if (v[0] == nparray.dtype):
                 precision = k
-        
+
         assert(precision >= 0)
 
         ndims = len(nparray.shape)
@@ -113,7 +113,7 @@ class IEB:
                            dims[0], dims[1], dims[2], dims[3], dims[4], dims[5], dims[6],
                            scaling_axis, reserved[0], reserved[1], reserved[2],
                            data_offset, data_size, scaling_data_offset, scaling_data_size)
-        
+
         with open(ieb_file,"wb") as f:
             f.write(header)
             f.write(nparray.tobytes())
@@ -132,7 +132,7 @@ class IEB:
 
             (dtype, type_size, ) = IEB.precision_table[self.precision]
             count = self.data_size//type_size
-            
+
             # recover the data as numpy array
             self.dims = np.array([self.dims0, self.dims1, self.dims2, self.dims3, self.dims4, self.dims5, self.dims6])
             self.dims = self.dims[0:self.ndims]
@@ -166,7 +166,6 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     mkdirp(dump_dir)
 
     device_config = {"PERF_COUNT": "NO",
-                "AFFINITY": "CORE",
                 "PERFORMANCE_HINT_NUM_REQUESTS":0,
                 "PERFORMANCE_HINT":"LATENCY",
                 "INFERENCE_PRECISION_HINT": "f32",
@@ -185,7 +184,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
         print(f"  {i}")
 
     print("infer with dump..")
-    
+
     result = req.infer(inputs)
 
     # dump result as ieb, so even no dump_ports, you can still know
@@ -208,7 +207,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     pass_manager = Manager()
     pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(runtime_func)
-    
+
     print(f"{device_target} Runtime model (exec_graph) is serialized to {xml_path}.")
 
 
@@ -217,7 +216,7 @@ def visualize_diff_abs(diff_abs):
     cur_shape = diff_abs.shape
     if len(vis_abs.shape) > 3:
         vis_abs = vis_abs.reshape(-1,cur_shape[-2],cur_shape[-1])
-    
+
     fig, ax = plt.subplots()
 
     # first channel with diff
@@ -315,10 +314,10 @@ def compare_dumps(model, atol, rtol, visualize, dump_dir1, dump_dir2):
         if not f2:
             print("{}[  SKIPPED   ]: not found {} in {} {}".format(Colors.YELLOW, f1[-1], dump_dir2, Colors.END))
             continue
-        
+
         ieb_file1 = f1[-1]
         ieb_file2 = f2[-1]
-        # compare 
+        # compare
         ieb1 = IEB(os.path.join(dump_dir1, ieb_file1))
         ieb2 = IEB(os.path.join(dump_dir2, ieb_file2))
 
@@ -345,7 +344,7 @@ def compare_dumps(model, atol, rtol, visualize, dump_dir1, dump_dir2):
             info  = ""
             if (np.prod(diff_abs.shape) < 8):
                 info = "{} vs {}".format(ieb1.value.reshape(-1), ieb2.value.reshape(-1))
-            
+
             max_abs = np.amax(diff_abs[idx])
             max_idx = np.where(diff_abs[idx] >= max_abs)
             max_org = np.abs(ieb2.value)[idx][max_idx]

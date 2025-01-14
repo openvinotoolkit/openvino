@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
 
 class RequiresPrecisionConversion : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("requires_precision_conversion", "0");
+    OPENVINO_RTTI("requires_precision_conversion", "0", RuntimeAttribute);
 
     bool is_copyable() const override {
         return false;

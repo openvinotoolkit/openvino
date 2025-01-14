@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
     ProxyMemoryBlock() : m_pOrigBlock(std::make_shared<MemoryBlockWithReuse>()), m_pMemBlock(m_pOrigBlock) {}
     explicit ProxyMemoryBlock(std::shared_ptr<IMemoryBlock> pBlock) {
         OPENVINO_ASSERT(pBlock, "Memory block is uninitialized");
-        m_pMemBlock = pBlock;
+        m_pMemBlock = std::move(pBlock);
     }
 
     void* getRawPtr() const noexcept override;
