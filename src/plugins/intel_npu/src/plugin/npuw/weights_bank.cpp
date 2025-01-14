@@ -50,6 +50,9 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
         return uid;
+    } else {
+        // Already registered - can be safely detach the incoming tensor
+        const_cast<LazyTensor&>(tensor).detach();
     }
 
     return iter_registered->second;
@@ -85,9 +88,11 @@ void Bank::evaluate_and_allocate() {
 
         std::unique_lock storage_guard(device_bank.mutex);
         vec.reserve(device_bank.storage.size());
-        // FIXME: only add non-allocated tensors here
         for (const auto& el : device_bank.storage) {
-            vec.push_back(el.second.lt);
+            // Add non-allocated tensors for furter evaluation and allocation
+            if (!el.second.tensor) {
+                vec.push_back(el.second.lt);
+            }
         }
         storage_guard.unlock();
 
@@ -103,43 +108,36 @@ void Bank::evaluate_and_allocate() {
             }
             dev_guard.unlock();
 
-            // Allocation and evaluation needed
-            eval_and_alloc(lt, device_bank, device_for_alloc);
+            // Allocation and/or evaluation needed
+            // Evaluate concurrently, lock the device
+            // mutex only to update the device bank (& allocate on-device memory, if needed)
+            const auto& transformed_tensor = lt.eval();
+
+            std::unique_lock<std::mutex> guard(device_bank.mutex);
+            if (device_for_alloc == "CPU") {
+                // No allocation needed
+                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
+                return;
+            }
+
+            ov::SoPtr<ov::ITensor> remote_tensor;
+            ov::Tensor allocated_tensor;
+
+            auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
+            remote_tensor =
+                remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+            allocated_tensor = ov::make_tensor(remote_tensor);
+            device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = allocated_tensor;
+            guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
+
+            transformed_tensor.copy_to(allocated_tensor);
+
+            // Detach the evaluated LazyTensor from its memory here - when it is 100%
+            // not needed anymore (transformations, if any, and copies are done)
+            // Note: this is the non-CPU path!
+            const_cast<LazyTensor&>(lt).detach();
         });
     }
-}
-
-ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
-                                Bank::DeviceBank& dbank,
-                                const std::string& device_for_alloc) {
-    // Evaluate concurrently (see evaluate_and_allocate), lock the device
-    // mutex only to update the device bank (& allocate on-device memory, if needed)
-    const auto& transformed_tensor = tensor.eval();
-
-    std::unique_lock<std::mutex> guard(dbank.mutex);
-    if (device_for_alloc == "CPU") {
-        dbank.storage[dbank.registered_tensors.at(tensor)].tensor = transformed_tensor;
-        return transformed_tensor;
-    }
-
-    ov::SoPtr<ov::ITensor> remote_tensor;
-    ov::Tensor allocated_tensor;
-
-    auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-    remote_tensor =
-        remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
-    allocated_tensor = ov::make_tensor(remote_tensor);
-    dbank.storage[dbank.registered_tensors.at(tensor)].tensor = allocated_tensor;
-    guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
-
-    transformed_tensor.copy_to(allocated_tensor);
-
-    // Detach the evaluated LazyTensor from its memory here - when it is 100%
-    // not needed anymore (transformations, if any, and copies are done)
-    // Note: this is the non-CPU path!
-    const_cast<LazyTensor&>(tensor).detach();
-
-    return allocated_tensor;
 }
 
 bool Bank::is_remote(int64_t uid) const {

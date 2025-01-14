@@ -30,7 +30,7 @@ void createDft(ProgramBuilder& p,
 
     if (op->is_dynamic() && p.use_new_shape_infer()) {
         std::vector<int64_t> axes;
-        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (axes_constant != nullptr) {
             axes = axes_constant->cast_vector<int64_t>();
             uint8_t axis_correction = static_cast<uint8_t>(op->get_input_partial_shape(0).size());
@@ -42,7 +42,7 @@ void createDft(ProgramBuilder& p,
 
         if (op->get_input_size() == 3) {
             std::vector<int64_t> signal_size;
-            auto signal_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto signal_size_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (signal_size_constant != nullptr) {
                 signal_size = signal_size_constant->cast_vector<int64_t>();
             }
@@ -56,7 +56,7 @@ void createDft(ProgramBuilder& p,
     } else {
         const auto& out_shape = op->get_output_shape(0);
 
-        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", friendly_name, " (", op->get_type_name(), ")");
         auto axes = axes_constant->cast_vector<int64_t>();
         uint8_t axis_correction = static_cast<uint8_t>(op->get_input_shape(0).size());
@@ -67,7 +67,7 @@ void createDft(ProgramBuilder& p,
 
         std::vector<int64_t> signal_size;
         if (op->get_input_size() == 3) {
-            auto signal_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto signal_size_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             OPENVINO_ASSERT(signal_size_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", friendly_name, " (", op->get_type_name(), ")");
             signal_size = signal_size_constant->cast_vector<int64_t>();
         }
