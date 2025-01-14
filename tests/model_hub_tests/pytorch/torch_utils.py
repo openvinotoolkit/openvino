@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pytest
 import torch
-import os
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import convert_model
@@ -46,11 +46,12 @@ def extract_unsupported_ops_from_exception(e: str) -> list:
 
 class TestTorchConvertModel(TestConvertModel):
     cached_model = None
+
     def setup_class(self):
         torch.set_grad_enabled(False)
 
     def load_model(self, model_name, model_link):
-        raise "load_model is not implemented"
+        raise RuntimeError("load_model is not implemented")
 
     def get_inputs_info(self, model_obj):
         return None
@@ -69,12 +70,15 @@ class TestTorchConvertModel(TestConvertModel):
 
             model_obj.eval()
             graph = None
+            export_kwargs = {}
+            if getattr(self, "export_kwargs", None):
+                export_kwargs = self.export_kwargs
             if isinstance(self.example, dict):
                 pt_res = model_obj(**self.example)
-                graph = export(model_obj, args=tuple(), kwargs=self.example)
+                graph = export(model_obj, args=tuple(), kwargs=self.example, **export_kwargs)
             else:
                 pt_res = model_obj(*self.example)
-                graph = export(model_obj, self.example)
+                graph = export(model_obj, self.example, **export_kwargs)
             ov_model = convert_model(graph, verbose=True)
 
             if isinstance(pt_res, dict):

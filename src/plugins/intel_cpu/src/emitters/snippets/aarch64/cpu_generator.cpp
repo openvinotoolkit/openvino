@@ -64,7 +64,7 @@ namespace ov {
             }                                                                                        \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                   \
+                const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                             \
                 if (gelu == nullptr) {                                                               \
                     OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                \
                 }                                                                                    \
@@ -97,7 +97,7 @@ namespace ov {
             }                                                                                        \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& round = std::dynamic_pointer_cast<ov::op::v5::Round>(n);                 \
+                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                           \
                 if (round == nullptr) {                                                              \
                     OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
                 }                                                                                    \
@@ -141,10 +141,11 @@ bool CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
-    : TargetMachine(std::make_shared<CPURuntimeConfigurator>()),
+CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
       h(new jit_snippet()),
-      isa(host_isa) {
+      isa(host_isa),
+      compiled_kernel_cache(std::move(cache)) {
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
@@ -213,7 +214,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
 }
 
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
-    const auto cloned = std::make_shared<CPUTargetMachine>(isa);
+    const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
     return cloned;
 }
@@ -250,19 +251,20 @@ dnnl::impl::cpu::aarch64::cpu_isa_t CPUTargetMachine::get_isa() const {
     return isa;
 }
 
-CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_)
-    : Generator(std::make_shared<CPUTargetMachine>(isa_)) {}
+CPUGenerator::CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa_, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {}
+CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
     const auto& cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     OPENVINO_ASSERT(cpu_target_machine,
                     "Failed to clone CPUGenerator: the instance contains incompatible TargetMachine type");
-    return std::make_shared<CPUGenerator>(cpu_target_machine->get_isa());
+    return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<intel_cpu::FusedMulAdd>(op) || std::dynamic_pointer_cast<intel_cpu::SwishNode>(op))
+    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op))
         return ov::snippets::RegType::vec;
     else
         return ov::snippets::RegType::undefined;

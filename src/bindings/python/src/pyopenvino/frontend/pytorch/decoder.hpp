@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,12 +114,12 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, may_produce_alias, in_index, out_index);
     }
 
-    ov::OutputVector inlined_input(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, inlined_input, index);
-    }
-
     bool is_input_inlined(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, is_input_inlined, index);
+    }
+
+    std::shared_ptr<TorchDecoder> get_inlined_input_decoder(size_t index) const override {
+        PYBIND11_OVERRIDE_PURE(std::shared_ptr<TorchDecoder>, TorchDecoder, get_inlined_input_decoder, index);
     }
 
     ov::Any get_attribute(const std::string &name) const override{

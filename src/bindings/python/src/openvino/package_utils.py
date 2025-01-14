@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -21,9 +21,9 @@ def _add_openvino_libs_to_search_path() -> None:
         if os.path.isdir(os.path.join(os.path.dirname(__file__), "libs")):
             # looking for the libs in the pip installation path.
             openvino_libs.append(os.path.join(os.path.dirname(__file__), "libs"))
-        elif os.path.isdir(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Library", "bin")):
+        elif os.path.isdir(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "Library", "bin")):
             # looking for the libs in the conda installation path
-            openvino_libs.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Library", "bin"))
+            openvino_libs.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir, "Library", "bin"))
         else:
             # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
             openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")

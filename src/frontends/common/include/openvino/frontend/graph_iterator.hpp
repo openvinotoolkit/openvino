@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace tensorflow {
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class FRONTEND_API GraphIterator : ::ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("Variant::GraphIterator");
+    OPENVINO_RTTI("Variant::GraphIterator", "0", RuntimeAttribute);
 
     using Ptr = std::shared_ptr<GraphIterator>;
 

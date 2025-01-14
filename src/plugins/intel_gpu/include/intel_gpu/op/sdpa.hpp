@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace op {
 
 class SDPA : public ov::op::v13::ScaledDotProductAttention {
 public:
-    OPENVINO_OP("SDPA", "gpu_opset");
+    OPENVINO_OP("SDPA", "gpu_opset", ov::op::v13::ScaledDotProductAttention);
 
     using QuantizationAttribute = ov::op::internal::DynamicQuantize::Attributes;
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Functions related to converting between Python and numpy types and openvino types."""
@@ -9,9 +9,9 @@ from typing import List, Union, Optional
 
 import numpy as np
 
-from openvino.runtime.exceptions import OVTypeError
-from openvino.runtime import Node, Shape, Output, Type
-from openvino.runtime.op import Constant
+from openvino.exceptions import OVTypeError
+from openvino import Node, Shape, Output, Type
+from openvino.op import Constant
 
 log = logging.getLogger(__name__)
 
