@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API ReduceMinTransformation : public ReduceBaseTransformation {
 public:
-    OPENVINO_RTTI("ReduceMinTransformation", "0");
+    OPENVINO_RTTI("ReduceMinTransformation", "0", ReduceBaseTransformation);
     ReduceMinTransformation(const Params& params = Params());
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;

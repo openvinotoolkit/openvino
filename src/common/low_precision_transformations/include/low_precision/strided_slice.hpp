@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("StridedSliceTransformation", "0");
+    OPENVINO_RTTI("StridedSliceTransformation", "0", LayerTransformation);
     StridedSliceTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;

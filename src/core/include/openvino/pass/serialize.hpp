@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 #    include <filesystem>
 #endif
 
@@ -39,7 +39,7 @@ public:
 
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
     Serialize(const std::filesystem::path& xmlPath,
               const std::filesystem::path& binPath,
               Version version = Version::UNSPECIFIED)
