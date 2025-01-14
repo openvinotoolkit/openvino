@@ -7,6 +7,7 @@ graph {
     input: "delta"
     output: "output"
     op_type: "Range"
+    domain: "com.microsoft"
   }
   name: "test_range_float_type_with_delta"
   input {
