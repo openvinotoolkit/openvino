@@ -716,25 +716,12 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
         auto Transpose81 = makeOP<opset1::Transpose>({Reshape79, {0, 2, 1, 3}});
         auto Concat82 = makeOP<opset1::Concat>({Gather75, Transpose81}, {{"axis", 2}});
 
-        auto Constant83 = makeConst(element::f32,
-                                    ov::Shape({
-                                        1,
-                                        1,
-                                        1,
-                                        1,
-                                    }),
-                                    {1.000000f});
+        auto Constant83 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
         auto Convert85 = makeOP<opset1::Convert>({attention_mask}, {{"destination_type", "f32"}});
         auto Unsqueeze86 = makeOP<opset1::Unsqueeze>({Convert85, 2});
         auto Unsqueeze87 = makeOP<opset1::Unsqueeze>({Convert85, 1});
         auto Multiply88 = makeOP<opset1::Multiply>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
-        auto Constant89 = makeConst(element::f32,
-                                    ov::Shape({
-                                        1,
-                                        1,
-                                        1,
-                                    }),
-                                    {0.000000f});
+        auto Constant89 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000000f});
         auto Greater90 = makeOP<opset1::Greater>({Multiply88, Constant89}, {{"auto_broadcast", "numpy"}});
         auto ShapeOf91 = makeOP<opset3::ShapeOf>({Greater90}, {{"output_type", "i32"}});
         auto Gather94 = makeOP<opset8::Gather>({ShapeOf91, 1, 0}, {{"batch_dims", 0}});
@@ -745,25 +732,13 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
         auto Constant100 = makeConst(element::boolean, ov::Shape({}), {0});
         auto Select101 = makeOP<opset1::Select>({LessEqual99, Greater90, Constant100}, {{"auto_broadcast", "numpy"}});
         auto Subtract102 = makeOP<opset1::Subtract>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
-        auto Constant103 = makeConst(element::f32,
-                                     ov::Shape({
-                                         1,
-                                         1,
-                                         1,
-                                     }),
-                                     {0.000000f});
+        auto Constant103 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000000f});
         auto Equal104 = makeOP<opset1::Equal>({Subtract102, Constant103}, {{"auto_broadcast", "numpy"}});
         auto LogicalAnd105 = makeOP<opset1::LogicalAnd>({Select101, Equal104}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze106 = makeOP<opset1::Unsqueeze>({LogicalAnd105, 1});
         auto ShapeOf107 = makeOP<opset3::ShapeOf>({MatMul49}, {{"output_type", "i64"}});
         auto Gather110 = makeOP<opset8::Gather>({ShapeOf107, {0}, 0}, {{"batch_dims", 0}});
-        auto Constant112 = makeConst(element::f32,
-                                     ov::Shape({
-                                         40,
-                                         4096,
-                                         4096,
-                                     }),
-                                     MOCK_VALUE);  // TODO: there can be an error due to fake alibi slopes
+        auto Constant112 = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);  // TODO: there can be an error due to fake alibi slopes
         auto Gather116 = makeOP<opset8::Gather>({ShapeOf107, {1}, 0}, {{"batch_dims", 0}});
         auto ShapeOf117 = makeOP<opset3::ShapeOf>({Gather65}, {{"output_type", "i64"}});
         auto Gather120 = makeOP<opset8::Gather>({ShapeOf117, {2}, 0}, {{"batch_dims", 0}});
@@ -776,14 +751,7 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
         auto Concat131 = makeOP<opset1::Concat>({Gather110, {1L}, Gather130}, {{"axis", 0}});
         auto Broadcast132 = makeOP<opset3::Broadcast>({Unsqueeze106, Concat131}, {{"mode", "bidirectional"}});
         auto Convert133 = makeOP<opset1::Convert>({Broadcast132}, {{"destination_type", "f32"}});
-        auto Constant134 = makeConst(element::f32,
-                                     ov::Shape({
-                                         1,
-                                         1,
-                                         1,
-                                         1,
-                                     }),
-                                     {1.000000f});
+        auto Constant134 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
         auto Multiply135 = makeOP<opset1::Multiply>({Convert133, Constant134}, {{"auto_broadcast", "numpy"}});
         auto Subtract136 = makeOP<opset1::Subtract>({Constant83, Multiply135}, {{"auto_broadcast", "numpy"}});
         auto Convert137 = makeOP<opset1::Convert>({Subtract136}, {{"destination_type", "boolean"}});
@@ -822,89 +790,35 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
                                                   key_cache_0,
                                                   input_ids});
 
-        auto Constant88 = makeConst(element::u8,
-                                    ov::Shape({
-                                        125696,
-                                        5120,
-                                    }),
-                                    MOCK_VALUE);
+        auto Constant88 = makeConst(element::u8, ov::Shape({125696, 5120}), MOCK_VALUE);
         auto Convert89 = makeOP<opset1::Convert>({Constant88}, {{"destination_type", "f16"}});
-        auto Constant90 = makeConst(element::u8,
-                                    ov::Shape({
-                                        125696,
-                                        1,
-                                    }),
-                                    MOCK_VALUE);
+        auto Constant90 = makeConst(element::u8, ov::Shape({125696, 1}), MOCK_VALUE);
         auto Convert91 = makeOP<opset1::Convert>({Constant90}, {{"destination_type", "f16"}});
         auto Subtract92 = makeOP<opset1::Subtract>({Convert89, Convert91}, {{"auto_broadcast", "numpy"}});
-        auto Constant93 = makeConst(element::f16,
-                                    ov::Shape({
-                                        125696,
-                                        1,
-                                    }),
-                                    MOCK_VALUE);
+        auto Constant93 = makeConst(element::f16, ov::Shape({125696, 1}), MOCK_VALUE);
         auto Multiply94 = makeOP<opset1::Multiply>({Subtract92, Constant93}, {{"auto_broadcast", "numpy"}});
         auto Convert95 = makeOP<opset1::Convert>({Multiply94}, {{"destination_type", "f32"}});
         auto Unsqueeze97 = makeOP<opset1::Unsqueeze>({input_ids, 1});
         auto Convert98 = makeOP<opset1::Convert>({Unsqueeze97}, {{"destination_type", "i32"}});
         auto Gather100 = makeOP<opset8::Gather>({Convert95, Convert98, 0}, {{"batch_dims", 0}});
-        auto Constant101 = makeConst(element::f32,
-                                     ov::Shape({
-                                         1,
-                                         1,
-                                         5120,
-                                     }),
-                                     MOCK_VALUE);
-        auto Constant102 = makeConst(element::f32,
-                                     ov::Shape({
-                                         1,
-                                         1,
-                                         1,
-                                     }),
-                                     {1.0f});
-        auto Constant103 = makeConst(element::f32,
-                                     ov::Shape({
-                                         1,
-                                         1,
-                                         1,
-                                     }),
-                                     {2.0f});
+        auto Constant101 = makeConst(element::f32, ov::Shape({1, 1, 5120}), MOCK_VALUE);
+        auto Constant102 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.0f});
+        auto Constant103 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.0f});
         auto Power104 = makeOP<opset1::Power>({Gather100, Constant103}, {{"auto_broadcast", "numpy"}});
         auto ReduceMean106 = makeOP<opset1::ReduceMean>({Power104, {-1}}, {{"keep_dims", true}});
-        auto Constant107 = makeConst(element::f32,
-                                     ov::Shape({
-                                         1,
-                                         1,
-                                         1,
-                                     }),
-                                     {0.000001f});
+        auto Constant107 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000001f});
         auto Add108 = makeOP<opset1::Add>({ReduceMean106, Constant107}, {{"auto_broadcast", "numpy"}});
         auto Sqrt109 = makeOP<opset1::Sqrt>({Add108});
         auto Divide110 =
             makeOP<opset1::Divide>({Constant102, Sqrt109}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
         auto Multiply111 = makeOP<opset1::Multiply>({Gather100, Divide110}, {{"auto_broadcast", "numpy"}});
         auto Multiply112 = makeOP<opset1::Multiply>({Constant101, Multiply111}, {{"auto_broadcast", "numpy"}});
-        auto Constant113 = makeConst(element::u8,
-                                     ov::Shape({
-                                         15360,
-                                         5120,
-                                     }),
-                                     MOCK_VALUE);
+        auto Constant113 = makeConst(element::u8, ov::Shape({15360, 5120}), MOCK_VALUE);
         auto Convert114 = makeOP<opset1::Convert>({Constant113}, {{"destination_type", "f16"}});
-        auto Constant115 = makeConst(element::u8,
-                                     ov::Shape({
-                                         15360,
-                                         1,
-                                     }),
-                                     MOCK_VALUE);
+        auto Constant115 = makeConst(element::u8, ov::Shape({15360, 1}), MOCK_VALUE);
         auto Convert116 = makeOP<opset1::Convert>({Constant115}, {{"destination_type", "f16"}});
         auto Subtract117 = makeOP<opset1::Subtract>({Convert114, Convert116}, {{"auto_broadcast", "numpy"}});
-        auto Constant118 = makeConst(element::f16,
-                                     ov::Shape({
-                                         15360,
-                                         1,
-                                     }),
-                                     MOCK_VALUE);
+        auto Constant118 = makeConst(element::f16, ov::Shape({15360, 1}), MOCK_VALUE);
         auto Multiply119 = makeOP<opset1::Multiply>({Subtract117, Constant118}, {{"auto_broadcast", "numpy"}});
         auto Convert120 = makeOP<opset1::Convert>({Multiply119}, {{"destination_type", "f32"}});
         auto MatMul121 =
@@ -928,18 +842,11 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
         auto Transpose153 = makeOP<opset1::Transpose>({Reshape151, {0, 2, 1, 3}});
         auto Transpose154 = makeOP<opset1::Transpose>({Transpose153, {0, 2, 1, 3}});
         auto Reshape156 = makeOP<opset1::Reshape>({Transpose154, {0, -1}}, {{"special_zero", true}});
-        auto Constant159 = makeConst(element::f32,
-                                     ov::Shape({
-                                         40,
-                                         4096,
-                                         4096,
-                                     }),
-                                     MOCK_VALUE);
+        auto Constant159 = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);
         auto Slice164 = makeOP<opset8::Slice>({Constant159, {1, 1}, {2, 2}, {1, 1}, {1, 2}});
         auto Reshape166 = makeOP<opset1::Reshape>({Slice164, {-1}}, {{"special_zero", false}});
-        auto Convert167 = makeOP<opset1::Convert>({Reshape166}, {{"destination_type", "f32"}});
 
-        // PA cannot be instantiated uding makeOP hence creating constatnts for it manually
+        // PA cannot be instantiated uding makeOP hence creating constants for it manually
         auto c1 = makeConst(element::f32, {}, {0.088388f});
         auto c2 = makeConst(element::i32, {}, {0});
         auto PagedAttentionExtension168 =
@@ -954,7 +861,7 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
                                                                                block_indices_begins,
                                                                                c1,
                                                                                c2,
-                                                                               Convert167,
+                                                                               Reshape166,
                                                                                max_context_len});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
@@ -975,6 +882,8 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
 }
 
 // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
+
+// Bellow is an example of Alibi Slopes constant and how it is handled for Baichuan2 13b:
 // ALIBI_CONST content:
 /*
  * >>> line1 = np.reshape(line1, (40, 4096, 4096))

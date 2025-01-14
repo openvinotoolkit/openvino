@@ -58,6 +58,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan2_13b_alibi_pattern() {
     auto baichuan2_alibi = pattern::any_input();
+    // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
     auto alibi_slice_to_replace = pattern::wrap_type<v8::Slice>(
         {baichuan2_alibi, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto alibi_path = pattern::wrap_type<v3::ShapeOf>({alibi_slice_to_replace});
@@ -81,7 +82,7 @@ static std::shared_ptr<ov::Node> handle_general_alibi(const std::shared_ptr<ov::
         std::make_shared<v1::Reshape>(matched_general_alibi_slopes,
                                       v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
                                       false);
-    if (res_alibi_slopes->get_element_type() == ov::element::f32) {
+    if (res_alibi_slopes->get_element_type() != ov::element::f32) {
         res_alibi_slopes = std::make_shared<v0::Convert>(res_alibi_slopes, ov::element::f32);
     }
 
@@ -131,7 +132,7 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     res_alibi_slopes = std::make_shared<v1::Reshape>(res_alibi_slopes,
                                                      v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
                                                      false);
-    if (res_alibi_slopes->get_element_type() == ov::element::f32) {
+    if (res_alibi_slopes->get_element_type() != ov::element::f32) {
         res_alibi_slopes = std::make_shared<v0::Convert>(res_alibi_slopes, ov::element::f32);
     }
 
