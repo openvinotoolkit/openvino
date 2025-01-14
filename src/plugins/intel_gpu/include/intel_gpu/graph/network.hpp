@@ -160,6 +160,7 @@ public:
     std::map<primitive_id, network_output> execute(const std::vector<event::ptr>& dependencies = {});
 
     void validate_primitives();
+    void preallocate_shape_info_buffers();
     void set_arguments();
     // Implementation specific calls
     bool does_node_need_lockable_output(const primitive_id& id) const;
@@ -219,6 +220,9 @@ private:
     bool _enable_profiling = false;
     bool _reset_arguments;
     bool _reuse_variable_mem = false;
+
+    /* Common memory pointer for shape_info */
+    memory::ptr _shape_info_ptr;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
