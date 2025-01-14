@@ -85,15 +85,25 @@ sdpa_config_t xehpg_h32_s64 = {16, 16, 16, 8, 4, 4, 2, 8};
 sdpa_config_t xehpg_h32_s32 = {8, 8, 8, 8, 4, 4, 4, 4};
 sdpa_config_t xehpg_h32_2nd = {8, 32, 16, 8, 8, 1, 2, 4};
 
+sdpa_config_t xehpg_q_h32 = {32, 16, 16, 16, 2, 8, 2, 8};
+sdpa_config_t xehpg_q_h32_2nd = {32, 16, 8, 8, 8, 1, 4, 2};
+
 sdpa_config_t xehpg_h64 = {32, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64_s128 = {16, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64_s64 = {32, 16, 16, 8, 8, 4, 4, 8};
 sdpa_config_t xehpg_h64_2nd = {8, 16, 16, 8, 8, 1, 4, 2};
 
+sdpa_config_t xehpg_q_h64 = {32, 16, 16, 16, 4, 4, 4, 4};
+sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 1, 8, 2};
+
 sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 4, 4, 8};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
 sdpa_config_t xehpg_h128_s256_2nd = {8, 16, 32, 8, 8, 1, 4, 2};
+
+sdpa_config_t xehpg_q_h128 = {32, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h128_2nd = {32, 16, 16, 8, 16, 1, 8, 2};
+sdpa_config_t xehpg_q_h128_s64_2nd = {16, 16, 16, 8, 16, 1, 8, 2};
 
 sdpa_config_t xehpg_h256 = {16, 16, 32, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h256_s128 = {8, 16, 32, 16, 8, 4, 8, 4};
@@ -112,28 +122,52 @@ sdpa_config_t xehpc_h64_s32 = {16, 16, 16, 16, 4, 2, 4, 2};
 sdpa_config_t xehpc_h64_2nd = {32, 32, 32, 16, 4, 1, 2, 2};
 sdpa_config_t xehpc_h64_s64_2nd = {16, 16, 16, 16, 4, 1, 4, 1};
 
+sdpa_config_t xehpc_q_h64 = {16, 64, 32, 16, 8, 4, 2, 16};
+
 sdpa_config_t xehpc_h128 = {16, 64, 32, 16, 16, 2, 4, 8};
 sdpa_config_t xehpc_h128_s64 = {16, 32, 32, 32, 4, 2, 4, 2};
 sdpa_config_t xehpc_h128_s32 = {16, 16, 16, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h128_2nd = {32, 32, 32, 16, 8, 1, 4, 2};
 
+sdpa_config_t xehpc_q_h128 = {16, 64, 16, 32, 16, 2, 8, 4};
+sdpa_config_t xehpc_q_h128_s64 = {16, 16, 32, 16, 4, 4, 4, 4};
+sdpa_config_t xehpc_q_h128_s32 = {16, 16, 32, 16, 4, 2, 4, 2};
+sdpa_config_t xehpc_q_h128_2nd = {32, 32, 16, 32, 4, 1, 4, 1};
+sdpa_config_t xehpc_q_h128_s32_2nd = {16, 32, 16, 16, 8, 1, 4, 2};
+
 sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q) {
+sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized) {
     if (head_size <= 32) {
+        if (quantized && seq >= 128) {
+            if (thin_q) return &xehpg_q_h32_2nd;
+            return &xehpg_q_h32;
+        }
         if (thin_q) return &xehpg_h32_2nd;
         if (seq <= 32) return &xehpg_h32_s32;
         if (seq <= 64) return &xehpg_h32_s64;
         if (seq <= 256) return &xehpg_h32_s256;
         return &xehpg_h32;
     } else if (head_size <= 64) {
+        if (quantized) {
+            if (thin_q) return &xehpg_q_h64_2nd;
+            return &xehpg_q_h64;
+        }
         if (thin_q) return &xehpg_h64_2nd;
         if (seq <= 64) return &xehpg_h64_s64;
         if (seq <= 128) return &xehpg_h64_s128;
         return &xehpg_h64;
     } else if (head_size <= 128) {
+        if (quantized) {
+            if (thin_q) {
+                if (seq <= 64) return &xehpg_q_h128_s64_2nd;
+                return &xehpg_q_h128_2nd;
+            }
+            if (seq <= 32) return &xehpg_h128_s32;
+            return &xehpg_q_h128;
+        }
         if (thin_q) {
             if (seq <= 256) return &xehpg_h128_s256_2nd;
             return &xehpg_h128_2nd;
@@ -153,7 +187,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q) {
     return nullptr;
 }
 
-sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q) {
+sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized) {
     if (head_size <= 32) {
         if (thin_q) return &xehpc_h32_2nd;
         if (seq <= 32) return &xehpc_h32_s32;
@@ -163,10 +197,20 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q) {
             if (seq <= 64) return &xehpc_h64_s64_2nd;
             return &xehpc_h64_2nd;
         }
+        if (quantized && seq >= 256) return &xehpc_q_h64;
         if (seq <= 32) return &xehpc_h64_s32;
         if (seq <= 64) return &xehpc_h64_s64;
         return &xehpc_h64;
     } else if (head_size <= 128) {
+        if (quantized) {
+            if (thin_q) {
+                if (seq <= 32) return &xehpc_q_h128_s32_2nd;
+                return &xehpc_q_h128_2nd;
+            }
+            if (seq <= 32) return &xehpc_q_h128_s32;
+            if (seq <= 64) return &xehpc_q_h128_s64;
+            return &xehpc_q_h128;
+        }
         if (thin_q) return &xehpc_h128_2nd;
         if (seq <= 32) return &xehpc_h128_s32;
         if (seq <= 64) return &xehpc_h128_s64;
@@ -207,15 +251,18 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     sdpa_config_t *config = nullptr;
     bool thin_q = (!n_queries.is_dynamic && (n_queries.v <= 16)) || !is_prefill;
 
+    bool is_quantized = (K.GetDType() == Datatype::UINT8 || K.GetDType() == Datatype::INT8) ||
+                        (V.GetDType() == Datatype::UINT8 || V.GetDType() == Datatype::INT8);
+    
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
-            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q);
+            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
             break;
         }
         case gpu_arch::xe_hpc:
         case gpu_arch::xe2:
         case gpu_arch::xe3: {
-            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q);
+            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
             break;
         }
         default: break;
@@ -330,7 +377,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     }
 
     if (params.conf.is_kv_compressed) {
-        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : params.conf.head_size;
+        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(params.conf.head_size);
         problem_vs.aqGroupK = 1;
     }
 
