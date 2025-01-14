@@ -29,8 +29,8 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
         return true;
     }
 
-    if (opt == "REPR_SUBSET") {
-        return sub_idx == real_idx ? true : false;
+    if (opt == "MIN") {
+        return sub_idx == real_idx;
     }
 
     std::string str(opt);
