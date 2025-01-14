@@ -16,7 +16,8 @@ std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<M
     ov::test::ElementType decompression_precision;
     ov::test::ElementType scale_precision;
     bool transpose;
-    DecompressionSubtractType decompression_subtract_type;
+    DecompressionType decompression_multiply_type;
+    DecompressionType decompression_subtract_type;
     bool reshape_on_decompression;
     ov::AnyMap additional_config;
     fusingSpecificParams fusing_params;
@@ -27,6 +28,7 @@ std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<M
              decompression_precision,
              scale_precision,
              transpose,
+             decompression_multiply_type,
              decompression_subtract_type,
              reshape_on_decompression,
              additional_config,
@@ -39,6 +41,7 @@ std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<M
     result << "decompression_precision=" << decompression_precision << "_";
     result << "scale_precision=" << scale_precision << "_";
     result << "transpose_weights=" << transpose << "_";
+    result << "decompression_multiply=" << decompression_multiply_type << "_";
     result << "decompression_subtract=" << decompression_subtract_type << "_";
     result << "reshape_on_decompression=" << reshape_on_decompression << "_";
 
@@ -60,7 +63,8 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::Pa
                                                                     const ov::element::Type decompression_precision,
                                                                     const ov::element::Type scale_precision,
                                                                     const bool transpose_weights,
-                                                                    const DecompressionSubtractType decompression_subtract_type,
+                                                                    const DecompressionType decompression_multiply_type,
+                                                                    const DecompressionType decompression_subtract_type,
                                                                     const bool reshape_on_decompression) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
     const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
@@ -70,6 +74,7 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::Pa
                                                                     decompression_precision,
                                                                     scale_precision,
                                                                     transpose_weights,
+                                                                    decompression_multiply_type,
                                                                     decompression_subtract_type,
                                                                     reshape_on_decompression);
     auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
@@ -84,7 +89,8 @@ void MatmulWeightsDecompression::SetUp() {
     ov::test::ElementType decompression_precision;
     ov::test::ElementType scale_precision;
     bool transpose_weights;
-    DecompressionSubtractType decompression_subtract_type;
+    DecompressionType decompression_multiply_type;
+    DecompressionType decompression_subtract_type;
     bool reshape_on_decompression;
     ov::AnyMap additional_config;
     fusingSpecificParams fusing_params;
@@ -95,6 +101,7 @@ void MatmulWeightsDecompression::SetUp() {
                 decompression_precision,
                 scale_precision,
                 transpose_weights,
+                decompression_multiply_type,
                 decompression_subtract_type,
                 reshape_on_decompression,
                 additional_config,
@@ -131,6 +138,7 @@ void MatmulWeightsDecompression::SetUp() {
                             decompression_precision,
                             scale_precision,
                             transpose_weights,
+                            decompression_multiply_type,
                             decompression_subtract_type,
                             reshape_on_decompression);
 }
@@ -138,7 +146,7 @@ void MatmulWeightsDecompression::SetUp() {
 void MatmulWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     const ov::element::Type compressed_weights_precision = std::get<1>(test_param);
-    const bool use_matmul_decompression_impl = std::get<9>(test_param);
+    const bool use_matmul_decompression_impl = std::get<10>(test_param);
 
     const auto runtime_model = compiledModel.get_runtime_model();
     const auto result = runtime_model->get_result();

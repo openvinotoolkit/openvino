@@ -49,13 +49,13 @@ struct GatherDecompressionShapeParams {
 
 std::ostream& operator<<(std::ostream& os, GatherDecompressionShapeParams type);
 
-enum class DecompressionSubtractType {
-    empty,  // no decompression subtract
-    scalar, // decompression subtract with scalar shape
-    full    // decompression subtract with per-channel or grouped shape
+enum class DecompressionType {
+    empty,  // no decompression
+    scalar, // decompression with scalar shape
+    full    // decompression with per-channel or grouped shape
 };
 
-std::ostream& operator<<(std::ostream& os, DecompressionSubtractType type);
+std::ostream& operator<<(std::ostream& os, DecompressionType type);
 
 std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const ov::Shape& weights_shape,
@@ -65,7 +65,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const ov::element::Type decompression_precision,
     const ov::element::Type scale_precision,
     const bool transpose_weights,
-    const DecompressionSubtractType decompression_subtract_type,
+    const DecompressionType decompression_multiply_type,
+    const DecompressionType decompression_subtract_type,
     const bool reshape_on_decompression_constant);
 
 std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_shape,
