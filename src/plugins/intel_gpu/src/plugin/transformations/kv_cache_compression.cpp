@@ -178,12 +178,12 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         auto query_node = pattern_map.at(query).get_node_shared_ptr();
 
         auto key_new_token_node = pattern_map.at(key_new_token).get_node_shared_ptr();
-        auto key_cache_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(key_cache).get_node_shared_ptr());
-        auto value_cache_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(value_cache).get_node_shared_ptr());
-        auto sdpa_node = std::dynamic_pointer_cast<ov::intel_gpu::op::IndirectSDPA>(m.get_match_root());
+        auto key_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(key_cache).get_node_shared_ptr());
+        auto value_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(value_cache).get_node_shared_ptr());
+        auto sdpa_node = ov::as_type_ptr<ov::intel_gpu::op::IndirectSDPA>(m.get_match_root());
 
-        auto key_past_rv_node = std::dynamic_pointer_cast<ov::intel_gpu::op::ReadValue>(pattern_map.at(key_past).get_node_shared_ptr());
-        auto value_past_rv_node = std::dynamic_pointer_cast<ov::intel_gpu::op::ReadValue>(pattern_map.at(value_past).get_node_shared_ptr());
+        auto key_past_rv_node = ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(pattern_map.at(key_past).get_node_shared_ptr());
+        auto value_past_rv_node = ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(pattern_map.at(value_past).get_node_shared_ptr());
 
         auto data_rank = key_cache_node->get_input_partial_shape(0).size();
         auto get_shape_group_sizes = [&](const std::vector<int64_t>& transposed_order) {

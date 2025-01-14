@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -480,7 +480,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         coIdx = 2;
     }
 
-    auto rnnCellBase = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(op);
+    auto rnnCellBase = ov::as_type_ptr<ov::op::util::RNNCellBase>(op);
     if (!rnnCellBase)
         THROW_CPU_NODE_ERR("does not have original layer for RNNCell.");
 
@@ -1030,7 +1030,7 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
         res_ptr = create();
     }
 
-    internalBlobMemory[idx] = res_ptr;
+    internalBlobMemory[idx] = std::move(res_ptr);
 }
 
 void RNN::copyWeightsData() {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -221,14 +221,18 @@ CPU::CPU() {
         } else {
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
+            int cur_numa_nodes = _numa_nodes;
+            int cur_cores = _cores;
             {
                 std::lock_guard<std::mutex> lock{_cpu_mutex};
                 update_valid_processor_linux(std::move(phy_core_list),
-                                             _numa_nodes,
-                                             _cores,
+                                             cur_numa_nodes,
+                                             cur_cores,
                                              _proc_type_table,
                                              _cpu_mapping_table);
             }
+            _cores = cur_cores;
+            _numa_nodes = cur_numa_nodes;
             return 0;
         }
     };

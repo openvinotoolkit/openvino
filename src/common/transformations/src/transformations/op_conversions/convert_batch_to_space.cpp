@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
     const auto batch_to_space = pattern::wrap_type<ov::op::v1::BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto batch_to_space = dynamic_pointer_cast<ov::op::v1::BatchToSpace>(m.get_match_root());
+        const auto batch_to_space = ov::as_type_ptr<ov::op::v1::BatchToSpace>(m.get_match_root());
         if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
         }
@@ -120,7 +120,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
     const auto batch_to_space = pattern::wrap_type<ov::op::v1::BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto batch_to_space = dynamic_pointer_cast<ov::op::v1::BatchToSpace>(m.get_match_root());
+        const auto batch_to_space = ov::as_type_ptr<ov::op::v1::BatchToSpace>(m.get_match_root());
         if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
         }

@@ -38,19 +38,19 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // if it is not constant, the only allowed cases are Constant => convert
         // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
         auto is_constant = [](const std::shared_ptr<ov::Node> node) {
-            if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node))
+            if (ov::as_type_ptr<ov::op::v0::Constant>(node))
                 return true;
-            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(node) && std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
+            if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
-            if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(node) && std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
+            if (ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
             return false;
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
-            return std::dynamic_pointer_cast<op::Placeholder>(node);
+            return ov::as_type_ptr<op::Placeholder>(node);
         };
 
-        const auto& fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
+        const auto& fc = ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic())
             return false;
@@ -58,7 +58,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         int32_t nodes_with_bias = 0;
         int32_t nodes_with_zp = 0;
         for (const auto& u : input->get_users()) {
-            const auto& fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(u);
+            const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
             if (!fc_user)
                 continue;
             auto num_inputs = fc_user->inputs().size();
@@ -93,13 +93,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         ov::NodeVector zp_nodes;
         int32_t bias_rank = -1;
         for (auto user : input_node->get_users()) {
-            auto fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(user);
+            auto fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(user);
             if (fc_user) {
                 OPENVINO_ASSERT(fc_user->inputs().size() >= 4, "Compressed FC should have at least 4 inputs");
                 fc_nodes.push_back(fc_user);
                 fc_nodes_vec.push_back(fc_user);
                 weight_nodes.push_back(fc_user->get_input_node_shared_ptr(1));
-                if (!std::dynamic_pointer_cast<op::Placeholder>(fc_user->get_input_node_shared_ptr(2))) {
+                if (!ov::as_type_ptr<op::Placeholder>(fc_user->get_input_node_shared_ptr(2))) {
                     if (bias_rank == -1)
                         bias_rank = static_cast<int32_t>(fc_user->get_input_partial_shape(2).size());
                     if (bias_rank != static_cast<int32_t>(fc_user->get_input_partial_shape(2).size()))
@@ -198,7 +198,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                             }
                         }
                     }
-                    fc_nodes[i] = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(new_fc);
+                    fc_nodes[i] = ov::as_type_ptr<op::FullyConnectedCompressed>(new_fc);
                     bias_node->clear_control_dependencies();
                     orig_fc->clear_control_dependencies();
                 }
@@ -225,10 +225,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
             int32_t scalar_zp_val = 0;
             if (is_scalar) {
-                if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[0])) {
+                if (auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_nodes[0])) {
                     scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
-                } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[0])) {
-                    auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+                } else if (auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(zp_nodes[0])) {
+                    auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                     scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
                 }
                 fused_zps = zp_nodes[0];
@@ -240,11 +240,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                         return false;
                     // validate all zp values are same
                     int32_t cur_zp_val = 0;
-                    if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[i])) {
+                    if (auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_nodes[i])) {
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
-                    } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[i])) {
+                    } else if (auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(zp_nodes[i])) {
                         auto zp_const =
-                            std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+                            ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
                     } else {
                         OPENVINO_ASSERT("Unsupported zp input node for FC horizontal fusion");

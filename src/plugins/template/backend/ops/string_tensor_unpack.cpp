@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ bool evaluate_node<ov::op::v15::StringTensorUnpack>(std::shared_ptr<ov::Node> no
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs) {
     if (node->get_input_element_type(0) == ov::element::string) {
-        auto string_tensor_unpack = std::dynamic_pointer_cast<ov::op::v15::StringTensorUnpack>(node);
+        auto string_tensor_unpack = ov::as_type_ptr<ov::op::v15::StringTensorUnpack>(node);
         OPENVINO_ASSERT(string_tensor_unpack, "Node passed to StringTensorUnpack evaluate function is invalid.");
         std::vector<ov::PartialShape> output_shapes;
         output_shapes = ov::op::v15::shape_infer(string_tensor_unpack.get(),

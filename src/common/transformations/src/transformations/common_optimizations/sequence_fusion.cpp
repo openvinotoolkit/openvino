@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,8 @@ using namespace ov::op::util;
 
 namespace {
 bool is_equal_consts(const shared_ptr<ov::Node>& l, const shared_ptr<ov::Node>& r) {
-    auto l_const = dynamic_pointer_cast<ov::op::v0::Constant>(l);
-    auto r_const = dynamic_pointer_cast<ov::op::v0::Constant>(r);
+    auto l_const = ov::as_type_ptr<ov::op::v0::Constant>(l);
+    auto r_const = ov::as_type_ptr<ov::op::v0::Constant>(r);
     if (l_const && r_const) {
         auto l_ptr = l_const->get_data_ptr();
         auto r_ptr = r_const->get_data_ptr();
@@ -52,14 +52,14 @@ bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBa
         ++idx_R;
         ++idx_W;
     };
-    auto lstm_cell_v4_1 = dynamic_pointer_cast<ov::op::v4::LSTMCell>(cell_1);
-    auto lstm_cell_v4_2 = dynamic_pointer_cast<ov::op::v4::LSTMCell>(cell_2);
+    auto lstm_cell_v4_1 = ov::as_type_ptr<ov::op::v4::LSTMCell>(cell_1);
+    auto lstm_cell_v4_2 = ov::as_type_ptr<ov::op::v4::LSTMCell>(cell_2);
     // 2nd input is Cell State
     if (lstm_cell_v4_1 && lstm_cell_v4_2) {
         increase_indexes();
     }
-    auto lstm_cell_v0_1 = dynamic_pointer_cast<ov::op::v0::LSTMCell>(cell_1);
-    auto lstm_cell_v0_2 = dynamic_pointer_cast<ov::op::v0::LSTMCell>(cell_2);
+    auto lstm_cell_v0_1 = ov::as_type_ptr<ov::op::v0::LSTMCell>(cell_1);
+    auto lstm_cell_v0_2 = ov::as_type_ptr<ov::op::v0::LSTMCell>(cell_2);
     if (lstm_cell_v0_1 && lstm_cell_v0_2) {
         if (lstm_cell_v0_1->get_weights_format() != lstm_cell_v0_2->get_weights_format() ||
             lstm_cell_v0_1->get_input_forget() != lstm_cell_v0_2->get_input_forget()) {
@@ -81,8 +81,8 @@ bool check_WRB(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBa
 
 bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNCellBase>& cell_2) {
     bool is_equal = true;
-    auto gru_cell_1 = dynamic_pointer_cast<ov::op::v3::GRUCell>(cell_1);
-    auto gru_cell_2 = dynamic_pointer_cast<ov::op::v3::GRUCell>(cell_2);
+    auto gru_cell_1 = ov::as_type_ptr<ov::op::v3::GRUCell>(cell_1);
+    auto gru_cell_2 = ov::as_type_ptr<ov::op::v3::GRUCell>(cell_2);
     if (gru_cell_1 && gru_cell_2) {
         is_equal = gru_cell_1->get_linear_before_reset() == gru_cell_2->get_linear_before_reset();
     }
@@ -98,12 +98,11 @@ bool is_equal_cells(const shared_ptr<RNNCellBase>& cell_1, const shared_ptr<RNNC
 bool check_lstm_cell(const shared_ptr<RNNCellBase>& prev_cell, const shared_ptr<RNNCellBase>& current_cell) {
     // check intermediate C outputs in case of LSTMCell
     // LSTMCell - C -> LSTMCell
-    if ((dynamic_pointer_cast<ov::op::v4::LSTMCell>(prev_cell) ||
-         dynamic_pointer_cast<ov::op::v0::LSTMCell>(prev_cell))) {
+    if ((ov::as_type_ptr<ov::op::v4::LSTMCell>(prev_cell) || ov::as_type_ptr<ov::op::v0::LSTMCell>(prev_cell))) {
         const auto& target_inputs = prev_cell->get_output_target_inputs(1);
         bool valid = target_inputs.empty() ||
                      (target_inputs.size() == 1 &&
-                      dynamic_cast<RNNCellBase*>(target_inputs.begin()->get_node()) == current_cell.get() &&
+                      ov::as_type<RNNCellBase>(target_inputs.begin()->get_node()) == current_cell.get() &&
                       target_inputs.begin()->get_index() == 2);
 
         // if intermediate C output is connected to other node, except ov::op::v4::LSTMCell,
@@ -127,13 +126,13 @@ shared_ptr<RNNCellBase> find_cell_chain(ov::pass::NodeRegistry& cp_from,
         cp_from.add(current);
         // check the source node of HiddenState input
         auto prev = current->input_value(1).get_node_shared_ptr();
-        auto prev_cell = dynamic_pointer_cast<RNNCellBase>(prev);
+        auto prev_cell = ov::as_type_ptr<RNNCellBase>(prev);
 
         auto in_X = current->input(0);
         x_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(in_X.get_source_output(), axis_1));
         h_outputs_to_redirect[cells_cnt] = current->output(0);
 
-        if (auto augru = dynamic_pointer_cast<ov::op::internal::AUGRUCell>(current)) {
+        if (auto augru = ov::as_type_ptr<ov::op::internal::AUGRUCell>(current)) {
             attention_to_concat.push_back(cp_to.make<ov::op::v0::Unsqueeze>(augru->input_value(5), axis_1));
         }
 
@@ -162,8 +161,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
     int64_t idx_W = 2, idx_R = 3, idx_B = 4;
     // 2nd input is Cell State
     bool is_lstm = false;
-    if (dynamic_pointer_cast<ov::op::v4::LSTMCell>(last_cell) ||
-        dynamic_pointer_cast<ov::op::v0::LSTMCell>(last_cell)) {
+    if (ov::as_type_ptr<ov::op::v4::LSTMCell>(last_cell) || ov::as_type_ptr<ov::op::v0::LSTMCell>(last_cell)) {
         is_lstm = true;
         idx_B++;
         idx_R++;
@@ -184,7 +182,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
         cp_to.add(ov::op::util::make_try_fold<ov::op::v3::Broadcast>(seq_lengths_scalar, batch_dimension));
     shared_ptr<ov::Node> sequence;
     ov::OutputVector outputs(1);
-    if (dynamic_pointer_cast<ov::op::v4::LSTMCell>(first_cell)) {
+    if (ov::as_type_ptr<ov::op::v4::LSTMCell>(first_cell)) {
         const auto Ct_in = cp_to.make<ov::op::v0::Unsqueeze>(first_cell->input_value(2), axis_1);
         sequence = cp_to.make<ov::op::v5::LSTMSequence>(X_in,
                                                         Ht_in,
@@ -201,7 +199,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                                                         first_cell->get_clip());
         outputs.resize(2);
         outputs[1] = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
-    } else if (auto lstm_cell_v0 = dynamic_pointer_cast<ov::op::v0::LSTMCell>(first_cell)) {
+    } else if (auto lstm_cell_v0 = ov::as_type_ptr<ov::op::v0::LSTMCell>(first_cell)) {
         // input_forget modification is not supported
         if (lstm_cell_v0->get_input_forget()) {
             return false;
@@ -229,7 +227,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                                                         first_cell->get_clip());
         outputs.resize(2);
         outputs[1] = cp_to.make<ov::op::v0::Squeeze>(sequence->output(2), axis_1);
-    } else if (auto gru_cell = dynamic_pointer_cast<ov::op::v3::GRUCell>(first_cell)) {
+    } else if (auto gru_cell = ov::as_type_ptr<ov::op::v3::GRUCell>(first_cell)) {
         sequence = cp_to.make<ov::op::v5::GRUSequence>(X_in,
                                                        Ht_in,
                                                        sequence_lengths_in,
@@ -243,7 +241,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                                                        first_cell->get_activations_beta(),
                                                        first_cell->get_clip(),
                                                        gru_cell->get_linear_before_reset());
-    } else if (dynamic_pointer_cast<ov::op::v0::RNNCell>(first_cell)) {
+    } else if (ov::as_type_ptr<ov::op::v0::RNNCell>(first_cell)) {
         sequence = cp_to.make<ov::op::v5::RNNSequence>(X_in,
                                                        Ht_in,
                                                        sequence_lengths_in,
@@ -256,7 +254,7 @@ bool create_sequence(ov::pass::NodeRegistry& cp_to,
                                                        first_cell->get_activations_alpha(),
                                                        first_cell->get_activations_beta(),
                                                        first_cell->get_clip());
-    } else if (dynamic_pointer_cast<ov::op::internal::AUGRUCell>(first_cell)) {
+    } else if (ov::as_type_ptr<ov::op::internal::AUGRUCell>(first_cell)) {
         const auto A_in = cp_to.make<ov::op::v0::Concat>(attention_to_concat, 1);
         sequence = cp_to.make<ov::op::internal::AUGRUSequence>(X_in,
                                                                Ht_in,
@@ -307,7 +305,7 @@ ov::pass::SequenceFusion::SequenceFusion() {
         NodeRegistry copy_from;
         NodeRegistry copy_to;
         auto cell = m.get_match_root();
-        shared_ptr<RNNCellBase> current_cell = dynamic_pointer_cast<RNNCellBase>(cell);
+        shared_ptr<RNNCellBase> current_cell = ov::as_type_ptr<RNNCellBase>(cell);
         if (!current_cell) {
             return false;
         }
@@ -315,7 +313,7 @@ ov::pass::SequenceFusion::SequenceFusion() {
         // GRUCell -> GRUCell (the last cell) -> OtherNode
         // GRUCell (hidden_size = 128) -> GRUCell (hs = 128, the last) -> GRUCell (hs = 64)
         for (const auto& target : cell->get_output_target_inputs(0)) {
-            auto cell_1 = dynamic_pointer_cast<RNNCellBase>(target.get_node()->shared_from_this());
+            auto cell_1 = ov::as_type_ptr<RNNCellBase>(target.get_node()->shared_from_this());
             if (cell_1 && is_equal_cells(cell_1, current_cell)) {
                 return false;
             }

@@ -1,22 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Type
+from typing import Any, Iterable, Union, Optional, Dict, Tuple, Type, List
 from pathlib import Path
-import warnings
 
-import numpy as np
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import Node
+from openvino._pyopenvino import Op as OpBase
+from openvino._pyopenvino import Node, Output, Tensor
 
-from openvino.runtime.utils.data_helpers import (
+from openvino.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,
@@ -24,7 +22,25 @@ from openvino.runtime.utils.data_helpers import (
 )
 
 
-class Model:
+class Op(OpBase):
+    def __init__(self, py_obj: "Op", inputs: Optional[Union[List[Union[Node, Output]], Tuple[Union[Node, Output, List[Union[Node, Output]]]]]] = None) -> None:
+        super().__init__(py_obj)
+        self._update_type_info()
+        if isinstance(inputs, tuple):
+            inputs = None if len(inputs) == 0 else list(inputs)
+            if inputs is not None and len(inputs) == 1 and isinstance(inputs[0], list):
+                inputs = inputs[0]
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
+
+
+class ModelMeta(type):
+    def __dir__(cls) -> list:
+        return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
+
+
+class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
@@ -66,6 +82,10 @@ class Model:
 
     def __repr__(self) -> str:
         return self.__model.__repr__()
+
+    def __dir__(self) -> list:
+        wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
+        return dir(self.__model) + wrapper_methods
 
 
 class InferRequest(_InferRequestWrapper):

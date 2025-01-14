@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
 from functools import partial
 from typing import List, Optional
 
-from openvino.runtime import Node
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.types import (
+from openvino import Node
+from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.decorators import nameable_op
+from openvino.utils.types import (
     NodeInput,
     as_nodes,
     as_node,

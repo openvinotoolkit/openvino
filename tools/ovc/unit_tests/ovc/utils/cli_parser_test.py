@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -7,8 +7,8 @@ import shutil
 import tempfile
 import unittest
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape
+import openvino as ov
+from openvino import PartialShape
 
 from openvino.tools.ovc.cli_parser import _InputCutInfo
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,19 +52,6 @@ public:
     };
 
     /**
-     * @brief Defines inference thread binding type
-     */
-    enum ThreadBindingType : std::uint8_t {
-        NONE,   //!< Don't bind the inference threads
-        CORES,  //!< Bind inference threads to the CPU cores (round-robin)
-        // the following modes are implemented only for the TBB code-path:
-        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
-               //!< not implemeneted)
-        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
-                      //!< hybrid CPUs)
-    };
-
-    /**
      * @brief Defines IStreamsExecutor configuration
      */
     struct OPENVINO_RUNTIME_API Config {
@@ -105,6 +92,7 @@ public:
         bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin.
                                         //!< If it is true, cpu_pinning defaults to true.
         bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
+        bool _cores_limit = true;       //!< Whether to limit the number of streams and threads by the number of cpu cores
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         int _sub_streams = 0;
@@ -146,6 +134,7 @@ public:
                ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
                bool cpu_reservation = false,
                bool cpu_pinning = false,
+               bool cores_limit = true,
                std::vector<std::vector<int>> streams_info_table = {},
                std::vector<int> rank = {})
             : _name{std::move(name)},
@@ -154,6 +143,7 @@ public:
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _cpu_pinning{cpu_pinning},
+              _cores_limit{cores_limit},
               _streams_info_table{std::move(streams_info_table)},
               _rank{rank} {
             update_executor_config();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,10 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
+#include "npuw/compiled_model.hpp"
+#include "npuw/llm_compiled_model.hpp"
+#include "npuw/serialization.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -454,6 +458,15 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
           }}},
+        {ov::intel_npu::compiler_version.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              /// create dummy compiler
+              CompilerAdapterFactory compilerAdapterFactory;
+              auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), config);
+              return dummyCompiler->get_version();
+          }}},
         {ov::intel_npu::compilation_mode_params.name(),
          {true,
           ov::PropertyMutability::RW,
@@ -752,7 +765,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    // If was exported via NPUW
+    auto stream_start_pos = stream.tellg();
+    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::read(stream, serialization_indicator);
+    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        stream.seekg(stream_start_pos);
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
+    }
+    stream.seekg(stream_start_pos);
+
+    // Drop NPUW properties if there are any
+    ov::AnyMap npu_plugin_properties;
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW") == it->first.npos) {
+            npu_plugin_properties.insert(*it);
+        }
+    }
+    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());

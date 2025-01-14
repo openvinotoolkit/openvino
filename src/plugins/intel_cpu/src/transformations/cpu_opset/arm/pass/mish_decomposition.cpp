@@ -10,7 +10,7 @@ ov::intel_cpu::MishDecomposition::MishDecomposition() {
     auto mish = ov::pass::pattern::wrap_type<opset4::Mish>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto mish = std::dynamic_pointer_cast<opset4::Mish>(m.get_match_root());
+        auto mish = ov::as_type_ptr<opset4::Mish>(m.get_match_root());
         if (!mish) {
             return false;
         }
