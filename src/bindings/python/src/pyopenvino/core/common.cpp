@@ -135,8 +135,6 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     }
     auto data = t.data<std::string>();
 
-    // numpy array stores all bytes of strings but when encode it remove trailing null characters
-    // find max stride as max length of string but without trailing null characters
     auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
         return x.length() < y.length();
     });
@@ -146,13 +144,13 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     py::array array;
 
     if (auto new_strides = t.get_strides(); new_strides.empty()) {
-        array = py::array(dtype, t.get_shape(), new_strides);
+        array = py::array(dtype, t.get_shape(), std::move(new_strides));
     } else {
         auto element_stride = new_strides[new_strides.size() - 1];
         for (size_t i = 0; i < new_strides.size(); ++i) {
             new_strides[i] = (new_strides[i] / element_stride) * max_stride;
         }
-        array = py::array(dtype, t.get_shape(), new_strides);
+        array = py::array(dtype, t.get_shape(), std::move(new_strides));
     }
     // Create an empty array and populate it with utf-8 encoded strings:
     auto ptr = reinterpret_cast<char*>(array.mutable_data());
