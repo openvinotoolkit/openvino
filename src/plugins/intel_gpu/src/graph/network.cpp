@@ -285,9 +285,7 @@ void network::preallocate_shape_info_buffers() {
 
     for (auto const& prim : _exec_order) {
         auto& node = prim->get_node();
-        int64_t shape_elements = node.get_total_shape_info_size();
-
-        shape_elements = (shape_elements + alignment - 1) / alignment * alignment;
+        int64_t shape_elements = align_to(node.get_total_shape_info_size(), alignment);
         sum += shape_elements;
     }
 
@@ -296,7 +294,7 @@ void network::preallocate_shape_info_buffers() {
 
     auto& engine = get_engine();
     _shape_info_ptr = engine.allocate_memory(layout{{sum}, data_types::i32, format::bfyx}, false);
-    int offset = 0;
+    size_t offset = 0;
     for (auto const& prim : _exec_order) {
         auto& node = prim->get_node();
         const int64_t shape_elements = node.get_total_shape_info_size();
@@ -307,7 +305,7 @@ void network::preallocate_shape_info_buffers() {
         auto new_mem = engine.create_subbuffer(*_shape_info_ptr, layout{{shape_elements}, data_types::i32, format::bfyx}, offset);
         prim->set_shape_info_memory_ptr(new_mem);
 
-        offset += (shape_elements + alignment - 1) / alignment * alignment * 4;
+        offset += align_to(shape_elements, alignment) * sizeof(int32_t);
     }
 }
 
