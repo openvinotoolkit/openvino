@@ -6,6 +6,7 @@ graph {
     input: "limit"
     output: "output"
     op_type: "Range"
+    domain: "com.microsoft"
   }
   name: "test_range_float_type_without_delta"
   input {
