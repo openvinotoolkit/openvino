@@ -15,7 +15,7 @@ from torch.fx import GraphModule
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder, ExecuTorchPythonDecoder
 from openvino.runtime import Core, Type, PartialShape, serialize
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config, _executorch
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
 
 from typing import Callable, Optional
 
@@ -78,13 +78,12 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
     return compiled_model
 
-def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
+def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None, executorch=False):
     core = Core()
 
     device = _get_device(options)
     cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
-    executorch = _executorch(options)
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
         om = core.read_model(file_name + ".xml")
