@@ -19,7 +19,7 @@ namespace intel_cpu {
  */
 class SubModel : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("SubModel", "cpu_plugin_opset");
+    OPENVINO_OP("SubModel", "cpu_plugin_opset", ov::op::util::SubGraphOp);
 
     SubModel() = default;
 

@@ -23,7 +23,7 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
     using namespace ov::pass::pattern;
 
     auto not_reshape = [](const ov::Output<ov::Node>& output) -> bool {
-        return std::dynamic_pointer_cast<ov::op::v1::Reshape>(output.get_node_shared_ptr()) == nullptr;
+        return ov::as_type_ptr<ov::op::v1::Reshape>(output.get_node_shared_ptr()) == nullptr;
     };
 
     auto unsqueeze_predicate = [](const ov::Output<ov::Node>& output) -> bool {
@@ -58,8 +58,8 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& target_shape) {
             return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
         };
-        auto broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_m).get_node_shared_ptr());
-        auto target_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
+        auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_m).get_node_shared_ptr());
+        auto target_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
         if (target_shape_constant) {
             auto target_shape_val = target_shape_constant->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val))
@@ -69,7 +69,7 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
         auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
         auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
 
-        auto matmul = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
+        auto matmul = ov::as_type_ptr<op::Gemm>(m.get_match_root());
         auto order_a = matmul->get_input0_transpose_order();
         auto order_b = matmul->get_input1_transpose_order();
         auto order_c = matmul->get_output_transpose_order();

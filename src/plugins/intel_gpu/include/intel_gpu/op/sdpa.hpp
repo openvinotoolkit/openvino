@@ -16,7 +16,7 @@ namespace op {
 
 class SDPA : public ov::op::v13::ScaledDotProductAttention {
 public:
-    OPENVINO_OP("SDPA", "gpu_opset");
+    OPENVINO_OP("SDPA", "gpu_opset", ov::op::v13::ScaledDotProductAttention);
 
     using QuantizationAttribute = ov::op::internal::DynamicQuantize::Attributes;
 

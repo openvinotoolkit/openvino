@@ -88,11 +88,11 @@ protected:
         std::shared_ptr<ov::op::v1::TopK> topk;
         if (input_type == ov::test::utils::InputLayerType::CONSTANT) {
             auto k = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, &keepK);
-            topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
+            topk = ov::as_type_ptr<ov::op::v1::TopK>(std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
         } else {
             auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
             params.push_back(k);
-            topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(
+            topk = ov::as_type_ptr<ov::op::v1::TopK>(
                     std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
         }
 
@@ -207,4 +207,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
     TopKLayerGPUTest::getTestCaseName);
 
 } // namespace
-

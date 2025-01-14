@@ -15,7 +15,7 @@ namespace op {
 
 class IndirectGemm : public ov::intel_gpu::op::Gemm {
 public:
-    OPENVINO_OP("IndirectGemm", "gpu_opset");
+    OPENVINO_OP("IndirectGemm", "gpu_opset", ov::intel_gpu::op::Gemm);
 
     IndirectGemm() = default;
 
