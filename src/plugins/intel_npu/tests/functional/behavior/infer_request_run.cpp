@@ -11,7 +11,7 @@
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> configsInferRequestRunTests = {{ov::log::level(ov::log::Level::INFO)}};
+const std::vector<ov::AnyMap> configsInferRequestRunTests = {{ov::log::level(ov::log::Level::ERR)}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests,

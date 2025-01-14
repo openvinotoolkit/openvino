@@ -12,7 +12,7 @@ namespace ov {
 
 TRANSFORMATIONS_API void mark_as_dequantization_node(const std::shared_ptr<Node>& node);
 
-TRANSFORMATIONS_API bool is_dequantization_node(const std::shared_ptr<Node>& node);
+TRANSFORMATIONS_API bool is_dequantization_node(const std::shared_ptr<const Node>& node);
 
 /**
  * @ingroup ov_runtime_attr_api
