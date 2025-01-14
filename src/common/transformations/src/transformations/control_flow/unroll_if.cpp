@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollIf);
     bool is_applicable = false;
     for (const auto& op : f->get_ordered_ops()) {
-        auto multisubgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op);
+        auto multisubgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op);
         if (multisubgraph_op) {
             for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
                 run_on_model(multisubgraph_op->get_function(static_cast<int>(i)));

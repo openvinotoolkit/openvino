@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -160,7 +160,7 @@ function(ov_add_test_target)
         set(JS_BIN_NAME "${ARG_NAME}.js")
         set(JS_APP_NAME "${ARG_NAME}_js.js")
         set(JS_TEST_APP "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${JS_APP_NAME}")
-        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2024 Intel Corporation\n")
+        file(WRITE   ${JS_TEST_APP} "// Copyright (C) 2018-2025 Intel Corporation\n")
         file(APPEND  ${JS_TEST_APP} "// SPDX-License-Identifier: Apache-2.0\n")
         file(APPEND  ${JS_TEST_APP} "//\n")
         file(APPEND  ${JS_TEST_APP} "// JS test app\n")

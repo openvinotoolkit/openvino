@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -18,7 +18,7 @@ import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
 from openvino import Core, Type, OVAny
-from openvino.runtime import properties
+from openvino import properties
 
 
 ###

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,6 +131,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     1,
                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                                     false,
+                                                                    true,
                                                                     true,
                                                                     std::move(sub_streams_table),
                                                                     sub_cfg.streamsRankTable[i]};

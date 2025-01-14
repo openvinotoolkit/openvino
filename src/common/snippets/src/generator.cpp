@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,38 +69,38 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
     if (reg_type != RegType::undefined)
         return reg_type;
     const auto op = out.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-        std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
-        std::dynamic_pointer_cast<op::LoopBegin>(op) ||
-        std::dynamic_pointer_cast<op::LoopEnd>(op) ||
-        std::dynamic_pointer_cast<op::Brgemm>(op) ||
-        std::dynamic_pointer_cast<op::Buffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op) ||
-        std::dynamic_pointer_cast<op::Reshape>(op) ||
-        std::dynamic_pointer_cast<op::Reorder>(op) ||
-        std::dynamic_pointer_cast<snippets::op::Store>(op)
+    if (ov::as_type_ptr<ov::op::v0::Parameter>(op) ||
+        ov::as_type_ptr<ov::op::v0::Result>(op) ||
+        ov::as_type_ptr<op::LoopBegin>(op) ||
+        ov::as_type_ptr<op::LoopEnd>(op) ||
+        ov::as_type_ptr<op::Brgemm>(op) ||
+        ov::as_type_ptr<op::Buffer>(op) ||
+        ov::as_type_ptr<op::RankNormalization>(op) ||
+        ov::as_type_ptr<op::Reshape>(op) ||
+        ov::as_type_ptr<op::Reorder>(op) ||
+        ov::as_type_ptr<snippets::op::Store>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
-        || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)
-        || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
+        || ov::as_type_ptr<op::PerfCountBeginBase>(op)
+        || ov::as_type_ptr<op::PerfCountEndBase>(op)
 #endif
         )
         return RegType::gpr;
-    else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
-             std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op) ||
+    else if (ov::as_type_ptr<snippets::op::Load>(op) ||
+             ov::as_type_ptr<snippets::op::BroadcastLoad>(op) ||
              ov::op::util::is_unary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_comparison(op) ||
              ov::op::util::is_binary_elementwise_logical(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
-             std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
-             std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
-             std::dynamic_pointer_cast<op::Scalar>(op) ||
-             std::dynamic_pointer_cast<op::HorizonMax>(op) ||
-             std::dynamic_pointer_cast<op::HorizonSum>(op) ||
-             std::dynamic_pointer_cast<op::Fill>(op))
+             ov::as_type_ptr<ov::op::v1::LogicalNot>(op) ||
+             ov::as_type_ptr<ov::op::v0::PRelu>(op) ||
+             ov::as_type_ptr<ov::op::v0::Convert>(op) ||
+             ov::as_type_ptr<ov::op::v1::Select>(op) ||
+             ov::as_type_ptr<op::VectorBuffer>(op) ||
+             ov::as_type_ptr<op::BroadcastMove>(op) ||
+             ov::as_type_ptr<op::Scalar>(op) ||
+             ov::as_type_ptr<op::HorizonMax>(op) ||
+             ov::as_type_ptr<op::HorizonSum>(op) ||
+             ov::as_type_ptr<op::Fill>(op))
         return RegType::vec;
     else
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");

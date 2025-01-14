@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -718,6 +718,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            false,
                                                            cpu_pinning,
+                                                           true,
                                                            std::move(streams_info_table)};
 
     return proc_type_table;
