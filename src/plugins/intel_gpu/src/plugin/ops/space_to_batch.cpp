@@ -26,7 +26,7 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     bool non_constant_input = false;
     for (size_t i = 1; i < 4; ++i) {
-        auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+        auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
         bool is_const_input = (inConst != nullptr);
         OPENVINO_ASSERT((i == 1) || (i >= 2 && non_constant_input != is_const_input),
@@ -47,7 +47,7 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         p.add_primitive(*op, spaceToBatchPrim);
     } else {
         for (size_t i = 1; i < 4; ++i) {
-            auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+            auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
             std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
             int32_t default_size = i == 1 ? 1 : 0;

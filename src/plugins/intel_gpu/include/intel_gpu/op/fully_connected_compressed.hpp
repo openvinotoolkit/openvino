@@ -12,7 +12,7 @@ namespace op {
 
 class FullyConnectedCompressed : public FullyConnected {
 public:
-    OPENVINO_OP("FullyConnectedCompressed", "gpu_opset");
+    OPENVINO_OP("FullyConnectedCompressed", "gpu_opset", FullyConnected);
 
     FullyConnectedCompressed() = default;
 

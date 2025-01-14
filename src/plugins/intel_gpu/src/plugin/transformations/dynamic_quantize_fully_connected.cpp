@@ -36,7 +36,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
 
-        auto m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
+        auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();

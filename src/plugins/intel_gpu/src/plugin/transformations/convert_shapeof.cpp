@@ -14,7 +14,7 @@ ov::intel_gpu::ConvertShapeOf1To3::ConvertShapeOf1To3() {
     auto shapeof1 = ov::pass::pattern::wrap_type<ov::op::v0::ShapeOf>();
 
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto shapeof1 = std::dynamic_pointer_cast<ov::op::v0::ShapeOf>(m.get_match_root());
+        auto shapeof1 = ov::as_type_ptr<ov::op::v0::ShapeOf>(m.get_match_root());
         if (!shapeof1) {
             return false;
         }
