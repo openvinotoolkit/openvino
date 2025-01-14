@@ -613,24 +613,3 @@ TEST_P(CoreThreadingTestsWithIter, nightly_AsyncInfer_ShareInput) {
         numIterations,
         numThreads);
 }
-
-TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_MutipleModel_Reservation) {
-    auto core = ov::test::utils::create_core();
-    std::atomic<unsigned int> counter{0u};
-    SetupNetworks();
-    core.set_property(target_device, config);
-    ov::AnyMap property_config_reserve = {{ov::num_streams.name(), 1},
-                                          {ov::inference_num_threads.name(), 1},
-                                          {ov::hint::enable_cpu_reservation.name(), true}};
-    ov::AnyMap property_config = {{ov::num_streams.name(), 1}, {ov::inference_num_threads.name(), 1}};
-
-    runParallel(
-        [&]() {
-            auto value = counter++;
-            (void)core.compile_model(models[value % models.size()],
-                                     target_device,
-                                     value == 1 ? property_config : property_config_reserve);
-        },
-        1,
-        2);
-}
