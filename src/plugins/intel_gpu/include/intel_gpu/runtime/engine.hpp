@@ -58,7 +58,7 @@ public:
     virtual memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) = 0;
 
     /// Created subbuffer memory object from the other @p memory and reinterpred the data using specified @p new_layout
-    virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) = 0;
+    virtual memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
