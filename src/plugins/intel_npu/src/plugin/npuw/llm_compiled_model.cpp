@@ -501,10 +501,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config_addition_value =
         generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
 
-    merge_config_with(prefill_config, prefill_config_addition_value);
-    merge_config_with(generate_config, generate_config_addition_value);
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
+    merge_config_with(prefill_config, prefill_config_addition_value);
+    merge_config_with(generate_config, generate_config_addition_value);
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
