@@ -140,7 +140,9 @@ CPU::CPU() {
             }
             std::string cache_info;
             std::getline(cache_file, cache_info);
-            node_info_table.emplace_back(std::move(cache_info));
+            if (cache_info.size() > 0) {
+                node_info_table.emplace_back(std::move(cache_info));
+            }
             node_index++;
         }
     };
