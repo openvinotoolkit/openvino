@@ -20,6 +20,7 @@
 #include "gpu/intel/microkernels/package.hpp"
 #include "gpu/intel/jit/gemm/include/microkernel_provider.hpp"
 #include "gpu/intel/microkernels/shim.hpp"
+#include "common/utils.hpp"
 
 namespace micro {
 
@@ -36,6 +37,8 @@ using StrategyRequirement = dnnl::impl::gpu::intel::jit::StrategyRequirement;
 using ShimOptions = dnnl::impl::gpu::intel::micro::ShimOptions;
 using HostLanguage = dnnl::impl::gpu::intel::micro::HostLanguage;
 using Setting = dnnl::impl::gpu::intel::micro::Setting;
+
+using dnnl::impl::utils::rnd_up_pow2;
 
 // Wrapper for Package which is used in clKernelData with forward declaration
 // to avoid including this header in many places in plugin
