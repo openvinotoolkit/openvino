@@ -15,7 +15,7 @@ namespace op {
 
 class Gemm : public ov::op::v0::MatMul {
 public:
-    OPENVINO_OP("Gemm", "gpu_opset");
+    OPENVINO_OP("Gemm", "gpu_opset", ov::op::v0::MatMul);
 
     Gemm() = default;
 
