@@ -226,13 +226,14 @@ protected:
         CheckPluginRelatedResults(compiledModel, "FullyConnected");
         CheckNumberOfNodesWithType(compiledModel, "FullyConnected", fullyConnectedCount);
         CheckNumberOfNodesWithType(compiledModel, "Transpose", transposeCount);
-        CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+        CheckNumberOfNodesWithType(compiledModel, "Convert", convertCount);
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
         check_fc_weights_precision(expectedWeiConstElemType);
     }
 
     size_t fullyConnectedCount = 1;
     size_t transposeCount = 0;
+    size_t convertCount = 0;
     ElementType expectedWeiConstElemType = ElementType::f32;
 };
 
@@ -535,16 +536,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_2,
 
  * Exec graph:
    ------------     -----------------------------
-   |Input(f32)|     |       Constant(f32)       |
+   |Input(f32)|     |       Constant(f16)       |
    ------------     -----------------------------
         |             |                   |
-        |        -------------      -----------------------
-        |        | Transpose |      |       Result        |
-        |        -------------      -----------------------
-        |             |
-    -----------------------
-    |    FullyConnected   |
-    -----------------------
+        |        -------------      ---------------------
+        |        | Transpose |      | Convert(f16->f32) |
+        |        -------------      ---------------------
+        |             |                       |
+    -----------------------        -----------------------
+    |    FullyConnected   |        |       Result        |
+    -----------------------        -----------------------
               |
     -----------------------
     |       Result        |
@@ -603,7 +604,10 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
         inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
-        expectedWeiConstElemType = convertOutType;
+        mark_as_decompression(inputB);
+        expectedWeiConstElemType = weiConstElemType;
+        convertCount = 1;
+
         auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], inputB, transpA, transpB);
         auto result0 = std::make_shared<ov::op::v0::Result>(matMul);
         auto result1 = std::make_shared<ov::op::v0::Result>(inputB);
@@ -641,7 +645,7 @@ const auto testParams2D_FP16_3_smoke =
                        ::testing::Values(std::pair<bool, bool>{false, false}),
                        ::testing::Values(ElementType::f16),
                        ::testing::Values(emptyConfig),
-                       ::testing::ValuesIn(filter_specific_params(true)));
+                       ::testing::ValuesIn(filter_specific_params(false)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_3,
                          MatMulDecompressConvertTest3,

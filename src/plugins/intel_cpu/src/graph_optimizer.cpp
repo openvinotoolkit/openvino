@@ -717,22 +717,9 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
         return node->getType() == Type::Transpose && node->getChildEdges().size() == 1 && node->isConstant();
     };
     auto isSuitableConvert = [&](const NodePtr& node) {
-        if (node->getType() != Type::Convert || !node->isConstant() ||
-            !one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) ||
-            !one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16))
-            return false;
-
-        const auto childEdges = node->getChildEdgesAtPort(0);
-        for (auto childEdge : childEdges) {
-            if (childEdge->getChild()->getType() == Type::Transpose) {
-                if (!isSuitableTranspose(childEdge->getChild()))
-                    return false;
-                childEdge = childEdge->getChild()->getChildEdgeAt(0);
-            }
-            if (childEdge->getChild()->getType() != Type::FullyConnected || childEdge->getOutputNum() != 1)
-                return false;
-        }
-        return true;
+        return node->getType() == Type::Convert && node->isConstant() &&
+               one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
+               one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
     };
 
     auto& graphNodes = graph.GetNodes();
