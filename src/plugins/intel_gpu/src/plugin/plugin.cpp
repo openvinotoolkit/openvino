@@ -829,11 +829,6 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
     std::shared_ptr<ProgramBuilder> program;
 
-    GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
-        size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
-        base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
-    }
-
     auto cloned_model = model->clone();
 
     try {

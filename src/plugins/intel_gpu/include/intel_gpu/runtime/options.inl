@@ -74,3 +74,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, use_usm_host, false, "Enforce USM host usa
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, mem_prealloc_options, "", "Preallocation setting")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which partially compiles a model and stores runtime model into specified directory")
