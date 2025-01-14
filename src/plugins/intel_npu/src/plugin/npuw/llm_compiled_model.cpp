@@ -521,6 +521,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
     LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
@@ -551,6 +552,9 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_kvcache_desc.total_size);
     write(stream, m_kvcache_desc.num_stored_tokens);
     write(stream, m_kvcache_desc.dim);
+
+    // Write config
+    write(stream, m_cfg);
 
     // Serialize CompiledModels
     m_kvcache_compiled->serialize(stream);
@@ -630,6 +634,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, compiled->m_kvcache_desc.total_size);
     read(stream, compiled->m_kvcache_desc.num_stored_tokens);
     read(stream, compiled->m_kvcache_desc.dim);
+
+    // Deserialize config
+    read(stream, compiled->m_cfg);
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);

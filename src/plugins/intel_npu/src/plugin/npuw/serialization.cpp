@@ -41,6 +41,12 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Spati
 void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     using ov::npuw::s11n::write;
 
+    if (!var) {
+        write(stream, false);
+        return;
+    }
+    write(stream, true);
+
     auto type_str = var.get_element_type().to_string();
     write(stream, type_str);
     write(stream, var.get_shape());
@@ -103,6 +109,13 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
+    bool is_initialized = false;
+    read(stream, is_initialized);
+
+    if (!is_initialized) {
+        return;
+    }
+
     std::string type_str;
     read(stream, type_str);
     ov::element::Type type(type_str);
