@@ -60,6 +60,10 @@ if(ONNX_FOUND)
     message (STATUS "ONNX DBG Linked system onnx_proto and onnx")
     ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
 else()
+    set(onnx_pb_file ${ONNX_COMMON_INCLUDE_DIR}/onnx/onnx_pb.h)
+    file(WRITE ${onnx_pb_file} "// Copyright (C) 2018-2025 Intel Corporation\n// SPDX-License-Identifier: Apache-2.0\n// Auto generated file, DO NOT EDIT INLINE\n\n")
+    file(APPEND ${onnx_pb_file} "#include \"onnx/onnx.pb.h\"\n")
+
     target_compile_definitions(${TARGET_NAME} PUBLIC ONNX_NAMESPACE=${OV_ONNX_NAMESPACE})
     if(ENABLE_SYSTEM_PROTOBUF)
         # use imported target name with namespace
