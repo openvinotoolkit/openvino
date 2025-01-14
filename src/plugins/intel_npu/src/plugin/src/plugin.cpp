@@ -750,7 +750,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         stream.seekg(stream_start_pos);
         return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
     }
-    stream.seekg(stream_start_pos);
+    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
     // Drop NPUW properties if there are any
     ov::AnyMap npu_plugin_properties;

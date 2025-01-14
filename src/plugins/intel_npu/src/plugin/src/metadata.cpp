@@ -11,6 +11,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace {
 
@@ -20,8 +21,7 @@ std::streampos getFileSize(std::istream& stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
     }
 
-    if (stream.rdbuf()->in_avail() != 0) {
-        // ov::OwningSharedStreamBuffer scenario
+    if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
         return stream.rdbuf()->in_avail() + stream.tellg();
     }
     const std::streampos streamStart = stream.tellg();
