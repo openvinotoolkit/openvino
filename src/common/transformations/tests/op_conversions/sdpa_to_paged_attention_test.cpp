@@ -738,7 +738,9 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
         auto Unsqueeze106 = makeOP<opset1::Unsqueeze>({LogicalAnd105, 1});
         auto ShapeOf107 = makeOP<opset3::ShapeOf>({MatMul49}, {{"output_type", "i64"}});
         auto Gather110 = makeOP<opset8::Gather>({ShapeOf107, {0}, 0}, {{"batch_dims", 0}});
-        auto Constant112 = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);  // TODO: there can be an error due to fake alibi slopes
+        auto Constant112 = makeConst(element::f32,
+                                     ov::Shape({40, 4096, 4096}),
+                                     MOCK_VALUE);  // TODO: there can be an error due to fake alibi slopes
         auto Gather116 = makeOP<opset8::Gather>({ShapeOf107, {1}, 0}, {{"batch_dims", 0}});
         auto ShapeOf117 = makeOP<opset3::ShapeOf>({Gather65}, {{"output_type", "i64"}});
         auto Gather120 = makeOP<opset8::Gather>({ShapeOf117, {2}, 0}, {{"batch_dims", 0}});

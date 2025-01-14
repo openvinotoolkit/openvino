@@ -57,7 +57,6 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b
     return {jais_13b_alibi, jais_alibi_mask};
 }
 
-
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan2_13b_alibi_pattern() {
     auto baichuan2_alibi = pattern::any_input();
     // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
