@@ -43,10 +43,11 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_ALIBI
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
+
 #if HAS_ROTATED_BLOCKS
-    const __global INPUT8_TYPE* rotated_block_indices,
-    const __global INPUT9_TYPE* rotation_deltas,
-    const __global INPUT10_TYPE* rotated_block_indices,
+    const __global INPUT7_TYPE* rotated_block_indices,
+    const __global INPUT8_TYPE* rotation_deltas,
+    const __global INPUT9_TYPE* rotation_trig_lut,
 #endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -154,10 +155,6 @@ KERNEL(pa_sdpa_opt)(
             q_val[i] = *scale * q_val[i];
 #endif
         }
-#endif
-
-#ifdef HAS_ROTATED_BLOCKS
-        // TODO (vshampor): add cache block rotation at this spot
 #endif
 
         const uint blocks_num_per_partition = min(total_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);
