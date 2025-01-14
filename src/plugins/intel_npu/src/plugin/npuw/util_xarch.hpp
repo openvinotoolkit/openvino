@@ -82,6 +82,8 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
 
 ov::Tensor to_f16(const ov::Tensor& t);
 
+void copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
 }  // namespace XARCH
 }  // namespace util
 }  // namespace npuw
