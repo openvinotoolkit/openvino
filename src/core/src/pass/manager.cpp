@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -385,11 +385,11 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
 
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
-    if (auto matcher_pass = std::dynamic_pointer_cast<MatcherPass>(pass)) {
+    if (auto matcher_pass = ov::as_type_ptr<MatcherPass>(pass)) {
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
-    } else if (auto model_pass = std::dynamic_pointer_cast<ModelPass>(pass)) {
-        if (std::dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
+    } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
+        if (ov::as_type_ptr<ov::pass::Validate>(model_pass) && !needs_validate) {
             return false;
         }
         return model_pass->run_on_model(model);

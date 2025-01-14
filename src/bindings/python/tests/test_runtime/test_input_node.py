@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import numpy as np
-from openvino.runtime import Input, RTMap
+from openvino import Input, RTMap
 from openvino._pyopenvino import DescriptorTensor
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 from openvino import Core, OVAny, Shape, PartialShape, Type, Tensor, Symbol
 from tests.utils.helpers import get_relu_model

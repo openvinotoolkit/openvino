@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ void update_symbol(std::shared_ptr<ov::Symbol>& symbol) {
 void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m) {
     for (const auto& op : m->get_ordered_ops()) {
         // handle inner sub-graphs
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op))
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
                     apply_table_of_equivalence_on_model(sub_graph);

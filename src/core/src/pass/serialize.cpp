@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -842,7 +842,7 @@ private:
                 std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape()));
         }
         m_cloned_node = op->clone_with_new_inputs(m_parameters);
-        auto typed_cloned_node = std::dynamic_pointer_cast<T>(m_cloned_node);
+        auto typed_cloned_node = ov::as_type_ptr<T>(m_cloned_node);
         OPENVINO_ASSERT(typed_cloned_node);
         typed_cloned_node->set_pads_begin(P(op->get_pads_begin().size(), 0));
         typed_cloned_node->set_pads_end(P(op->get_pads_end().size(), 0));
@@ -1045,7 +1045,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && dynamic_cast<ov::opset1::LSTMCell*>(node)) {
+                if (i.get_index() == 6 && ov::as_type<ov::opset1::LSTMCell>(node)) {
                     port_id++;
                     continue;
                 }

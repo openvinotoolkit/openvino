@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,10 @@ namespace {
             return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node)) {
+            if (ov::as_type_ptr<ov::op::v1::Convolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+                ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
                     return "FP32";
@@ -827,8 +827,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
 
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
-            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
+            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }

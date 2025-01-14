@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,12 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
          ov::pass::pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto tile = std::dynamic_pointer_cast<ov::opset1::Tile>(m.get_match_root());
+        auto tile = ov::as_type_ptr<ov::opset1::Tile>(m.get_match_root());
         if (!tile) {
             return false;
         }
 
-        auto tiles_node = std::dynamic_pointer_cast<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
+        auto tiles_node = ov::as_type_ptr<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
         if (!tiles_node)
             return false;
 
@@ -48,7 +48,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         if (num_of_tile_dims == 0) {
             auto outputs = tile->get_output_target_inputs(0);
             for (const auto& out : outputs) {
-                if (std::dynamic_pointer_cast<ov::opset1::Result>(out.get_node()->shared_from_this())) {
+                if (ov::as_type_ptr<ov::opset1::Result>(out.get_node()->shared_from_this())) {
                     return false;
                 }
             }
