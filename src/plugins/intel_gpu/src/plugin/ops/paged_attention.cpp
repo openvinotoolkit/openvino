@@ -48,7 +48,6 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     const size_t scale_idx = 9;
     const size_t alibi_idx = 11;
-    const size_t rotated_block_indices_idx = 13;
 
     std::shared_ptr<ov::op::v0::Constant> scale_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(scale_idx));
     if (scale_const) {
@@ -64,11 +63,6 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     prim.has_rotated_blocks = op->get_input_size() == 16;
 
     prim.num_outputs = 1;
-
-    std::shared_ptr<ov::op::v0::Constant> rotated_block_indices_const =
-        std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(rotated_block_indices_idx));
-    OPENVINO_ASSERT(rotated_block_indices_const != nullptr);
-    prim.has_rotated_blocks = ov::shape_size(rotated_block_indices_const->get_output_shape(0)) > 0;
 
     if (op->get_output_size() > 1) {
         const auto scores_output_idx = 1;
