@@ -56,6 +56,9 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
     jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
 
+    // Use FP32 accumulator type for scale/zp calculation
+    jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
+
     auto group_sizes = params.group_sizes;
     group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
 
