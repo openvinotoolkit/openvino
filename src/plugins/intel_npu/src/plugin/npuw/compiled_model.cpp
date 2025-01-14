@@ -136,6 +136,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
+        // CACHE_DIR isn't supported with NPU_USE_NPUW
+        if (properties.count(ov::cache_dir.name())) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW!");
+        }
         pre_load_transform(model, properties);
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
     }
