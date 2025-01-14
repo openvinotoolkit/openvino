@@ -20,7 +20,7 @@ namespace pass {
  */
 class InitLoops : public Pass {
 public:
-    OPENVINO_RTTI("InitLoops", "Pass")
+    OPENVINO_RTTI("InitLoops", "", Pass);
     InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 

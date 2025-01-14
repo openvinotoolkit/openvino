@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: disable-error-code="no-redef"
@@ -20,10 +20,10 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
-import openvino.runtime as ov
-import openvino.runtime.opset11 as ops
-from openvino.runtime import Layout, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
+import openvino as ov
+import openvino.opset11 as ops
+from openvino import Layout, Type
+from openvino.utils.decorators import custom_preprocess_function
 from openvino.preprocess import PrePostProcessor, ResizeAlgorithm, ColorFormat
 
 

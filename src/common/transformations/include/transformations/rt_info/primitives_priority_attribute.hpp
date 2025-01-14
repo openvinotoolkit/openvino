@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<Node
 
 class TRANSFORMATIONS_API PrimitivesPriority : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("primitives_priority", "0");
+    OPENVINO_RTTI("primitives_priority", "0", ov::RuntimeAttribute);
 
     PrimitivesPriority() = default;
 

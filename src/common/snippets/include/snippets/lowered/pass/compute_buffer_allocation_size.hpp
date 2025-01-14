@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ namespace pass {
  */
 class ComputeBufferAllocationSize : public RangedPass {
 public:
-    OPENVINO_RTTI("ComputeBufferAllocationSize", "RangedPass")
+    OPENVINO_RTTI("ComputeBufferAllocationSize", "", RangedPass);
     ComputeBufferAllocationSize() = default;
 
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
@@ -8,7 +8,7 @@ from typing import Any, Dict, Union, Optional
 import numpy as np
 
 from openvino._pyopenvino import ConstOutput, Tensor, Type, RemoteTensor
-from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
+from openvino.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
 ContainerTypes = Union[dict, list, tuple, OVDict]
 ScalarTypes = Union[np.number, int, float]

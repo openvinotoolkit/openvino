@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -251,6 +251,10 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     _logger.debug("query end");
     return result;
+}
+
+uint32_t DriverCompilerAdapter::get_version() const {
+    return _zeroInitStruct->getCompilerVersion();
 }
 
 /**

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
 from openvino import Type
-from openvino.runtime import opset15
+from openvino import opset15
 
 
 def test_embedding_bag_offsets_15():

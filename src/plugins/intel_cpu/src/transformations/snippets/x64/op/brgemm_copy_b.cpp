@@ -114,6 +114,13 @@ size_t BrgemmCopyB::get_offset_compensations() const {
     return get_output_offset(1);
 }
 
+bool BrgemmCopyB::is_transposed(const std::vector<size_t>& layout) {
+    const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
+    OPENVINO_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),
+                    "supports only N dim placed as last or pre last dimension");
+    return is_transposed;
+}
+
 BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     const auto& brg_copyb = ov::as_type_ptr<BrgemmCopyB>(n);
     OPENVINO_ASSERT(brg_copyb, "Got invalid node in BrgemmCopyB::ShapeInfer");

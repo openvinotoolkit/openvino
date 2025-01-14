@@ -118,7 +118,7 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    const auto clamp = std::dynamic_pointer_cast<ov::op::v0::Clamp>(node);
+    const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node);
     if (clamp == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
@@ -294,7 +294,7 @@ jit_elu_emitter::jit_elu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
-    const auto elu = std::dynamic_pointer_cast<ov::op::v0::Elu>(node);
+    const auto elu = ov::as_type_ptr<ov::op::v0::Elu>(node);
     if (elu == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
@@ -649,6 +649,46 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 // Template method that generates actual instruction sequence for ceiling operation
 // Currently only supports 32-bit floating point (f32)
 std::set<std::vector<element::Type>> jit_ceiling_emitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+/// NEGATIVE ///
+jit_negative_emitter::jit_negative_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                           const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_negative_emitter::jit_negative_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                           const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_negative_emitter::get_inputs_count() const {
+    return 1;
+}
+
+void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+    h->fneg(dst.s, src.s);
+}
+
+std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
@@ -2593,7 +2633,7 @@ jit_swish_emitter::jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    const auto swish = std::dynamic_pointer_cast<SwishNode>(node);
+    const auto swish = ov::as_type_ptr<SwishNode>(node);
     if (swish == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -624,16 +624,24 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
-                _outputs[0] = variable.get_memory();
+                GPU_DEBUG_TRACE_DETAIL
+                    << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared"
+                    << std::endl;
+                if (!get_network().is_reuse_variable_mem()) {
+                    GPU_DEBUG_TRACE_DETAIL << "Update output mem with new variable mem" << std::endl;
+                    _outputs[0] = variable.get_memory();
+                    _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
-                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
-                    _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                        _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
 
-                    if (compressed_cache_variable->has_zp_state()) {
-                        _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        if (compressed_cache_variable->has_zp_state()) {
+                            _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        }
                     }
+                } else {
+                    GPU_DEBUG_TRACE_DETAIL << "Can reuse variable mem of prev request" << std::endl;
                 }
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
         } else {
             variable.set_layout(_impl_params->output_layouts[0]);
@@ -2660,12 +2668,21 @@ bool primitive_inst::is_valid_fusion() const {
 
         // Check if broadcast happens more than single axis.
         // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
-        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() == outer_dep_pshape.rank().get_length()) {
+        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length()) {
             uint8_t broadcast_more_than_single_axis = 0;
+            auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
+
+            // Update outer_dep_pshape to merged_shape rank
+            if (merged_shape.rank().get_length() > outer_dep_pshape.rank().get_length()) {
+                updated_outer_dep_pshape.insert(updated_outer_dep_pshape.begin(),
+                                                merged_shape.rank().get_length() - outer_dep_pshape.rank().get_length(), ov::Dimension(1));
+            }
+
             for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
-                if (merged_shape.get_shape().at(i) != outer_dep_pshape.get_shape().at(i))
+                if (merged_shape[i] != updated_outer_dep_pshape[i])
                     broadcast_more_than_single_axis++;
             }
+
             if (broadcast_more_than_single_axis > 1)
                 can_broadcast = false;
         }

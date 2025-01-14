@@ -1,14 +1,18 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 # mypy: ignore-errors
 
+import inspect
+import logging
 import torch
 import numpy as np
 
-from openvino.runtime import op, Type as OVType, Shape, Tensor
-from openvino.runtime import opset11 as ops
+from openvino import op, Type as OVType, Shape, Tensor
+from openvino import opset11 as ops
+
+log = logging.getLogger(__name__)
 
 
 def make_constant(*args, **kwargs):
@@ -162,6 +166,23 @@ class ModelWrapper(torch.nn.Module):
 """
 
 
+def build_wrapper(template, model):
+    """
+    Builds a wrapper around the given model using the provided template.
+    """
+    result = {}
+    try:
+        exec(template, result)
+
+        wrapped_model = result["ModelWrapper"](model)
+        wrapped_model.eval()
+    # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
+    except Exception:
+        log.error("Failed to build model wrapper.")
+        wrapped_model = model
+    return wrapped_model
+
+
 def process_dict_inputs(inputs, input_params, model):
     ordered_inputs = []
     for input_name in input_params:
@@ -203,15 +224,8 @@ def process_dict_inputs(inputs, input_params, model):
 
     wrapper_class = wrapper_template.format(input_sign=", ".join(
         input_sign_str), example_input=", ".join(input_params_str))
-    result = {}
-    try:
-        exec(wrapper_class, result)
 
-        wrapped_model = result["ModelWrapper"](model)
-        wrapped_model.eval()
-    # if wrapping failed, it is better to return original model for avoid user confusion regarding error message
-    except Exception:
-        wrapped_model = model
+    wrapped_model = build_wrapper(wrapper_class, model)
 
     return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
 
@@ -265,3 +279,88 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         sub = ops.subtract(convert, zero_point)
         return ops.multiply(sub, scale).outputs()
     assert False, "Unsupported qscheme"
+
+
+def process_individual_input(x, x_name):
+    """
+    Processes an individual input and generates a signature,
+    parameter string, example entry, and a wrap flag.
+    """
+    sign = None
+    param = None
+    example_entry = None
+    to_wrap = False
+    if isinstance(x, tuple):
+        internal_input = []
+        new_tuple = []
+        index = 0
+        for v in x:
+            if v is None:
+                to_wrap = True
+                internal_input.append("None")
+            else:
+                internal_input.append(f"{x_name}[{index}]")
+                new_tuple.append(v)
+                index += 1
+        param = f"({', '.join(internal_input)},)"
+        if len(new_tuple) > 0:
+            example_entry = tuple(new_tuple)
+            sign = x_name
+    elif x is None:
+        to_wrap = True
+        param = "None"
+    else:
+        sign = x_name
+        param = x_name
+        example_entry = x
+    return sign, param, example_entry, to_wrap
+
+
+def patch_none_example(model: torch.nn.Module, example):
+    """
+    Patches a PyTorch model to handle None values in the input example.
+    """
+    callable_func = getattr(model, "forward", model.__call__)
+    input_params = inspect.signature(callable_func).parameters
+    input_signature = list(input_params)
+    input_sign_str = []
+    input_params_str = []
+    to_wrap = False
+    if isinstance(example, tuple) and len(input_signature) >= len(example):
+        new_example = []
+        for i, x in enumerate(example):
+            x_name = input_signature[i]
+            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+            to_wrap = to_wrap or _to_wrap
+            if sign is not None:
+                input_sign_str.append(str(input_params[sign]))
+            input_params_str.append(param)
+            if example_entry is not None:
+                new_example.append(example_entry)
+        if to_wrap:
+            wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
+                                                    example_input=", ".join(input_params_str))
+            wrapped_model = build_wrapper(wrapper_class, model)
+            log.warning("Model has None in the example input. The input "
+                        "with None will be removed from the resulting model.")
+            return wrapped_model, tuple(new_example)
+    elif isinstance(example, dict) and len(input_signature) >= len(example):
+        new_example = {}
+        input_signature = [s for s in input_signature if s in example]
+        for x_name in input_signature:
+            x = example[x_name]
+            sign, param, example_entry, _to_wrap = process_individual_input(x, x_name)
+            to_wrap = to_wrap or _to_wrap
+            if sign is not None:
+                input_sign_str.append(str(input_params[sign]))
+            input_params_str.append(f"{x_name}={param}")
+            if example_entry is not None:
+                new_example[x_name] = example_entry
+        if to_wrap:
+            wrapper_class = wrapper_template.format(input_sign=", ".join(input_sign_str),
+                                                    example_input=", ".join(input_params_str))
+            wrapped_model = build_wrapper(wrapper_class, model)
+            log.warning("Model has None in the example input. The input "
+                        "with None will be removed from the resulting model.")
+            return wrapped_model, new_example
+    return model, example
