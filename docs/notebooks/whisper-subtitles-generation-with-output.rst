@@ -21,7 +21,7 @@ GitHub `repository <https://github.com/openai/whisper>`__.
 In this notebook, we will use Whisper model with `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai>`__ for `Whisper
 automatic speech recognition
-scenarios <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__
+scenarios <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/whisper_speech_recognition/README.md>`__
 to generate subtitles in a sample video. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ improving model
 performance by INT8 quantization. Notebook contains the following steps:
@@ -228,7 +228,7 @@ Whisper model.
    whisper_pipeline.png
 
 To simplify user experience we will use `OpenVINO Generate
-API <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
+API <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/samples/python/whisper_speech_recognition/README.md>`__.
 Firstly we will create pipeline with ``WhisperPipeline``. You can
 construct it straight away from the folder with the converted model. It
 will automatically load the ``model``, ``tokenizer``, ``detokenizer``
