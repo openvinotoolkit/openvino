@@ -57,6 +57,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b
     return {jais_13b_alibi, jais_alibi_mask};
 }
 
+
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan2_13b_alibi_pattern() {
     auto baichuan2_alibi = pattern::any_input();
     // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
@@ -122,6 +123,37 @@ static std::shared_ptr<ov::Node> handle_jais_13b_alibi(const std::shared_ptr<ov:
 }
 
 static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
+    /* >>> alibi = np.reshape(alibi, (40, 4096, 4096))
+       >>> print(alibi[0][:][:])
+       [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.839844' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.839844' '1.67969' ... '-inf' '-inf' '-inf']
+        ...
+        ['0' '0.839844' '1.67969' ... '3440' '-inf' '-inf']
+        ['0' '0.839844' '1.67969' ... '3440' '3440' '-inf']
+        ['0' '0.839844' '1.67969' ... '3440' '3440' '3440']]
+       >>> print(alibi[1][:][:])
+       [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.707031' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.707031' '1.41406' ... '-inf' '-inf' '-inf']
+        ...
+        ['0' '0.707031' '1.41406' ... '2896' '-inf' '-inf']
+        ['0' '0.707031' '1.41406' ... '2896' '2896' '-inf']
+        ['0' '0.707031' '1.41406' ... '2896' '2896' '2896']]
+
+        etc.
+
+        Slicing from {1, 1} to {2, 2} gives us the expected alibi slope constant to pass it to PagedAttention:
+        >>> print(alibi[0][1][1])
+        0.839844
+        >>> print(line1[1][1][1])
+        0.707031
+
+        ALibi slopes constant's shape is [40, 4096, 4096]
+        Slicing means that we take only 1 value from each 4096 x 4096 matrix here
+        The resulting constant will be [40, 1, 1]
+        After that we need to insert Reshape to get the expected rank = 1 (shape [40])
+    */
     const std::shared_ptr<ov::Node>& matched_baichuan2_13b_alibi_slopes) {
     std::shared_ptr<ov::Node> res_alibi_slopes = matched_baichuan2_13b_alibi_slopes;
 
@@ -129,6 +161,7 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     auto stop = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
     auto step = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
     auto axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
+    // the Slice to extract the correct values
     res_alibi_slopes = std::make_shared<v8::Slice>(res_alibi_slopes, start, stop, step, axes);
     res_alibi_slopes = std::make_shared<v1::Reshape>(res_alibi_slopes,
                                                      v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
