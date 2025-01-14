@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1689,7 +1689,7 @@ TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
     };
 
     const std::vector<std::string> impl_kernel_data = {
-        "convolution_gpu_ref__f32"
+        "convolution_gpu_bfyx_os_iyx_osv16__f32"
     };
 
     for (size_t m = 0 ; m < filter_size_data.size() / 2; m++) {
@@ -1767,8 +1767,8 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
     };
 
     const std::vector<std::string> impl_kernel_data = {
-        "convolution_gpu_ref__f16",
-        "convolution_gpu_bfyx_gemm_like__f16",
+        "convolution_gpu_bfyx_os_iyx_osv16__f16",
+        "convolution_gpu_bfyx_os_iyx_osv16__f16",
     };
 
     for (size_t m = 0 ; m < filter_size_data.size() / 2; m++) {

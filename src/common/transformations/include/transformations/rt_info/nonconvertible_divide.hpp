@@ -23,7 +23,7 @@ TRANSFORMATIONS_API bool divide_is_nonconvertible(const std::shared_ptr<Node>& n
  */
 class TRANSFORMATIONS_API NonconvertibleDivide : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("nonconvertable_divide", "0");
+    OPENVINO_RTTI("nonconvertable_divide", "0", RuntimeAttribute);
 
     NonconvertibleDivide() = default;
 

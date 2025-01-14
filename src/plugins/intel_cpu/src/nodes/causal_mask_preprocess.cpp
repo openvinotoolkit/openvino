@@ -106,14 +106,14 @@ CausalMaskPreprocess::CausalMaskPreprocess(const std::shared_ptr<ov::Node>& op, 
         OPENVINO_THROW("CPU: " + errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const intel_cpu::CausalMaskPreprocessNode>(op);
+    const auto node = ov::as_type_ptr<const intel_cpu::CausalMaskPreprocessNode>(op);
     m_config = node->get_config();
 }
 
 bool CausalMaskPreprocess::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                 std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const intel_cpu::CausalMaskPreprocessNode>(op);
+        const auto node = ov::as_type_ptr<const intel_cpu::CausalMaskPreprocessNode>(op);
         if (!node) {
             errorMessage = "Only CausalMaskPreprocessNode operation is supported";
             return false;

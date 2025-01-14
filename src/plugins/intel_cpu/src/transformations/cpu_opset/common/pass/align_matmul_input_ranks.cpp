@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     auto matmulPattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>(twoInputs);
 
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(m.get_match_root());
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(m.get_match_root());
 
         if (!matmul || transformation_callback(matmul))
             return false;

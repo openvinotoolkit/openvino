@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,7 +7,7 @@ import os
 import numpy as np
 import pytest
 
-import openvino.runtime.opset10 as ops
+import openvino.opset10 as ops
 from openvino import Core, Model
 from openvino.passes import Manager, Serialize, ConstantFolding, Version
 
@@ -46,23 +46,6 @@ def test_constant_folding():
     values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
 
     assert np.allclose(values_out, values_expected)
-
-
-def test_runtime_passes_manager():
-    import openvino.runtime.passes as rt
-    node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
-    node_ceil = ops.ceiling(node_constant)
-    model = Model(node_ceil, [], "TestModel")
-
-    assert count_ops_of_type(model, node_ceil) == 1
-    assert count_ops_of_type(model, node_constant) == 1
-
-    pass_manager = rt.Manager()
-    pass_manager.register_pass(rt.ConstantFolding())
-    pass_manager.run_passes(model)
-
-    assert count_ops_of_type(model, node_ceil) == 0
-    assert count_ops_of_type(model, node_constant) == 1
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request

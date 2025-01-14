@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,14 +44,14 @@ ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
         auto m_bn = m.get_match_root();
         Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
         double eps;
-        if (auto m_bn_v1 = dynamic_pointer_cast<ov::op::v0::BatchNormInference>(m_bn)) {
+        if (auto m_bn_v1 = ov::as_type_ptr<ov::op::v0::BatchNormInference>(m_bn)) {
             m_gamma = m_bn_v1->input_value(0);
             m_beta = m_bn_v1->input_value(1);
             m_input = m_bn_v1->input_value(2);
             m_mean = m_bn_v1->input_value(3);
             m_var = m_bn_v1->input_value(4);
             eps = m_bn_v1->get_eps_value();
-        } else if (auto m_bn_v5 = dynamic_pointer_cast<ov::op::v5::BatchNormInference>(m_bn)) {
+        } else if (auto m_bn_v5 = ov::as_type_ptr<ov::op::v5::BatchNormInference>(m_bn)) {
             m_input = m_bn_v5->input_value(0);
             m_gamma = m_bn_v5->input_value(1);
             m_beta = m_bn_v5->input_value(2);
