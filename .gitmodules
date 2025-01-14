@@ -34,9 +34,6 @@
 	path = thirdparty/ocl/clhpp_headers
 	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git
 	ignore = dirty
-[submodule "thirdparty/onnx"]
-	path = thirdparty/onnx/onnx
-	url = https://github.com/onnx/onnx.git
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
