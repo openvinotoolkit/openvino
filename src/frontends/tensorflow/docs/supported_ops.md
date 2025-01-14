@@ -1007,7 +1007,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ScaleAndTranslate                                       | NO                            |                               |
 | ScaleAndTranslateGrad                                   | NO                            |                               |
 | ScanDataset                                             | NO                            |                               |
-| ScatterAdd                                              | YES                           |                               |
+| ScatterAdd                                              | NO                            |                               |
 | ScatterDiv                                              | NO                            |                               |
 | ScatterMax                                              | NO                            |                               |
 | ScatterMin                                              | NO                            |                               |
@@ -1314,7 +1314,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | TensorListSetItem                                       | YES                           |                               |
 | TensorListSplit                                         | NO                            |                               |
 | TensorListStack                                         | YES                           |                               |
-| TensorScatterAdd                                        | NO                            |                               |
+| TensorScatterAdd                                        | YES                           |                               |
 | TensorScatterMax                                        | NO                            |                               |
 | TensorScatterMin                                        | NO                            |                               |
 | TensorScatterSub                                        | NO                            |                               |
