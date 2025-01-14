@@ -595,21 +595,21 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
         OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       " Serialized by OV ",
+                       "\nSerialized by OV ",
                        vmajor,
                        '.',
                        vminor,
                        '.',
                        vpatch,
-                       " Current OV version ",
+                       "\nCurrent OV version ",
                        OPENVINO_VERSION_MAJOR,
                        '.',
                        OPENVINO_VERSION_MINOR,
                        '.',
                        OPENVINO_VERSION_PATCH,
-                       " NPUW serialized by version ",
+                       "\nNPUW serialized by version ",
                        s11n_version,
-                       " NPUW current serialization version ",
+                       "\nNPUW current serialization version ",
                        NPUW_SERIALIZATION_VERSION);
     }
 
@@ -637,6 +637,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    compiled->implement_properties();
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);

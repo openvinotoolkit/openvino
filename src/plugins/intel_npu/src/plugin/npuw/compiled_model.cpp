@@ -611,6 +611,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Write config
     write(stream, m_cfg);
+    write(stream, m_non_npuw_props);
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -671,6 +672,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    read(stream, compiled->m_non_npuw_props);
+    compiled->implement_properties();
 
     // Deserialize compiled submodels
     std::size_t subm_size = 0;

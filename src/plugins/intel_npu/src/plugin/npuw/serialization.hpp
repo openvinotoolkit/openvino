@@ -17,7 +17,7 @@
 const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.0";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.1";
 
 // Forward declaration
 namespace intel_npu {
@@ -27,6 +27,7 @@ class Config;
 namespace ov {
 
 // Forward declaration
+class Any;
 class Node;
 class Tensor;
 template <class>
@@ -56,6 +57,7 @@ void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
+void write(std::ostream& stream, const ov::Any& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -65,6 +67,7 @@ void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
+void read(std::istream& stream, ov::Any& var);
 
 // Forward declaration
 template <typename T1, typename T2>

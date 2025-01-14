@@ -74,6 +74,12 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node
     write(stream, var.get_names());
 }
 
+void ov::npuw::s11n::write(std::ostream& stream, const ov::Any& var) {
+    // FIXME: figure out a proper way to serialize Any (for config)
+    NPUW_ASSERT(var.is<std::string>() && "Can't serialize ov::Any which is not std::string!");
+    write(stream, var.as<std::string>());
+}
+
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
@@ -168,4 +174,11 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::Node>& var) 
     var = std::make_shared<ov::op::v0::Result>(res);
     var->output(0).set_tensor_ptr(tensor_dummy);
     var->set_friendly_name(*names.begin());  // any_name ?
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::Any& var) {
+    // FIXME: ugly, but cannot use .read(stream) here due to its usage of operator>>()
+    std::string var_str;
+    read(stream, var_str);
+    var = std::move(var_str);
 }
