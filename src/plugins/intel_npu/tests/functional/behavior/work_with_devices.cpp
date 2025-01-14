@@ -10,7 +10,7 @@
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {{ov::log::level(ov::log::Level::DEBUG)}},
+    {{ov::log::level(ov::log::Level::ERR)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
