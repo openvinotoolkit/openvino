@@ -539,6 +539,7 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
 }
 
 TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });

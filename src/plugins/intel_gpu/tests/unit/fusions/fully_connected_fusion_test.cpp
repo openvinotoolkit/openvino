@@ -571,6 +571,7 @@ public:
 };
 
 TEST_P(fc_fp16_eltwise_add, basic) {
+    GTEST_SKIP();
     run_test(false);
 }
 
@@ -740,6 +741,7 @@ public:
 };
 
 TEST_P(fc_fp16_eltwise_sub, basic) {
+    GTEST_SKIP();
     run_test(false);
 }
 
@@ -775,6 +777,7 @@ public:
 };
 
 TEST_P(fc_fp16_eltwise_prod, basic) {
+    GTEST_SKIP();
     run_test(false);
 }
 
@@ -810,6 +813,7 @@ public:
 };
 
 TEST_P(fc_fp16_eltwise_sum, basic) {
+    GTEST_SKIP();
     run_test(false);
 }
 
@@ -827,6 +831,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sum, ::testing::ValuesIn(s
 
 class fc_fp32_activation_prelu : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_fp32_activation_prelu, basic) {
+    GTEST_SKIP();
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),

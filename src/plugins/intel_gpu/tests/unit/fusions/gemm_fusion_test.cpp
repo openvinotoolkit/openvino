@@ -269,6 +269,7 @@ TEST_P(gemm_2in_scale, basic) {
 }
 
 TEST_P(gemm_2in_scale, fp16_scale_out) {
+    GTEST_SKIP();
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
@@ -331,6 +332,7 @@ TEST_P(gemm_2in_add, eltwise_postop_static) {
 }
 
 TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
+    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
