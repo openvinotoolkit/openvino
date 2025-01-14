@@ -728,7 +728,7 @@ private:
 
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
+        const auto mha = ov::as_type_ptr<const MHANode>(op);
         if (!mha) {
             errorMessage = "Only MHA from CPU internal opset is supported";
             return false;
@@ -808,7 +808,7 @@ MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
+    const auto mha = ov::as_type_ptr<const MHANode>(op);
     mulScales = mha->get_mul_scales();
     isMulFirst = mha->get_is_mul_first();
     fqScales0 = mha->get_fq_scales0();

@@ -32,7 +32,7 @@ namespace node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
+        const auto gather_compression = ov::as_type_ptr<const ov::op::internal::GatherCompressed>(op);
         if (gather_compression) {
             return true;
         }

@@ -64,7 +64,7 @@ namespace ov {
             }                                                                                        \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                   \
+                const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                             \
                 if (gelu == nullptr) {                                                               \
                     OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                \
                 }                                                                                    \
@@ -97,7 +97,7 @@ namespace ov {
             }                                                                                        \
         },                                                                                           \
             [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& round = std::dynamic_pointer_cast<ov::op::v5::Round>(n);                 \
+                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                           \
                 if (round == nullptr) {                                                              \
                     OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
                 }                                                                                    \
@@ -264,7 +264,7 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<intel_cpu::FusedMulAdd>(op) || std::dynamic_pointer_cast<intel_cpu::SwishNode>(op))
+    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op))
         return ov::snippets::RegType::vec;
     else
         return ov::snippets::RegType::undefined;
