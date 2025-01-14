@@ -16,6 +16,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/add.hpp"
+#include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/fold_convert.hpp"
@@ -24,6 +25,7 @@
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
@@ -94,8 +96,10 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
+#include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -162,6 +166,7 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -284,6 +289,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
+    ov::element::Type infer_precision = ov::element::undefined;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
         ov::pass::Manager manager("Plugin:GPU");
@@ -330,7 +336,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        auto infer_precision = config.get_property(ov::hint::inference_precision);
+        infer_precision = config.get_property(ov::hint::inference_precision);
         if (infer_precision != ov::element::undefined) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
@@ -893,8 +899,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     {
-        ov::pass::Manager manager("GPU:PostLPT");
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::activations_scaling");
+        ov::pass::Manager manager("GPU:ActivationsScaling");
         manager.set_per_pass_validation(false);
+        auto pass_config = manager.get_pass_config();
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
@@ -913,6 +921,68 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // after 141764 is fixed as there's a clear issue with Validate passes
         // not working properly.
         manager.register_pass<ov::pass::Validate>();
+
+        manager.register_pass<ov::pass::RoPEFusion>(true);
+        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
+        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
+        pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
+
+        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16 && !enableInt8) {
+            using namespace ov::pass::low_precision;
+
+            auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
+            auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({});
+
+            pass_config->disable<ov::pass::AddMultiplyFusion>();
+            pass_config->disable<RecurrentCellTransformation>();
+            pass_config->disable<MultiplyToGroupConvolutionTransformation>();
+            pass_config->disable<ConvolutionTransformation>();
+            pass_config->disable<ConvolutionBackpropDataTransformation>();
+            pass_config->disable<GroupConvolutionTransformation>();
+            pass_config->disable<MatMulTransformation>();
+            pass_config->disable<MVNTransformation>();
+            pass_config->disable<ConcatTransformation>();
+
+            pass_config->set_callback<FoldConvertTransformation>(
+                [](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return ov::is_dequantization_node(node);
+                });
+
+            pass_config->set_callback<FuseConvertTransformation>(
+                [](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
+                });
+
+            manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
+            manager.register_pass<ov::pass::SharedOpOptimization>();
+
+            // Move down scalar-multiply layers as much as possible
+            auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
+            auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
+            lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
+            lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
+            lpt_pass->add_main<ov::pass::activations_scaling::MoveDownScalarMul>();
+
+            // Move up remained scalar-multiply layers
+            manager.register_pass<ov::pass::EliminateEltwise>();
+            manager.register_pass<ov::pass::activations_scaling::MulShareTransformation>();
+
+            const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+                ov::op::v1::Reshape::get_type_info_static(),
+                ov::op::v1::Transpose::get_type_info_static(),
+            };
+            manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
+            manager.register_pass<ov::pass::Validate>();
+        }
+
+        manager.run_passes(func);
+    }
+
+    {
+        ov::pass::Manager manager("GPU:PostLPT");
+        manager.set_per_pass_validation(false);
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
@@ -954,7 +1024,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
-        manager.register_pass<ov::intel_gpu::FullyConnectedPerLayerScaling>(config.get_property(ov::hint::activations_scale_factor));
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
@@ -976,11 +1045,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
-
-        manager.register_pass<ov::pass::RoPEFusion>(true);
-        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
-        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
-        pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
