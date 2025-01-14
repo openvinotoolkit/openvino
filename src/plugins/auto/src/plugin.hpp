@@ -41,6 +41,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                       const ov::AnyMap& properties) const override;
 
+    MOCKTESTMACRO bool is_meta_device(const std::string& priorities) const;
     MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
                                                                                  const ov::AnyMap& properties) const;
 

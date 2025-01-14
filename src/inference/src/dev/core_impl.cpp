@@ -77,11 +77,6 @@ void stripDeviceName(std::string& device, const std::string& substr) {
     }
 }
 
-bool is_virtual_device(const std::string& device_name) {
-    return (device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos ||
-            device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
-};
-
 /**
  * @brief Converts / flattens ov::device::properties from
  * @code
@@ -123,7 +118,8 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
         auto subprop_device_name =
             secondary_property->first.substr(subprop_device_name_pos + std::strlen(ov::device::properties.name()) + 1);
         // flattening is performed only when config is applicable (see docs for ov::is_config_applicable)
-        if (ov::is_config_applicable(user_device_name, subprop_device_name) || is_virtual_device(user_device_name)) {
+        if (ov::is_config_applicable(user_device_name, subprop_device_name) ||
+            ov::is_virtual_device(user_device_name)) {
             // 2.1. keep the secondary property for the other virtual devices, but repack them
             auto device_properties = result_properties.find(ov::device::properties.name());
             if (device_properties == result_properties.end()) {
@@ -168,7 +164,7 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
                 // example: core.compile_model("GPU.1", ov::device::properties("GPU", ov::prop1));
                 update_result_properties(secondary_property->second.as<ov::AnyMap>());
                 secondary_property = secondary_properties.erase(secondary_property);
-            } else if (is_virtual_device(user_device_name)) {
+            } else if (ov::is_virtual_device(user_device_name)) {
                 // 2.2. keep the secondary property for the other virtual devices
                 secondary_property++;
                 continue;
@@ -200,7 +196,7 @@ struct DevicePriority {
 };
 
 DevicePriority get_device_priority_property(const std::string& device_name) {
-    return is_virtual_device(device_name)
+    return ov::is_virtual_device(device_name)
                ? DevicePriority{ov::device::priorities.name(), MatchType::EXACT}
                :
                // ov::device::properties(GPU.0) can be applied for GPU tile identified by GPU.0.0
@@ -212,7 +208,7 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
     if (deviceName.find("BATCH") == std::string::npos) {
         const auto& batch_timeout_mode = config.find(property_name);
         if (batch_timeout_mode != config.end()) {
-            if (!is_virtual_device(deviceName))
+            if (!ov::is_virtual_device(deviceName))
                 config.erase(batch_timeout_mode);
         }
     }
@@ -256,6 +252,11 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 
     return false;
 }
+
+bool ov::is_virtual_device(const std::string& device_name) {
+    return (device_name.find("AUTO") == 0 || device_name.find("MULTI") == 0 || device_name.find("HETERO") == 0 ||
+            device_name.find("BATCH") == 0);
+};
 
 namespace {
 ov::Parsed parse_device_config(const std::string& device_name,
@@ -345,7 +346,7 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
     auto parsed = parse_device_config(deviceName, coreConfig, config, keep_auto_batch_property);
 
     // remove core properties for HW devices
-    if (!is_virtual_device(parsed._deviceName)) {
+    if (!ov::is_virtual_device(parsed._deviceName)) {
         // note: ov::cache_dir kept as plugin may require it
         CoreConfig::remove_core_skip_cache_dir(parsed._config);
     }
@@ -637,7 +638,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             const auto& plugin_name = plugin_impl->get_device_name();
 
             // Check that device plugin name is the same as requested for HW plugins
-            if (!plugin_name.empty() && !is_virtual_device(plugin_name)) {
+            if (!plugin_name.empty() && !ov::is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(deviceName.find(plugin_name) != std::string::npos,
                                 ov::util::wstring_to_string(desc.libraryLocation.c_str()),
                                 " is used for ",
@@ -979,7 +980,7 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::create_context(const std::string& de
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
                                                 const ov::AnyMap& user_properties,
                                                 const bool keep_core_property) const {
-    if (is_virtual_device(full_device_name)) {
+    if (ov::is_virtual_device(full_device_name)) {
         // Considerations:
         // 1. in case of virtual devices all the magic will happen on the level when
         // virtual device calls ICore::get_supported_property for real HW devices
@@ -1087,7 +1088,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
             // e.g. to deduce the #requests correctly
             // proxy plugin should also keep the config
             // otherwise, no need for this config key in the rest of loading
-            if (!is_virtual_device(deviceName) && !is_proxy_device(deviceName))
+            if (!ov::is_virtual_device(deviceName) && !is_proxy_device(deviceName))
                 config.erase(batch_mode);
             if (disabled)
                 return model;
@@ -1625,7 +1626,7 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
         // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
         // it from config
         if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
-            !is_virtual_device(plugin.get_name())) {
+            !ov::is_virtual_device(plugin.get_name())) {
             parsedConfig.erase(ov::cache_dir.name());
         }
         return tempConfig;
