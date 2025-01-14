@@ -583,7 +583,7 @@ def test_roi_pooling_deprecation():
         _ = ov.roi_pooling(inputs, coords=coords, output_roi=[6, 6])
     assert "The following arguments must be defined: `spatial_scale`!" in str(e.value)
 
-    with pytest.warns(DeprecationWarning) as w:
+    with pytest.warns(DeprecationWarning, match="`output_size` is deprecated and will be removed in future") as w:
         node = ov.roi_pooling(inputs, coords=coords, output_size=[6, 6], spatial_scale=0.0625, method="Max")
     assert issubclass(w[0].category, DeprecationWarning)
     assert "`output_size` is deprecated and will be removed in future" in str(w[0].message)
