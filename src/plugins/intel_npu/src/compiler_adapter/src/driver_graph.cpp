@@ -34,7 +34,7 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
 
 size_t DriverGraph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
-    size_t blobSize = -1;
+    size_t blobSize;
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {

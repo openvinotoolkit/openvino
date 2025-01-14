@@ -816,7 +816,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         npu_plugin_properties.erase(ov::internal::cached_model_buffer.name());
     }
 
-    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+    const auto propertiesMap = any_copy(npu_plugin_properties);
 
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());

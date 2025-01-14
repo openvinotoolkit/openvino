@@ -64,58 +64,6 @@ public:
     }
 };
 
-struct MetadataBase {
-protected:
-    uint32_t _version;
-
-public:
-    MetadataBase(uint32_t version) : _version(version) {}
-
-    /**
-     * @brief Reads metadata from a stream.
-     */
-    virtual void read(std::istream& stream) = 0;
-
-    /**
-     * @brief Writes metadata to a stream.
-     */
-    virtual void write(std::ostream& stream) = 0;
-
-    virtual bool is_compatible() = 0;
-
-    virtual uint64_t get_blob_size() const = 0;
-
-    virtual ~MetadataBase() = default;
-
-    /**
-     * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
-     * @details Convention for bumping the metadata version:
-     *              - Increment Major in case of: removing a current field OR adding a new field in between fields.
-     *              - Increment Minor in case of: adding a new field at the end.
-     *
-     * @return Major and minor versions concatenated into a single uint32_t value.
-     */
-    static constexpr uint32_t make_version(uint16_t major, uint16_t minor) {
-        return major << 16 | (minor & 0x0000ffff);
-    }
-
-    /**
-     * @brief Gets the major version.
-     * @return Major version.
-     */
-    static constexpr uint16_t get_major(uint32_t version) {
-        return static_cast<uint16_t>(version >> 16);
-    }
-
-    /**
-     * @brief Gets the minor version.
-     * @return Minor version.
-     */
-    static constexpr uint16_t get_minor(uint32_t version) {
-        return static_cast<uint16_t>(version);
-    }
-};
-
 /**
  * @brief Magic bytes used for identifying NPU blobs.
  */
