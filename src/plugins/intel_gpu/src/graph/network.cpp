@@ -278,7 +278,7 @@ void network::validate_primitives() {
 
 void network::preallocate_shape_info_buffers() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("preallocate_shape_info_buffers");
-    int64_t sum = 0;
+    size_t sum = 0;
 
     /* Use 512 byte alignment for performance */
     const size_t alignment = 512;
