@@ -116,7 +116,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
     {ov::compilation_num_threads.name(), ov::Any(1)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
-    {ov::log::level.name(), ov::Any(ov::log::Level::DEBUG)},
+    {ov::log::level.name(), ov::Any(ov::log::Level::ERR)},
     {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
 };
 
