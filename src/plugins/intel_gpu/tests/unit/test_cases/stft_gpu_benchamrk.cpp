@@ -16,6 +16,9 @@ using namespace ::tests;
 
 namespace {
 
+const int WARMUPS = 10;
+const int RUNS = 100;
+
 namespace helpers {
 // TODO: Move to common place.
 
@@ -110,8 +113,8 @@ public:
         network->set_input_data("frameStep", params.frameStep);
 
         // Run and check results.
-        const int warmup = 10;
-        const int run = 100;
+        const int warmup = WARMUPS;
+        const int run = RUNS;
 
         std::map<primitive_id, network_output> outputs;
         for (int i = 0; i < warmup; ++i)
@@ -154,7 +157,7 @@ private:
 };
 }  // namespace
 
-TEST_F(stft_benchmark, DISABLED_benchmarks) {
+TEST_F(stft_benchmark, benchmarks) {
     RunBenchmark<ov::element::Type_t::f32>({10000}, 1000, 2, true);
     RunBenchmark<ov::element::Type_t::f32>({10000}, 1000, 2, false);
 
