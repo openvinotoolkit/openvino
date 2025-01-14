@@ -182,14 +182,6 @@ py::array string_array_from_tensor(ov::Tensor&& t) {
     return array;
 }
 
-static const char* find_first_not_null(const char* ptr, size_t itemsize) {
-    auto rbegin = std::make_reverse_iterator(ptr + itemsize);
-    auto first_not_null = std::find_if(rbegin, std::make_reverse_iterator(ptr), [](const auto& c) {
-        return c != '\0';
-    });
-    return first_not_null.base();
-}
-
 void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
     if (tensor.get_size() != static_cast<size_t>(array.size())) {
         OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
@@ -198,7 +190,7 @@ void fill_tensor_from_bytes(ov::Tensor& tensor, py::array& array) {
     auto data = tensor.data<std::string>();
     for (size_t i = 0; i < tensor.get_size(); ++i) {
         const char* ptr = reinterpret_cast<const char*>(buf.ptr) + (i * buf.itemsize);
-        auto first_not_null = find_first_not_null(ptr, buf.itemsize);
+        auto first_not_null = find_last_not_null(ptr, buf.itemsize);
         data[i] = std::string(ptr, first_not_null);
     }
 }
