@@ -65,7 +65,6 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     const uint x = 0;
 
     half grp_max = 0.001h;
-    half grp_min = 0.001h;
     half max_value = INPUT0_VAL_MIN;
     half min_value = INPUT0_VAL_MAX;
 
@@ -81,17 +80,16 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
         max_value = fmax(max_value, fabs(val[i]));
 #endif
     }
-#if ASYMMETRIC_QUANTIZATION
-    max_value = fmax(max_value, grp_max);
-    min_value = fmin(min_value, grp_min);
-#else
+#if !ASYMMETRIC_QUANTIZATION
     max_value = fmax(max_value, grp_max);
 #endif
 
 #if ASYMMETRIC_QUANTIZATION
     min_value = work_group_reduce_min(min_value);
     max_value = work_group_reduce_max(max_value);
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
+    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+    half diff_value = max_value == min_value ? ((max_value + grp_max) - min_value) : (max_value - min_value);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) - CHAR_MAX;
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);

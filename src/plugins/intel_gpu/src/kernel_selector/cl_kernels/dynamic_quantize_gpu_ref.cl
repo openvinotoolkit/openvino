@@ -53,7 +53,6 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #endif
 
     half grp_max = 0.001h;
-    half grp_min = 0.001h;
     half max_val = INPUT0_VAL_MIN;
     half min_val = INPUT0_VAL_MAX;
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
@@ -99,15 +98,14 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
     }
     }
-#if ASYMMETRIC_QUANTIZATION
-    max_val = fmax(max_val, grp_max);
-    min_val = fmin(min_val, grp_min);
-#else
+#if !ASYMMETRIC_QUANTIZATION
     max_val = fmax(max_val, grp_max);
 #endif
 
 #if ASYMMETRIC_QUANTIZATION
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / (max_val - min_val));
+    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+     half diff_value = max_val == min_val ? ((max_val + grp_max) - min_val) : (max_val - min_val);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
 #   if UNSIGNED_OUTPUT
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp);
 #   else // !UNSIGNED_OUTPUT
