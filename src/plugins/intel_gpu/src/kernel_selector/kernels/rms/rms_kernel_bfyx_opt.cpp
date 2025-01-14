@@ -122,7 +122,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         } else {
             OPENVINO_THROW("rms_bfyx_opt doesn't support 5D or higher dims.");
         }
-        
+
         auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }

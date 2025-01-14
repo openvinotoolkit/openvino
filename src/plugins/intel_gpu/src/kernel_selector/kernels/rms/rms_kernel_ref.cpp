@@ -37,7 +37,7 @@ JitConstants RMSKernelRef::GetJitConstants(const rms_params& params, DispatchDat
         } else {
             OPENVINO_THROW("rms_ref doesn't support 5D or higher dims.");
         }
-        
+
         auto conf = FusedOpsConfiguration("", idx_order, "result", params.outputs[0].GetDType(), 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
