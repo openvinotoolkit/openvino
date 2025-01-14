@@ -1553,3 +1553,63 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_add) {
+    const auto model = convert_model("com.microsoft/q_linear_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_A{10, 20, 30, 40};
+    const std::vector<int8_t> data_B{1, 2, 3, 4};
+
+    const std::vector<float> a_scale{0.1f};
+    const std::vector<float> b_scale{0.2f};
+    const std::vector<float> c_scale{0.3f};
+
+    const std::vector<int8_t> a_zero_point{5};
+    const std::vector<int8_t> b_zero_point{3};
+    const std::vector<int8_t> c_zero_point{2};
+
+    const std::vector<int8_t> expected_output{2, 6, 10, 14};
+
+    test_case.add_input<int8_t>(Shape{2, 2}, data_A);
+    test_case.add_input<float>(Shape{1}, a_scale);
+    test_case.add_input<int8_t>(Shape{1}, a_zero_point);
+    test_case.add_input<int8_t>(Shape{2, 2}, data_B);
+    test_case.add_input<float>(Shape{1}, b_scale);
+    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
+    test_case.add_input<float>(Shape{1}, c_scale);
+    test_case.add_input<int8_t>(Shape{1}, c_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
+    const auto model = convert_model("com.microsoft/q_linear_mul.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_A{10, 20, 30, 40};
+    const std::vector<int8_t> data_B{2, 3, 4, 5};
+
+    const std::vector<float> a_scale{0.1f};
+    const std::vector<float> b_scale{0.2f};
+    const std::vector<float> c_scale{0.3f};
+
+    const std::vector<int8_t> a_zero_point{5};
+    const std::vector<int8_t> b_zero_point{3};
+    const std::vector<int8_t> c_zero_point{2};
+
+    const std::vector<int8_t> expected_output{1, 2, 3, 6};
+
+    test_case.add_input<int8_t>(Shape{2, 2}, data_A);
+    test_case.add_input<float>(Shape{1}, a_scale);
+    test_case.add_input<int8_t>(Shape{1}, a_zero_point);
+    test_case.add_input<int8_t>(Shape{2, 2}, data_B);
+    test_case.add_input<float>(Shape{1}, b_scale);
+    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
+    test_case.add_input<float>(Shape{1}, c_scale);
+    test_case.add_input<int8_t>(Shape{1}, c_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.run();
+}
