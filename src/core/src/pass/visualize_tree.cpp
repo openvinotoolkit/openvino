@@ -692,6 +692,9 @@ void ov::pass::VisualizeTree::render() const {
         if (!m_dot_only && ov::util::to_lower(ext) != ".dot") {
 #ifndef _WIN32
             std::stringstream ss;
+            if (system("command -v dot > /dev/null 2>&1") != 0) {
+                OPENVINO_THROW("Graphviz 'dot' command not found in PATH");
+            }
             ss << "dot -T" << output_format << " " << dot_file << " -o" << m_name;
             auto cmd = ss.str();
             auto stream = popen(cmd.c_str(), "r");
