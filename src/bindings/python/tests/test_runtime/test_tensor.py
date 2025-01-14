@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -9,7 +9,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino.helpers import pack_data, unpack_data
 
 import pytest
@@ -480,7 +480,7 @@ def test_viewed_tensor(dtype, element_type):
     buffer = np.random.normal(size=(2, 16)).astype(dtype)
     fit = (dtype().nbytes * 8) / element_type.bitwidth
     tensor = ov.Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
-    assert np.array_equal(tensor.data, buffer.view(ov.runtime.utils.types.get_dtype(element_type)))
+    assert np.array_equal(tensor.data, buffer.view(ov.utils.types.get_dtype(element_type)))
 
 
 def test_viewed_tensor_default_type():

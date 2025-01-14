@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
 public:
-    OPENVINO_RTTI("SubtractTransformation", "0");
+    OPENVINO_RTTI("SubtractTransformation", "0", LayerTransformation);
     SubtractTransformation(const Params& params);
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
 };
