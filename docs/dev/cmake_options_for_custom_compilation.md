@@ -182,7 +182,7 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [cpplint]:https://github.com/cpplint/cpplint
 [Clang format]:http://clang.llvm.org/docs/ClangFormat.html
 [OpenVINO Contrib]:https://github.com/openvinotoolkit/openvino_contrib
-[OpenVINO thirdparty pugixml]:https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/thirdparty/pugixml
+[OpenVINO thirdparty pugixml]:https://github.com/openvinotoolkit/openvino/tree/releases/2024/6/inference-engine/thirdparty/pugixml
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf

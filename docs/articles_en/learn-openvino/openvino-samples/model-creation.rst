@@ -293,5 +293,5 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-- `Model Creation Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/model_creation_sample/README.md>`__
-- `Model Creation C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/model_creation_sample/README.md>`__
+- `Model Creation Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/python/model_creation_sample/README.md>`__
+- `Model Creation C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/cpp/model_creation_sample/README.md>`__

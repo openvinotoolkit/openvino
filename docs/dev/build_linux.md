@@ -55,13 +55,13 @@ The software was validated on:
 
 You can use the following additional build options:
 
-- For IA32 operation systems, use [ia32.linux.toolchain.cmake](https://github.com/openvinotoolkit/openvino/blob/master/cmake/toolchains/ia32.linux.toolchain.cmake) CMake toolchain file:
+- For IA32 operation systems, use [ia32.linux.toolchain.cmake](https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/cmake/toolchains/ia32.linux.toolchain.cmake) CMake toolchain file:
 
    ```sh
    cmake -DCMAKE_TOOLCHAIN_FILE=<openvino_repo>/cmake/toolchains/ia32.linux.toolchain.cmake ..
    ```
 
-- OpenVINO offers several CMake options that can be used to build a custom OpenVINO runtime, which can speed up compilation. These options allow you to skip compilation of other plugins and frontends by disabling/enabling them. You can find a list of available options [here](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md)
+- OpenVINO offers several CMake options that can be used to build a custom OpenVINO runtime, which can speed up compilation. These options allow you to skip compilation of other plugins and frontends by disabling/enabling them. You can find a list of available options [here](https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/cmake_options_for_custom_compilation.md)
 
 - To build the OpenVINO Runtime Python API:
   1. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):

@@ -35,8 +35,8 @@ Performance Information F.A.Q.
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
 
-   For diffusers (Stable-Diffusion) and foundational models (aka LLMs) please use the OpenVINO GenAI 
-   opensource repo `OpenVINO GenAI tools/llm_bench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/llm_bench>`__
+   For diffusers (Stable-Diffusion) and foundational models (aka LLMs) please use the OpenVINO GenAI
+   opensource repo `OpenVINO GenAI tools/llm_bench <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/6/tools/llm_bench>`__
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <getting-performance-numbers>`.
 

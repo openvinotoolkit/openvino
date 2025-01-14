@@ -32,7 +32,7 @@ To learn about the main properties of OpenVINO, see the :doc:`Key Features <abou
 Architecture
 ##############################################################
 
-To learn more about how OpenVINO works, read the Developer documentation on its `architecture <https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md>`__ and `core components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md>`__.
+To learn more about how OpenVINO works, read the Developer documentation on its `architecture <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/docs/architecture.md>`__ and `core components <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/README.md>`__.
 
 OpenVINO Ecosystem
 ##############################################################

@@ -81,19 +81,19 @@ Install dependencies.
     import platform
     import importlib.metadata
     import importlib.util
-    
+
     %pip install -q "nncf>=2.14.0"
     %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
     %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer packaging
     %pip install -q  "gradio>=4.19" "typing_extensions>=4.9"
-    
+
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0"
-    
-    
+
+
     from packaging import version
-    
+
     if (
         importlib.util.find_spec("tensorflow") is not None
         and version.parse(importlib.metadata.version("tensorflow")) < version.parse("2.18.0")
@@ -105,13 +105,13 @@ Install dependencies.
 
     import requests
     from pathlib import Path
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         open("notebook_utils.py", "w").write(r.text)
-    
+
     if not Path("cmd_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
@@ -147,7 +147,7 @@ Whisper family.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     MODELS = [
         "openai/whisper-large-v3-turbo",
         "openai/whisper-large-v3",
@@ -158,14 +158,14 @@ Whisper family.
         "openai/whisper-base",
         "openai/whisper-tiny",
     ]
-    
+
     model_id = widgets.Dropdown(
         options=list(MODELS),
         value="openai/whisper-tiny",
         description="Model:",
         disabled=False,
     )
-    
+
     model_id
 
 
@@ -208,9 +208,9 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-    
+
     model_dir = model_id.value.split("/")[-1]
-    
+
     if not Path(model_dir).exists():
         optimum_cli(model_id.value, model_dir)
 
@@ -244,9 +244,9 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -261,7 +261,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-    
+
     ov_pipe = ov_genai.WhisperPipeline(str(model_dir), device=device.value)
 
 Run video transcription pipeline
@@ -274,9 +274,9 @@ Now, we are ready to start transcription. Let’s load the video first.
 .. code:: ipython3
 
     from notebook_utils import download_file
-    
+
     output_file = Path("downloaded_video.mp4")
-    
+
     download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Sheldon%20Cooper%20Jim%20Parsons%20at%20Intels%20Lab.mp4",
         filename=output_file.name,
@@ -329,13 +329,13 @@ Select the task for the model:
     except ImportError:
         from moviepy.editor import VideoFileClip
     from transformers.pipelines.audio_utils import ffmpeg_read
-    
-    
+
+
     def get_audio(video_file):
         """
         Extract audio signal from a given video file, then convert it to float,
         then mono-channel format and resample it to the expected sample rate
-    
+
         Parameters:
             video_file: path to input video file
         Returns:
@@ -372,33 +372,33 @@ return ``chunks``, which contain attributes: ``text``, ``start_ts`` and
 .. code:: ipython3
 
     inputs, duration = get_audio(output_file)
-    
+
     transcription = ov_pipe.generate(inputs["raw"], task=task.value, return_timestamps=True).chunks
 
 .. code:: ipython3
 
     import math
-    
-    
+
+
     def format_timestamp(seconds: float):
         """
         format time in srt-file expected format
         """
         assert seconds >= 0, "non-negative timestamp expected"
         milliseconds = round(seconds * 1000.0)
-    
+
         hours = milliseconds // 3_600_000
         milliseconds -= hours * 3_600_000
-    
+
         minutes = milliseconds // 60_000
         milliseconds -= minutes * 60_000
-    
+
         seconds = milliseconds // 1_000
         milliseconds -= seconds * 1_000
-    
+
         return (f"{hours}:" if hours > 0 else "00:") + f"{minutes:02d}:{seconds:02d},{milliseconds:03d}"
-    
-    
+
+
     def prepare_srt(transcription, filter_duration=None):
         """
         Format transcription into srt file format
@@ -409,7 +409,7 @@ return ``chunks``, which contain attributes: ``text``, ``start_ts`` and
             # for the case where the model could not predict an ending timestamp, which can happen if audio is cut off in the middle of a word.
             if segment.end_ts == -1:
                 timestamp[1] = filter_duration
-    
+
             if filter_duration is not None and (timestamp[0] >= math.floor(filter_duration) or timestamp[1] > math.ceil(filter_duration) + 1):
                 break
             segment_lines.append(str(idx + 1) + "\n")
@@ -458,40 +458,40 @@ Now let us see the results.
     1
     00:00:00,000 --> 00:00:05,000
      Oh, what's that?
-    
+
     2
     00:00:05,000 --> 00:00:08,000
      Oh, wow.
-    
+
     3
     00:00:08,000 --> 00:00:10,000
      Hello, humans.
-    
+
     4
     00:00:13,000 --> 00:00:15,000
      Focus on me.
-    
+
     5
     00:00:15,000 --> 00:00:17,000
      Focus on the guard.
-    
+
     6
     00:00:17,000 --> 00:00:20,000
      Don't tell anyone what you're seeing in here.
-    
+
     7
     00:00:22,000 --> 00:00:24,000
      Have you seen what's in there?
-    
+
     8
     00:00:24,000 --> 00:00:25,000
      They have intel.
-    
+
     9
     00:00:25,000 --> 00:00:27,000
      This is where it all changes.
-    
-    
+
+
 
 
 Quantization
@@ -526,7 +526,7 @@ Please select below whether you would like to run Whisper quantization.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -542,15 +542,15 @@ Please select below whether you would like to run Whisper quantization.
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     ov_quantized_model = None
     quantized_ov_pipe = None
-    
+
     %load_ext skip_kernel_extension
 
 Let’s load converted OpenVINO model format using Optimum-Intel to easily
@@ -584,10 +584,10 @@ interface for ``automatic-speech-recognition``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from transformers import AutoProcessor
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
-    
+
     ov_model = OVModelForSpeechSeq2Seq.from_pretrained(model_dir, device=device.value)
     processor = AutoProcessor.from_pretrained(model_dir)
 
@@ -607,14 +607,14 @@ improves quantization quality.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from itertools import islice
     from tqdm.notebook import tqdm
     from datasets import load_dataset
     from transformers import pipeline
     from optimum.intel.openvino.quantization import InferRequestWrapper
-    
-    
+
+
     def collect_calibration_dataset(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
         # Overwrite model request properties, saving the original ones for restoring later
         encoder_calibration_data = []
@@ -623,7 +623,7 @@ improves quantization quality.
         ov_model.decoder_with_past.request = InferRequestWrapper(ov_model.decoder_with_past.request,
                                                                  decoder_calibration_data,
                                                                  apply_caching=True)
-    
+
         pipe = pipeline(
           "automatic-speech-recognition",
           model=ov_model,
@@ -638,7 +638,7 @@ improves quantization quality.
         finally:
             ov_model.encoder.request = ov_model.encoder.request.request
             ov_model.decoder_with_past.request = ov_model.decoder_with_past.request.request
-    
+
         return encoder_calibration_data, decoder_calibration_data
 
 Quantize Whisper encoder and decoder models
@@ -654,17 +654,17 @@ negligible.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import gc
     import shutil
     import nncf
     import openvino as ov
-    
-    
+
+
     CALIBRATION_DATASET_SIZE = 30
     quantized_model_path = Path(f"{model_dir}_quantized")
-    
-    
+
+
     def quantize(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
         if not quantized_model_path.exists():
             encoder_calibration_data, decoder_calibration_data = collect_calibration_dataset(ov_model, calibration_dataset_size)
@@ -681,7 +681,7 @@ negligible.
             del quantized_encoder
             del encoder_calibration_data
             gc.collect()
-    
+
             print("Quantizing decoder with past")
             quantized_decoder_with_past = nncf.quantize(
                 ov_model.decoder_with_past.model,
@@ -695,7 +695,7 @@ negligible.
             del quantized_decoder_with_past
             del decoder_calibration_data
             gc.collect()
-    
+
             # Copy the config file and the first-step-decoder manually
             model_path = Path(model_dir)
             shutil.copy(model_path / "config.json", quantized_model_path / "config.json")
@@ -714,11 +714,11 @@ negligible.
             shutil.copy(model_path / "normalizer.json", quantized_model_path / "normalizer.json")
             shutil.copy(model_path / "merges.txt", quantized_model_path / "merges.txt")
             shutil.copy(model_path / "added_tokens.json", quantized_model_path / "added_tokens.json")
-    
+
         quantized_ov_pipe = ov_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
         return quantized_ov_pipe
-    
-    
+
+
     quantized_ov_pipe = quantize(ov_model, CALIBRATION_DATASET_SIZE)
 
 Run quantized model inference
@@ -752,16 +752,16 @@ for Word Error Rate.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
     from contextlib import contextmanager
     from jiwer import wer, wer_standardize
-    
+
     TEST_DATASET_SIZE = 50
-    
+
     def calculate_transcription_time_and_accuracy(ov_model, test_samples):
         whole_infer_times = []
-    
+
         ground_truths = []
         predictions = []
         for data_item in tqdm(test_samples, desc="Measuring performance and accuracy"):
@@ -769,19 +769,19 @@ for Word Error Rate.
             transcription = ov_model.generate(data_item["audio"]["array"], return_timestamps=True)
             end_time = time.perf_counter()
             whole_infer_times.append(end_time - start_time)
-    
+
             ground_truths.append(data_item["text"])
             predictions.append(transcription.texts[0])
-    
+
         word_accuracy = (1 - wer(ground_truths, predictions, reference_transform=wer_standardize,
                                  hypothesis_transform=wer_standardize)) * 100
         mean_whole_infer_time = sum(whole_infer_times)
         return word_accuracy, mean_whole_infer_time
-    
+
     test_dataset = load_dataset("openslr/librispeech_asr", "clean", split="validation", streaming=True, trust_remote_code=True)
     test_dataset = test_dataset.shuffle(seed=42).take(TEST_DATASET_SIZE)
     test_samples = [sample for sample in test_dataset]
-    
+
     accuracy_original, times_original = calculate_transcription_time_and_accuracy(ov_pipe, test_samples)
     accuracy_quantized, times_quantized = calculate_transcription_time_and_accuracy(quantized_ov_pipe, test_samples)
     print(f"Whole pipeline performance speedup: {times_original / times_quantized:.3f}")
@@ -816,35 +816,35 @@ Interactive demo
 .. code:: ipython3
 
     def_config = ov_pipe.get_generation_config()
-    
-    
+
+
     def transcribe(video_path, task, use_int8):
         data_path = Path(video_path)
         inputs, duration = get_audio(data_path)
         m_pipe = quantized_ov_pipe if use_int8 else ov_pipe
-    
+
         frame_num = len(inputs["raw"]) / 16000
         if frame_num > 30:
             config = ov_pipe.get_generation_config()
             chink_num = math.ceil(frame_num / 30)
             config.max_length = chink_num * def_config.max_length
             m_pipe.set_generation_config(config)
-    
+
         transcription = m_pipe.generate(inputs["raw"], task=task.lower(), return_timestamps=True).chunks
         srt_lines = prepare_srt(transcription, duration)
         with data_path.with_suffix(".srt").open("w") as f:
             f.writelines(srt_lines)
         return [str(data_path), str(data_path.with_suffix(".srt"))]
-    
-    
+
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/whisper-subtitles-generation/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=transcribe, quantized=ov_quantized_model is not None, sample_path=output_file)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:

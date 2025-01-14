@@ -34,7 +34,7 @@ Build From Sources
 
 For more details, refer to the
 `OpenVINO™ JavaScript API Developer Documentation
-<https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation>`__
+<https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation>`__
 
 
 
@@ -54,7 +54,7 @@ OpenVINO 2024.4 has introduced the following methods:
 Additional Resources
 #####################
 
-- `OpenVINO™ Node.js Bindings Examples of Usage <https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md>`__
-- `OpenVINO™ Core Components <https://github.com/openvinotoolkit/openvino/blob/master/src/README.md>`__
-- `OpenVINO™ Python API <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/README.md>`__
-- `OpenVINO™ Other Bindings <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/README.md>`__
+- `OpenVINO™ Node.js Bindings Examples of Usage <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/samples/js/node/README.md>`__
+- `OpenVINO™ Core Components <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/README.md>`__
+- `OpenVINO™ Python API <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/python/README.md>`__
+- `OpenVINO™ Other Bindings <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/README.md>`__

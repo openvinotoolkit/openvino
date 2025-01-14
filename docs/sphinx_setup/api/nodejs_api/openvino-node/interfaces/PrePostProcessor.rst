@@ -10,7 +10,7 @@ Interface PrePostProcessor
    }
 
 * **Defined in:**
-  `addon.ts:621 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L621>`__
+  `addon.ts:621 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L621>`__
 
 
 Methods
@@ -28,7 +28,7 @@ Methods
    * **Returns:** :doc:`PrePostProcessor <PrePostProcessor>`
 
    * **Defined in:**
-     `addon.ts:622 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L622>`__
+     `addon.ts:622 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L622>`__
 
 
 .. rubric:: input
@@ -50,7 +50,7 @@ Methods
    * **Returns:**  :doc:`InputInfo <InputInfo>`
 
    * **Defined in:**
-     `addon.ts:623 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L623>`__
+     `addon.ts:623 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L623>`__
 
 .. rubric:: output
 
@@ -71,5 +71,5 @@ Methods
    * **Returns:**  :doc:`OutputInfo <OutputInfo>`
 
    * **Defined in:**
-     `addon.ts:624 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L624>`__
+     `addon.ts:624 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/src/bindings/js/node/lib/addon.ts#L624>`__
 

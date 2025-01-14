@@ -92,7 +92,7 @@ find_package(OpenVINO REQUIRED)
 target_link_libraries(<application> PRIVATE openvino::runtime)
 ```
 
-`openvino::runtime` transitively adds all other static OpenVINO libraries to a linker command. 
+`openvino::runtime` transitively adds all other static OpenVINO libraries to a linker command.
 
 ### Pass libraries to linker directly
 
@@ -121,7 +121,7 @@ The conditional compilation feature can be paired with static OpenVINO libraries
 
 ## Building with static MSVC Runtime
 
-In order to build with static MSVC runtime, use the special [OpenVINO toolchain](https://github.com/openvinotoolkit/openvino/blob/master/cmake/toolchains/mt.runtime.win32.toolchain.cmake) file:
+In order to build with static MSVC runtime, use the special [OpenVINO toolchain](https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/cmake/toolchains/mt.runtime.win32.toolchain.cmake) file:
 
 ```sh
 cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.win32.toolchain.cmake <other options>

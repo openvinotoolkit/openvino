@@ -92,17 +92,17 @@ Prerequisites
     from pathlib import Path
     import requests
     import shutil
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
-    
+
     # Fetch llm_config.py
     llm_config_shared_path = Path("../../utils/llm_config.py")
     llm_config_dst_path = Path("llm_config.py")
-    
+
     if not llm_config_dst_path.exists():
         if llm_config_shared_path.exists():
             try:
@@ -150,15 +150,15 @@ dataset for information extraction.
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-    
+
     models = {
         "NuExtract_tiny": {"model_id": "numind/NuExtract-tiny"},
         "NuExtract": {"model_id": "numind/NuExtract"},
         "NuExtract_large": {"model_id": "numind/NuExtract-large"},
     }
-    
+
     form, _, model_dropdown, compression_dropdown, _ = get_llm_selection_widget(languages=None, models=models, show_preconverted_checkbox=False)
-    
+
     form
 
 
@@ -180,7 +180,7 @@ dataset for information extraction.
 .. parsed-literal::
 
     Selected model NuExtract_tiny with INT4 compression
-    
+
 
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
@@ -243,14 +243,14 @@ parameters. An example of this approach usage you can find in
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-    
+
     model_dir = convert_and_compress_model(model_name, model_config, compression_dropdown.value, use_preconverted=False)
 
 
 .. parsed-literal::
 
     ⌛ NuExtract_tiny conversion to INT4 started. It may takes some time.
-    
+
 
 
 **Export command:**
@@ -271,7 +271,7 @@ parameters. An example of this approach usage you can find in
       if sequence_length != 1:
     /home/ytarkan/miniconda3/envs/ov_notebooks_env/lib/python3.9/site-packages/transformers/models/qwen2/modeling_qwen2.py:110: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    
+
 
 .. parsed-literal::
 
@@ -291,26 +291,26 @@ parameters. An example of this approach usage you can find in
 
     Set tokenizer padding side to left for `text-generation-with-past` task.
     Replacing `(?!\S)` pattern to `(?:$|[^\S])` in RegexSplit operation
-    
+
 
 .. parsed-literal::
 
     ✅ INT4 NuExtract_tiny model converted and can be found in NuExtract_tiny/INT4_compressed_weights
-    
+
 
 Let’s compare model size for different compression types
 
 .. code:: ipython3
 
     from llm_config import compare_model_size
-    
+
     compare_model_size(model_dir)
 
 
 .. parsed-literal::
 
     Size of model with INT4 compressed weights is 347.03 MB
-    
+
 
 Select device for inference and model variant
 ---------------------------------------------
@@ -323,9 +323,9 @@ Select device for inference and model variant
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -360,20 +360,20 @@ potentially improving accuracy for complex or ambiguous cases.
 
     import json
     from typing import List
-    
-    
+
+
     def prepare_input(text: str, schema: str, examples: List[str] = ["", "", ""]) -> str:
         schema = json.dumps(json.loads(schema), indent=4)
         input_llm = "<|input|>\n### Template:\n" + schema + "\n"
         for example in examples:
             if example != "":
                 input_llm += "### Example:\n" + json.dumps(json.loads(example), indent=4) + "\n"
-    
+
         input_llm += "### Text:\n" + text + "\n<|output|>\n"
         return input_llm
 
 To simplify user experience we will use `OpenVINO Generate
-API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__.
+API <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/6/src/README.md>`__.
 We will create pipeline with ``LLMPipeline``. ``LLMPipeline`` is the
 main object used for decoding. You can construct it straight away from
 the folder with the converted model. It will automatically load the
@@ -392,10 +392,10 @@ LLMPipeline.
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-    
+
     pipe = ov_genai.LLMPipeline(model_dir.as_posix(), device.value)
-    
-    
+
+
     def run_structure_extraction(text: str, schema: str) -> str:
         input = prepare_input(text, schema)
         return pipe.generate(input, max_new_tokens=200)
@@ -417,7 +417,7 @@ schema format:
     automated benchmarks. Our models are released under the Apache 2.0 license.
     Code: https://github.com/mistralai/mistral-src
     Webpage: https://mistral.ai/news/announcing-mistral-7b/"""
-    
+
     schema = """{
         "Model": {
             "Name": "",
@@ -430,7 +430,7 @@ schema format:
             "Licence": ""
         }
     }"""
-    
+
     output = run_structure_extraction(text, schema)
     print(output)
 
@@ -456,8 +456,8 @@ schema format:
            "Licence": "Apache 2.0"
         }
     }
-    
-    
+
+
 
 Run interactive structure extraction demo with Gradio
 -----------------------------------------------------
@@ -471,11 +471,11 @@ Run interactive structure extraction demo with Gradio
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/nuextract-structure-extraction/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=run_structure_extraction)
-    
+
     try:
         demo.launch(height=800)
     except Exception:

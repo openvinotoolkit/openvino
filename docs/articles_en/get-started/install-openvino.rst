@@ -50,7 +50,7 @@ All currently supported versions are:
 .. dropdown:: Building OpenVINO from Source
 
    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform,
-   follow the `OpenVINO Build Instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__.
+   follow the `OpenVINO Build Instructions <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/build.md>`__.
 
 
 

@@ -16,9 +16,9 @@ what minimal set of libraries is required to deploy the application.
 Local distribution is also suitable for OpenVINO binaries built from source using
 `Build instructions <https://github.com/openvinotoolkit/openvino/wiki#how-to-build>`__,
 but this guide assumes that OpenVINO Runtime is built dynamically.
-For `Static OpenVINO Runtime <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__,
+For `Static OpenVINO Runtime <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/static_libaries.md>`__,
 select the required OpenVINO capabilities at the CMake configuration stage using
-`CMake Options for Custom Compilation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__,
+`CMake Options for Custom Compilation <https://github.com/openvinotoolkit/openvino/blob/releases/2024/6/docs/dev/cmake_options_for_custom_compilation.md>`__,
 then build and link the OpenVINO components to the final application.
 
 .. note::

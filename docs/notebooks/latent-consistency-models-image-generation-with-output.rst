@@ -95,11 +95,11 @@ Prerequisites
 
     from pathlib import Path
     import requests
-    
+
     utility_files = [Path("notebook_utils.py"), Path("skip_kernel_extension.py"), Path("cmd_helper.py")]
-    
+
     base_utils_url = "https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/"
-    
+
     for utility_file in utility_files:
         if not utility_file.exists():
             r = requests.get(base_utils_url + utility_file.name)
@@ -119,7 +119,7 @@ fine-tune of `Stable-Diffusion
 v1-5 <https://huggingface.co/runwayml/stable-diffusion-v1-5>`__ using
 Latent Consistency Distillation (LCD) approach discussed above. This
 model is also integrated into
-`Diffusers <https://huggingface.co/docs/diffusers/index>`__ library. 
+`Diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
 Diffusers is the go-to library for state-of-the-art pretrained diffusion
 models for generating images, audio, and even 3D structures of
 molecules. This allows us to compare running original Stable Diffusion
@@ -129,9 +129,9 @@ and distilled using LCD. The distillation approach efficiently converts
 a pre-trained guided diffusion model into a latent consistency model by
 solving an augmented PF-ODE.
 
-For simplifying model export we will utilize Optimum Intel library. 
+For simplifying model export we will utilize Optimum Intel library.
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -165,10 +165,10 @@ this step we will use fp16 as base model export precision.
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-    
+
     model_id = "SimianLuo/LCM_Dreamshaper_v7"
     model_path = Path(model_id.split("/")[-1] + "_ov")
-    
+
     if not model_path.exists():
         optimum_cli(model_id, model_path, additional_args={"weight-format": "fp16"})
 
@@ -227,9 +227,9 @@ inference. Select desired inference device from dropdown list bellow.
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -244,7 +244,7 @@ inference. Select desired inference device from dropdown list bellow.
 .. code:: ipython3
 
     from optimum.intel.openvino import OVDiffusionPipeline
-    
+
     ov_pipe = OVDiffusionPipeline.from_pretrained(model_path, device=device.value)
 
 
@@ -277,10 +277,10 @@ Now, let’s see model in action
 .. code:: ipython3
 
     import torch
-    
+
     prompt = "a beautiful pink unicorn, 8k"
     num_inference_steps = 4
-    
+
     images = ov_pipe(
         prompt=prompt, num_inference_steps=num_inference_steps, guidance_scale=8.0, height=512, width=512, generator=torch.Generator().manual_seed(1234567)
     ).images
@@ -308,7 +308,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 .. code:: ipython3
 
     import gc
-    
+
     del ov_pipe
     gc.collect();
 
@@ -344,11 +344,11 @@ improve model inference speed.
 .. code:: ipython3
 
     from notebook_utils import quantization_widget
-    
+
     skip_for_device = "GPU" in device.value
     to_quantize = quantization_widget(not skip_for_device)
     int8_model_path = model_path.parent / (model_path.name + "_int8")
-    
+
     to_quantize
 
 
@@ -380,36 +380,36 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     from tqdm.notebook import tqdm
     from transformers import set_seed
     from typing import Any, Dict, List
     import openvino as ov
     import numpy as np
-    
+
     set_seed(1)
-    
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model, prob: float, data_cache: List[Any] = None):
             super().__init__(compiled_model)
             self.data_cache = data_cache if data_cache else []
             self.prob = np.clip(prob, 0, 1)
-    
+
         def __call__(self, *args, **kwargs):
             if np.random.rand() >= self.prob:
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-    
+
     def collect_calibration_data(lcm_pipeline, subset_size: int) -> List[Dict]:
         original_unet = lcm_pipeline.unet.request
         lcm_pipeline.unet.request = CompiledModelDecorator(original_unet, prob=0.3)
-    
+
         dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         lcm_pipeline.set_progress_bar_config(disable=True)
         safety_checker = lcm_pipeline.safety_checker
         lcm_pipeline.safety_checker = None
-    
+
         # Run inference for data collection
         pbar = tqdm(total=subset_size)
         diff = 0
@@ -430,7 +430,7 @@ model inputs for calibration we should customize ``CompiledModel``.
                 break
             pbar.update(collected_subset_size - diff)
             diff = collected_subset_size
-    
+
         calibration_dataset = lcm_pipeline.unet.request.data_cache
         lcm_pipeline.set_progress_bar_config(disable=False)
         lcm_pipeline.unet.request = original_unet
@@ -440,11 +440,11 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import logging
     logging.basicConfig(level=logging.WARNING)
     logger = logging.getLogger(__name__)
-    
+
     if not int8_model_path.exists():
         subset_size = 200
         ov_pipe = OVDiffusionPipeline.from_pretrained(model_path, device=device.value)
@@ -472,12 +472,12 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
     from nncf.scopes import IgnoredScope
     import shutil
     core = ov.Core()
-    
+
     if not int8_model_path.exists():
         unet = core.read_model(model_path / "unet/openvino_model.xml")
         quantized_unet = nncf.quantize(
@@ -546,7 +546,7 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_pipe = OVDiffusionPipeline.from_pretrained(int8_model_path, device=device.value)
 
 Let us check predictions with the quantized UNet using the same input
@@ -555,12 +555,12 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from IPython.display import display
-    
+
     prompt = "a beautiful pink unicorn, 8k"
     num_inference_steps = 4
-    
+
     images = int8_pipe(
         prompt=prompt,
         num_inference_steps=num_inference_steps,
@@ -569,7 +569,7 @@ data.
         width=512,
         generator=torch.Generator().manual_seed(1234567)
     ).images
-    
+
     display(images[0])
 
 
@@ -598,9 +598,9 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
+
     validation_size = 10
     calibration_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True)
     validation_data = []
@@ -609,7 +609,7 @@ pipelines, we use median inference time on calibration subset.
             break
         prompt = batch["caption"]
         validation_data.append(prompt)
-    
+
     def calculate_inference_time(pipeline, calibration_dataset):
         inference_time = []
         pipeline.set_progress_bar_config(disable=True)
@@ -632,14 +632,14 @@ pipelines, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_latency = calculate_inference_time(int8_pipe, validation_data)
     del int8_pipe
     gc.collect()
     ov_pipe = OVDiffusionPipeline.from_pretrained(model_path, device=device.value)
     fp_latency = calculate_inference_time(ov_pipe, validation_data)
     print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
-    
+
     del ov_pipe
     gc.collect();
 
@@ -658,11 +658,11 @@ Compare UNet file size
 
     UNET_OV_PATH = model_path / "unet/openvino_model.xml"
     UNET_INT8_OV_PATH = int8_model_path / "unet/openvino_model.xml"
-    
+
     if UNET_INT8_OV_PATH.exists():
         fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
         quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
-    
+
         print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
         print(f"INT8 model size: {quantized_model_size:.2f} KB")
         print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -694,7 +694,7 @@ generative models as it already includes all the core functionality.
 
 ``openvino_genai.Text2ImagePipeline`` class supports inference of
 `Diffusers
-models <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/docs/SUPPORTED_MODELS.md#text-2-image-models>`__.
+models <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/6/src/docs/SUPPORTED_MODELS.md#text-2-image-models>`__.
 For pipeline initialization, we should provide directory with converted
 by Optimum Intel pipeline and specify inference device. Optionally, we
 can provide configuration for LoRA Adapters using ``adapter_config``.
@@ -722,10 +722,10 @@ generation process.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     int8_can_be_used = int8_model_path.exists() and "GPU" not in device.value
     use_quantized_model = widgets.Checkbox(value=int8_can_be_used, description="Use INT8 model", disabled=not int8_can_be_used)
-    
+
     use_quantized_model
 
 
@@ -740,9 +740,9 @@ generation process.
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-    
+
     used_model_path = model_path if not use_quantized_model.value else int8_model_path
-    
+
     pipe = ov_genai.Text2ImagePipeline(used_model_path, device.value)
 
 .. code:: ipython3
@@ -750,30 +750,30 @@ generation process.
     from PIL import Image
     import torch
     import openvino as ov
-    
-    
+
+
     class Generator(ov_genai.Generator):
         def __init__(self, seed):
             ov_genai.Generator.__init__(self)
             self.generator = torch.Generator(device="cpu").manual_seed(seed)
-    
+
         def next(self):
             return torch.randn(1, generator=self.generator, dtype=torch.float32).item()
-    
+
         def randn_tensor(self, shape: ov.Shape):
             torch_tensor = torch.randn(list(shape), generator=self.generator, dtype=torch.float32)
             return ov.Tensor(torch_tensor.numpy())
-    
-    
+
+
     prompt = "a beautiful pink unicorn, 8k"
     num_inference_steps = 4
-    
+
     random_generator = Generator(1234567)
-    
+
     image_tensor = pipe.generate(prompt, width=512, height=512, num_inference_steps=4, num_images_per_prompt=1, generator=random_generator)
-    
+
     image = Image.fromarray(image_tensor.data[0])
-    
+
     image
 
 
@@ -793,16 +793,16 @@ Interactive demo
     import random
     import gradio as gr
     import numpy as np
-    
+
     MAX_SEED = np.iinfo(np.int32).max
-    
-    
+
+
     def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
         if randomize_seed:
             seed = random.randint(0, MAX_SEED)
         return seed
-    
-    
+
+
     def generate(
         prompt: str,
         seed: int = 0,
@@ -828,11 +828,11 @@ Interactive demo
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/latent-consistency-models-image-generation/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo_lcm
-    
+
     demo = make_demo_lcm(fn=generate)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
