@@ -104,7 +104,7 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     }
 
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
-    auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
+    auto out_shapes = ov::op::v0::shape_infer(ov::as_type<const ov::op::v0::MatMul>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
     if (order_c.size() > 0) {
         return { transpose_pshape(out_shapes[0], order_c) };

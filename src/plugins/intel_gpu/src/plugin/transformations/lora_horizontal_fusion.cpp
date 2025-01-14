@@ -21,23 +21,23 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
         auto is_lora_pattern = [](const std::shared_ptr<Node>& node) {
             #define check(node) if (!node) return false;
 
-            const auto& add = std::dynamic_pointer_cast<ov::op::v1::Add>(node);                                                         check(add)
+            const auto& add = ov::as_type_ptr<ov::op::v1::Add>(node);                                                         check(add)
 
             size_t matmul2_idx = ov::is_type<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(0)) ? 0 : 1;
-            const auto& matmul2 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(matmul2_idx));           check(matmul2)
+            const auto& matmul2 = ov::as_type_ptr<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(matmul2_idx));           check(matmul2)
 
-            const auto& multiply = std::dynamic_pointer_cast<ov::op::v1::Multiply>(matmul2->get_input_node_shared_ptr(0));              check(multiply)
+            const auto& multiply = ov::as_type_ptr<ov::op::v1::Multiply>(matmul2->get_input_node_shared_ptr(0));              check(multiply)
 
-            const auto& variable_b = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(matmul2->get_input_node_shared_ptr(1));     check(variable_b)
+            const auto& variable_b = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul2->get_input_node_shared_ptr(1));     check(variable_b)
 
             size_t matmul1_idx = ov::is_type<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(0)) ? 0 : 1;
-            const auto& matmul1 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(matmul1_idx));      check(matmul1)
+            const auto& matmul1 = ov::as_type_ptr<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(matmul1_idx));      check(matmul1)
 
             size_t alpha_idx = (matmul1_idx + 1) % 2;
             const auto& variable_alpha =
-                std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(multiply->get_input_node_shared_ptr(alpha_idx));                 check(variable_alpha)
+                ov::as_type_ptr<ov::op::util::ReadValueBase>(multiply->get_input_node_shared_ptr(alpha_idx));                 check(variable_alpha)
 
-            const auto& variable_a = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(matmul1->get_input_node_shared_ptr(1));     check(variable_a)
+            const auto& variable_a = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul1->get_input_node_shared_ptr(1));     check(variable_a)
 
             #undef check
             return true;
@@ -104,8 +104,8 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
                                                 "_fused_" + std::to_string(variable_alpha_nodes.size()) + "_ReadValues");
         ov::copy_runtime_info(variable_alpha_nodes, fused_variable_alpha);
 
-        bool transpose_a1 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul1_nodes[0])->get_transpose_a();
-        bool transpose_b1 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul1_nodes[0])->get_transpose_b();
+        bool transpose_a1 = ov::as_type_ptr<ov::op::v0::MatMul>(matmul1_nodes[0])->get_transpose_a();
+        bool transpose_b1 = ov::as_type_ptr<ov::op::v0::MatMul>(matmul1_nodes[0])->get_transpose_b();
         auto fused_matmul1 = std::make_shared<ov::op::v0::MatMul>(pattern_map.at(lora_input), fused_variable_a, transpose_a1, transpose_b1);
         auto fused_matmul1_name = matmul1_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(matmul1_nodes.size()) + "_MatMuls";
         fused_matmul1->set_friendly_name(fused_matmul1_name);
