@@ -85,7 +85,7 @@ void reshape_transfer::run(program& p) {
         auto transformed_order = original_order;
         ov::Shape new_shape(transformed_order.size());
         const uint16_t merge_dim_idx = [&]() {
-            for (uint16_t i = 0; i < reshape_in_shape.size(); ++i) {
+            for (uint16_t i = 0; i < reshape_out_shape.size(); ++i) {
                 if (reshape_in_shape[i] != reshape_out_shape[i])
                     return i;
             }
