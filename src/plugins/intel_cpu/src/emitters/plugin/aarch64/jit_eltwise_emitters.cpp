@@ -330,7 +330,7 @@ void jit_not_equal_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
     const TReg dst = TReg(out_vec_idxs[0]);
     const TReg aux = TReg(aux_vec_idxs[0]);
     h->fcmeq(dst.s, src1.s, src2.s);
-    h->mvn(dst.b16, dst.b16);
+    h->not_(dst.b16, dst.b16);
     h->ld1r(aux.s, table_val2("one"));
     h->and_(dst.b16, dst.b16, aux.b16);
 }
