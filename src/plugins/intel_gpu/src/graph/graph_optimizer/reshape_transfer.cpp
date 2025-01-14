@@ -25,9 +25,29 @@ void reshape_transfer::run(program& p) {
             return false;
         auto& input_lay = node->get_input_layout(0);
         auto& output_lay = node->get_output_layout();
-        if (input_lay.compatible(output_lay))
-            return true;
-        return false;
+        if (!input_lay.compatible(output_lay))
+            return false;
+
+        auto&& in_shape = input_lay.get_partial_shape().get_shape();
+        auto&& out_shape = output_lay.get_partial_shape().get_shape();
+
+        // in this pass, reshape supported only in one case, if two consecutive input dims are merged into 1
+        // for example, [1,3,4,6] -> Reshape[1,3,24,1] or Reshape[1,12,6]
+        if (in_shape.size() != out_shape.size() && in_shape.size() - out_shape.size() != 1)
+            return false;
+
+        size_t mismatch_count = 0;
+        if (in_shape.size() > out_shape.size()) {
+            for (size_t i = 0; i < out_shape.size(); ++i) {
+                if (i + mismatch_count >= in_shape.size())
+                    return false;
+                if (out_shape[i] != in_shape[i + mismatch_count]) {
+                    mismatch_count++;
+                }
+            }
+            return mismatch_count == 1;
+        }
+        return true;
     };
 
     std::function<bool(cldnn::program_node*)> is_suitable_parent;
