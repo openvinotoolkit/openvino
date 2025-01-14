@@ -140,8 +140,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<ov::frontend::tensorflow::FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<ov::frontend::tensorflow::FrameworkNode>(node),
-                                     m_op_translators);
+            translate_framework_node(ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {

@@ -47,7 +47,7 @@ void ReverseSequenceLayerTest::SetUp() {
         secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
     } else if (ov::test::utils::InputLayerType::PARAMETER == secondary_input_type) {
         secondary_input = std::make_shared<ov::op::v0::Parameter>(second_data_type, ov::Shape(second_input_shape));
-        params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(secondary_input));
+        params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(secondary_input));
     } else {
         throw std::runtime_error("Unsupported input type");
     }

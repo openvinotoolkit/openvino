@@ -66,7 +66,7 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                                              std::set<std::string>& unsupported_operations,
                                              std::unordered_map<std::string, std::string>& failures) {
     for (const auto& node : model->get_ordered_ops()) {
-        if (const auto& internal_op = std::dynamic_pointer_cast<InternalOperation>(node)) {
+        if (const auto& internal_op = ov::as_type_ptr<InternalOperation>(node)) {
             // handle internal operations separately
             // which can have elaborated reason of unconverted operation
             // like Const of string type
@@ -546,7 +546,7 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            translate_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
+            translate_framework_node(ov::as_type_ptr<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {

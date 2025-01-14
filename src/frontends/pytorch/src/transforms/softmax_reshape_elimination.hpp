@@ -19,6 +19,7 @@ namespace pass {
  */
 class SoftmaxReshapeElimination : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::SoftmaxReshapeElimination");
     SoftmaxReshapeElimination();
 };
 

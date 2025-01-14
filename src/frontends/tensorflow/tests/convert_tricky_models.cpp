@@ -110,7 +110,7 @@ TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
 
     int num_emb_segment_sum = 0;
     for (auto& node : model->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<v3::EmbeddingSegmentsSum>(node)) {
+        if (ov::as_type_ptr<v3::EmbeddingSegmentsSum>(node)) {
             ++num_emb_segment_sum;
         }
     }
