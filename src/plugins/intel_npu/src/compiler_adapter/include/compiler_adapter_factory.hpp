@@ -26,7 +26,6 @@ public:
         }
         case ov::intel_npu::CompilerType::DRIVER: {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
-                //TODO: need add a log here?
                 OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
             }
 
