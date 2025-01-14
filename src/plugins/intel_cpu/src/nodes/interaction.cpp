@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,7 +188,7 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix = "Interaction node with name '" + getName() + "'";
-    const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
+    const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
@@ -367,7 +367,7 @@ bool Interaction::isExecutable() const {
 
 bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
+        const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
         if (!interaction) {
             errorMessage = "Only Interaction operation is supported";
             return false;

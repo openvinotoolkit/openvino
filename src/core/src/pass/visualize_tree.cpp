@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,7 +185,7 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
                                         std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_to_number) {
     size_t n = symbol_to_number.size() + 1;
     for (const auto& node : m->get_ops()) {
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node))
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node))
             for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
                 if (const auto& sub_graph = multi_subgraph_op->get_function(i))
                     collect_symbol_print_values(sub_graph, symbol_to_number);
@@ -241,7 +241,7 @@ bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) 
 
     for (auto it = nodes.rbegin(); it != nodes.rend(); ++it) {
         auto& node = *it;
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i)
                 if (const auto& sub_graph = multi_subgraph_op->get_function(i))
                     ov::pass::VisualizeTree(name_of_subgraph_file(multi_subgraph_op, m_name, i),

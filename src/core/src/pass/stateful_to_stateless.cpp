@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,9 +96,8 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
         future_params;  // to collect nodes, each with a single output that will be replaced by new parameters
     if (beam_idx) {
         for (const ov::Input<ov::Node>& input : beam_idx->get_output_target_inputs(0)) {
-            if (auto gather = std::dynamic_pointer_cast<op::util::GatherBase>(input.get_node()->shared_from_this())) {
-                auto read_value =
-                    std::dynamic_pointer_cast<op::util::ReadValueBase>(gather->get_input_node_shared_ptr(0));
+            if (auto gather = ov::as_type_ptr<op::util::GatherBase>(input.get_node()->shared_from_this())) {
+                auto read_value = ov::as_type_ptr<op::util::ReadValueBase>(gather->get_input_node_shared_ptr(0));
                 OPENVINO_ASSERT(read_value,
                                 "Unexpected model topology in StatefulToStateless: no ReadValue is found at the first "
                                 "input of Gather by `beam_idx` parameter");
@@ -118,7 +117,7 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
     std::unordered_map<std::string, size_t> assign_index_by_var_id;
     const auto& sinks = model->get_sinks();
     for (size_t i = 0; i < sinks.size(); ++i) {
-        if (auto assign = std::dynamic_pointer_cast<op::util::AssignBase>(sinks[i])) {
+        if (auto assign = ov::as_type_ptr<op::util::AssignBase>(sinks[i])) {
             const auto& var_id = assign->get_variable_id();
             assigns_by_var_id[var_id] = std::move(assign);
             assign_index_by_var_id[var_id] = i;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,7 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
     const auto maybe_extract_axis = [&op]() {
         std::unique_ptr<int64_t> axis;
         if (op.get_input_size() == 2 && ov::op::util::is_constant(op.input_value(1).get_node())) {
-            const auto axis_constant =
-                std::dynamic_pointer_cast<op::v0::Constant>(op.input_value(1).get_node_shared_ptr());
+            const auto axis_constant = ov::as_type_ptr<op::v0::Constant>(op.input_value(1).get_node_shared_ptr());
             axis = std::unique_ptr<int64_t>(new int64_t{extract_axis(axis_constant)});
         }
         return axis;
@@ -112,7 +111,7 @@ void op::v10::Unique::validate_and_infer_types() {
     output_shapes[3] = output_shapes[1];
 
     if (ov::op::util::is_constant(input_value(0).get_node())) {
-        const auto input_const = std::dynamic_pointer_cast<op::v0::Constant>(input_value(0).get_node_shared_ptr());
+        const auto input_const = ov::as_type_ptr<op::v0::Constant>(input_value(0).get_node_shared_ptr());
         ov::Tensor input_data = ov::Tensor(input_const->get_element_type(), input_const->get_shape());
         memcpy(input_data.data(), input_const->get_data_ptr(), input_data.get_byte_size());
         const auto tensor_shapes = calculate_static_output_shapes(input_data, *this);
@@ -137,8 +136,7 @@ void op::v10::Unique::validate_and_infer_types() {
                 get_input_partial_shape(1) == PartialShape{} || get_input_partial_shape(1) == PartialShape{1},
                 "The 'axis' input tensor of the Unique operator must be a scalar or 1D tensor with 1 element.");
 
-            const int64_t axis =
-                extract_axis(std::dynamic_pointer_cast<op::v0::Constant>(input_value(1).get_node_shared_ptr()));
+            const int64_t axis = extract_axis(ov::as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()));
 
             if (input_shape.rank().is_static()) {
                 const auto normalized_axis = ov::util::try_normalize_axis(axis, input_shape.rank(), *this);
