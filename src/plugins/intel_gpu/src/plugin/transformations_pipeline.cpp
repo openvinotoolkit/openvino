@@ -988,9 +988,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (device_info.supports_immad) {
             auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
-                if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
-                    return true;
+                for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
+                    if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
+                        GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
+                        return true;
+                    }
                 }
 
                 auto weight_shape = root->get_input_partial_shape(1);
