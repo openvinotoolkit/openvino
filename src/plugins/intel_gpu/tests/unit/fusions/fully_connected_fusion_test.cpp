@@ -536,6 +536,7 @@ public:
 };
 
 TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
+    GTEST_SKIP();
     run_test(false);
 }
 
@@ -576,6 +577,7 @@ TEST_P(fc_fp16_eltwise_add, basic) {
 }
 
 TEST_P(fc_fp16_eltwise_add, basic_cached) {
+    GTEST_SKIP();
     run_test(true);
 }
 

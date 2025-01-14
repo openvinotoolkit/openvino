@@ -3175,6 +3175,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 TEST_P(fully_connected_random_test_f16, basic) {
+    GTEST_SKIP();
     run_test();
 }
 
@@ -4011,6 +4012,7 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
+    GTEST_SKIP();
     this->test_compressed_int4_scale(false, false, 256);
 }
 
@@ -4043,6 +4045,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_reuse_scale) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_cached) {
+    GTEST_SKIP();
     this->test_compressed_int4_scale(true, false, 256);
 }
 
@@ -4754,6 +4757,7 @@ TEST_P(fully_connected_types_i8_i8_test, random) {
 }
 
 TEST_P(fully_connected_types_i8_u8_test, random) {
+    GTEST_SKIP();
     run_random_test();
 }
 

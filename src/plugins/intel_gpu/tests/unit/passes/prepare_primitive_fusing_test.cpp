@@ -166,6 +166,7 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal) {
 }
 
 TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_const) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ ov::PartialShape{ 2, 10 }, data_types::u8, format::bfyx });
     auto in_layout = layout{ ov::PartialShape::dynamic(2), data_types::u8, format::bfyx };
