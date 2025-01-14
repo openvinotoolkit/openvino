@@ -88,6 +88,7 @@ private:
     MemoryBlockWithReuse* m_pInternalMem;
 };
 
+#ifdef CPU_DEBUG_CAPS
 class IndividualMemoryBlockWithRelease : public IMemoryBlockObserver {
 public:
     IndividualMemoryBlockWithRelease(const std::shared_ptr<MemoryBlockWithRelease>& pBlock) : m_pBlock(pBlock) {}
@@ -127,6 +128,7 @@ private:
     std::shared_ptr<MemoryBlockWithRelease> m_pBlock;
     size_t m_max_requested_size = 0;
 };
+#endif // CPU_DEBUG_CAPS
 
 class IMemoryManager {
 public:
@@ -135,7 +137,6 @@ public:
     virtual const MemoryControl::MemorySolution& lastSolution() = 0;
     virtual void allocate() = 0;
     virtual void release() = 0;
-    virtual MemoryStatisticsRecord dumpStatistics() = 0;
 };
 
 using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
@@ -158,7 +159,7 @@ public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         (void)syncInds;
         auto block = make_unique<BlockType>();
-        m_blocks.push_back(*block);
+        CPU_DEBUG_CAP_ENABLE(m_blocks.push_back(*block);)
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
     }
 
@@ -173,22 +174,25 @@ public:
         // nothing to do
     }
 
-    MemoryStatisticsRecord dumpStatistics() override {
+#ifdef CPU_DEBUG_CAPS
+    static MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
         MemoryStatisticsRecord retVal;
         retVal.id = getClassName();
-        retVal.total_regions = m_blocks.size();  // as the number of blocks ie equal to regions
-        retVal.total_unique_blocks = m_blocks.size();
-        retVal.total_size = std::accumulate(m_blocks.begin(), m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
-            return acc + item.size();
-        });
+        retVal.total_regions = obj.m_blocks.size();  // as the number of blocks ie equal to regions
+        retVal.total_unique_blocks = obj.m_blocks.size();
+        retVal.total_size =
+            std::accumulate(obj.m_blocks.begin(), obj.m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
+                return acc + item.size();
+            });
         retVal.optimal_total_size = retVal.total_size;
         // find max size memory block in m_blocks
         retVal.max_region_size =
-            std::accumulate(m_blocks.begin(), m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
+            std::accumulate(obj.m_blocks.begin(), obj.m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
                 return std::max(acc, item.size());
             });
         return retVal;
     }
+#endif
 
 private:
     static const char* getClassName() {
@@ -197,9 +201,10 @@ private:
 
 private:
     MemoryControl::MemorySolution m_solution;
-    std::vector<std::reference_wrapper<BlockType>> m_blocks;
+    CPU_DEBUG_CAP_ENABLE(std::vector<std::reference_wrapper<BlockType>> m_blocks;)
 };
 
+#ifdef CPU_DEBUG_CAPS
 static std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver::Box> boxes) {
     ov::MemorySolver::normalize_boxes(boxes);
 
@@ -226,6 +231,7 @@ static std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<Memory
 
     return {max_current_size, max_box_size};
 }
+#endif
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
@@ -244,21 +250,23 @@ public:
         return m_blocks;
     }
 
-    MemoryStatisticsRecord dumpStatistics() override {
+#ifdef CPU_DEBUG_CAPS
+    static MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj) {
         MemoryStatisticsRecord retVal;
         retVal.id = getClassName();
-        retVal.total_regions = m_boxes.size();
+        retVal.total_regions = obj.m_boxes.size();
         retVal.total_unique_blocks = 1;  // in fact there is only one unique block
-        retVal.total_size = m_totalSize;
+        retVal.total_size = obj.m_totalSize;
 
         {
-            auto result = calculateOptimalMemorySize(m_boxes);
+            auto result = calculateOptimalMemorySize(obj.m_boxes);
 
             retVal.optimal_total_size = result.first;
             retVal.max_region_size = result.second;
         }
         return retVal;
     }
+#endif
 
 private:
     void solve() {
@@ -303,6 +311,66 @@ private:
 
 class MemoryManagerNonOverlappingSets : public IMemoryManager {
 public:
+#ifdef CPU_DEBUG_CAPS
+    class MemoryBlocks {
+    public:
+        MemoryBlocks() = default;
+        explicit MemoryBlocks(const std::vector<std::vector<ov::MemorySolver::Box>>& groups) {
+            for (auto& group : groups) {
+                m_unique_blocks.push_back(std::make_shared<MemoryBlockWithRelease>());
+                for (auto& box : group) {
+                    m_internalBlocks[box.id] =
+                        std::make_shared<IndividualMemoryBlockWithRelease>(m_unique_blocks.back());
+                }
+            }
+        }
+        auto begin() {
+            return m_internalBlocks.begin();
+        }
+
+        auto end() {
+            return m_internalBlocks.end();
+        }
+        const auto& at(const MemoryControl::MemorySolution::key_type& key) const {
+            return m_internalBlocks.at(key);
+        }
+        const auto& uniqueBlocks() const {
+            return m_unique_blocks;
+        }
+
+    private:
+        std::vector<std::shared_ptr<MemoryBlockWithRelease>> m_unique_blocks;
+        std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<IndividualMemoryBlockWithRelease>>
+            m_internalBlocks;
+    };
+#else
+    class MemoryBlocks {
+    public:
+        MemoryBlocks() = default;
+        explicit MemoryBlocks(const std::vector<std::vector<ov::MemorySolver::Box>>& groups) {
+            for (auto& group : groups) {
+                auto unique_block = std::make_shared<MemoryBlockWithRelease>();
+                for (auto& box : group) {
+                    m_internalBlocks[box.id] = unique_block;
+                }
+            }
+        }
+
+        auto begin() {
+            return m_internalBlocks.begin();
+        }
+
+        auto end() {
+            return m_internalBlocks.end();
+        }
+
+    private:
+        std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<MemoryBlockWithRelease>>
+            m_internalBlocks;
+    };
+#endif  // CPU_DEBUG_CAPS
+
+public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
         if (-1 != reg.finish) {
@@ -327,27 +395,28 @@ public:
     const MemoryControl::MemorySolution& lastSolution() override {
         if (reset_flag && !m_boxes.empty()) {
             solve();
-            m_blocks = MemoryControl::MemorySolution{m_internalBlocks.begin(), m_internalBlocks.end()};
+            m_blocks = MemoryControl::MemorySolution{m_memoryBlocks.begin(), m_memoryBlocks.end()};
             reset_flag = false;
         }
         return m_blocks;
     }
 
-    MemoryStatisticsRecord dumpStatistics() override {
+#ifdef CPU_DEBUG_CAPS
+    static MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets& obj) {
         MemoryStatisticsRecord retVal;
         retVal.id = getClassName();
-        retVal.total_regions = m_boxes.size();
-        retVal.total_unique_blocks = m_unique_blocks.size();
-        retVal.total_size = std::accumulate(m_unique_blocks.begin(),
-                                            m_unique_blocks.end(),
+        retVal.total_regions = obj.m_boxes.size();
+        retVal.total_unique_blocks = obj.m_memoryBlocks.uniqueBlocks().size();
+        retVal.total_size = std::accumulate(obj.m_memoryBlocks.uniqueBlocks().begin(),
+                                            obj.m_memoryBlocks.uniqueBlocks().end(),
                                             0,
-                                            [](size_t acc, const decltype(m_unique_blocks)::value_type& item) {
+                                            [](size_t acc, const auto& item) {
                                                 return acc + item->size();
                                             });
 
-        auto tmp_boxes = m_boxes;
+        auto tmp_boxes = obj.m_boxes;
         for (auto&& box : tmp_boxes) {
-            auto block = m_internalBlocks[box.id];
+            auto block = obj.m_memoryBlocks.at(box.id);
             box.size = block->size();
         }
 
@@ -356,6 +425,7 @@ public:
         retVal.max_region_size = result.second;
         return retVal;
     }
+#endif  // CPU_DEBUG_CAPS
 
 private:
     void solve() {
@@ -379,19 +449,14 @@ private:
                 groups.push_back({box});
             }
         }
-        for (auto& group : groups) {
-            m_unique_blocks.push_back(std::make_shared<MemoryBlockWithRelease>());
-            for (auto& box : group) {
-                m_internalBlocks[box.id] = std::make_shared<IndividualMemoryBlockWithRelease>(m_unique_blocks.back());
-            }
-        }
+        m_memoryBlocks = MemoryBlocks(groups);
     }
 
     void allocate() override {
         // nothing to do
     }
     void release() override {
-        for (auto&& item : m_internalBlocks) {
+        for (auto&& item : m_memoryBlocks) {
             item.second->free();
         }
     }
@@ -402,10 +467,8 @@ private:
 
 private:
     MemoryControl::MemorySolution m_blocks;
-    std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<IndividualMemoryBlockWithRelease>>
-        m_internalBlocks;
     std::vector<MemorySolver::Box> m_boxes;
-    std::vector<std::shared_ptr<MemoryBlockWithRelease>> m_unique_blocks;
+    MemoryBlocks m_memoryBlocks;
     bool reset_flag = true;
 };
 
@@ -443,9 +506,19 @@ public:
 
 #ifdef CPU_DEBUG_CAPS
     MemoryStatisticsRecord dumpStatistics() const {
-        return m_memManager->dumpStatistics();
+        return m_statDumper(m_memManager);
     }
-#endif
+
+    using MemoryStatsDumper = std::function<MemoryStatisticsRecord(const MemoryManagerPtr&)>;
+
+    void setDumper(MemoryStatsDumper dumper) {
+        m_statDumper = std::move(dumper);
+    }
+
+private:
+    MemoryStatsDumper m_statDumper;
+
+#endif  // CPU_DEBUG_CAPS
 
 private:
     Condition m_cond;
@@ -456,8 +529,16 @@ namespace {
 
 template <typename T, typename F, typename... Args>
 MemoryControl::RegionHandlerPtr buildHandler(F&& f, Args&&... args) {
-    return std::make_shared<MemoryControl::RegionHandler>(std::forward<F>(f),
-                                                          std::make_shared<T>(std::forward<Args>(args)...));
+    auto retVal = std::make_shared<MemoryControl::RegionHandler>(std::forward<F>(f),
+                                                                 std::make_shared<T>(std::forward<Args>(args)...));
+#ifdef CPU_DEBUG_CAPS
+    retVal->setDumper([](const MemoryManagerPtr& ptr) {
+        OPENVINO_ASSERT(ptr);
+        return T::dumpStatisticsImpl(*static_cast<T*>(ptr.get()));
+    });
+#endif  // CPU_DEBUG_CAPS
+
+    return retVal;
 }
 
 }  // namespace
@@ -541,7 +622,7 @@ MemoryStatistics MemoryControl::dumpStatistics() const {
     }
     return profileData;
 }
-#endif
+#endif  // CPU_DEBUG_CAPS
 
 EdgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     typedef std::unordered_map<EdgePtr, size_t> edge_cluster_idx_map_t;
@@ -612,7 +693,7 @@ std::unordered_map<std::string, MemoryStatistics> NetworkMemoryControl::dumpStat
     return retVal;
 #else
     return {};
-#endif
+#endif  // CPU_DEBUG_CAPS
 }
 
 }  // namespace intel_cpu
