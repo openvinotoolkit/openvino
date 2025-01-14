@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 
-from openvino.runtime import Dimension,properties
+from openvino import Dimension, properties
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
