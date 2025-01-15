@@ -89,7 +89,7 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     max_value = work_group_reduce_max(max_value);
 
     // If the range of input data is zero, it is adjusted to the minimum value(0.001).
-    half diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
+    ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
