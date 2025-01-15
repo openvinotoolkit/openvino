@@ -450,7 +450,7 @@ Plugin::Plugin()
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::compiler_dynamic_quantization.name(),
-         {min_compiler_requirement(ICOMPILER_MAKE_VERSION(7, 1)),
+         {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
@@ -571,7 +571,12 @@ Plugin::Plugin()
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
+}
 
+void Plugin::reset_supported_properties() const {
+    /// reset first
+    _supportedProperties.clear();  /// Mutable member
+    /// populate
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
@@ -579,15 +584,37 @@ Plugin::Plugin()
     }
 }
 
+void Plugin::reset_compiler_dependent_properties() const {
+    // get active compiler version
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
+    uint32_t active_compiler_version = dummyCompiler->get_version();
+
+    // NPU_COMPILER_DYNAMIC_QUANTIZATION
+    // unpublish if compiler version requirement is not met
+    if (_properties.find(ov::intel_npu::compiler_dynamic_quantization.name()) != _properties.end()) {
+        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 1)) {
+            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = true;  /// mark supported
+        } else {
+            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
+        }
+    }
+}
+
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
     update_log_level(config);
+    bool compiler_type_change = false;
     for (const auto& configEntry : config) {
         if (_properties.find(configEntry.first) == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
         } else {
             if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
+            }
+            if (configEntry.first == ov::intel_npu::compiler_type.name()) {
+                // we just assume its a change, not compare against old value
+                compiler_type_change = true;
             }
         }
     }
@@ -600,11 +627,25 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+    if (compiler_type_change) {
+        // if compiler type was changed > need to reset properties to match the new compiler
+        // since properties have changed > need to reset supported_properties as well
+        reset_compiler_dependent_properties();
+        reset_supported_properties();
+    }
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     const std::map<std::string, std::string>& amends = any_copy(arguments);
     const Config amendedConfig = merge_configs(_globalConfig, amends);
+
+    /// Special case for supportedProperties
+    /// populate it at first get
+    if (name == ov::supported_properties.name() && _supportedProperties.size() < 1) {
+        reset_compiler_dependent_properties();
+        reset_supported_properties();
+    }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
@@ -852,15 +893,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return supportedOpsMap;
-}
-
-bool Plugin::min_compiler_requirement(uint32_t compiler_version_requirement) {
-    /// Internal helper function to check if compiler_version_requirement param >= actual compiler version in use
-    /// create dummy compiler of <COMPILER_TYPE> from config
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
-    uint32_t compiler_version_in_use = dummyCompiler->get_version();
-    return (compiler_version_in_use >= compiler_version_requirement);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
