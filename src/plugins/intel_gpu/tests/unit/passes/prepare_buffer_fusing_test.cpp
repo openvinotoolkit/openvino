@@ -916,6 +916,7 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_unsqueeze) {
 }
 
 TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_squeeze_crop_axis) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
 

@@ -18,7 +18,7 @@ struct OpExtensionFEParam {
 
 class Relu : public ov::op::Op {
 public:
-    OPENVINO_OP("Relu");
+    OPENVINO_OP("Relu", "frontend_test");
 
     Relu() = default;
     Relu(const ov::Output<ov::Node>& arg) : ov::op::Op({arg}) {
