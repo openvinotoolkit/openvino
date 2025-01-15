@@ -83,31 +83,32 @@ enum class AnyType : int { STRING = 0, CHARS, INT, UINT32, INT64, UINT64, SIZET,
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     // FIXME: figure out a proper way to serialize Any (for config)
     if (var.is<std::string>()) {
-        write(stream, int(AnyType::STRING));
+        write(stream, static_cast<int>(AnyType::STRING));
         write(stream, var.as<std::string>());
     } else if (var.is<const char*>()) {
-        write(stream, int(AnyType::CHARS));
+        // FIXME: handle properly
+        write(stream, static_cast<int>(AnyType::CHARS));
         write(stream, std::string(var.as<const char*>()));
     } else if (var.is<std::size_t>()) {
-        write(stream, int(AnyType::SIZET));
+        write(stream, static_cast<int>(AnyType::SIZET));
         write(stream, var.as<std::size_t>());
     } else if (var.is<int>()) {
-        write(stream, int(AnyType::INT));
+        write(stream, static_cast<int>(AnyType::INT));
         write(stream, var.as<int>());
     } else if (var.is<int64_t>()) {
-        write(stream, int(AnyType::INT64));
+        write(stream, static_cast<int>(AnyType::INT64));
         write(stream, var.as<int64_t>());
     } else if (var.is<uint32_t>()) {
-        write(stream, int(AnyType::UINT32));
+        write(stream, static_cast<int>(AnyType::UINT32));
         write(stream, var.as<uint32_t>());
     } else if (var.is<uint64_t>()) {
-        write(stream, int(AnyType::UINT64));
+        write(stream, static_cast<int>(AnyType::UINT64));
         write(stream, var.as<uint64_t>());
     } else if (var.is<float>()) {
-        write(stream, int(AnyType::FLOAT));
+        write(stream, static_cast<int>(AnyType::FLOAT));
         write(stream, var.as<float>());
     } else if (var.is<bool>()) {
-        write(stream, int(AnyType::BOOL));
+        write(stream, static_cast<int>(AnyType::BOOL));
         write(stream, var.as<bool>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
@@ -224,6 +225,7 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         read(stream, val);
         var = std::move(val);
     } else if (type == AnyType::CHARS) {
+        // FIXME: handle properly
         std::string val;
         read(stream, val);
         var = std::move(val);
