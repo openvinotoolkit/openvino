@@ -40,6 +40,8 @@ public:
 
     // Evaluate and allocate all LazyTensors in the bank
     void evaluate_and_allocate();
+    // For deserialized bank only
+    void evaluate_and_allocate(std::ifstream& weights_stream);
 
     bool is_remote(int64_t uid) const;
 

@@ -10,6 +10,7 @@
 
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "serialization.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::LazyTensor;
@@ -23,6 +24,11 @@ struct Const {
     ov::element::Type m_cached_type;
     ov::Shape m_cached_shape;
     const void* m_cached_ptr = nullptr;
+    bool was_deserialized = false;
+    std::size_t m_offset = 0;
+    std::size_t m_byte_size = 0;
+
+    Const() = default;
 
     explicit Const(std::shared_ptr<ov::op::v0::Constant> n) : m_node(n) {
         m_cached_type = m_node->get_element_type();
@@ -45,13 +51,44 @@ struct Const {
         NPUW_ASSERT(m_node && "Const::eval() can only happen before detach");
         return ov::npuw::util::tensor_from_const(m_node);
     }
+    ov::Tensor eval(std::istream& stream) const {
+        NPUW_ASSERT(was_deserialized);
+        ov::Tensor t(m_cached_type, m_cached_shape);
+        stream.seekg(m_offset);
+        stream.read(reinterpret_cast<char*>(t.data()), m_byte_size);
+        return t;
+    }
     void detach() {
         m_node.reset();
+    }
+    void serialize(std::ostream& stream) const {
+        using namespace ov::npuw::s11n;
+        write(stream, m_cached_type.to_string());
+        write(stream, m_cached_shape);
+        write(stream, m_offset);
+        write(stream, m_node->get_byte_size());
+    }
+    static Const deserialize(std::istream& stream) {
+        using namespace ov::npuw::s11n;
+        Const c;
+        c.was_deserialized = true;
+        std::string type_str;
+        read(stream, type_str);
+        c.m_cached_type = ov::element::Type(type_str);
+        read(stream, c.m_cached_shape);
+        read(stream, c.m_offset);
+        read(stream, c.m_byte_size);
+        return c;
+    }
+    void set_offset(std::size_t offset) {
+        m_offset = offset;
     }
 };
 struct Concat {
     std::vector<LazyTensor> tensors;
     std::size_t axis;
+
+    Concat() = default;
 
     std::size_t hash() const {
         std::size_t seed = std::hash<std::size_t>()(axis) + 0x9e3779b9;
@@ -75,12 +112,25 @@ struct Concat {
             lt.detach();
         }
     }
+    void serialize(std::ostream& stream) const {
+        using namespace ov::npuw::s11n;
+        write(stream, axis);
+        write(stream, tensors);
+    }
+    static Concat deserialize(std::istream& stream) {
+        using namespace ov::npuw::s11n;
+        Concat c;
+        read(stream, c.axis);
+        read(stream, c.tensors);
+        return c;
+    }
 };
-
 struct Unpack {
     LazyTensor w, z, s;
     ov::element::Type type;
     ov::Shape shape;
+
+    Unpack() = default;
 
     std::size_t hash() const {
         std::size_t seed = w.get_hash() + 0x9e3779b9;
@@ -116,10 +166,32 @@ struct Unpack {
         z.detach();
         s.detach();
     }
+    void serialize(std::ostream& stream) const {
+        using namespace ov::npuw::s11n;
+        write(stream, type.to_string());
+        write(stream, shape);
+        write(stream, w);
+        write(stream, z);
+        write(stream, s);
+    }
+    static Unpack deserialize(std::istream& stream) {
+        using namespace ov::npuw::s11n;
+        Unpack u;
+        std::string type_str;
+        read(stream, type_str);
+        u.type = ov::element::Type(type_str);
+        read(stream, u.shape);
+        read(stream, u.w);
+        read(stream, u.z);
+        read(stream, u.s);
+        return u;
+    }
 };
 struct Permute {
     LazyTensor tensor;
     std::vector<std::size_t> axes;
+
+    Permute() = default;
 
     std::size_t hash() const {
         std::size_t seed = tensor.get_hash() + 0x9e3779b9;
@@ -137,10 +209,24 @@ struct Permute {
     void detach() {
         tensor.detach();
     }
+    void serialize(std::ostream& stream) const {
+        using namespace ov::npuw::s11n;
+        write(stream, axes);
+        write(stream, tensor);
+    }
+    static Permute deserialize(std::istream& stream) {
+        using namespace ov::npuw::s11n;
+        Permute p;
+        read(stream, p.axes);
+        read(stream, p.tensor);
+        return p;
+    }
 };
 struct Convert {
     LazyTensor tensor;
     ov::element::Type type;
+
+    Convert() = default;
 
     std::size_t hash() const {
         std::size_t seed = type.hash() + 0x9e3779b9;
@@ -157,6 +243,20 @@ struct Convert {
     void detach() {
         tensor.detach();
     }
+    void serialize(std::ostream& stream) const {
+        using namespace ov::npuw::s11n;
+        write(stream, type.to_string());
+        write(stream, tensor);
+    }
+    static Convert deserialize(std::istream& stream) {
+        using namespace ov::npuw::s11n;
+        Convert c;
+        std::string type_str;
+        read(stream, type_str);
+        c.type = ov::element::Type(type_str);
+        read(stream, c.tensor);
+        return c;
+    }
 };
 }  // namespace op
 
@@ -164,6 +264,7 @@ using Transform = std::variant<op::Const, op::Concat, op::Unpack, op::Permute, o
 
 struct LazyTensorImpl {
 public:
+    LazyTensorImpl() = default;
     explicit LazyTensorImpl(Transform&& t);
     bool operator==(const LazyTensorImpl& other) const;
 
@@ -172,8 +273,14 @@ public:
 
     void detach();
 
+    void set_const_offset(std::size_t offset);
+
+    void serialize(std::ostream& stream) const;
+    static std::shared_ptr<LazyTensorImpl> deserialize(std::istream& stream);
+    ov::Tensor eval(std::istream& stream) const;
+
     Transform m_transform;
-    const std::size_t m_hash = 0;
+    std::size_t m_hash = 0;
 };
 
 }  // namespace weights
@@ -219,6 +326,34 @@ ov::Tensor LazyTensorImpl::eval() const {
                       m_transform);
 }
 
+ov::Tensor LazyTensorImpl::eval(std::istream& stream) const {
+    /* FIXME:
+    Consider case:
+        model1: concat->permute->f16
+        model2: permute->f16
+    Due to different history of transformation new tensors will be allocated for model2.
+    However, we could avoid it by introducing a proper slicing on top of known axes and
+    some kind of indicator that the only difference is concat and we should look for an existing ov::Tensor.
+    Perhaps it should be done after model compilation and not handled here.
+    */
+    return std::visit(overloaded{[](const op::Concat& op) {
+                                     return op.eval();
+                                 },
+                                 [&stream](const op::Const& op) {
+                                     return op.eval(stream);
+                                 },
+                                 [](const op::Convert& op) {
+                                     return op.eval();
+                                 },
+                                 [](const op::Permute& op) {
+                                     return op.eval();
+                                 },
+                                 [](const op::Unpack& op) {
+                                     return op.eval();
+                                 }},
+                      m_transform);
+}
+
 std::size_t LazyTensorImpl::get_hash() const {
     return m_hash;
 }
@@ -228,6 +363,67 @@ void LazyTensorImpl::detach() {
                    op.detach();
                }},
                m_transform);
+}
+
+void LazyTensorImpl::set_const_offset(std::size_t offset) {
+    NPUW_ASSERT(std::holds_alternative<op::Const>(m_transform) && "Can't set offset to non-Constant LazyTensor!");
+    std::get<op::Const>(m_transform).set_offset(offset);
+}
+
+void LazyTensorImpl::serialize(std::ostream& stream) const {
+    using namespace ov::npuw::s11n;
+    write(stream, m_hash);
+    // FIXME: create proper op identificators instead of int
+    std::visit(overloaded{[&stream](const op::Concat& op) {
+                              write(stream, int{0});
+                              op.serialize(stream);
+                          },
+                          [&stream](const op::Const& op) {
+                              write(stream, int{1});
+                              op.serialize(stream);
+                          },
+                          [&stream](const op::Convert& op) {
+                              write(stream, int{2});
+                              op.serialize(stream);
+                          },
+                          [&stream](const op::Permute& op) {
+                              write(stream, int{3});
+                              op.serialize(stream);
+                          },
+                          [&stream](const op::Unpack& op) {
+                              write(stream, int{4});
+                              op.serialize(stream);
+                          }},
+               m_transform);
+}
+
+std::shared_ptr<LazyTensorImpl> LazyTensorImpl::deserialize(std::istream& stream) {
+    using namespace ov::npuw::s11n;
+    auto lt_impl = std::make_shared<LazyTensorImpl>();
+    read(stream, lt_impl->m_hash);
+    int op_type;
+    read(stream, op_type);
+    switch (op_type) {
+    case 0:
+        lt_impl->m_transform = op::Concat::deserialize(stream);
+        break;
+    case 1:
+        lt_impl->m_transform = op::Const::deserialize(stream);
+        break;
+    case 2:
+        lt_impl->m_transform = op::Convert::deserialize(stream);
+        break;
+    case 3:
+        lt_impl->m_transform = op::Permute::deserialize(stream);
+        break;
+    case 4:
+        lt_impl->m_transform = op::Unpack::deserialize(stream);
+        break;
+    default:
+        NPUW_ASSERT(false && "Unsupported type");
+        break;
+    }
+    return lt_impl;
 }
 
 LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
@@ -274,6 +470,13 @@ ov::Tensor LazyTensor::eval() const {
     return m_impl->eval();
 }
 
+ov::Tensor LazyTensor::eval(std::istream& stream) const {
+    if (!m_impl) {
+        return ov::Tensor();
+    }
+    return m_impl->eval(stream);
+}
+
 std::size_t LazyTensor::get_hash() const {
     if (!m_impl) {
         return 0;
@@ -285,6 +488,35 @@ void LazyTensor::detach() {
     if (m_impl) {
         m_impl->detach();
     }
+}
+
+void LazyTensor::set_const_offset(std::size_t offset) {
+    if (!m_impl) {
+        return;
+    }
+    m_impl->set_const_offset(offset);
+}
+
+void LazyTensor::serialize(std::ostream& stream) const {
+    using namespace ov::npuw::s11n;
+    if (!m_impl) {
+        write(stream, false);
+        return;
+    }
+    write(stream, true);
+    m_impl->serialize(stream);
+}
+
+LazyTensor LazyTensor::deserialize(std::istream& stream) {
+    using namespace ov::npuw::s11n;
+    bool is_initialized;
+    read(stream, is_initialized);
+    LazyTensor lt;
+    if (!is_initialized) {
+        return lt;
+    }
+    lt.m_impl = LazyTensorImpl::deserialize(stream);
+    return lt;
 }
 
 std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {

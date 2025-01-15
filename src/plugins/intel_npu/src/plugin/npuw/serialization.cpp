@@ -5,6 +5,7 @@
 #include "serialization.hpp"
 
 #include "intel_npu/config/config.hpp"
+#include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "spatial.hpp"
@@ -113,6 +114,10 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var) {
+    var.serialize(stream);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -259,5 +264,72 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
+    }
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& var) {
+    var = ov::npuw::weights::LazyTensor::deserialize(stream);
+}
+
+// Weightless
+void ov::npuw::s11n::write_weightless(std::ostream& stream,
+                                      const std::vector<ov::Tensor>& var,
+                                      const std::unordered_map<const void*, std::size_t>& const_to_offset) {
+    write(stream, var.size());
+    for (const auto& t : var) {
+        if (!t) {
+            write(stream, false);
+        } else {
+            write(stream, true);
+        }
+        auto data = t.data();
+        auto iter = const_to_offset.find(data);
+        if (iter == const_to_offset.end()) {
+            write(stream, false);
+            write(stream, t);
+        } else {
+            write(stream, true);
+            write(stream, t.get_element_type().to_string());
+            write(stream, t.get_shape());
+            write(stream, t.get_byte_size());
+            write(stream, iter->second);  // offset in weights file
+        }
+    }
+}
+
+void ov::npuw::s11n::read_weightless(std::istream& stream,
+                                     std::vector<ov::Tensor>& var,
+                                     std::ifstream& weights_stream) {
+    var.clear();
+    std::size_t size;
+    read(stream, size);
+    for (std::size_t i = 0; i < size; ++i) {
+        bool is_initialized = false;
+        read(stream, is_initialized);
+        if (!is_initialized) {
+            var.push_back(ov::Tensor());
+            continue;
+        }
+        bool is_weightless = false;
+        read(stream, is_weightless);
+        if (!is_weightless) {
+            ov::Tensor t;
+            read(stream, t);
+            var.push_back(t);
+        } else {
+            std::string type_str;
+            read(stream, type_str);
+            ov::element::Type type(type_str);
+            ov::Shape shape;
+            read(stream, shape);
+            std::size_t byte_size = 0;
+            read(stream, byte_size);
+            std::size_t offset = 0;
+            read(stream, offset);
+            ov::Tensor t(type, shape);
+            weights_stream.seekg(offset);
+            weights_stream.read(reinterpret_cast<char*>(t.data()), byte_size);
+            var.push_back(t);
+        }
     }
 }

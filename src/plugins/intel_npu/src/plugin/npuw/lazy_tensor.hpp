@@ -42,6 +42,12 @@ public:
     std::size_t get_hash() const;
     void detach();
 
+    void set_const_offset(std::size_t offset);
+
+    void serialize(std::ostream& stream) const;
+    static LazyTensor deserialize(std::istream& stream);
+    ov::Tensor eval(std::istream& stream) const;
+
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
 };

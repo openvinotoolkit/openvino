@@ -222,6 +222,11 @@ private:
     // Matches a pair of {func_name, layer_name} to it's counter.
     std::map<std::pair<std::string, std::string>, size_t> dup_scalars;
 
+    // FIXME: ugly and shouldn't be here. Used for serialization purposes
+    std::unordered_map<const void*, std::size_t> m_const_to_offset;
+    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
+    void set_const_offset(ov::npuw::weights::LazyTensor& lt, const std::shared_ptr<ov::op::v0::Constant>& const_node);
+
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
 
@@ -290,7 +295,9 @@ public:
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(_cfg) {}
+          cfg(_cfg) {
+        store_const_offsets(_model);
+    }
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -328,6 +335,39 @@ private:
     FunctionPipelineType func_pipeline_type;
     ::intel_npu::Config& cfg;
 };
+
+// FIXME: copy-pasted in CompiledModel
+void Partitioner::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node_ptr : model->get_ordered_ops()) {
+        if (ov::op::util::is_constant(node_ptr)) {
+            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+            const auto& rt_info = c->get_rt_info();
+            auto data_ptr = c->get_data_ptr();
+            auto offset_iter = rt_info.find("offset");
+            if (offset_iter == rt_info.end()) {
+                continue;
+            }
+            std::size_t offset = offset_iter->second.as<std::size_t>();
+            auto map_iter = m_const_to_offset.find(data_ptr);
+            if (map_iter != m_const_to_offset.end()) {
+                // Already there - check that offset is the same
+                NPUW_ASSERT(map_iter->second == offset &&
+                            "Model contains two constants with same pointer and different offset!");
+            } else {
+                m_const_to_offset[data_ptr] = offset;
+            }
+        }
+    }
+}
+
+void Partitioner::set_const_offset(ov::npuw::weights::LazyTensor& lt,
+                                   const std::shared_ptr<ov::op::v0::Constant>& const_node) {
+    auto data = const_node->get_data_ptr();
+    auto iter = m_const_to_offset.find(data);
+    if (iter != m_const_to_offset.end()) {
+        lt.set_const_offset(iter->second);
+    }
+}
 
 void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
@@ -1526,8 +1566,9 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._lazy_closure.push_back(
-                    LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
+                auto const_node = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
+                funcall._lazy_closure.push_back(LazyTensor(const_node));  // (n)/1/i/c
+                set_const_offset(funcall._lazy_closure.back(), const_node);
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1695,8 +1736,9 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._lazy_closure[param_idx - function._param_offset] =
-                        LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
+                    auto const_node = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
+                    funcall._lazy_closure[param_idx - function._param_offset] = LazyTensor(const_node);  // (t)/1/c
+                    set_const_offset(funcall._lazy_closure[param_idx - function._param_offset], const_node);
                 }
             }  // for (inputs)
         }      // for(nodes)
