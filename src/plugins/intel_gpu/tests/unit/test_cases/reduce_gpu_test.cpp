@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,34 +63,32 @@ struct reduce_accumulator {
     };
 
     AccT accumulate(AccT& acc, AccT& input_val, cldnn::reduce_mode reduce_mode, bool sum_only) {
-        if (reduce_mode == cldnn::reduce_mode::sum || reduce_mode ==  cldnn::reduce_mode::mean ||
-            reduce_mode == cldnn::reduce_mode::log_sum)
-            acc += input_val;
-        else if (reduce_mode == cldnn::reduce_mode::max)
+        if (reduce_mode == cldnn::reduce_mode::max) {
             acc = input_val > acc ? input_val : acc;
-        else if (reduce_mode == cldnn::reduce_mode::min)
+        } else if (reduce_mode == cldnn::reduce_mode::sum || reduce_mode ==  cldnn::reduce_mode::mean ||
+            reduce_mode == cldnn::reduce_mode::log_sum) {
+            acc += input_val;
+        } else if (reduce_mode == cldnn::reduce_mode::min) {
             acc = input_val < acc ? input_val : acc;
-        else if (reduce_mode == cldnn::reduce_mode::prod)
+        } else if (reduce_mode == cldnn::reduce_mode::prod) {
             acc = acc * input_val;
-        else if (reduce_mode == cldnn::reduce_mode::logical_and)
+        } else if (reduce_mode == cldnn::reduce_mode::logical_and) {
             acc = acc && input_val;
-        else if (reduce_mode == cldnn::reduce_mode::logical_or)
+        } else if (reduce_mode == cldnn::reduce_mode::logical_or) {
             acc = acc || input_val;
-        else if (reduce_mode == cldnn::reduce_mode::sum_square) {
+        } else if (reduce_mode == cldnn::reduce_mode::sum_square) {
             if (sum_only)
                 acc += input_val;
             else
                 acc += input_val * input_val;
-        }
-        else if (reduce_mode == cldnn::reduce_mode::l1)
+        } else if (reduce_mode == cldnn::reduce_mode::l1) {
             acc += abs(input_val);
-        else if (reduce_mode == cldnn::reduce_mode::l2) {
+        } else if (reduce_mode == cldnn::reduce_mode::l2) {
             if (sum_only)
                 acc += input_val;
             else
                 acc += input_val * input_val;
-        }
-        else if (reduce_mode == cldnn::reduce_mode::log_sum_exp) {
+        } else if (reduce_mode == cldnn::reduce_mode::log_sum_exp) {
             if (sum_only)
                 acc += input_val;
             else

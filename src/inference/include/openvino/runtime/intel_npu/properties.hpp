@@ -54,6 +54,14 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
 
 /**
+ * @brief [Only for NPU plugin]
+ * Type: uint32_t
+ * Read-only property to get NPU compiler version. Composite of Major (16bit MSB) and Minor (16bit LSB)
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> compiler_version{"NPU_COMPILER_VERSION"};
+
+/**
  * @brief [Only for NPU compiler]
  * Type: std::string
  * Set various parameters supported by the NPU compiler.

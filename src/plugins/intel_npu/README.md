@@ -171,6 +171,7 @@ The following properties are supported:
 | `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version. | `N/A` | `N/A` |
+| `ov::intel_npu::compiler_version`/</br>`NPU_COMPILER_VERSION` | RO | NPU compiler version. MSB 16 bits are Major version, LSB 16 bits are Minor version | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |

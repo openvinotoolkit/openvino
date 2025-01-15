@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
@@ -38,7 +38,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
     const ov::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
 
     widths = attrs.widths;

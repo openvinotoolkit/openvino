@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -624,16 +624,24 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
-                _outputs[0] = variable.get_memory();
+                GPU_DEBUG_TRACE_DETAIL
+                    << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared"
+                    << std::endl;
+                if (!get_network().is_reuse_variable_mem()) {
+                    GPU_DEBUG_TRACE_DETAIL << "Update output mem with new variable mem" << std::endl;
+                    _outputs[0] = variable.get_memory();
+                    _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
-                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
-                    _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                        _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
 
-                    if (compressed_cache_variable->has_zp_state()) {
-                        _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        if (compressed_cache_variable->has_zp_state()) {
+                            _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        }
                     }
+                } else {
+                    GPU_DEBUG_TRACE_DETAIL << "Can reuse variable mem of prev request" << std::endl;
                 }
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
         } else {
             variable.set_layout(_impl_params->output_layouts[0]);
@@ -1136,6 +1144,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
             shape_info_ptr[offset++] = upper_pads[j];  // pad_after
         }
     }
+}
+
+void primitive_inst::set_shape_info_memory_subbuffer(memory::ptr addr) {
+    _shape_info_memory = addr;
 }
 
 void primitive_inst::allocate_shape_info_memory() {

@@ -210,7 +210,7 @@ generative models as it already includes all the core functionality.
 
 ``openvino_genai.Text2ImagePipeline`` class supports inference of
 `Diffusers
-models <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/docs/SUPPORTED_MODELS.md#text-2-image-models>`__.
+models <https://github.com/openvinotoolkit/openvino.genai/blob/master/SUPPORTED_MODELS.md#image-generation-models>`__.
 For pipeline initialization, we should provide directory with converted
 by Optimum Intel pipeline and specify inference device. Optionally, we
 can provide configuration for LoRA Adapters using ``adapter_config``.

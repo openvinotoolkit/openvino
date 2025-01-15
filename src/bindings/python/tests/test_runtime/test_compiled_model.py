@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -18,9 +18,8 @@ from tests.utils.helpers import (
     create_filenames_for_ir,
     create_filename_for_test)
 from openvino import Model, Shape, Core, Tensor, serialize
-from openvino.runtime import ConstOutput
+from openvino import ConstOutput
 
-import openvino.runtime.opset13 as ops
 import openvino.properties as props
 
 
