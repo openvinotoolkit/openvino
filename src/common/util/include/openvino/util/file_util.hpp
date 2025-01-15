@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/util/util.hpp"
+#include "openvino/util/wstring_cast_util.hpp"
 
 namespace ov {
 namespace util {

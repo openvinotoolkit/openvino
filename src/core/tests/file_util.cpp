@@ -262,18 +262,6 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == ov::util::Path(U"C:\\Users\\file.txt").u16string());
 }
 
-// There are known issues related with usage of std::filesystem::path unocode represenataion:
-// https://jira.devtools.intel.com/browse/CVS-160477
-// * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
-// * https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
-#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
-#    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
-#endif
-
-#if !defined(__clang__) || defined(__clang__) && __clang_major__ >= 17
-#    define CLANG_NOT_USED_OR_VER_AT_LEAST_17
-#endif
-
 TEST(file_util, path_cast_unicode) {
     EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt").generic_string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt") ==
