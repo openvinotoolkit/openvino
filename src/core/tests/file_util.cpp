@@ -506,3 +506,128 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(ov::util::Path(u"~/いろはにほへど/狗!.txt"), ov::util::Path(u"~/いろはにほへど/狗")),
         std::make_tuple(ov::util::Path(U"D:\\いろはにほへど\\猫!.txt"), ov::util::Path(U"D:\\いろはにほへど\\猫"))));
 
+class FileUtilTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Create a temporary files for testing
+        {
+            std::ofstream outfile("test_file_0.txt");
+            outfile.close();
+        }
+        {
+            std::ofstream outfile("test_file_21.txt");
+            outfile << "This is a test file." << std::endl;
+            outfile.close();
+        }
+        {
+            std::ofstream outfile("test_file_21x1000.txt");
+            for (int i = 0; i < 1000; ++i) {
+                outfile << "This is a test file." << std::endl;
+            }
+            outfile.close();
+        }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        {
+            std::ofstream outfile(u8"这是_u8_.txt");
+            outfile << "This is a test file." << std::endl;
+            outfile.close();
+        }
+        {
+            std::ofstream outfile(ov::util::Path(U"这是_u16_.txt"));
+            outfile << "This is a test file." << std::endl;
+            outfile.close();
+        }
+        {
+            std::ofstream outfile(ov::util::Path(U"这是_u32_.txt"));
+            outfile << "This is a test file." << std::endl;
+            outfile.close();
+        }
+        {
+            std::ofstream outfile(ov::util::WPath(L"这是_wstring_.txt"));
+            outfile << "This is a test file." << std::endl;
+            outfile.close();
+        }
+#endif
+
+    }
+
+    void TearDown() override {
+        // Remove the temporary files after testing
+        std::filesystem::remove("test_file_0.txt");
+        std::filesystem::remove("test_file_21.txt");
+        std::filesystem::remove("test_file_21x1000.txt");
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        std::filesystem::remove(u8"这是_u8_.txt");
+        std::filesystem::remove(u"这是_u16_.txt");
+        std::filesystem::remove(U"这是_u32_.txt");
+        std::filesystem::remove(ov::util::WPath(L"这是_wstring_.txt"));
+#endif
+    }
+};
+
+TEST_F(FileUtilTest, FileSizeNonExistentFileTest) {
+    EXPECT_EQ(ov::util::file_size("non_existent_file.txt"), -1);
+    EXPECT_EQ(ov::util::file_size(L"non_existent_file.txt"), -1);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("non_existent_file.txt")), -1);
+}
+
+TEST_F(FileUtilTest, EmptyFileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("test_file_0.txt"), 0);
+    EXPECT_EQ(ov::util::file_size(u8"test_file_0.txt"), 0);
+    EXPECT_EQ(ov::util::file_size(u"test_file_0.txt"), 0);
+    EXPECT_EQ(ov::util::file_size(U"test_file_0.txt"), 0);
+    EXPECT_EQ(ov::util::file_size(L"test_file_0.txt"), 0);
+    EXPECT_EQ(ov::util::file_size(std::wstring(L"test_file_0.txt")), 0);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_0.txt")), 0);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"test_file_0.txt")), 0);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u"test_file_0.txt")), 0);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"test_file_0.txt")), 0);
+    EXPECT_EQ(ov::util::file_size(ov::util::WPath(L"test_file_0.txt")), 0);
+}
+
+TEST_F(FileUtilTest, FileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("test_file_21.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(L"test_file_21.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_21.txt")), 21);
+}
+
+TEST_F(FileUtilTest, LargeFileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("test_file_21x1000.txt"), 21 * 1000);
+    EXPECT_EQ(ov::util::file_size(L"test_file_21x1000.txt"), 21 * 1000);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_21x1000.txt")), 21 * 1000);
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_F(FileUtilTest, u8FileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("这是_u8_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(u8"这是_u8_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(u"这是_u8_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(U"这是_u8_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(L"这是_u8_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(std::wstring(L"这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u"这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::WPath(L"这是_u8_.txt")), 21);
+}
+
+TEST_F(FileUtilTest, u16FileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("这是_u16_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(L"这是_u16_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u16_.txt")), 21);
+}
+
+TEST_F(FileUtilTest, u32FileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("这是_u32_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(L"这是_u32_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u32_.txt")), 21);
+}
+
+TEST_F(FileUtilTest, wstringFileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("这是_wstring_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(L"这是_wstring_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_wstring_.txt")), 21);
+}
+#endif
