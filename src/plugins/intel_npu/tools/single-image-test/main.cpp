@@ -127,6 +127,7 @@ DEFINE_string(
     ref_dir,
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
+DEFINE_string(ref_results, "", "Reference files used during 'run_test'");
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -251,8 +252,10 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
     if (FLAGS_run_test) {
-        std::cout << "    Reference files direcotry:                "
-                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
+        std::cout << "    Reference files directory:                "
+                  << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
+                  << std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -1855,6 +1858,33 @@ static int runSingleImageTest() {
             inputFilesForOneInfer.push_back(std::move(entireModelFiles));
         }
 
+        std::vector<std::string> refFilesPerCase;
+        using RefFilesPerInput = std::vector<std::string>;
+        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
+        std::vector<RefFilesForModelOutputs> refFilesForOneInfer;
+
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of reference files is the same as the number of input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of reference files is not equal to the number of input files."
+                    << "  # Reference Files: " << refFilesPerCase.size()
+                    << "  # Input Files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                RefFilesForModelOutputs entireModelRefFiles;
+                entireModelRefFiles.reserve(refFilesPerModel.size());
+                for (auto &&refFilesPerInput : refFilesPerModel) {
+                    // from now on each input of a model support multiple image files as content of a batched input
+                    entireModelRefFiles.push_back(splitStringList(refFilesPerInput, '|'));
+                }
+                refFilesForOneInfer.push_back(std::move(entireModelRefFiles));
+            }
+        }
+
         std::vector<std::string> inputBinPrecisionStrPerCase;
         std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
         if (FLAGS_img_as_bin) {
@@ -2084,6 +2114,12 @@ static int runSingleImageTest() {
             const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
+            const RefFilesForModelOutputs &refFiles = refFilesForOneInfer.empty() ? RefFilesForModelOutputs{}
+                                                                                 : refFilesForOneInfer[numberOfTestCase];
+            if (!FLAGS_ref_results.empty()) {
+                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
+                " doesn't match network configuration ", outputsInfo.size());
+            }
 
             TensorMap inTensors;
             size_t inputInd = 0;
@@ -2163,18 +2199,25 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
-                    const auto blobFileName = ostr.str();
+                    std::string blobFileFullPath;
 
-                    std::filesystem::path fullPath = FLAGS_ref_dir;
-                    fullPath /= blobFileName;
-                    const auto blobFileFullName = fullPath.string();
+                    // If reference files are provided, use them
+                    if (!refFiles.empty()) {
+                        blobFileFullPath = refFiles[numberOfTestCase][outputInd];
+                    } else {
+                        std::ostringstream ostr;
+                        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                        const auto blobFileName = ostr.str();
 
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
+                        std::filesystem::path fullPath = FLAGS_ref_dir;
+                        fullPath /= blobFileName;
+                        blobFileFullPath = fullPath.string();
+                    }
+
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullPath);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout
