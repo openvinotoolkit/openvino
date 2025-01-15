@@ -156,16 +156,7 @@ inline void FUNC(quickSelectIterative)(__global Box* arr, int l, int h) {
         // Pop h and l
         h = stack[top--];
         l = stack[top--];
-        bool all_zeroes = true; //when all zeroes algorithm stuck
-        for(int i=l;i<h;i++) {
-            if(arr[i].score != 0.0f) {
-                all_zeroes = false;
-                break;
-            }
-        }
-        if(all_zeroes) {
-            continue;
-        }
+
         // Set pivot element at its correct position
         // in sorted array
         int p = FUNC_CALL(partition)(arr, l, h);
@@ -197,6 +188,7 @@ inline void FUNC(quickSelectIterative)(__global Box* arr, int l, int h) {
 // 1. Sort boxes by scores
 KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
     __global Box* boxes = (__global Box*)proposals;
+
     FUNC_CALL(quickSelectIterative)(boxes, 0, NUM_PROPOSALS-1);
 }
 #undef Box
