@@ -24,9 +24,12 @@ struct ExecutionConfig : public ov::PluginConfig {
     void finalize(cldnn::engine& engine);
     using ov::PluginConfig::finalize;
 
-    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_GETTERS(__VA_ARGS__)
+    #define OV_CONFIG_LOCAL_OPTION(...) OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__)
+    #define OV_CONFIG_GLOBAL_OPTION(...) OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__)
     #include "intel_gpu/runtime/options.inl"
-    #undef OV_CONFIG_OPTION
+
+    #undef OV_CONFIG_LOCAL_OPTION
+    #undef OV_CONFIG_GLOBAL_OPTION
 
 protected:
     void finalize_impl(std::shared_ptr<IRemoteContext> context) override;
@@ -39,9 +42,11 @@ protected:
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
 
-    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)
+    #define OV_CONFIG_LOCAL_OPTION(...) OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__)
+    #define OV_CONFIG_GLOBAL_OPTION(...) OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__)
     #include "intel_gpu/runtime/options.inl"
-    #undef OV_CONFIG_OPTION
+    #undef OV_CONFIG_LOCAL_OPTION
+    #undef OV_CONFIG_GLOBAL_OPTION
 };
 
 }  // namespace ov::intel_gpu
