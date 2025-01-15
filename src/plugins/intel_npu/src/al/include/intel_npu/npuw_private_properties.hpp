@@ -409,6 +409,16 @@ static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 
 /**
  * @brief
+ * TODO: Check that it is indeed needed, or remove.
+ * Type: int64_t.
+ * Pad token id, required to fill the input of prefill model until useful
+ * tokens met.
+ * Default value: 0.
+ */
+static constexpr ov::Property<uint32_t> pad_token_id{"NPUW_LLM_PAD_TOKEN_ID"};
+
+/**
+ * @brief
  * Type: uint32_t.
  * Desirable max prompt length.
  * Default value: 1024.
