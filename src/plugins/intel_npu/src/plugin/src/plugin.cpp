@@ -898,7 +898,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             std::vector<uint8_t> initBlob(initBlobSize);
             stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
 
+            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
             auto initGraph = compiler->parse(std::move(initBlob), localConfig);
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+            std::cout << "Init compiler->parse "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+
             initGraph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
             auto graph = compiler->parse(std::move(blob), localConfig);
             graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
