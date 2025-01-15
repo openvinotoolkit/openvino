@@ -16,6 +16,7 @@
 #include "gemm_inst.h"
 #include "lrn_inst.h"
 #include "mvn_inst.h"
+#include "rms_inst.h"
 #include "pooling_inst.h"
 #include "normalize_inst.h"
 #include "permute_inst.h"
@@ -764,6 +765,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<mvn>();
 
+            should_fuse |= input.is_type<rms>();
+
             should_fuse |= input.is_type<group_normalization>();
 
             should_fuse |= input.is_type<normalize>() && data_type_traits::is_i8_u8(input.get_input_layout(0).data_type);
@@ -964,6 +967,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>())) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
+                                      (parents[i].first->is_type<rms>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||

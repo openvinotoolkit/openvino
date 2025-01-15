@@ -18,6 +18,13 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::QUANTIZE,
+            FusedOpType::ELTWISE
+        };
+    }
     bool Validate(const Params&) const override;
     DispatchData SetDefault(const rms_params& params) const override;
     JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const override;

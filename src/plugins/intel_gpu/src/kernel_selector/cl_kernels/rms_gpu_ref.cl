@@ -8,7 +8,11 @@ KERNEL(rms_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* gamma,
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+    #if HAS_FUSED_OPS_DECLS
+        , FUSED_OPS_DECLS
+    #endif
+)
 {
     const uint b = get_global_id(0);
     const uint f = get_global_id(1);
@@ -38,6 +42,10 @@ KERNEL(rms_gpu_ref)(
                 const uint gamma_idx = z;
 #endif
                 OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+                #if HAS_FUSED_OPS
+                    FUSED_OPS;
+                    result = FUSED_OPS_RESULT;
+                #endif
                 output[output_idx] = result;
             }
         }
