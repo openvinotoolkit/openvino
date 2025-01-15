@@ -19,7 +19,7 @@ public:
         auto compilerType = config.get<COMPILER_TYPE>();
         switch (compilerType) {
         case ov::intel_npu::CompilerType::MLIR: {
-            if (engineBackend == nullptr || engineBackend->getName() == "IMD") {
+            if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 return std::make_unique<PluginCompilerAdapter>(nullptr);
             }
             return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
