@@ -176,12 +176,15 @@ inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline int64_t file_size(const ov::util::Path& file_name) {
+inline int64_t file_size(const ov::util::Path& path) {
 #if defined(__ANDROID__) || defined(ANDROID)
-    const ov::util::Path& file_name = cut_android_path(file_name);
-#endif
-    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
+    const ov::util::Path& cut_path = cut_android_path(path);
+    std::ifstream in(cut_path, std::ios_base::binary | std::ios_base::ate);
     return in.tellg();
+#else
+    std::ifstream in(path, std::ios_base::binary | std::ios_base::ate);
+    return in.tellg();
+#endif
 }
 
 /**
