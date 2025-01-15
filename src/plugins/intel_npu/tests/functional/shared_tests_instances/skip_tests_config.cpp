@@ -719,13 +719,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVInferRequestInferenceTests.Inference_ROI_Tensor/roi_nchw.*"
         });
 
-        // [Tracking number: E#116761]
-        _skipRegistry.addPatterns("OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER", {
-                ".*OVClassQueryModelTest.QueryModelHETEROWithDeviceIDNoThrow.*",
-                ".*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*",
-                ".*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*"
-        });
-
         // [Tracking number: E#109040]
 	_skipRegistry.addPatterns("CheckWrongGraphExtAndThrow tests do not work with COMPILER_TYPE=DRIVER", {
                 ".*DriverCompilerAdapterExpectedThrowNPU.CheckWrongGraphExtAndThrow.*"
