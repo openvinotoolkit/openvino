@@ -112,6 +112,7 @@ inline int FUNC(partition)(__global Box* arr, int l, int h) {
         pivot_idx = h;
     }
     INPUT0_TYPE pivotScore = arr[pivot_idx].score;
+    FUNC_CALL(swap_box)(&arr[h], &arr[pivot_idx]);
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
         if (arr[j].score > pivotScore) {
@@ -119,7 +120,7 @@ inline int FUNC(partition)(__global Box* arr, int l, int h) {
             FUNC_CALL(swap_box)(&arr[i], &arr[j]);
         }
     }
-    FUNC_CALL(swap_box)(&arr[i + 1], &arr[pivot_idx]);
+    FUNC_CALL(swap_box)(&arr[i + 1], &arr[h]);
     return (i + 1);
 }
 
@@ -138,7 +139,7 @@ inline void FUNC(bubbleSortIterative)(__global Box* arr, int l, int h) {
     }
 }
 
-inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
+inline void FUNC(quickSelectIterative)(__global Box* arr, int l, int h) {
     // Create an auxiliary stack
     const int kStackSize = 100;
     int stack[kStackSize];
@@ -196,7 +197,7 @@ inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
 // 1. Sort boxes by scores
 KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
     __global Box* boxes = (__global Box*)proposals;
-    FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
+    FUNC_CALL(quickSelectIterative)(boxes, 0, NUM_PROPOSALS-1);
 }
 #undef Box
 #endif /* EDGPSI_STAGE_1 */
