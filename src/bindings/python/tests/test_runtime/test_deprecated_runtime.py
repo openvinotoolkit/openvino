@@ -8,8 +8,10 @@ from pathlib import Path
 from contextlib import nullcontext as does_not_raise
 import warnings
 
+with pytest.warns(DeprecationWarning, match="The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release."):
+    import openvino.runtime as ov
 
-import openvino.runtime as ov
+import openvino.runtime.opset13 as ops
 from openvino.runtime import (
     Model,
     Core,
@@ -20,8 +22,6 @@ from openvino.runtime import (
     serialize,
     Type,
 )
-
-import openvino.runtime.opset13 as ops
 import openvino.runtime.opset8 as ops8
 from openvino.runtime.op import Constant, Parameter
 from openvino.runtime import Extension
@@ -41,6 +41,17 @@ from tests.utils.helpers import (
     create_filenames_for_ir,
     generate_abs_compiled_model_with_data,
 )
+
+
+def test_no_warning():
+    with warnings.catch_warnings(record=True) as w:
+        import openvino
+
+        data = np.array([1, 2, 3])
+        axis_vector = openvino.AxisVector(data)
+        assert np.equal(axis_vector, data).all()
+
+        assert len(w) == 0  # No warning
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request

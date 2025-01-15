@@ -118,9 +118,6 @@ def deprecatedclassproperty(name: Any = None, version: str = "", message: str = 
 
 
 def lazy_import(module_name: str) -> ModuleType:
-    if ("openvino.runtime" in sys.modules) and (module_name == "openvino.runtime"):
-        del sys.modules["openvino.runtime"]
-
     spec = importlib.util.find_spec(module_name)
     if spec is None or spec.loader is None:
         raise ImportError(f"Module {module_name} not found")
