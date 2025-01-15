@@ -454,7 +454,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_cfg.update(any_copy(npuw_llm_props));
 
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
-    auto kvcache_model = model->clone();
+    auto kvcache_model = model;
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
@@ -467,7 +467,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
-    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
+    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, false};
     LOG_DEBUG("4. Make prefill model with static shapes");
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("5. Make kvcache model with static shapes");
