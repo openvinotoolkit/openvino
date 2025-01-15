@@ -40,10 +40,12 @@ class WeightsSharing {
     };
 
 public:
+#ifdef CPU_DEBUG_CAPS
     struct Statistics {
         size_t total_size;  // bytes
         size_t total_memory_objects;
     };
+#endif  // CPU_DEBUG_CAPS
 
     typedef std::shared_ptr<WeightsSharing> Ptr;
 
@@ -67,7 +69,9 @@ public:
 
     SharedMemory::Ptr get(const std::string& key) const;
 
+#ifdef CPU_DEBUG_CAPS
     Statistics dumpStatistics() const;
+#endif // CPU_DEBUG_CAPS
 
 protected:
     mutable std::mutex guard;
@@ -86,7 +90,9 @@ public:
     WeightsSharing::Ptr& operator[](int i);
     const WeightsSharing::Ptr& operator[](int i) const;
 
+#ifdef CPU_DEBUG_CAPS
     std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
+#endif // CPU_DEBUG_CAPS
 
 private:
     std::map<int, WeightsSharing::Ptr> _cache_map;

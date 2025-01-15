@@ -122,8 +122,8 @@ void dumpMemoryStats(const DebugCapsConfig& conf,
         return;
     }
 
-    std::filesystem::path csv_path = conf.memoryStatisticsDumpPath;
-    if (!csv_path.empty()) {
+    if (!conf.memoryStatisticsDumpPath.empty()) {
+        std::filesystem::path csv_path = conf.memoryStatisticsDumpPath;
         // check the last symbols in the file path are csv
         if (csv_path.extension() != ".csv") {
             OPENVINO_THROW("Unsupported memory stats file extension. Should be '*.csv'. Got ", csv_path.filename());

@@ -89,6 +89,7 @@ const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
     return found->second;
 }
 
+#ifdef CPU_DEBUG_CAPS
 WeightsSharing::Statistics WeightsSharing::dumpStatistics() const {
     Statistics retVal = {0, 0};
 
@@ -115,5 +116,6 @@ std::vector<std::pair<int, WeightsSharing::Statistics>> SocketsWeights::dumpStat
 
     return retVal;
 }
+#endif // CPU_DEBUG_CAPS
 }  // namespace intel_cpu
 }  // namespace ov
