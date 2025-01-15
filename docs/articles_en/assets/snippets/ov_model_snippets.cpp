@@ -217,7 +217,7 @@ return true;
 // ! [ov:replace_node]
 bool ov_replace_node(std::shared_ptr<ov::Node> node) {
     // Step 1. Verify that node is of type ov::op::v0::Negative
-    auto neg = std::dynamic_pointer_cast<ov::op::v0::Negative>(node);
+    auto neg = ov::as_type_ptr<ov::op::v0::Negative>(node);
     if (!neg) {
         return false;
     }
@@ -238,7 +238,7 @@ bool ov_replace_node(std::shared_ptr<ov::Node> node) {
 // ! [ov:replace_node]
 
 bool ov_manual_replace_node(std::shared_ptr<ov::Node> node) {
-auto neg = std::dynamic_pointer_cast<ov::op::v0::Negative>(node);
+auto neg = ov::as_type_ptr<ov::op::v0::Negative>(node);
 if (!neg) {
     return false;
 }
