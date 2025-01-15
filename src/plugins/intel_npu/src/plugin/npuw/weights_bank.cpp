@@ -71,9 +71,6 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
                 "Tensor should be registered and allocated first!");
 
-    // uid may be coming from a 2nd (3rd, ...) model
-    // detach the tensor here just in case
-    const_cast<LazyTensor&>(iter_device->second.lt).detach();
     return iter_device->second.tensor;
 }
 
