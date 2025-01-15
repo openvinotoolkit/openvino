@@ -216,7 +216,9 @@ OperatorsBridge::OperatorsBridge() {
         }
     }
     // custom ops
+    REGISTER_OPERATOR("DeformConv", 1, DeformConv);
 }
+
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
