@@ -40,6 +40,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/paged_attention.hpp"
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -64,7 +65,8 @@ namespace intel_gpu {
 
 const auto is_llm = [](const std::shared_ptr<const ov::Model>& model) -> bool {
     for (auto& op : model->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v6::ReadValue>(op))
+        if (ov::is_type<ov::op::v6::ReadValue>(op) ||
+            ov::is_type<ov::op::PagedAttentionExtension>(op))
             return true;
     }
     return false;
