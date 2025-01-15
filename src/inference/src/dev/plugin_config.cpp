@@ -150,7 +150,7 @@ void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) 
         set_user_property(config_properties, OptionVisibility::ANY, throw_on_error);
     }
 
-    ov::AnyMap env_properties = read_env({"OV_"});
+    ov::AnyMap env_properties = read_env();
     cleanup_unsupported(env_properties);
 #ifdef ENABLE_DEBUG_CAPS
     for (auto& prop : env_properties) {
@@ -190,32 +190,30 @@ ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std
     return config;
 }
 
-ov::AnyMap PluginConfig::read_env(const std::vector<std::string>& prefixes) const {
+ov::AnyMap PluginConfig::read_env() const {
     ov::AnyMap config;
 
     for (auto& kv : m_options_map) {
-        for (auto& prefix : prefixes) {
-            auto var_name = prefix + kv.first;
-            const auto& val = ov::util::getenv_string(var_name.c_str());
+        auto var_name = m_allowed_env_prefix + kv.first;
+        const auto& val = ov::util::getenv_string(var_name.c_str());
 
-            if (!val.empty()) {
-                if (dynamic_cast<ConfigOption<bool>*>(kv.second) != nullptr) {
-                    const std::set<std::string> off = {"0", "false", "off", "no"};
-                    const std::set<std::string> on = {"1", "true", "on", "yes"};
+        if (!val.empty()) {
+            if (dynamic_cast<ConfigOption<bool>*>(kv.second) != nullptr) {
+                const std::set<std::string> off = {"0", "false", "off", "no"};
+                const std::set<std::string> on = {"1", "true", "on", "yes"};
 
-                    const auto& val_lower = ov::util::to_lower(val);
-                    if (off.count(val_lower)) {
-                        config[kv.first] = false;
-                    } else if (on.count(val_lower)) {
-                        config[kv.first] = true;
-                    } else {
-                        OPENVINO_THROW("Unexpected value for boolean property: ", val);
-                    }
+                const auto& val_lower = ov::util::to_lower(val);
+                if (off.count(val_lower)) {
+                    config[kv.first] = false;
+                } else if (on.count(val_lower)) {
+                    config[kv.first] = true;
                 } else {
-                    config[kv.first] = val;
+                    OPENVINO_THROW("Unexpected value for boolean property: ", val);
                 }
-                break;
+            } else {
+                config[kv.first] = val;
             }
+            break;
         }
     }
 
