@@ -529,7 +529,7 @@ protected:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         {
-            std::ofstream outfile(u8"这是_u8_.txt");
+            std::ofstream outfile(ov::util::Path(u8"这是_u8_.txt"));
             outfile << "This is a test file." << std::endl;
             outfile.close();
         }
