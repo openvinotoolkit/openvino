@@ -22,7 +22,7 @@ std::streampos getFileSize(std::istream& stream) {
     }
 
     if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
-        return stream.rdbuf()->in_avail() + stream.tellg();
+        return stream.rdbuf()->in_avail();
     }
     const std::streampos streamStart = stream.tellg();
     stream.seekg(0, std::ios_base::end);
@@ -122,7 +122,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     blobMagicBytes.resize(magicBytesSize);
 
     std::streampos currentStreamPos = stream.tellg(), streamSize = getFileSize(stream);
-    stream.seekg(-currentStreamPos + streamSize - magicBytesSize, std::ios::cur);
+    stream.seekg(streamSize - std::streampos(magicBytesSize), std::ios::cur);
     stream.read(blobMagicBytes.data(), magicBytesSize);
     if (MAGIC_BYTES != blobMagicBytes) {
         OPENVINO_THROW("Blob is missing NPU metadata!");
