@@ -549,7 +549,6 @@ protected:
             outfile.close();
         }
 #endif
-
     }
 
     void TearDown() override {
