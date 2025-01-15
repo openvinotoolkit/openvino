@@ -516,8 +516,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         if ((system_info_table[n][2].size() > 0) || (system_info_table[n][1].size() > 0)) {
             info_index = system_info_table[n][2].size() > 0 ? 2 : 1;
             if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
-                std::string::size_type pos = 0;
-                std::string::size_type endpos = 0;
+                std::string::size_type pos = 0, endpos = 0, endpos1 = 0;
                 std::string sub_str;
 
                 int core_1;
@@ -531,7 +530,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 }
 
                 while (1) {
-                    if ((endpos = system_info_table[n][info_index].find('-', pos)) != std::string::npos) {
+                    endpos = system_info_table[n][info_index].find('-', pos);
+                    endpos1 = system_info_table[n][info_index].find(',', pos);
+
+                    if (endpos < endpos1) {
                         sub_str = system_info_table[n][info_index].substr(pos, endpos - pos);
                         core_1 = std::stoi(sub_str);
                         sub_str = system_info_table[n][info_index].substr(endpos + 1);
@@ -549,8 +551,8 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                                 return;
                             };
                         }
-                    } else if (pos != std::string::npos) {
-                        sub_str = system_info_table[n][info_index].substr(pos);
+                    } else {
+                        sub_str = system_info_table[n][info_index].substr(pos, endpos1 - pos);
                         core_1 = std::stoi(sub_str);
                         _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _sockets;
                         _cpu_mapping_table[core_1][CPU_MAP_NUMA_NODE_ID] =
@@ -559,11 +561,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                         if (_processors == 0) {
                             return;
                         };
-                        endpos = pos;
                     }
 
-                    if ((pos = system_info_table[n][2].find(',', endpos)) != std::string::npos) {
-                        pos++;
+                    if (endpos1 != std::string::npos) {
+                        pos = endpos1 + 1;
                     } else {
                         break;
                     }
