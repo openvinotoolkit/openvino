@@ -168,7 +168,7 @@ KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
 
             // If there are elements on left side of pivot,
             // then push left side to stack
-            if (p - 1 > l) {
+            if (p - 1 > l && l < PRE_NMS_TOPN) {
                 if (top >= (kStackSize - 1)) {
                     FUNC_CALL(bubbleSortIterative)(boxes, l, p - 1);
                 } else {
@@ -179,7 +179,7 @@ KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
 
             // If there are elements on right side of pivot,
             // then push right side to stack
-            if (p + 1 < h) {
+            if (p + 1 < h && l < PRE_NMS_TOPN) {
                 if (top >= (kStackSize - 1)) {
                     FUNC_CALL(bubbleSortIterative)(boxes, p + 1, h);
                 } else {
@@ -207,7 +207,7 @@ KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
 
             // If there are elements on left side of pivot,
             // then push left side to stack
-            if (p - 1 > l) {
+            if (p - 1 > l && l<PRE_NMS_TOPN) {
                 if (top >= (kStackSize - 1)) {
                     FUNC_CALL(bubbleSortIterative)(boxes, l, p - 1);
                 } else {
@@ -218,7 +218,7 @@ KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
 
             // If there are elements on right side of pivot,
             // then push right side to stack
-            if (p + 1 < h) {
+            if (p + 1 < h && l < PRE_NMS_TOPN) {
                 if (top >= (kStackSize - 1)) {
                     FUNC_CALL(bubbleSortIterative)(boxes, p + 1, h);
                 } else {
