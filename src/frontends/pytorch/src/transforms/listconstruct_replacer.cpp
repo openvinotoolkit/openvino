@@ -6,8 +6,6 @@
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/adaptive_avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,11 +15,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/roll.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -56,14 +52,8 @@ ListConstructReplacer::ListConstructReplacer() {
         pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
     // aten::randint case
     const auto& rand_op = pattern::wrap_type<v8::RandomUniform>({list, pattern::any_input(), pattern::any_input()});
-    const auto& lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{broadcast_op,
-                                                                            shape_of_op,
-                                                                            equal_op,
-                                                                            select_op,
-                                                                            tile_op,
-                                                                            vsplit_op,
-                                                                            interpolate_op,
-                                                                            rand_op});
+    const auto& lc_pattern = std::make_shared<pattern::op::Or>(
+        OutputVector{broadcast_op, shape_of_op, equal_op, select_op, tile_op, vsplit_op, interpolate_op, rand_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
