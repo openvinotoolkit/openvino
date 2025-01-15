@@ -3,19 +3,21 @@
 //
 #pragma once
 
-#include <array>
+#include "nodes/kernels/scaled_attn/common.hpp"
+
+#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    include <immintrin.h>
+#endif
+
 #include <cstddef>
 #include <cstdint>
-#include <vector>
-#include "openvino/core/type/element_type.hpp"
-#include "utils/plain_tensor.hpp"
 
 namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-template<typename TDST>
+template <typename TDST>
 void attn_dequant_u8_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, float zp) {
     size_t i = 0;
     // loadu_si128/epi64 does not support const qualifier

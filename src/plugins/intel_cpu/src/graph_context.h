@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
-#include "sub_memory_manager.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
 
 namespace ov {
@@ -16,7 +16,7 @@ namespace intel_cpu {
 
 namespace node {
 class MemoryStatesRegister;
-} // namespace node
+}  // namespace node
 
 class NetworkMemoryControl;
 
@@ -39,17 +39,12 @@ public:
         return weightsCache;
     }
 
-
     MultiCachePtr getParamsCache() const {
         return rtParamsCache;
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
-        if (subStreamID < 0)
-            subStreamID = 0;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return rtScratchPads[subStreamID];
+    DnnlScratchPadPtr getScratchPad() const {
+        return rtScratchPads[numaNodeId];
     }
 
     const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
@@ -85,7 +80,7 @@ public:
 private:
     Config config;  // network-level config
 
-    WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
+    WeightsSharing::Ptr weightsCache;  // per NUMA node caches for sharing weights data
 
     MultiCachePtr rtParamsCache;     // primitive cache
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
@@ -94,13 +89,14 @@ private:
 
     std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
 
-    ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
+    ov::threading::IStreamsExecutor::Ptr streamExecutor;  // stream executor for current graph
 
-    ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // cpu stream executor for current graph
+    ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;  // cpu stream executor for current graph
 
     std::shared_ptr<SubMemoryManager> subMemoryManager;
 
     int numNumaNodes = 1;
+    int numaNodeId = 0;
 
     std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
     std::shared_ptr<NetworkMemoryControl> networkMemoryControl;

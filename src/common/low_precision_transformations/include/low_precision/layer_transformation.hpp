@@ -244,6 +244,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
  */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::LayerTransformation");
     class Params {
     public:
         Params(

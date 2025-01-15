@@ -3,6 +3,7 @@
 //
 
 #include "shapeof.h"
+
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 
@@ -49,9 +50,7 @@ void ShapeOf::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, precision}},
-                        {{LayoutType::ncsp, ov::element::i32}},
-                        impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
 }
 
 void ShapeOf::initOptimalPrimitiveDescriptor() {
@@ -60,22 +59,23 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     auto parent = parentEdge->getParent();
     auto parentPd = parent->getSelectedPrimitiveDescriptor();
     OPENVINO_ASSERT(parentPd,
-        parent->getTypeStr(), " ",
-        parent->getName(),
-        "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+                    parent->getTypeStr(),
+                    " ",
+                    parent->getName(),
+                    "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     const auto& parentConfig = parentPd->getConfig();
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     OPENVINO_ASSERT(selected_pd,
-        "ShapeOf ",
-        getName(),
-        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+                    "ShapeOf ",
+                    getName(),
+                    " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selected_pd->getConfig();
     config.inConfs.front().setMemDesc(mem_desc);
-    //bypass any checks, we enforce the parent descriptor
+    // bypass any checks, we enforce the parent descriptor
     selected_pd->setConfig(config);
 }
 
@@ -102,6 +102,6 @@ bool ShapeOf::created() const {
     return getType() == Type::ShapeOf;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

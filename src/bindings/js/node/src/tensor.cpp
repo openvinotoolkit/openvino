@@ -66,6 +66,12 @@ Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
 }
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getData() does not accept any arguments.");
+        return env.Undefined();
+    }
+
     auto type = _tensor.get_element_type();
 
     switch (type) {

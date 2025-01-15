@@ -43,6 +43,10 @@ IDevice::Uuid IDevice::getUuid() const {
     OPENVINO_THROW("Get UUID not supported");
 }
 
+const std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
+    return nullptr;
+}
+
 ov::device::LUID IDevice::getLUID() const {
     OPENVINO_THROW("Get LUID not supported");
 }

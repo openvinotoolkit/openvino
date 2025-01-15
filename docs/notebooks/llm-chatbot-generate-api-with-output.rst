@@ -81,9 +81,9 @@ Install required dependencies
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q -U "openvino>=2024.3.0" openvino-tokenizers[transformers] openvino-genai
@@ -103,12 +103,12 @@ Install required dependencies
     from pathlib import Path
     import requests
     import shutil
-
+    
     # fetch model configuration
-
+    
     config_shared_path = Path("../../utils/llm_config.py")
     config_dst_path = Path("llm_config.py")
-
+    
     if not config_dst_path.exists():
         if config_shared_path.exists():
             try:
@@ -127,7 +127,7 @@ Install required dependencies
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -238,7 +238,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -270,7 +270,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -304,7 +304,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -338,7 +338,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -399,7 +399,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -432,7 +432,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
 
        from huggingface_hub import notebook_login, whoami
@@ -466,7 +466,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -500,7 +500,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -531,7 +531,7 @@ Click here to see available models options
 
 .. code:: python
 
-       # login to huggingfacehub to get access to pretrained model
+       # login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -644,9 +644,9 @@ Click here to see available models options
 .. code:: ipython3
 
     from llm_config import get_llm_selection_widget
-
+    
     form, lang, model_id_widget, compression_variant, use_preconverted = get_llm_selection_widget()
-
+    
     form
 
 
@@ -668,7 +668,7 @@ Click here to see available models options
 .. parsed-literal::
 
     Selected model qwen2-0.5b-instruct with INT4 compression
-
+    
 
 Convert model using Optimum-CLI tool
 ------------------------------------
@@ -676,7 +676,7 @@ Convert model using Optimum-CLI tool
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__
-is the interface between the
+is the interface between the 
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -749,13 +749,12 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments:
-
-- The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
-- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments : -
+The ``--group-size`` parameter will define the group size to use for
+quantization, -1 it will results in per-column quantization. - The
+``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency. You can enable AWQ to
@@ -777,28 +776,28 @@ be additionally applied during model export with INT4 precision using
 .. code:: ipython3
 
     from llm_config import convert_and_compress_model
-
+    
     model_dir = convert_and_compress_model(model_id, model_configuration, compression_variant.value, use_preconverted.value)
 
 
 .. parsed-literal::
 
     ✅ INT4 qwen2-0.5b-instruct model already converted and can be found in qwen2/INT4_compressed_weights
-
+    
 
 Let’s compare model size for different compression types
 
 .. code:: ipython3
 
     from llm_config import compare_model_size
-
+    
     compare_model_size(model_dir)
 
 
 .. parsed-literal::
 
     Size of model with INT4 compressed weights is 358.86 MB
-
+    
 
 Select device for inference
 ---------------------------
@@ -808,9 +807,9 @@ Select device for inference
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="CPU", exclude=["NPU"])
-
+    
     device
 
 
@@ -853,14 +852,14 @@ of the available generation parameters more deeply later.
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-
+    
     print(f"Loading model from {model_dir}\n")
-
-
+    
+    
     pipe = ov_genai.LLMPipeline(str(model_dir), device.value)
-
+    
     generation_config = pipe.get_generation_config()
-
+    
     input_prompt = "The Sun is yellow bacause"
     print(f"Input text: {input_prompt}")
     print(pipe.generate(input_prompt, max_new_tokens=10))
@@ -869,10 +868,10 @@ of the available generation parameters more deeply later.
 .. parsed-literal::
 
     Loading model from qwen2/INT4_compressed_weights
-
+    
     Input text: The Sun is yellow bacause
      it is made of hydrogen and oxygen atoms. The
-
+    
 
 Run Chatbot
 -----------
@@ -1023,11 +1022,11 @@ Click here to see detailed description of advanced options
     if not Path("gradio_helper_genai.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-chatbot/gradio_helper_genai.py")
         open("gradio_helper_genai.py", "w").write(r.text)
-
+    
     from gradio_helper_genai import make_demo
-
+    
     demo = make_demo(pipe, model_configuration, model_id, lang.value)
-
+    
     try:
         demo.launch(debug=True)
     except Exception:

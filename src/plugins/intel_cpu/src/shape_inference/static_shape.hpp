@@ -18,8 +18,8 @@
 
 namespace ov {
 namespace op {
-    struct AutoBroadcastSpec;
-}   // namespace op
+struct AutoBroadcastSpec;
+}  // namespace op
 
 namespace intel_cpu {
 /**
@@ -104,15 +104,13 @@ public:
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(
-        const T& other) const {
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(
-        const T& other) const {
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
@@ -254,15 +252,13 @@ public:
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(
-        const T& other) const {
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(
-        const T& other) const {
+    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
@@ -305,7 +301,8 @@ private:
 };
 
 template <class T>
-typename std::enable_if<is_static_shape_adapter<T>(), std::ostream&>::type operator<<(std::ostream& out, const T& shape) {
+typename std::enable_if<is_static_shape_adapter<T>(), std::ostream&>::type operator<<(std::ostream& out,
+                                                                                      const T& shape) {
     out << '{';
     if (!shape.empty()) {
         std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));

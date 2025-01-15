@@ -50,6 +50,11 @@ struct data_type_traits {
         return et.is_quantized() && et.bitwidth() == 8;
     }
 
+    static bool is_i4_u4(data_types data_type) {
+        auto et = ov::element::Type(data_type);
+        return et.bitwidth() == 4;
+    }
+
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
         if (t1.bitwidth() < t2.bitwidth())
             return t2;

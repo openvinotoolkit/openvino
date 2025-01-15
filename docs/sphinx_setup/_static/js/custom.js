@@ -189,7 +189,7 @@ function getCurrentVersion() {
     if (wordAfterDomain === 'cn') {
         wordAfterDomain = link[2];
     }
-    if (["index.html", "404.html", "", "latest"].indexOf(wordAfterDomain) >= 0) {
+    if (["index.html", "404.html", ""].indexOf(wordAfterDomain) >= 0) {
         /*
         * If this landing page, 404 or domain.com we should get first version
         * */
@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
     
             await element.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+                accessToken: "xx2b580d60-addf-451d-94fd-06effafb7686",
                 organizationId: "intelcorporationproductione78n25s6"
             });
     
@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const searchInterfaceSa = document.querySelector("#sa-search");
         const searchInterface = document.querySelector("#search");
         const currentVersion = getCurrentVersion();
-    
+        
         await initializeSearchInterface(searchInterfaceSa, currentVersion);
         await initializeSearchInterface(searchInterface);
     

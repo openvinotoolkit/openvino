@@ -29,12 +29,12 @@ class VariableStateBase : public IVariableState {
 public:
     VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc);
 
-    //ov::IVariableState
-    void set_state(const ov::SoPtr<ov::ITensor>& state) override final; // NOLINT
+    // ov::IVariableState
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override final;  // NOLINT
     ov::SoPtr<ov::ITensor> get_state() const override;
-    void reset() override final; // NOLINT
-    bool is_reset_state() const override final; // NOLINT
-    void commit() override final; // NOLINT
+    void reset() override final;                 // NOLINT
+    bool is_reset_state() const override final;  // NOLINT
+    void commit() override final;                // NOLINT
 
 protected:
     virtual MemoryPtr internal_state_mem() const = 0;
@@ -66,7 +66,7 @@ public:
     MemoryDescPtr internal_desc() const override;
 
 private:
-    //ov::intel_cpu::VariableStateBase
+    // ov::intel_cpu::VariableStateBase
     void reset_impl() override;
     void commit_impl() override;
 
@@ -89,7 +89,7 @@ private:
     MemoryPtr internal_state_mem() const override;
 
 private:
-    MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
+    MemoryDescPtr m_internal_desc;  // mem desc required by the graph internal tensor
     std::array<MemoryPtr, 2> m_internal_mem{};
     size_t buffer_num = 0;
 };
@@ -111,7 +111,7 @@ private:
     MemoryPtr internal_state_mem() const override;
 
 private:
-    MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
+    MemoryDescPtr m_internal_desc;  // mem desc required by the graph internal tensor
     MemoryPtr m_internal_mem;
 };
 
@@ -121,10 +121,10 @@ public:
                          const MemoryDescPtr& external_desc,
                          const BlockedMemoryDescPtr& dense_internal_desc);
 
-    //ov::IVariableState
+    // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
 
-    //ov::intel_cpu::VariableStateBase
+    // ov::intel_cpu::VariableStateBase
     MemoryPtr input_mem() override;
     MemoryPtr output_mem() override;
     MemoryDescPtr internal_desc() const override;
@@ -158,14 +158,14 @@ public:
     }
 
 private:
-    //ov::intel_cpu::VariableStateBase
+    // ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
     void reset_impl() override;
     void commit_impl() override;
 
 private:
-    MemoryPtr m_internal_mem; // kv cache
-    MemoryPtr m_hidden_state; // beam access table
+    MemoryPtr m_internal_mem;  // kv cache
+    MemoryPtr m_hidden_state;  // beam access table
     size_t m_internal_mem_max_size = 0;
     size_t m_hidden_state_max_size = 0;
 
@@ -178,5 +178,5 @@ private:
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
 using MemStateCPtr = std::shared_ptr<const IVariableState>;
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -93,11 +93,11 @@ To run the sample, you need to specify a model and an image:
      to manually rearrange the default channels order in the sample or demo
      application or reconvert your model using model conversion API with
      ``reverse_input_channels`` argument specified. For more information about
-     the argument, refer to **When to Reverse Input Channels** section of
-     :doc:`Embedding Preprocessing Computation <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
+     the argument, refer to the **Color Conversion** section of
+     :doc:`Preprocessing API <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
    - Before running the sample with a trained model, make sure the model is
      converted to the intermediate representation (IR) format (\*.xml + \*.bin)
-     using the :doc:`model conversion API <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+     using the :doc:`model conversion API <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
    - The sample supports NCHW model layout only.
 
@@ -257,7 +257,7 @@ Additional Resources
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
 - `OpenVINO Runtime C API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__c__api.html>`__
 - `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
 - `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__

@@ -14,5 +14,5 @@ public:
     StatefulSDPAFusion();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

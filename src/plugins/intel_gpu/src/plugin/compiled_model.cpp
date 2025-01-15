@@ -179,7 +179,16 @@ void CompiledModel::export_model(std::ostream& model) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
-    cldnn::BinaryOutputBuffer ob(model);
+    const ov::EncryptionCallbacks encryption_callbacks = m_config.get_property(ov::cache_encryption_callbacks);
+
+    // Do not allow encryption for CacheMode::OPTIMIZE_SPEED - the cache size may cause severe memory penalty.
+    const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
+    std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
+        encryption_enabled
+            ? cldnn::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
+            : cldnn::make_unique<cldnn::BinaryOutputBuffer>(model);
+    auto& ob = *ob_ptr;
+
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
     // Inputs
@@ -222,6 +231,7 @@ void CompiledModel::export_model(std::ostream& model) const {
     }
 
     get_graph(0)->export_model(ob);
+    ob.flush();
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

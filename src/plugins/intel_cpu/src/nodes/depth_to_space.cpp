@@ -4,16 +4,15 @@
 
 #include "depth_to_space.h"
 
-#include "dnnl_extension_utils.h"
-#include "utils/general_utils.h"
-
 #include <cmath>
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include <string>
 
 #include "common/blocked_desc_creator.h"
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "openvino/opsets/opset1.hpp"
+#include "utils/general_utils.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("DepthToSpace layer with name '", getName(), "' ", __VA_ARGS__)
 
@@ -40,9 +39,8 @@ size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
 }
 
 bool DepthToSpace::DepthToSpaceAttrs::operator==(const DepthToSpaceAttrs& rhs) const {
-    bool result = layoutType == rhs.layoutType && mode == rhs.mode &&
-                  blockSize == rhs.blockSize && blockStep == rhs.blockStep &&
-                  dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
+    bool result = layoutType == rhs.layoutType && mode == rhs.mode && blockSize == rhs.blockSize &&
+                  blockStep == rhs.blockStep && dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
                   srcBlockedDims == rhs.srcBlockedDims;
 
     return result;
@@ -56,7 +54,9 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             return false;
         }
         const auto mode = depthToSpace->get_mode();
-        if (!one_of(mode, ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST)) {
+        if (!one_of(mode,
+                    ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+                    ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST)) {
             errorMessage = "Does not support mode: " + ov::as_string(mode);
             return false;
         }
@@ -138,7 +138,8 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     if (inputDataShape.getRank() > 2) {
         const auto& srcDims = inputDataShape.getDims();
         auto canUseBlocked = [OV_CAPTURE_CPY_AND_THIS](const size_t block) {
-            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 && (srcDims[1] / block) % attrs.blockStep == 0 &&
+            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 &&
+                   (srcDims[1] / block) % attrs.blockStep == 0 &&
                    (attrs.mode == Mode::DEPTH_FIRST ? block % attrs.blockStep == 0 : true);
         };
 
@@ -172,9 +173,10 @@ void DepthToSpace::createPrimitive() {
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
     attrs.nSpatialDims = memoryDesc.getShape().getRank() - 2;
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? LayoutType::nCsp16c :
-                       memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c :
-                       memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
+    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
+                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
+                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
+                                                                      : LayoutType::ncsp;
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -205,7 +207,8 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
     const size_t nDims = attrs.srcBlockedDims.size();
-    const size_t reshapedRank = nDims + attrs.nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
+    const size_t reshapedRank =
+        nDims + attrs.nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
 
@@ -219,21 +222,24 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     params.src_block_dims[0] = attrs.srcBlockedDims[0];
 
     // reshaping of src dimensions and creating the permutation order for each layout:
-    // new shape: mode = blocks_first [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK]
-    //            mode = depth_first  [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK]
+    // new shape: mode = blocks_first [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ...,
+    // DK]
+    //            mode = depth_first  [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ...,
+    //            DK]
     // order    : mode = blocks_first : [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K]
     //            mode = depth_first  : [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1]
     // where `k` is number of spatial dimensions
 
-    auto reshapeAndSetPermOrder = [&](const size_t idx1, const size_t idx2, const size_t shift, const VectorDims& dims) {
-        for (size_t i = 0; i < attrs.nSpatialDims; i++) {
-            params.order[i * 2 + shift] = i + idx1;
-            params.order[i * 2 + shift + 1] = i + idx2;
+    auto reshapeAndSetPermOrder =
+        [&](const size_t idx1, const size_t idx2, const size_t shift, const VectorDims& dims) {
+            for (size_t i = 0; i < attrs.nSpatialDims; i++) {
+                params.order[i * 2 + shift] = i + idx1;
+                params.order[i * 2 + shift + 1] = i + idx2;
 
-            params.src_block_dims[params.order[i * 2 + shift]] = dims[i + shift];
-            params.src_block_dims[params.order[i * 2 + shift + 1]] = attrs.blockSize;
-        }
-    };
+                params.src_block_dims[params.order[i * 2 + shift]] = dims[i + shift];
+                params.src_block_dims[params.order[i * 2 + shift + 1]] = attrs.blockSize;
+            }
+        };
 
     if (isBlocked) {
         size_t orderShiftForBlocks, orderShiftForDims;
@@ -314,6 +320,6 @@ bool DepthToSpace::created() const {
     return getType() == Type::DepthToSpace;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

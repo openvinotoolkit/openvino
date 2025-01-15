@@ -141,3 +141,18 @@ updates:
       - "mryzhov"
       - "ilya-lavrenov"
     open-pull-requests-limit: 3
+
+  # Docker images
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    allow:
+      - dependency-type: "direct"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "ilya-lavrenov"
+    open-pull-requests-limit: 3

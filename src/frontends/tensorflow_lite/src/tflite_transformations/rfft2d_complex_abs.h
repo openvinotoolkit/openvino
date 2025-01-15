@@ -24,7 +24,7 @@ namespace pass {
 //               \-(imag)-> Unsqueeze -> Reshape -> Square /
 class Rfft2dSimplifier : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow_lite::pass::Rfft2dSimplifier");
     Rfft2dSimplifier();
 };
 

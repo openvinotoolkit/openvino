@@ -3,7 +3,7 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "debug_caps_config.hpp"
+#    include "debug_caps_config.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,7 +20,7 @@ void SnippetsDebugCapsConfig::readProperties() {
     enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
 
-#endif // SNIPPETS_DEBUG_CAPS
+#endif  // SNIPPETS_DEBUG_CAPS

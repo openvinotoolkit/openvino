@@ -12,14 +12,13 @@ namespace intel_cpu {
 /**
  * Shape inference class for operations with internal dynamism. To reflect the fact that the output shapes may only be
  * calculated after the operation has been performed, the data dependency mask is fully set.
- * 
+ *
  */
 class InternalDynShapeInfer final : public ShapeInferEmptyPads {
 public:
     InternalDynShapeInfer() = default;
-    Result
-    infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-          const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         return {{}, ShapeInferStatus::skip};
     }
 
@@ -35,5 +34,5 @@ public:
     }
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

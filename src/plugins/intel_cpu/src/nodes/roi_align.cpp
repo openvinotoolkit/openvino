@@ -3,19 +3,21 @@
 //
 
 #include "roi_align.h"
-#include <string>
-#include <vector>
+
 #include <math.h>
-#include "onednn/dnnl.h"
-#include "dnnl_extension_utils.h"
+
+#include <openvino/opsets/opset9.hpp>
+#include <string>
 #include <utils/bfloat16.hpp>
+#include <vector>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "selective_build.h"
-#include <openvino/opsets/opset9.hpp>
-
-#include "cpu/x64/jit_generator.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -31,13 +33,15 @@ namespace node {
 using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
 using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
 #if defined(OPENVINO_ARCH_X86_64)
-#define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
+#    define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
 template <cpu_isa_t isa>
 struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
-    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp) : jit_uni_roi_align_kernel(jcp), jit_generator(jit_name()) {}
+    explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp)
+        : jit_uni_roi_align_kernel(jcp),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -49,7 +53,8 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
+                              static_cast<size_t>(reg_load_table.getIdx())};
         store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
         store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
 
@@ -65,8 +70,8 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int v_len = cpu_isa_traits<isa>::vlen;
     const int x_len = cpu_isa_traits<sse41>::vlen;
@@ -79,19 +84,19 @@ private:
 
     reg64_t reg_src_address = r8;
     // reg_srcx is used after abi parse finised
-    reg64_t reg_src0        = r11;
-    reg64_t reg_src1        = r12;
-    reg64_t reg_src2        = rcx;
-    reg64_t reg_src3        = rdi;
-    reg64_t reg_weights     = r13;
+    reg64_t reg_src0 = r11;
+    reg64_t reg_src1 = r12;
+    reg64_t reg_src2 = rcx;
+    reg64_t reg_src3 = rdi;
+    reg64_t reg_weights = r13;
 
-    reg64_t reg_buf  = r9;
-    reg64_t reg_src_stride  = r15;
+    reg64_t reg_buf = r9;
+    reg64_t reg_src_stride = r15;
 
     reg64_t reg_work_amount = r14;
     reg64_t reg_num_samples = r10;
 
-    reg64_t reg_load_table  = rax;
+    reg64_t reg_load_table = rax;
     reg64_t reg_load_store_mask = rbx;
 
     reg64_t reg_tmp_64 = rbp;
@@ -177,29 +182,44 @@ private:
         emit_store(vmm_dst, reg_dst, ov::element::f32, ov::element::f32, elt_num, offset);
     }
 
-    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_load(Xbyak::Reg64 reg_src,
+                          Vmm vmm_src,
+                          ov::element::Type src_prc,
+                          ov::element::Type dst_prc,
+                          const int elt_num,
+                          const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
-                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+                                  {static_cast<size_t>(vmm_src.getIdx())},
+                                  {},
+                                  {load_pool_gpr_idxs});
     }
 
-    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_store(Vmm vmm_dst,
+                           Xbyak::Reg64 reg_dst,
+                           ov::element::Type src_prc,
+                           ov::element::Type dst_prc,
+                           const int elt_num,
+                           const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
         // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
-        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
-        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+        std::vector<size_t> local_store_pool_vec_idxs = {static_cast<size_t>(vmm_dst.getIdx())};
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(),
+                                         store_pool_vec_idxs.begin(),
+                                         store_pool_vec_idxs.end());
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
                                   {static_cast<size_t>(reg_dst.getIdx()), static_cast<size_t>(offset)},
-                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+                                  {local_store_pool_vec_idxs},
+                                  {store_pool_gpr_idxs});
     }
 
     void roi_align_cgather() {
@@ -555,7 +575,7 @@ private:
     }
 
     // gather f32 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
-    inline void gather_f32(Vmm &vmm_src, const reg64_t &reg_src, const Vmm &vmm_idx) {
+    inline void gather_f32(Vmm& vmm_src, const reg64_t& reg_src, const Vmm& vmm_idx) {
         constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
         constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
@@ -574,7 +594,7 @@ private:
         sub(rsp, x_len);
         uni_vmovdqu(ptr[rsp], xmm_idx);
         for (int i = 0; i < x_step; i++) {
-            mov(reg_tmp_32, ptr[rsp + i * sizeof(int)]);       // sizeof(int)  index_size
+            mov(reg_tmp_32, ptr[rsp + i * sizeof(int)]);                  // sizeof(int)  index_size
             mov(reg_tmp_32, ptr[reg_src + reg_tmp_64 * jcp_.data_size]);  // scale: sizeof(float)   value_size
             mov(ptr[rsp + i * sizeof(int)], reg_tmp_32);
         }
@@ -590,7 +610,7 @@ private:
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
-            mov(reg_tmp_32, ptr[rsp + i * sizeof(int)]);       // sizeof(int)  index_size
+            mov(reg_tmp_32, ptr[rsp + i * sizeof(int)]);                   // sizeof(int)  index_size
             mov(reg_tmp_16, word[reg_src + reg_tmp_64 * jcp_.data_size]);  // scale: sizeof(bf16)   value_size
             mov(ptr[rsp + i * sizeof(int)], reg_tmp_16);
         }
@@ -614,11 +634,11 @@ private:
         add(rsp, x_len);
     }
 
-    inline void horizontal_add_xmm(const Xbyak::Xmm &xmm_dst, const Xbyak::Xmm &xmm_aux) {
-        uni_vmovshdup(xmm_aux, xmm_dst);              //  dst:1,2,3,4; aux:2,2,4,4
-        uni_vaddps(xmm_dst, xmm_dst, xmm_aux);        //  dst:1+2,2+2,3+4,4+4
-        uni_vmovhlps(xmm_aux, xmm_aux, xmm_dst);      //  aux:3+4,4+4,4,4
-        uni_vaddps(xmm_dst, xmm_dst, xmm_aux);        //  dst:1+2+3+4,...
+    inline void horizontal_add_xmm(const Xbyak::Xmm& xmm_dst, const Xbyak::Xmm& xmm_aux) {
+        uni_vmovshdup(xmm_aux, xmm_dst);          //  dst:1,2,3,4; aux:2,2,4,4
+        uni_vaddps(xmm_dst, xmm_dst, xmm_aux);    //  dst:1+2,2+2,3+4,4+4
+        uni_vmovhlps(xmm_aux, xmm_aux, xmm_dst);  //  aux:3+4,4+4,4,4
+        uni_vaddps(xmm_dst, xmm_dst, xmm_aux);    //  dst:1+2+3+4,...
     }
 
     // horizontal add for vmm_dst, temp1 and temp2 as aux
@@ -663,7 +683,8 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
         }
 
         const ngAlignedMode alignedMode = roiAlign->get_aligned_mode();
-        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN && alignedMode != ngAlignedMode::HALF_PIXEL) {
+        if (alignedMode != ngAlignedMode::ASYMMETRIC && alignedMode != ngAlignedMode::HALF_PIXEL_FOR_NN &&
+            alignedMode != ngAlignedMode::HALF_PIXEL) {
             errorMessage = "Doesn't support mode: " + ov::as_string(alignedMode);
             return false;
         }
@@ -791,9 +812,7 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     } else {
         impl_type = impl_desc_type::ref;
     }
-    std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
-            {LayoutType::ncsp, LayoutType::ncsp}
-    };
+    std::vector<std::pair<LayoutType, LayoutType>> supportedFormats{{LayoutType::ncsp, LayoutType::ncsp}};
 
     if (mayiuse(cpu::x64::sse41)) {
         supportedFormats.push_back(std::make_pair(LayoutType::nspc, LayoutType::nspc));
@@ -805,11 +824,10 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     }
 
     for (auto fmts : supportedFormats) {
-        addSupportedPrimDesc({{fmts.first, inputPrec0},
-                              {LayoutType::ncsp, ov::element::f32},
-                              {LayoutType::ncsp, ov::element::i32}},
-                             {{fmts.second, outputPrec}},
-                              impl_type);
+        addSupportedPrimDesc(
+            {{fmts.first, inputPrec0}, {LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}},
+            {{fmts.second, outputPrec}},
+            impl_type);
     }
 }
 
@@ -836,50 +854,50 @@ void ROIAlign::createPrimitive() {
 
 namespace {
 struct ROIAlignContext {
-    ROIAlign &node;
+    ROIAlign& node;
 };
-}
+}  // namespace
 
-template<typename T>
+template <typename T>
 struct ROIAlign::ROIAlignExecute {
     using srcT = typename std::tuple_element<0, T>::type;
     using dstT = typename std::tuple_element<1, T>::type;
 
-    void operator()(ROIAlignContext & ctx) {
+    void operator()(ROIAlignContext& ctx) {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
 void ROIAlign::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
-          (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
+    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         OPENVINO_THROW("ROIAlign doesn't support demanded precisions");
 
-    ROIAlignContext ctx = {
-            *this
-    };
+    ROIAlignContext ctx = {*this};
 
-    OV_SWITCH(intel_cpu, ROIAlignExecute, ctx, std::tie(inputPrec, outputPrec),
+    OV_SWITCH(intel_cpu,
+              ROIAlignExecute,
+              ctx,
+              std::tie(inputPrec, outputPrec),
               OV_CASE2(dnnl_f32, dnnl_f32, float, float),
               OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
 void ROIAlign::executeSpecified() {
-    auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &dstMemory = getChildEdgeAt(0)->getMemory();
+    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
 
-    const auto *srcData = getSrcDataAtPortAs<const inputType>(0);
-    const auto *srcRoi = getSrcDataAtPortAs<const float>(1);
-    const auto *srcRoiIdx = getSrcDataAtPortAs<const int>(2);
-    auto *dst = getDstDataAtPortAs<outputType>(0);
+    const auto* srcData = getSrcDataAtPortAs<const inputType>(0);
+    const auto* srcRoi = getSrcDataAtPortAs<const float>(1);
+    const auto* srcRoiIdx = getSrcDataAtPortAs<const int>(2);
+    auto* dst = getDstDataAtPortAs<outputType>(0);
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
@@ -890,8 +908,8 @@ void ROIAlign::executeSpecified() {
 
     const int binCount = pooledH * pooledW;
 
-    const auto &srcStrides = srcBlockDesc->getStrides();
-    const auto &dstStrides = dstBlockDesc->getStrides();
+    const auto& srcStrides = srcBlockDesc->getStrides();
+    const auto& dstStrides = dstBlockDesc->getStrides();
 
     const int batchInputStride = srcStrides[0];
     const int batchOutputStride = dstStrides[0];
@@ -993,8 +1011,7 @@ void ROIAlign::executeSpecified() {
                     float sampleY = y1 + yBinInd * binHeight + sampleDistanceY * (0.5f + ySampleInd);
                     for (int xSampleInd = 0; xSampleInd < samplingRatioX; xSampleInd++) {
                         float sampleX = x1 + xBinInd * binWidth + sampleDistanceX * (0.5f + xSampleInd);
-                        if (sampleX < -1.0 || sampleX > W ||
-                            sampleY < -1.0 || sampleY > H) {
+                        if (sampleX < -1.0 || sampleX > W || sampleY < -1.0 || sampleY > H) {
                             // For this sample we save 4 index of (0,0) and 4 weight of 0
                             if (!isPlainFmt) {
                                 auto startPoint = reinterpret_cast<size_t>(&srcData[batchSrcOffset]);
@@ -1030,7 +1047,8 @@ void ROIAlign::executeSpecified() {
                         }
 
                         if (!isPlainFmt) {
-                            size_t srcOffset = batchSrcOffset + sampleYLow * W * lastBlockDim + sampleXLow * lastBlockDim;
+                            size_t srcOffset =
+                                batchSrcOffset + sampleYLow * W * lastBlockDim + sampleXLow * lastBlockDim;
                             srcAddressListTbl[n][idxIter] = reinterpret_cast<size_t>(&srcData[srcOffset]);
 
                             srcOffset = batchSrcOffset + sampleYLow * W * lastBlockDim + sampleXHigh * lastBlockDim;
@@ -1042,8 +1060,8 @@ void ROIAlign::executeSpecified() {
                             srcOffset = batchSrcOffset + sampleYHigh * W * lastBlockDim + sampleXHigh * lastBlockDim;
                             srcAddressListTbl[n][idxIter + 3] = reinterpret_cast<size_t>(&srcData[srcOffset]);
                         } else {
-                            srcIndexTbl[n][idxIter] = sampleYLow  * W + sampleXLow;
-                            srcIndexTbl[n][idxIter + 1] = sampleYLow  * W + sampleXHigh;
+                            srcIndexTbl[n][idxIter] = sampleYLow * W + sampleXLow;
+                            srcIndexTbl[n][idxIter + 1] = sampleYLow * W + sampleXHigh;
                             srcIndexTbl[n][idxIter + 2] = sampleYHigh * W + sampleXLow;
                             srcIndexTbl[n][idxIter + 3] = sampleYHigh * W + sampleXHigh;
                         }
@@ -1079,7 +1097,8 @@ void ROIAlign::executeSpecified() {
             auto rhw_loop = [&](int n, int yBinInd, int xBinInd) {
                 int numSamplesROI = numSamples[n];
                 // each sample have 4 values for srcAddressList and weight
-                size_t binOffset = numSamplesROI * BLIParamsNum * pooledW * yBinInd + numSamplesROI * BLIParamsNum * xBinInd;
+                size_t binOffset =
+                    numSamplesROI * BLIParamsNum * pooledW * yBinInd + numSamplesROI * BLIParamsNum * xBinInd;
 
                 auto arg = jit_roi_align_call_args();
                 arg.src = static_cast<const void*>(&srcAddressListTbl[n][binOffset]);
@@ -1088,12 +1107,13 @@ void ROIAlign::executeSpecified() {
                 arg.num_samples = numSamplesROI;
                 float numSamplesInBinInvert = 1.f / numSamplesROI;
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
-                float *threadBuf = static_cast<float*>(&workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
+                float* threadBuf = static_cast<float*>(
+                    &workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
                 memset(threadBuf, 0, bufSize * sizeof(float));
                 arg.buffer = threadBuf;
                 size_t dstOffset = n * batchOutputStride + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;
                 arg.dst = static_cast<void*>(&dst[dstOffset]);
-                arg.src_stride = lastBlockDim * W * H; // only valid for blk, nspc generate inside
+                arg.src_stride = lastBlockDim * W * H;  // only valid for blk, nspc generate inside
                 (*roi_align_kernel)(&arg);
             };
 
@@ -1140,24 +1160,19 @@ void ROIAlign::executeSpecified() {
                 float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];
                 float src3 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 3]];
 
-                float sampleValue =
-                        weightsTbl[n][paramOffset] * src0 +
-                        weightsTbl[n][paramOffset + 1] * src1 +
-                        weightsTbl[n][paramOffset + 2] * src2 +
-                        weightsTbl[n][paramOffset + 3] * src3;
+                float sampleValue = weightsTbl[n][paramOffset] * src0 + weightsTbl[n][paramOffset + 1] * src1 +
+                                    weightsTbl[n][paramOffset + 2] * src2 + weightsTbl[n][paramOffset + 3] * src3;
                 paramOffset += BLIParamsNum;
 
                 switch (getAlgorithm()) {
-                    case Algorithm::ROIAlignMax:
-                    {
-                        pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
-                        break;
-                    }
-                    case Algorithm::ROIAlignAvg:
-                    default:
-                    {
-                        pooledValue += sampleValue * numSamplesInBinInvert;
-                    }
+                case Algorithm::ROIAlignMax: {
+                    pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
+                    break;
+                }
+                case Algorithm::ROIAlignAvg:
+                default: {
+                    pooledValue += sampleValue * numSamplesInBinInvert;
+                }
                 }
                 dst[binDstOffset] = pooledValue;
             }
@@ -1177,6 +1192,6 @@ void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

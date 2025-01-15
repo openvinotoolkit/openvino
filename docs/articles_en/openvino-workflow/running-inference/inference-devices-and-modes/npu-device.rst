@@ -250,11 +250,11 @@ or
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
-the ``max_tiles`` property is read-write to enable compiling models off-device. 
+the ``max_tiles`` property is read-write to enable compiling models off-device.
 When on NPU, ``max_tiles`` will return the number of tiles the device has.
 Setting the number of tiles to compile for (via ``intel_npu::tiles``), when on device,
-must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that 
-``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles`` 
+must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that
+``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``
 to avoid exceptions from the compiler.
 
 .. note::
@@ -281,7 +281,3 @@ Additional Resources
 
 * `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
 * `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
-* `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
-* `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
-* `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__
-* `Object Detection Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/python>`__

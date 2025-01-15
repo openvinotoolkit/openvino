@@ -15,13 +15,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: Where can I find the models used in the performance benchmarks?
 
-   All models used are included in the GitHub repository of
-   :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
-
-   .. important::
-
-      Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
-      published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
+   All models used are published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 
 .. dropdown:: Will there be any new models added to the list used for benchmarking?
 
@@ -35,7 +29,7 @@ Performance Information F.A.Q.
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
 
-   For diffusers (Stable-Diffusion) and foundational models (aka LLMs) please use the OpenVINO GenAI 
+   For diffusers (Stable-Diffusion) and foundational models (aka LLMs) please use the OpenVINO GenAI
    opensource repo `OpenVINO GenAI tools/llm_bench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/llm_bench>`__
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <getting-performance-numbers>`.
@@ -93,30 +87,6 @@ Performance Information F.A.Q.
         - BERT
         - question / answer
         - 128
-      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
-        - Efficientdet
-        - classification
-        - 512x512
-      * - `mask_rcnn_resnet50_atrous_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco>`__
-        - Mask R-CNN ResNet 50 Atrous
-        - object instance segmentation
-        - 800x1365
-      * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
-        - Mobilenet V2 PyTorch
-        - classification
-        - 224x224
-      * - `resnet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
-        - ResNet-50_v1_ILSVRC-2012
-        - classification
-        - 224x224
-      * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
-        - ssd-mobilenet-V1-coco onnx model
-        - object detection
-        - 300x300
-      * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
-        - ssd-resnet34 onnx model
-        - object detection
-        - 1200x1200
       * - `yolov8n <https://github.com/ultralytics/ultralytics>`__
         - Yolov8nano
         - object detection

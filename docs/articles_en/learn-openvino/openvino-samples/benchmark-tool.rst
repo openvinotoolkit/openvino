@@ -30,7 +30,7 @@ Basic Usage
 
       The benchmarking application works with models in the OpenVINO IR
       (``model.xml`` and ``model.bin``) and ONNX (``model.onnx``) formats.
-      Make sure to :doc:`convert your models <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+      Make sure to :doc:`convert your models <../../openvino-workflow/model-preparation/convert-model-to-ir>`
       if necessary.
 
       To run benchmarking with default options on a model, use the following command:
@@ -56,7 +56,7 @@ Basic Usage
 
       The benchmarking application works with models in the OpenVINO IR, TensorFlow,
       TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it,
-      OpenVINO also allows you to :doc:`convert your models <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+      OpenVINO also allows you to :doc:`convert your models <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
 
       To run benchmarking with default options on a model, use the following command:
 
@@ -937,4 +937,4 @@ Additional Resources
 
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`

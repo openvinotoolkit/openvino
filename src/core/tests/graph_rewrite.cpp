@@ -23,7 +23,7 @@ using namespace ov::pass;
 
 class TestPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TestPass");
+    OPENVINO_MATCHER_PASS_RTTI("TestPass");
     TestPass() : MatcherPass() {
         auto divide = std::make_shared<ov::pass::pattern::op::Label>(element::f32,
                                                                      Shape{},
@@ -44,7 +44,7 @@ public:
 
 class GatherNodesPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GatherNodesPass");
+    OPENVINO_MATCHER_PASS_RTTI("GatherNodesPass");
     GatherNodesPass(NodeVector& order) : MatcherPass() {
         ov::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
             order.push_back(m.get_match_root());
@@ -187,6 +187,7 @@ TEST(GraphRewriteTest, MatcherPassCallbackDerived) {
 
 class TypeBasedTestPass : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("TypeBasedTestPass");
     TypeBasedTestPass() : MatcherPass() {
         auto divide = std::make_shared<ov::op::v1::Divide>(std::make_shared<ov::pass::pattern::op::Label>(),
                                                            std::make_shared<ov::pass::pattern::op::Label>());
@@ -207,6 +208,7 @@ public:
 
 class TypeBasedTestPassDerived : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("TypeBasedTestPassDerived");
     TypeBasedTestPassDerived() : MatcherPass() {
         auto divide = std::make_shared<PrivateDivide>(std::make_shared<ov::pass::pattern::op::Label>(),
                                                       std::make_shared<ov::pass::pattern::op::Label>());
@@ -388,7 +390,7 @@ TEST(PassConfigTest, Test1) {
 
 class CheckConsumers : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CheckConsumers");
+    OPENVINO_MATCHER_PASS_RTTI("CheckConsumers");
     CheckConsumers() {
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
             auto node = m.get_match_root();

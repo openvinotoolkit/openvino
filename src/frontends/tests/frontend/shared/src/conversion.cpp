@@ -95,3 +95,17 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     OV_ASSERT_NO_THROW(model = frontend->convert(input_model));
     ASSERT_NE(model, nullptr);
 }
+
+#ifdef OPENVINO_CPP_VER_17
+TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSOByPath) {
+    auto frontend = m_param.m_frontend;
+    const std::filesystem::path lib_path = get_lib_path("test_builtin_extensions");
+    frontend->add_extension(lib_path);
+    std::shared_ptr<InputModel> input_model;
+    OV_ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
+    ASSERT_NE(input_model, nullptr);
+    std::shared_ptr<ov::Model> model;
+    OV_ASSERT_NO_THROW(model = frontend->convert(input_model));
+    ASSERT_NE(model, nullptr);
+}
+#endif

@@ -90,6 +90,7 @@ which do not require specifying quantization parameters:
 | Below is a list of such models:
 
 * meta-llama/Meta-Llama-3-8B-Instruct
+* meta-llama/Llama-3.1-8B
 * microsoft/Phi-3-mini-4k-instruct
 * Qwen/Qwen2-7B
 * mistralai/Mistral-7B-Instruct-v0.2
@@ -133,6 +134,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
 
          int main(int argc, char* argv[]) {
             std::string model_path = "TinyLlama";
+            ov::genai::LLMPipeline pipe(models_path, "NPU");
             ov::genai::GenerationConfig config;
             config.do_sample=false;
             config.max_new_tokens=100;

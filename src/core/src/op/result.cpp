@@ -9,6 +9,7 @@
 #include <typeinfo>
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 
 namespace ov {
 namespace op {
@@ -22,10 +23,8 @@ void Result::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
-    // Result doesn't change change in/out tensors
-    auto& output = get_output_descriptor(0);
-    auto& input = get_input_descriptor(0);
-    output.set_tensor_ptr(input.get_tensor_ptr());
+    // Result shares input tensor but can have specific properties which are added/removed to input.
+    descriptor::set_shared_tensor(get_output_descriptor(0), get_input_descriptor(0));
 }
 
 std::shared_ptr<Node> Result::clone_with_new_inputs(const OutputVector& new_args) const {

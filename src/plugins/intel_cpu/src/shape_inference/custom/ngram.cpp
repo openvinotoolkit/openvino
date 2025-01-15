@@ -3,6 +3,7 @@
 //
 
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+
 #include "ngram.hpp"
 #include "utils.hpp"
 
@@ -10,9 +11,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Result NgramShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result NgramShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                              const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     auto output_shape = input_shapes[0].get();
     output_shape[1] *= m_k;
     return {{std::move(output_shape)}, ShapeInferStatus::success};
@@ -25,6 +25,6 @@ ShapeInferPtr NgramShapeInferFactory::makeShapeInfer() const {
     }
     return std::make_shared<NgramShapeInfer>(ngram->get_k());
 }
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

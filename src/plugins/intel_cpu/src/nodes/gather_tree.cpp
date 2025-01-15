@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather_tree.hpp"
+
+#include <cmath>
 #include <string>
 #include <vector>
-#include <cmath>
 
-#include "openvino/op/gather_tree.hpp"
-#include "openvino/core/parallel.hpp"
 #include "gather_tree.h"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
 namespace ov {
@@ -59,11 +60,11 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
     if (!one_of(precision, ov::element::f32, ov::element::i32))
         precision = ov::element::f32;
 
-    if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX)  != precision ||
+    if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX) != precision ||
         getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
-        getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN)   != precision ||
-        getOriginalOutputPrecisionAtPort(0)                 != precision) {
-            OPENVINO_THROW(errorPrefix, " has incorrect input/output data precision. Must be the same.");
+        getOriginalInputPrecisionAtPort(GATHER_TREE_END_TOKEN) != precision ||
+        getOriginalOutputPrecisionAtPort(0) != precision) {
+        OPENVINO_THROW(errorPrefix, " has incorrect input/output data precision. Must be the same.");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
@@ -121,13 +122,15 @@ void GatherTree::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims, const VectorDims& parentIdxDims,
-    const VectorDims& maxSeqLenDims, const VectorDims& dstDims)
-        : maxTime{static_cast<int32_t>(stepIdxDims[0])}
-        , batchSize{stepIdxDims[1]}
-        , beamWidth{stepIdxDims[2]}
-        , bbSize{batchSize * beamWidth}
-        , parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<size_t>())} {
+GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims,
+                                                   const VectorDims& parentIdxDims,
+                                                   const VectorDims& maxSeqLenDims,
+                                                   const VectorDims& dstDims)
+    : maxTime{static_cast<int32_t>(stepIdxDims[0])},
+      batchSize{stepIdxDims[1]},
+      beamWidth{stepIdxDims[2]},
+      bbSize{batchSize * beamWidth},
+      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<size_t>())} {
     if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {
@@ -136,14 +139,17 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
     }
 }
 
-template<typename DATA_T>
-void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const MemoryPtr& parentIdxMemPtr,
-    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, const MemoryPtr& dstMemPtr) {
-    const auto *stepIdx = stepIdxMemPtr->getDataAs<DATA_T>();
-    const auto *parentIdx = parentIdxMemPtr->getDataAs<DATA_T>();
-    const auto *maxSeqLen = maxSeqLenMemPtr->getDataAs<DATA_T>();
+template <typename DATA_T>
+void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
+                                          const MemoryPtr& parentIdxMemPtr,
+                                          const MemoryPtr& maxSeqLenMemPtr,
+                                          const MemoryPtr& endTokenMemPtr,
+                                          const MemoryPtr& dstMemPtr) {
+    const auto* stepIdx = stepIdxMemPtr->getDataAs<DATA_T>();
+    const auto* parentIdx = parentIdxMemPtr->getDataAs<DATA_T>();
+    const auto* maxSeqLen = maxSeqLenMemPtr->getDataAs<DATA_T>();
     const auto endToken = (endTokenMemPtr->getDataAs<DATA_T>())[0];
-    auto *finalIdx = dstMemPtr->getDataAs<DATA_T>();
+    auto* finalIdx = dstMemPtr->getDataAs<DATA_T>();
 
     bool incorrectResult = false;
     parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
@@ -164,7 +170,7 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const 
             }
 
             bool finished = false;
-            auto *final = &finalIdx[batch * beamWidth + beam];
+            auto* final = &finalIdx[batch * beamWidth + beam];
             for (time = 0; time < maxSequenceInBeam; time++, final += bbSize) {
                 if (finished)
                     (*final) = endToken;
@@ -184,6 +190,6 @@ bool GatherTree::created() const {
     return getType() == Type::GatherTree;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

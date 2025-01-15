@@ -16,8 +16,7 @@ namespace node {
 namespace {
 
 template <typename T>
-bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                          const std::pair<float, T>& pair2) {
+bool SortScorePairDescend(const std::pair<float, T>& pair1, const std::pair<float, T>& pair2) {
     return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second < pair2.second);
 }
 
@@ -27,9 +26,10 @@ bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<
     return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
 }
 
-} // namespace
+}  // namespace
 
-bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                           std::string& errorMessage) noexcept {
     try {
         const auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
         if (!doOp) {
@@ -58,7 +58,7 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
     errorPrefix = "DetectionOutput node with name '" + getName() + "' ";
 
     if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5)
-        OPENVINO_THROW(errorPrefix,  "has incorrect number of input edges.");
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges.");
 
     if (getOriginalOutputsNumber() != 1)
         OPENVINO_THROW(errorPrefix, "has incorrect number of output edges.");
@@ -93,7 +93,7 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
 
 void DetectionOutput::prepareParams() {
     const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().getShape().getStaticDims();
-    const auto &idConfDims = getParentEdgeAt(ID_CONF)->getMemory().getShape().getStaticDims();
+    const auto& idConfDims = getParentEdgeAt(ID_CONF)->getMemory().getShape().getStaticDims();
     priorsNum = static_cast<int>(idPriorDims.back() / priorSize);
     isPriorsPerImg = idPriorDims.front() != 1;
     classesNum = static_cast<int>(idConfDims.back() / priorsNum);
@@ -130,9 +130,8 @@ void DetectionOutput::prepareParams() {
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
-    isSparsityWorthwhile =
-        (confidenceThreshold > sparsityThreshold) &&
-        ((classesNum * priorsNum * sizeof(float) * 2) > static_cast<size_t>(cacheSizeL3));
+    isSparsityWorthwhile = (confidenceThreshold > sparsityThreshold) &&
+                           ((classesNum * priorsNum * sizeof(float) * 2) > static_cast<size_t>(cacheSizeL3));
     confInfoLen = (!decreaseClassId && isSparsityWorthwhile) ? (2 * priorsNum + 1) : priorsNum;
     reorderedConf.resize(imgNum * classesNum * confInfoLen);
 
@@ -149,17 +148,17 @@ void DetectionOutput::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
 
-    addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, ov::element::f32}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
 struct ConfidenceComparatorDO {
     explicit ConfidenceComparatorDO(const float* confDataIn) : confData(confDataIn) {}
 
     bool operator()(int idx1, int idx2) {
-        if (confData[idx1] > confData[idx2]) return true;
-        if (confData[idx1] < confData[idx2]) return false;
+        if (confData[idx1] > confData[idx2])
+            return true;
+        if (confData[idx1] < confData[idx2])
+            return false;
         return idx1 < idx2;
     }
 
@@ -171,31 +170,29 @@ void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void DetectionOutput::execute(dnnl::stream strm) {
-    float *dstData = getDstDataAtPortAs<float>(0);
+    float* dstData = getDstDataAtPortAs<float>(0);
 
-    const float *locData     = getSrcDataAtPortAs<const float>(ID_LOC);
-    const float *confData    = getSrcDataAtPortAs<const float>(ID_CONF);
-    const float *priorData   = getSrcDataAtPortAs<const float>(ID_PRIOR);
-    const float *ARMConfData = inputShapes.size() > 3 ?
-            getSrcDataAtPortAs<const float>(ID_ARM_CONF) : nullptr;
-    const float *ARMLocData = inputShapes.size() > 4 ?
-            getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
+    const float* locData = getSrcDataAtPortAs<const float>(ID_LOC);
+    const float* confData = getSrcDataAtPortAs<const float>(ID_CONF);
+    const float* priorData = getSrcDataAtPortAs<const float>(ID_PRIOR);
+    const float* ARMConfData = inputShapes.size() > 3 ? getSrcDataAtPortAs<const float>(ID_ARM_CONF) : nullptr;
+    const float* ARMLocData = inputShapes.size() > 4 ? getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
 
-    float *reorderedConfData = reorderedConf.data();
-    int *reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
+    float* reorderedConfData = reorderedConf.data();
+    int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
 
-    float *decodedBboxesData = decodedBboxes.data();
-    float *bboxSizesData     = bboxSizes.data();
-    int *indicesData         = indices.data();
-    int *indicesBufData      = indicesBuffer.data();
-    int *detectionsData      = detectionsCount.data();
+    float* decodedBboxesData = decodedBboxes.data();
+    float* bboxSizesData = bboxSizes.data();
+    int* indicesData = indices.data();
+    int* indicesBufData = indicesBuffer.data();
+    int* detectionsData = detectionsCount.data();
 
     memset(detectionsData, 0, imgNum * classesNum * sizeof(int));
 
     int priorsBatch = isPriorsPerImg ? imgNum : 1;
-    int *numPriorsActualdata = numPriorsActual.data();
+    int* numPriorsActualdata = numPriorsActual.data();
     for (int n = 0; n < priorsBatch; ++n) {
-        const float *ppriors = priorData;
+        const float* ppriors = priorData;
         ppriors += varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
         getActualPriorNum(ppriors, numPriorsActualdata, n);
     }
@@ -204,21 +201,32 @@ void DetectionOutput::execute(dnnl::stream strm) {
 
     if (!isSparsityWorthwhile) {
         confReorderDense(confData, ARMConfData, reorderedConfData);
-    } else { // sparsity
+    } else {  // sparsity
         if (!decreaseClassId) {
-            confReorderAndFilterSparsityCF(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
+            confReorderAndFilterSparsityCF(confData,
+                                           ARMConfData,
+                                           reorderedConfData,
+                                           indicesData,
+                                           indicesBufData,
+                                           detectionsData);
         } else {
-            confReorderAndFilterSparsityMX(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
+            confReorderAndFilterSparsityMX(confData,
+                                           ARMConfData,
+                                           reorderedConfData,
+                                           indicesData,
+                                           indicesBufData,
+                                           detectionsData);
         }
     }
 
-    int *confInfoV = confInfoForPrior.data();
+    int* confInfoV = confInfoForPrior.data();
 
     for (int n = 0; n < imgNum; ++n) {
-        const float *ppriors = priorData;
-        const float *priorVariances = priorData + priorsNum * priorSize;
+        const float* ppriors = priorData;
+        const float* priorVariances = priorData + priorsNum * priorSize;
         if (isPriorsPerImg) {
-            int priorSizePerImg = varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
+            int priorSizePerImg =
+                varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
             ppriors += priorSizePerImg;
             priorVariances += varianceEncodedInTarget ? 0 : priorSizePerImg;
         }
@@ -226,17 +234,50 @@ void DetectionOutput::execute(dnnl::stream strm) {
         if (isShareLoc) {
             int locShift = n * priorsNum;
             int coordShift = locShift * 4;
-            const float *ploc = locData + coordShift;
-            float *pboxes = decodedBboxesData + coordShift;
-            float *psizes = bboxSizesData + locShift;
-            int *confInfoVB = confInfoV + locShift;
+            const float* ploc = locData + coordShift;
+            float* pboxes = decodedBboxesData + coordShift;
+            float* psizes = bboxSizesData + locShift;
+            int* confInfoVB = confInfoV + locShift;
 
             if (withAddBoxPred) {
-                const float *pARMLoc = ARMLocData + coordShift;
-                decodeBBoxes(ppriors, pARMLoc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, nullptr, confInfoVB);
-                decodeBBoxes(pboxes, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, 0, 4, false, nullptr, confInfoVB);
+                const float* pARMLoc = ARMLocData + coordShift;
+                decodeBBoxes(ppriors,
+                             pARMLoc,
+                             priorVariances,
+                             pboxes,
+                             psizes,
+                             numPriorsActualdata,
+                             n,
+                             coordOffset,
+                             priorSize,
+                             true,
+                             nullptr,
+                             confInfoVB);
+                decodeBBoxes(pboxes,
+                             ploc,
+                             priorVariances,
+                             pboxes,
+                             psizes,
+                             numPriorsActualdata,
+                             n,
+                             0,
+                             4,
+                             false,
+                             nullptr,
+                             confInfoVB);
             } else {
-                decodeBBoxes(ppriors, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, nullptr, confInfoVB);
+                decodeBBoxes(ppriors,
+                             ploc,
+                             priorVariances,
+                             pboxes,
+                             psizes,
+                             numPriorsActualdata,
+                             n,
+                             coordOffset,
+                             priorSize,
+                             true,
+                             nullptr,
+                             confInfoVB);
             }
         } else {
             for (int c = 0; c < locNumForClasses; ++c) {
@@ -245,16 +286,46 @@ void DetectionOutput::execute(dnnl::stream strm) {
                 }
                 int locShift = n * priorsNum * locNumForClasses;
                 int coordShift = locShift * 4;
-                const float *ploc = locData + coordShift + c * 4;
-                float *pboxes = decodedBboxesData + coordShift + c * 4 * priorsNum;
-                float *psizes = bboxSizesData + locShift + c * priorsNum;
-                int *confInfoHBC = reorderedConfDataIndices + n * confInfoLen * classesNum + c*confInfoLen;
+                const float* ploc = locData + coordShift + c * 4;
+                float* pboxes = decodedBboxesData + coordShift + c * 4 * priorsNum;
+                float* psizes = bboxSizesData + locShift + c * priorsNum;
+                int* confInfoHBC = reorderedConfDataIndices + n * confInfoLen * classesNum + c * confInfoLen;
                 if (withAddBoxPred) {
-                    const float *pARMLoc = ARMLocData + n * 4 * locNumForClasses * priorsNum + c * 4;
-                    decodeBBoxes(ppriors, pARMLoc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, confInfoHBC);
-                    decodeBBoxes(pboxes, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, 0, 4, false, confInfoHBC);
+                    const float* pARMLoc = ARMLocData + n * 4 * locNumForClasses * priorsNum + c * 4;
+                    decodeBBoxes(ppriors,
+                                 pARMLoc,
+                                 priorVariances,
+                                 pboxes,
+                                 psizes,
+                                 numPriorsActualdata,
+                                 n,
+                                 coordOffset,
+                                 priorSize,
+                                 true,
+                                 confInfoHBC);
+                    decodeBBoxes(pboxes,
+                                 ploc,
+                                 priorVariances,
+                                 pboxes,
+                                 psizes,
+                                 numPriorsActualdata,
+                                 n,
+                                 0,
+                                 4,
+                                 false,
+                                 confInfoHBC);
                 } else {
-                    decodeBBoxes(ppriors, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, confInfoHBC);
+                    decodeBBoxes(ppriors,
+                                 ploc,
+                                 priorVariances,
+                                 pboxes,
+                                 psizes,
+                                 numPriorsActualdata,
+                                 n,
+                                 coordOffset,
+                                 priorSize,
+                                 true,
+                                 confInfoHBC);
                 }
             }
         }
@@ -267,16 +338,16 @@ void DetectionOutput::execute(dnnl::stream strm) {
             parallel_for(classesNum, [&](int c) {
                 if (c != backgroundClassId) {  // Ignore background class
                     const int off = n * priorsNum * classesNum + c * priorsNum;
-                    const float *pconfReorder = reorderedConfData + off;
-                    int *pindices = indicesData + off;
-                    int *pbuffer = indicesBufData + off;
-                    int *pdetections = detectionsData + n * classesNum + c;
+                    const float* pconfReorder = reorderedConfData + off;
+                    int* pindices = indicesData + off;
+                    int* pbuffer = indicesBufData + off;
+                    int* pdetections = detectionsData + n * classesNum + c;
 
                     if (!isSparsityWorthwhile)
                         confFilterCF(pconfReorder, pindices, pbuffer, pdetections, n);
 
-                    const float *pboxes;
-                    const float *psizes;
+                    const float* pboxes;
+                    const float* psizes;
                     if (isShareLoc) {
                         pboxes = decodedBboxesData + n * 4 * priorsNum;
                         psizes = bboxSizesData + n * priorsNum;
@@ -291,23 +362,23 @@ void DetectionOutput::execute(dnnl::stream strm) {
         } else {
             // MXNet style
             const int offImg = n * priorsNum * classesNum;
-            const float *pconf = confData + offImg;
-            float *pconfReorder = reorderedConfData + offImg;
-            int *pbuffer = indicesBufData + offImg;
-            int *pindices = indicesData + offImg;
-            int *pdetections = detectionsData + n * classesNum;
+            const float* pconf = confData + offImg;
+            float* pconfReorder = reorderedConfData + offImg;
+            int* pbuffer = indicesBufData + offImg;
+            int* pindices = indicesData + offImg;
+            int* pdetections = detectionsData + n * classesNum;
 
             if (!isSparsityWorthwhile)
                 confFilterMX(pconf, ARMConfData, pconfReorder, pindices, pbuffer, pdetections, n);
 
-            const float *pboxes = decodedBboxesData + n * 4 * locNumForClasses * priorsNum;
-            const float *psizes = bboxSizesData + n * locNumForClasses * priorsNum;
+            const float* pboxes = decodedBboxesData + n * 4 * locNumForClasses * priorsNum;
+            const float* psizes = bboxSizesData + n * locNumForClasses * priorsNum;
 
             NMSMX(pbuffer, pdetections, pindices, pboxes, psizes);
         }
 
         int detectionsTotal = 0;
-        detectionsTotal = parallel_sum(classesNum, detectionsTotal, [&](size_t c)->int {
+        detectionsTotal = parallel_sum(classesNum, detectionsTotal, [&](size_t c) -> int {
             return detectionsData[n * classesNum + c];
         });
 
@@ -318,9 +389,9 @@ void DetectionOutput::execute(dnnl::stream strm) {
             std::mutex mtx;
             parallel_for(classesNum, [&](int c) {
                 const int detections = detectionsData[n * classesNum + c];
-                int *pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
+                int* pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
 
-                float *pconf  = reorderedConfData + n * classesNum * confInfoLen + c * confInfoLen;
+                float* pconf = reorderedConfData + n * classesNum * confInfoLen + c * confInfoLen;
 
                 for (int i = 0; i < detections; ++i) {
                     int pr = pindices[i];
@@ -330,7 +401,8 @@ void DetectionOutput::execute(dnnl::stream strm) {
                 }
             });
 
-            std::sort(confIndicesClassMap.begin(), confIndicesClassMap.end(),
+            std::sort(confIndicesClassMap.begin(),
+                      confIndicesClassMap.end(),
                       SortScorePairDescend<std::pair<int, int>>);
             confIndicesClassMap.resize(keepTopK);
 
@@ -340,7 +412,7 @@ void DetectionOutput::execute(dnnl::stream strm) {
             for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
                 const int cls = confIndicesClassMap[j].second.first;
                 const int pr = confIndicesClassMap[j].second.second;
-                int *pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
+                int* pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
                 detectionsData[n * classesNum + cls]++;
             }
@@ -351,7 +423,11 @@ void DetectionOutput::execute(dnnl::stream strm) {
     generateOutput(reorderedConfData, indicesData, detectionsData, decodedBboxesData, dstData);
 }
 
-inline void DetectionOutput::confFilterCF(const float* pconf, int* pindices, int* pbuffer, int* detectionsData, const int& n) {
+inline void DetectionOutput::confFilterCF(const float* pconf,
+                                          int* pindices,
+                                          int* pbuffer,
+                                          int* detectionsData,
+                                          const int& n) {
     // in:  reorderedConf
     // out: pindices count
     int count = 0;
@@ -371,21 +447,27 @@ inline void DetectionOutput::confFilterCF(const float* pconf, int* pindices, int
 
 // MX filter is per image filter, max output is prior num(select max for all class within this prior)
 // NMS is per class, keep topk is per image, final output is per class
-inline void DetectionOutput::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-    int* indicesData, int* indicesBufData, int* detectionsData, const int& n) {
+inline void DetectionOutput::confFilterMX(const float* confData,
+                                          const float* ARMConfData,
+                                          float* reorderedConfData,
+                                          int* indicesData,
+                                          int* indicesBufData,
+                                          int* detectionsData,
+                                          const int& n) {
     std::mutex mtx;
     parallel_for(numPriorsActual[n], [&](size_t p) {
         // in:  origin conf
         // out: pindices, detectionCount
         // intentionally code branch from higher level
         if (withAddBoxPred) {
-            const bool isARMPrior = ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore;
+            const bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
             float maxConf = -1;
             int maxCIdx = 0;
             for (int c = 1; c < classesNum; ++c) {
                 float conf = confData[p * classesNum + c];
                 if (isARMPrior)
-                    conf = (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
+                    conf =
+                        (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
                 if (conf >= confidenceThreshold && conf > maxConf) {
                     maxConf = conf;
                     maxCIdx = c;
@@ -394,7 +476,7 @@ inline void DetectionOutput::confFilterMX(const float* confData, const float* AR
             if (maxCIdx > 0) {
                 // include this prior
                 mtx.lock();
-                indicesData[detectionsData[0]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
+                indicesData[detectionsData[0]] = maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
                 detectionsData[0]++;
                 mtx.unlock();
             }
@@ -411,7 +493,7 @@ inline void DetectionOutput::confFilterMX(const float* confData, const float* AR
             if (maxCIdx > 0) {
                 // include this prior and class with max conf
                 mtx.lock();
-                indicesData[detectionsData[0]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
+                indicesData[detectionsData[0]] = maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
                 detectionsData[0]++;
                 mtx.unlock();
             }
@@ -423,14 +505,14 @@ inline void DetectionOutput::confFilterMX(const float* confData, const float* AR
     int count = detectionsData[0];
     int k = (topK == -1 ? count : (std::min)(topK, count));
 
-    const float *pconf = reorderedConfData;
+    const float* pconf = reorderedConfData;
     // int *indices = indicesData;
     // int *pbuffer = indicesBufData;
     topk(indicesData, indicesBufData, pconf, count, k);
     detectionsData[0] = k;
 }
 
-inline void DetectionOutput::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
+inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numPriorsActual, int n) {
     numPriorsActual[n] = priorsNum;
     if (!normalized) {
         int num = 0;
@@ -444,16 +526,20 @@ inline void DetectionOutput::getActualPriorNum(const float *priorData, int* numP
     }
 }
 
-inline void DetectionOutput::confReorderDense(const float *confData, const float *ARMConfData, float *reorderedConfData) {
+inline void DetectionOutput::confReorderDense(const float* confData,
+                                              const float* ARMConfData,
+                                              float* reorderedConfData) {
     if (withAddBoxPred) {
         parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
             if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
                 for (int c = 0; c < classesNum; ++c) {
-                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = c == backgroundClassId ? 1.0f : 0.0f;
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
+                        c == backgroundClassId ? 1.0f : 0.0f;
                 }
             } else {
                 for (int c = 0; c < classesNum; ++c) {
-                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = confData[n * priorsNum * classesNum + p * classesNum + c];
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
+                        confData[n * priorsNum * classesNum + p * classesNum + c];
                 }
             }
         });
@@ -463,20 +549,23 @@ inline void DetectionOutput::confReorderDense(const float *confData, const float
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
         const int offset = n * priorsNum * classesNum;
         for (int p = 0; p < priorsNum; ++p) {
-            reorderedConfData[offset + c * priorsNum + p] =
-            confData[offset + p * classesNum + c];
+            reorderedConfData[offset + c * priorsNum + p] = confData[offset + p * classesNum + c];
         }
     });
 }
 
-inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
-    int* indicesData, int* indicesBufData, int* detectionsData) {
+inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confData,
+                                                            const float* ARMConfData,
+                                                            float* reorderedConfData,
+                                                            int* indicesData,
+                                                            int* indicesBufData,
+                                                            int* detectionsData) {
     int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
         const int off = n * priorsNum * classesNum;
         const int offV = n * priorsNum;  // vertical info
 
-        const int offH = n * confInfoLen * classesNum; // horizontal info
+        const int offH = n * confInfoLen * classesNum;  // horizontal info
         // reset count
         parallel_for(classesNum, [&](size_t c) {
             const int countIdx = offH + c * confInfoLen + priorsNum;
@@ -506,7 +595,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
 
                         // vertical info for isShareLoc(flag to decode for each prior)
                         if (!priorStatusSet && isShareLoc) {
-                            confInfoForPrior[offV + p] = 1; // 1 for decode
+                            confInfoForPrior[offV + p] = 1;  // 1 for decode
                         }
                     }
                 }
@@ -542,9 +631,9 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             const int count = reorderedConfDataIndices[countIdx];
             const int k = (topK == -1 ? count : (std::min)(topK, count));
 
-            int *reorderedConfIndices = reorderedConfDataIndices + countIdx + 1;
-            int *pbuffer = indicesBufData + off + c * priorsNum;
-            const float *pconf = reorderedConfData + offH + c * confInfoLen;
+            int* reorderedConfIndices = reorderedConfDataIndices + countIdx + 1;
+            int* pbuffer = indicesBufData + off + c * priorsNum;
+            const float* pconf = reorderedConfData + offH + c * confInfoLen;
 
             topk(reorderedConfIndices, pbuffer, pconf, count, k);
             detectionsData[n * classesNum + c] = k;
@@ -552,8 +641,12 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
     }
 }
 
-inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
-    int* indicesData, int* indicesBufData, int* detectionsData) {
+inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confData,
+                                                            const float* ARMConfData,
+                                                            float* reorderedConfData,
+                                                            int* indicesData,
+                                                            int* indicesBufData,
+                                                            int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
         const int off = n * priorsNum * classesNum;
         const int offV = n * priorsNum;  // vertical info
@@ -579,7 +672,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
 
                     // vertical info for isShareLoc(flag to decode for each prior)
                     if (!priorStatusSet && isShareLoc) {
-                        confInfoForPrior[offV + p] = 1; // 1 for decode
+                        confInfoForPrior[offV + p] = 1;  // 1 for decode
                     }
                     // vertical info for MXNet style(max conf for each prior)
                     if (c != 0) {
@@ -593,7 +686,8 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
             // MXNet statistic, indices and detectionCount is for each image
             if (maxCIdx > 0) {
                 mtx.lock();
-                indicesData[off + detectionsData[n * classesNum]] = maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
+                indicesData[off + detectionsData[n * classesNum]] =
+                    maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
                 detectionsData[n * classesNum]++;
                 mtx.unlock();
             }
@@ -604,27 +698,27 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
         const int count = detectionsData[n * classesNum];
         const int k = (topK == -1 ? count : (std::min)(topK, count));
 
-        const float *pconf = reorderedConfData + off;
-        int *indices = indicesData + off;
-        int *pbuffer = indicesBufData + off;
+        const float* pconf = reorderedConfData + off;
+        int* indices = indicesData + off;
+        int* pbuffer = indicesBufData + off;
         topk(indices, pbuffer, pconf, count, k);
         detectionsData[n * classesNum] = k;
     }
 }
 
 // apply locData(offset) to priordata, generate decodedBox
-inline void DetectionOutput::decodeBBoxes(const float *priorData,
-                                       const float *locData,
-                                       const float *varianceData,
-                                       float *decodedBboxes,
-                                       float *decodedBboxSizes,
-                                       int* numPriorsActual,
-                                       int n,
-                                       const int& offs,
-                                       const int& priorSize,
-                                       bool decodeType,
-                                       const int *confInfoH,
-                                       const int *confInfoV) {
+inline void DetectionOutput::decodeBBoxes(const float* priorData,
+                                          const float* locData,
+                                          const float* varianceData,
+                                          float* decodedBboxes,
+                                          float* decodedBboxSizes,
+                                          int* numPriorsActual,
+                                          int n,
+                                          const int& offs,
+                                          const int& priorSize,
+                                          bool decodeType,
+                                          const int* confInfoH,
+                                          const int* confInfoV) {
     int prNum = numPriorsActual[n];
     if (!decodeType) {
         prNum = priorsNum;
@@ -672,8 +766,8 @@ inline void DetectionOutput::decodeBBoxes(const float *priorData,
                 newYMax = priorYMax + varianceData[p * 4 + 3] * locYMax;
             }
         } else if (codeType == CodeType::CENTER_SIZE) {
-            float priorWidth    =  priorXMax - priorXMin;
-            float priorHeight   =  priorYMax - priorYMin;
+            float priorWidth = priorXMax - priorXMin;
+            float priorHeight = priorYMax - priorYMin;
             float priorCenterX = (priorXMin + priorXMax) / 2.0f;
             float priorCenterY = (priorYMin + priorYMax) / 2.0f;
 
@@ -682,21 +776,21 @@ inline void DetectionOutput::decodeBBoxes(const float *priorData,
 
             if (varianceEncodedInTarget) {
                 // variance is encoded in target, we simply need to restore the offset predictions.
-                decodeBboxCenterX = locXMin * priorWidth  + priorCenterX;
+                decodeBboxCenterX = locXMin * priorWidth + priorCenterX;
                 decodeBboxCenterY = locYMin * priorHeight + priorCenterY;
-                decodeBboxWidth  = std::exp(locXMax) * priorWidth;
+                decodeBboxWidth = std::exp(locXMax) * priorWidth;
                 decodeBboxHeight = std::exp(locYMax) * priorHeight;
             } else {
                 // variance is encoded in bbox, we need to scale the offset accordingly.
-                decodeBboxCenterX = varianceData[p*4 + 0] * locXMin * priorWidth + priorCenterX;
-                decodeBboxCenterY = varianceData[p*4 + 1] * locYMin * priorHeight + priorCenterY;
-                decodeBboxWidth    = std::exp(varianceData[p*4 + 2] * locXMax) * priorWidth;
-                decodeBboxHeight   = std::exp(varianceData[p*4 + 3] * locYMax) * priorHeight;
+                decodeBboxCenterX = varianceData[p * 4 + 0] * locXMin * priorWidth + priorCenterX;
+                decodeBboxCenterY = varianceData[p * 4 + 1] * locYMin * priorHeight + priorCenterY;
+                decodeBboxWidth = std::exp(varianceData[p * 4 + 2] * locXMax) * priorWidth;
+                decodeBboxHeight = std::exp(varianceData[p * 4 + 3] * locYMax) * priorHeight;
             }
 
-            newXMin = decodeBboxCenterX - decodeBboxWidth  / 2.0f;
+            newXMin = decodeBboxCenterX - decodeBboxWidth / 2.0f;
             newYMin = decodeBboxCenterY - decodeBboxHeight / 2.0f;
-            newXMax = decodeBboxCenterX + decodeBboxWidth  / 2.0f;
+            newXMax = decodeBboxCenterX + decodeBboxWidth / 2.0f;
             newYMax = decodeBboxCenterY + decodeBboxHeight / 2.0f;
         }
 
@@ -707,25 +801,20 @@ inline void DetectionOutput::decodeBBoxes(const float *priorData,
             newYMax = (std::max)(0.0f, (std::min)(1.0f, newYMax));
         }
 
-        decodedBboxes[p*4 + 0] = newXMin;
-        decodedBboxes[p*4 + 1] = newYMin;
-        decodedBboxes[p*4 + 2] = newXMax;
-        decodedBboxes[p*4 + 3] = newYMax;
+        decodedBboxes[p * 4 + 0] = newXMin;
+        decodedBboxes[p * 4 + 1] = newYMin;
+        decodedBboxes[p * 4 + 2] = newXMax;
+        decodedBboxes[p * 4 + 3] = newYMax;
 
         decodedBboxSizes[p] = (newXMax - newXMin) * (newYMax - newYMin);
     });
 }
 
-inline void DetectionOutput::topk(const int *indicesIn, int *indicesOut, const float *conf, int n, int k) {
-    std::partial_sort_copy(indicesIn, indicesIn + n,
-                           indicesOut, indicesOut + k,
-                           ConfidenceComparatorDO(conf));
+inline void DetectionOutput::topk(const int* indicesIn, int* indicesOut, const float* conf, int n, int k) {
+    std::partial_sort_copy(indicesIn, indicesIn + n, indicesOut, indicesOut + k, ConfidenceComparatorDO(conf));
 }
 
-static inline float JaccardOverlap(const float *decodedBbox,
-                                   const float *bboxSizes,
-                                   const int idx1,
-                                   const int idx2) {
+static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSizes, const int idx1, const int idx2) {
     const float xmin1 = decodedBbox[idx1 * 4 + 0];
     const float ymin1 = decodedBbox[idx1 * 4 + 1];
     const float xmax1 = decodedBbox[idx1 * 4 + 2];
@@ -745,7 +834,7 @@ static inline float JaccardOverlap(const float *decodedBbox,
     float intersectXMax = (std::min)(xmax1, xmax2);
     float intersectYMax = (std::min)(ymax1, ymax2);
 
-    float intersectWidth  = intersectXMax - intersectXMin;
+    float intersectWidth = intersectXMax - intersectXMin;
     float intersectHeight = intersectYMax - intersectYMin;
 
     if (intersectWidth <= 0 || intersectHeight <= 0) {
@@ -760,10 +849,10 @@ static inline float JaccardOverlap(const float *decodedBbox,
 }
 
 inline void DetectionOutput::NMSCF(int* indicesIn,
-                                        int& detections,
-                                        int* indicesOut,
-                                        const float* bboxes,
-                                        const float* boxSizes) {
+                                   int& detections,
+                                   int* indicesOut,
+                                   const float* bboxes,
+                                   const float* boxSizes) {
     // nms for this class
     int countIn = detections;
     detections = 0;
@@ -787,10 +876,10 @@ inline void DetectionOutput::NMSCF(int* indicesIn,
 }
 
 inline void DetectionOutput::NMSMX(int* indicesIn,
-                                    int* detections,
-                                    int* indicesOut,
-                                    const float* bboxes,
-                                    const float* sizes) {
+                                   int* detections,
+                                   int* indicesOut,
+                                   const float* bboxes,
+                                   const float* sizes) {
     // Input is candidate for image, output is candidate for each class within image
     int countIn = detections[0];
     detections[0] = 0;
@@ -801,8 +890,8 @@ inline void DetectionOutput::NMSMX(int* indicesIn,
         const int prior = idx % priorsNum;
 
         // nms within this class
-        int &ndetection = detections[cls];
-        int *pindices = indicesOut + cls * priorsNum;
+        int& ndetection = detections[cls];
+        int* pindices = indicesOut + cls * priorsNum;
 
         bool keep = true;
         for (int k = 0; k < ndetection; ++k) {
@@ -825,8 +914,11 @@ inline void DetectionOutput::NMSMX(int* indicesIn,
     }
 }
 
-inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
-    float* dstData) {
+inline void DetectionOutput::generateOutput(float* reorderedConfData,
+                                            int* indicesData,
+                                            int* detectionsData,
+                                            float* decodedBboxesData,
+                                            float* dstData) {
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
@@ -850,26 +942,22 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData, int* indic
     // set final detection result to output blob
     int count = 0;
     for (int n = 0; n < imgNum; ++n) {
-        const float *pconf   = reorderedConfData + n * confInfoLen * classesNum;
-        const float *pboxes  = decodedBboxesData + n * priorsNum * 4 * locNumForClasses;
-        const int *pindices  = indicesData + n * classesNum * priorsNum;
+        const float* pconf = reorderedConfData + n * confInfoLen * classesNum;
+        const float* pboxes = decodedBboxesData + n * priorsNum * 4 * locNumForClasses;
+        const int* pindices = indicesData + n * classesNum * priorsNum;
 
         for (int c = 0; c < classesNum; ++c) {
             for (int i = 0; i < detectionsData[n * classesNum + c]; ++i) {
                 int prIdx = pindices[c * priorsNum + i];
 
                 dstData[count * DETECTION_SIZE + 0] = static_cast<float>(n);
-                dstData[count * DETECTION_SIZE + 1] = static_cast<float>(decreaseClassId ? c-1 : c);
+                dstData[count * DETECTION_SIZE + 1] = static_cast<float>(decreaseClassId ? c - 1 : c);
                 dstData[count * DETECTION_SIZE + 2] = pconf[c * confInfoLen + prIdx];
 
-                float xmin = isShareLoc ? pboxes[prIdx * 4 + 0] :
-                             pboxes[c * 4 * priorsNum + prIdx * 4 + 0];
-                float ymin = isShareLoc ? pboxes[prIdx * 4 + 1] :
-                             pboxes[c * 4 * priorsNum + prIdx * 4 + 1];
-                float xmax = isShareLoc ? pboxes[prIdx * 4 + 2] :
-                             pboxes[c * 4 * priorsNum + prIdx * 4 + 2];
-                float ymax = isShareLoc ? pboxes[prIdx * 4 + 3] :
-                             pboxes[c * 4 * priorsNum + prIdx * 4 + 3];
+                float xmin = isShareLoc ? pboxes[prIdx * 4 + 0] : pboxes[c * 4 * priorsNum + prIdx * 4 + 0];
+                float ymin = isShareLoc ? pboxes[prIdx * 4 + 1] : pboxes[c * 4 * priorsNum + prIdx * 4 + 1];
+                float xmax = isShareLoc ? pboxes[prIdx * 4 + 2] : pboxes[c * 4 * priorsNum + prIdx * 4 + 2];
+                float ymax = isShareLoc ? pboxes[prIdx * 4 + 3] : pboxes[c * 4 * priorsNum + prIdx * 4 + 3];
 
                 if (clipAfterNMS) {
                     xmin = (std::max)(0.0f, (std::min)(1.0f, xmin));
@@ -898,6 +986,6 @@ bool DetectionOutput::created() const {
     return getType() == Type::DetectionOutput;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

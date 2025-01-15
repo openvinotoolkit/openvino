@@ -5,9 +5,8 @@
 #pragma once
 
 #include "cpu/aarch64/jit_generator.hpp"
-
-#include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
+#include "snippets/target_machine.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -49,6 +48,6 @@ protected:
     ov::snippets::RegType get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const override;
 };
 
-}   // namespace aarch64
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

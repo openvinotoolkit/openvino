@@ -4,13 +4,13 @@
 
 #include "fused_mul_add.hpp"
 
-#include "snippets/itt.hpp"
 #include "openvino/op/util/elementwise_args.hpp"
+#include "snippets/itt.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 
-FusedMulAdd::FusedMulAdd(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c) : Op({ a, b, c }) {
+FusedMulAdd::FusedMulAdd(const Output<Node>& a, const Output<Node>& b, const Output<Node>& c) : Op({a, b, c}) {
     constructor_validate_and_infer_types();
 }
 
@@ -35,9 +35,10 @@ void FusedMulAdd::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               element_type == get_input_element_type(i),
                               "Argument element types are inconsistent.");
-        NODE_VALIDATION_CHECK(this,
-                              PartialShape::broadcast_merge_into(pshape, get_input_partial_shape(i), ov::op::AutoBroadcastType::NUMPY),
-                              "Argument shapes are inconsistent.");
+        NODE_VALIDATION_CHECK(
+            this,
+            PartialShape::broadcast_merge_into(pshape, get_input_partial_shape(i), ov::op::AutoBroadcastType::NUMPY),
+            "Argument shapes are inconsistent.");
     }
     set_output_type(0, element_type, pshape);
 }

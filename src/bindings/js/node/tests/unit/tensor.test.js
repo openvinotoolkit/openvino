@@ -121,6 +121,12 @@ describe('ov.Tensor tests', () => {
       assert.deepStrictEqual(tensor.getData(), data);
     });
 
+    it('getData should throw an error if arguments are provided', () => {
+      const tensor = new ov.Tensor(ov.element.f32, shape, data);
+      assert.throws(() => tensor.getData(1), {
+        message: 'getData() does not accept any arguments.',
+      });
+    });
     it('test tensor.data setter - different element type throws', () => {
       const float64Data = Float64Array.from([1, 2, 3]);
       const tensor = new ov.Tensor(ov.element.f32, [1, 3]);

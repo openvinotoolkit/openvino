@@ -25,9 +25,12 @@ struct jit_logistic_config_params {
 };
 
 struct jit_uni_logistic_kernel {
-    void (*ker_)(const jit_args_logistic *);
+    void (*ker_)(const jit_args_logistic*);
 
-    void operator()(const jit_args_logistic *args) { assert(ker_); ker_(args); }
+    void operator()(const jit_args_logistic* args) {
+        assert(ker_);
+        ker_(args);
+    }
 
     virtual void create_ker() = 0;
 
@@ -39,7 +42,7 @@ class RegionYolo : public Node {
 public:
     RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
@@ -49,7 +52,9 @@ public:
 
 protected:
     bool needPrepareParams() const override;
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override {
+        execute(strm);
+    }
 
 private:
     int classes;
@@ -71,9 +76,9 @@ private:
     };
 
     inline float logistic_scalar(float src);
-    inline void calculate_logistic(size_t start_index, int count, uint8_t * dst_data);
+    inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

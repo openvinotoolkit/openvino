@@ -4,15 +4,16 @@
 
 #include "lrn.h"
 
-#include "dnnl_extension_utils.h"
-#include "openvino/opsets/opset1.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "common/primitive_hashing_utils.hpp"
-#include <shape_inference/shape_inference_pass_through.hpp>
 
 #include <memory>
+#include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
+
+#include "common/primitive_hashing_utils.hpp"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -50,7 +51,7 @@ size_t LrnKey::hash() const {
     return seed;
 }
 
-bool LrnKey::operator==(const LrnKey &rhs) const {
+bool LrnKey::operator==(const LrnKey& rhs) const {
     bool retVal = true;
     if (inp0 != rhs.inp0) {
         retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
@@ -60,7 +61,7 @@ bool LrnKey::operator==(const LrnKey &rhs) const {
              alpha == rhs.alpha && beta == rhs.beta;
     return retVal;
 }
-} // namespace
+}  // namespace
 
 bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -87,7 +88,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return true;
         } else {
             std::vector<bool> norm(dataRank, false);
-            for (auto &axis : axes) {
+            for (auto& axis : axes) {
                 if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
                     errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
                     return false;
@@ -108,14 +109,15 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, PassThroughShapeInferFactory()) {
+Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "LRN node with name '" + getName() + "'";
 
         auto lrn = ov::as_type_ptr<const ov::opset1::LRN>(op);
-        auto axes = ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        auto axes =
+            ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
         bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
@@ -141,7 +143,7 @@ void Lrn::getSupportedDescriptors() {
         precision = ov::element::f32;
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
-    const auto &parentShape = getInputShapeAtPort(0);
+    const auto& parentShape = getInputShapeAtPort(0);
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
@@ -149,7 +151,7 @@ void Lrn::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
+std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
@@ -181,17 +183,16 @@ void Lrn::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> executorPtr {
-        auto prim_desc = dnnl::lrn_forward::primitive_desc(
-            engine,
-            dnnl::prop_kind::forward_inference,
-            key.alg,
-            key.inp0->getDnnlDesc(),
-            key.inp0->getDnnlDesc(),
-            key.size,
-            key.alpha,
-            key.beta,
-            key.k,
-            key.attr);
+        auto prim_desc = dnnl::lrn_forward::primitive_desc(engine,
+                                                           dnnl::prop_kind::forward_inference,
+                                                           key.alg,
+                                                           key.inp0->getDnnlDesc(),
+                                                           key.inp0->getDnnlDesc(),
+                                                           key.size,
+                                                           key.alpha,
+                                                           key.beta,
+                                                           key.k,
+                                                           key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
@@ -223,22 +224,20 @@ bool Lrn::created() const {
     return getType() == Type::Lrn;
 }
 
-void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                           const std::vector<MemoryDescPtr> &outputDesc) {
+void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc, const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    auto desc = dnnl::lrn_forward::primitive_desc(
-        getEngine(),
-        dnnl::prop_kind::forward_inference,
-        alg,
-        in_candidate,
-        in_candidate,
-        size,
-        alpha,
-        beta,
-        k);
+    auto desc = dnnl::lrn_forward::primitive_desc(getEngine(),
+                                                  dnnl::prop_kind::forward_inference,
+                                                  alg,
+                                                  in_candidate,
+                                                  in_candidate,
+                                                  size,
+                                                  alpha,
+                                                  beta,
+                                                  k);
 
     descs.push_back(desc);
 }
@@ -255,6 +254,6 @@ void Lrn::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

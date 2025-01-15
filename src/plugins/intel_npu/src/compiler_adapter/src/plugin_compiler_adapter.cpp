@@ -4,8 +4,6 @@
 
 #include "plugin_compiler_adapter.hpp"
 
-#include <ze_graph_ext.h>
-
 #include <memory>
 #include <string>
 
@@ -16,10 +14,10 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_graph.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {

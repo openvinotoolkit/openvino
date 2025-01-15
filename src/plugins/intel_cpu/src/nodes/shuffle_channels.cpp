@@ -4,18 +4,16 @@
 
 #include "shuffle_channels.h"
 
-#include <openvino/op/shuffle_channels.hpp>
-
-#include "openvino/core/parallel.hpp"
-#include "dnnl_extension_utils.h"
-#include "cpu/x64/jit_generator.hpp"
-#include "common/blocked_desc_creator.h"
-
-#include "utils/general_utils.h"
-
-#include <string>
 #include <cmath>
+#include <openvino/op/shuffle_channels.hpp>
+#include <string>
+
+#include "common/blocked_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
 
 #define THROW_SHCH_ERROR(...) OPENVINO_THROW("ShuffleChannels layer with name '", getName(), "' ", __VA_ARGS__)
 
@@ -46,14 +44,14 @@ size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
 }
 
 bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannelsAttributes& rhs) const {
-    bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank &&
-                  axis == rhs.axis && spatialRank == rhs.spatialRank &&
-                  group == rhs.group && dataSize == rhs.dataSize && srcDims == rhs.srcDims &&
-                  srcBlockedDims == rhs.srcBlockedDims;
+    bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank && axis == rhs.axis &&
+                  spatialRank == rhs.spatialRank && group == rhs.group && dataSize == rhs.dataSize &&
+                  srcDims == rhs.srcDims && srcBlockedDims == rhs.srcBlockedDims;
     return result;
 }
 
-bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                           std::string& errorMessage) noexcept {
     try {
         auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
         if (!shuffleChannels) {
@@ -108,20 +106,12 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
     auto secondCreatorType = context->isGraphQuantized() ? LayoutType::ncsp : LayoutType::nspc;
 
-    addSupportedPrimDesc({{firstCreatorType, precision}},
-                         {{firstCreatorType, precision}},
-                         impl_type);
-    addSupportedPrimDesc({{secondCreatorType, precision}},
-                         {{secondCreatorType, precision}},
-                         impl_type);
+    addSupportedPrimDesc({{firstCreatorType, precision}}, {{firstCreatorType, precision}}, impl_type);
+    addSupportedPrimDesc({{secondCreatorType, precision}}, {{secondCreatorType, precision}}, impl_type);
     // canUseBlocked
     if (attrs.axis != 1) {
-        addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
-                             {{LayoutType::nCsp8c, precision}},
-                             impl_type);
-        addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
-                             {{LayoutType::nCsp16c, precision}},
-                             impl_type);
+        addSupportedPrimDesc({{LayoutType::nCsp8c, precision}}, {{LayoutType::nCsp8c, precision}}, impl_type);
+        addSupportedPrimDesc({{LayoutType::nCsp16c, precision}}, {{LayoutType::nCsp16c, precision}}, impl_type);
     }
 }
 
@@ -138,9 +128,10 @@ void ShuffleChannels::createPrimitive() {
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.spatialRank = attrs.dataRank - attrs.axis - 1;
     attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? LayoutType::nCsp16c :
-                       memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c :
-                       memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
+    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
+                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
+                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
+                                                                      : LayoutType::ncsp;
 
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
@@ -177,7 +168,8 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
 
     // 2 for decomposed axis dim, 1 for composed spatial dim
     const int batchRank = attrs.axis;
-    const int reshapedRank = batchRank + 2 + static_cast<int>(attrs.spatialRank != 0) + static_cast<int>(isBlocked && (attrs.spatialRank == 0));
+    const int reshapedRank = batchRank + 2 + static_cast<int>(attrs.spatialRank != 0) +
+                             static_cast<int>(isBlocked && (attrs.spatialRank == 0));
     PermuteParams params;
     params.data_size = attrs.dataSize;
     params.order.resize(reshapedRank, 0);
@@ -214,7 +206,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
 
             params.order[batchRank + 2] = batchRank + 2;
             params.src_block_dims[batchRank + 2] = spatialShapeSize * blkSize;
-        } else { // axis on batch
+        } else {  // axis on batch
             decomposeAndTranpose(0);
             spatialShapeSize = CB * blkSize;
             for (int i = 2; i < attrs.dataRank; i++) {
@@ -249,7 +241,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
                 params.order[batchRank + 1] = batchRank + 1;
                 params.src_block_dims[batchRank + 1] = spatialShapeSize;
             }
-        } else { // axis on batch
+        } else {  // axis on batch
             decomposeAndTranpose(0);
             params.order[2] = 2;
             params.src_block_dims[2] = spatialShapeSize;
@@ -304,6 +296,6 @@ bool ShuffleChannels::created() const {
     return getType() == Type::ShuffleChannels;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

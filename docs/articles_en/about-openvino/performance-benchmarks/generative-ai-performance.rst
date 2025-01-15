@@ -3,10 +3,9 @@ Most Efficient Large Language Models for AI PC
 
 This page is regularly updated to help you identify the best-performing LLMs on the
 Intel® Core™ Ultra processor family and AI PCs.
-The current data is as of OpenVINO 2024.4, 24 Oct. 2024
+The current data is as of OpenVINO 2024.4, 20 Nov. 2024.
 
 The tables below list the key performance indicators for inference on built-in GPUs.
-
 
 
 .. raw:: html
@@ -18,27 +17,30 @@ The tables below list the key performance indicators for inference on built-in G
 
    .. tab-item:: 9-288V
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V1
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_9-288V.csv
+         :hidden: [3,4,6]
 
    .. tab-item:: 7-268V
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V2
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
+         :hidden: [3,4,6]
 
    .. tab-item:: 7-155H
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V3
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-155H.csv
+         :hidden: [3,4,6]
 
 
 .. grid:: 1 1 2 2

@@ -10,11 +10,15 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
 
 using ONNXLoadTest = FrontEndLoadFromTest;
+using testing::ElementsAre;
+using testing::Property;
+using testing::UnorderedElementsAre;
 
 static LoadFromFEParam getTestData() {
     LoadFromFEParam res;
@@ -56,6 +60,31 @@ TEST_P(FrontEndLoadFromTest, load_model_not_exists_at_path) {
 
     OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg));
     OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg));
+}
+
+TEST_P(FrontEndLoadFromTest, load_model_and_apply_ppp) {
+    auto model_file_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, m_param.m_stream});
+
+    m_frontEnd = m_fem.load_by_model(model_file_path);
+    const auto fe_model = m_frontEnd->load(model_file_path);
+    auto model = m_frontEnd->convert(fe_model);
+
+    EXPECT_THAT(model->inputs(),
+                ElementsAre(Property("Input 0", &ov::Output<ov::Node>::get_names, UnorderedElementsAre("A")),
+                            Property("Input 1", &ov::Output<ov::Node>::get_names, UnorderedElementsAre("B")),
+                            Property("Input 2", &ov::Output<ov::Node>::get_names, UnorderedElementsAre("C"))));
+    EXPECT_THAT(model->output(0).get_names(), UnorderedElementsAre("Y"));
+
+    auto p = ov::preprocess::PrePostProcessor(model);
+    p.output(0).tensor().set_element_type(ov::element::f16);
+    model = p.build();
+
+    EXPECT_THAT(model->inputs(),
+                ElementsAre(Property("Input 0", &ov::Output<ov::Node>::get_names, UnorderedElementsAre("A")),
+                            Property("Input 1", &ov::Output<ov::Node>::get_names, UnorderedElementsAre("B")),
+                            Property("Input 2", &ov::Output<ov::Node>::get_names, UnorderedElementsAre("C"))));
+    EXPECT_THAT(model->output(0).get_names(), UnorderedElementsAre("Y"));
 }
 
 INSTANTIATE_TEST_SUITE_P(ONNXLoadTest,

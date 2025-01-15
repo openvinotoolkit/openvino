@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "adjust_brgemm_copy_b_loop_ports.hpp"
-#include "snippets/utils/utils.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+
+#include "snippets/itt.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
+bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
+    const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
     OPENVINO_ASSERT(loop_info, "Invalid loop info pointer");
     bool modified = false;
-    auto caller = [&](snippets::lowered::LoopPort &loop_port,
-                      snippets::lowered::UnifiedLoopInfo::LoopPortDesc &loop_desc) {
+    auto caller = [&](snippets::lowered::LoopPort& loop_port,
+                      snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
         const auto& p = *loop_port.expr_port;
-        if (p.get_type() == snippets::lowered::ExpressionPort::Input &&
-            p.get_index() == 1) {
+        if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
             const auto& node = p.get_expr()->get_node();
             if (auto brg = as_type_ptr<BrgemmCPU>(node)) {
                 const auto precision = node->get_input_element_type(1);
@@ -30,8 +30,8 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
                  *  1) VNNI format is applied: KN4k for I8/U8, or KN2k for BF16
                  *  2) Zero padding is applied if N4k < 256 or N2k < 64
                  */
-                if (brgemm_utils::with_repacking(brg->get_type()) &&
-                    precision != element::f32 && loop_port.is_incremented) {
+                if (brgemm_utils::with_repacking(brg->get_type()) && precision != element::f32 &&
+                    loop_port.is_incremented) {
                     // K blocking loop: account for zero padding
                     if (loop_port.dim_idx == 1) {
                         const auto ptr_incr = loop_desc.ptr_increment;
@@ -40,14 +40,16 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(const std::shared_ptr<sn
                             loop_desc.ptr_increment = blocked_shape_ptr_inc;
                             OPENVINO_ASSERT(loop_desc.finalization_offset % ptr_incr == 0,
                                             "Can't rescale finalization offsets");
-                            loop_desc.finalization_offset = loop_desc.ptr_increment *
-                                                             (loop_desc.finalization_offset / ptr_incr);
+                            loop_desc.finalization_offset =
+                                loop_desc.ptr_increment * (loop_desc.finalization_offset / ptr_incr);
                         }
-                    // N blocking loop: account for the VNNI format
+                        // N blocking loop: account for the VNNI format
                     } else if (loop_port.dim_idx == 0) {
                         auto k_blk_size = static_cast<int64_t>(brgemm_utils::compute_vnni_factor(precision));
-                        loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_blk_size);
-                        loop_desc.finalization_offset = snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_blk_size);
+                        loop_desc.ptr_increment =
+                            snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_blk_size);
+                        loop_desc.finalization_offset =
+                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_blk_size);
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
                     }
@@ -66,8 +68,10 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
     bool modified = false;
 
     auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& brgemm_expr) {
-        // Repacking may be extracted outside the snippets kernel. In this case, brgemm parent expression is a parameter.
-        if (is_type<ov::op::v0::Parameter>(brgemm_expr->get_input_port_connector(1)->get_source().get_expr()->get_node()))
+        // Repacking may be extracted outside the snippets kernel. In this case, brgemm parent expression is a
+        // parameter.
+        if (is_type<ov::op::v0::Parameter>(
+                brgemm_expr->get_input_port_connector(1)->get_source().get_expr()->get_node()))
             return std::vector<size_t>{};
         const auto repacking_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr);
         OPENVINO_ASSERT(repacking_expr, "BrgemmCopyB expression is not found");
@@ -85,9 +89,9 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
             continue;
 
         OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
-        const auto &loop_manager = linear_ir.get_loop_manager();
+        const auto& loop_manager = linear_ir.get_loop_manager();
         for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
-            const auto &loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
+            const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
             auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
             if (!uni_loop)
                 uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
@@ -100,5 +104,5 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     return modified;
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

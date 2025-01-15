@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
+
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::FakeQuantize>& fq_node,
-                                   float threshold = 0.0001f) {
+                                          float threshold = 0.0001f) {
     auto levels = fq_node->get_levels();
     auto input_low = ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(1))->cast_vector<float>();
     auto input_high =

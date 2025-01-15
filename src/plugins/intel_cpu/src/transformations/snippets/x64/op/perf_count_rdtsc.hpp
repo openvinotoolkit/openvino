@@ -3,11 +3,12 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "openvino/op/op.hpp"
-#include "snippets/op/perf_count.hpp"
-#include <iomanip>
+#    include <iomanip>
+
+#    include "openvino/op/op.hpp"
+#    include "snippets/op/perf_count.hpp"
 
 using namespace ov::snippets::op;
 
@@ -48,7 +49,7 @@ public:
             avg = integral + static_cast<double>(accumulation - integral * iteration) / iteration;
         }
         std::cerr << "name : " << get_friendly_name() << " : acc : " << accumulation << " : num_hit : " << iteration
-         << std::fixed << std::setprecision(4) << " : avg : " << avg << std::endl;
+                  << std::fixed << std::setprecision(4) << " : avg : " << avg << std::endl;
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
@@ -61,6 +62,6 @@ public:
     uint64_t iteration = 0ul;
 };
 
-} // namespace intel_cpu
-} // namespace ov
-#endif // SNIPPETS_DEBUG_CAPS
+}  // namespace intel_cpu
+}  // namespace ov
+#endif  // SNIPPETS_DEBUG_CAPS

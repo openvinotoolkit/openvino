@@ -26,12 +26,16 @@ public:
 
 private:
     struct RollExecutor {
-        RollExecutor(const VectorDims& dataDims, const VectorDims& shiftDims, const VectorDims& axesDims,
+        RollExecutor(const VectorDims& dataDims,
+                     const VectorDims& shiftDims,
+                     const VectorDims& axesDims,
                      const VectorDims& dstDims);
         ~RollExecutor() = default;
 
-        template<typename T>
-        void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
+        template <typename T>
+        void exec(const MemoryPtr& dataMemPtr,
+                  const MemoryPtr& shiftMemPtr,
+                  const MemoryPtr& axesMemPtr,
                   const MemoryPtr& dstMemPtr);
 
     private:
@@ -52,6 +56,6 @@ private:
     static constexpr size_t AXES_INDEX = 2ul;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

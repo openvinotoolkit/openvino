@@ -18,7 +18,7 @@ TEST_F(GatherTreeStaticShapeInferenceTest, gather_tree) {
     auto step_ids = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto parent_idx = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1});
     auto max_seq_len = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    auto end_token = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{Shape{}});
+    auto end_token = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
     op = make_op(step_ids, parent_idx, max_seq_len, end_token);
 
     input_shapes = {StaticShape{1, 2, 3}, StaticShape{1, 2, 3}, StaticShape{2}, StaticShape{}};

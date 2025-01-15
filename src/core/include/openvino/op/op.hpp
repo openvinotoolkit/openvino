@@ -14,18 +14,18 @@
 #define _OPENVINO_RTTI_OP_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
     _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::op::Op)
 
-#define OPENVINO_OP(...)                                                                                \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                               \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,   \
-                                                             _OPENVINO_RTTI_OP_WITH_TYPE_VERSION,       \
-                                                             _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__)) \
-    /* Add accessibility for Op to the method: evaluate from the Base class                             \
-     Usually C++ allows to use virtual methods of Base class from Derived class but if they have        \
-     the same name and not all of them are overrided in Derived class, the only overrided methods       \
-     will be available from Derived class. We need to explicitly cast Derived to Base class to          \
-     have an access to remaining methods or use this using. */                                          \
-    using ov::op::Op::evaluate;                                                                         \
-    using ov::op::Op::evaluate_lower;                                                                   \
+#define OPENVINO_OP(...)                                                                                  \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_3(__VA_ARGS__,                               \
+                                                               _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,   \
+                                                               _OPENVINO_RTTI_OP_WITH_TYPE_VERSION,       \
+                                                               _OPENVINO_RTTI_OP_WITH_TYPE)(__VA_ARGS__)) \
+    /* Add accessibility for Op to the method: evaluate from the Base class                               \
+     Usually C++ allows to use virtual methods of Base class from Derived class but if they have          \
+     the same name and not all of them are overrided in Derived class, the only overrided methods         \
+     will be available from Derived class. We need to explicitly cast Derived to Base class to            \
+     have an access to remaining methods or use this using. */                                            \
+    using ov::op::Op::evaluate;                                                                           \
+    using ov::op::Op::evaluate_lower;                                                                     \
     using ov::op::Op::evaluate_upper;
 
 namespace ov {

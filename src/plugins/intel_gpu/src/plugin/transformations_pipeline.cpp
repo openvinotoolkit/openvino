@@ -181,10 +181,14 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                            ov::op::v8::Gather::get_type_info_static(),
                                                            ov::op::v1::Convolution::get_type_info_static(),
                                                            ov::opset1::Convolution::get_type_info_static(),
+                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                           ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                            ov::opset1::GroupConvolution::get_type_info_static() };
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
+                                                       ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                       ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                        ov::opset1::GroupConvolution::get_type_info_static() };
 
     auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
@@ -292,10 +296,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
-        if (enableInt8) {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-                std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
-        }
+
+        manager.register_pass<ov::pass::MarkDequantization>(
+            std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
+            !device_info.supports_immad);
 
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
@@ -373,8 +377,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
-        pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
+        manager.register_pass<ov::pass::KeepConstsPrecision>(supported_woq_types, !device_info.supports_immad);
+        pass_config->set_callback<ov::pass::MarkDequantization,
+                ov::pass::KeepConstsPrecision>([&](const std::shared_ptr<const ov::Node> node) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
@@ -913,16 +918,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         bool disable_horizontal_fc_fusion = false;
+        bool disable_fc_swiglu_fusion = false;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
             disable_horizontal_fc_fusion = true;
-
+        GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
+            disable_fc_swiglu_fusion = true;
+        // mlp fusion is only supported for cldnn on high performant GPUis
+        bool fuse_mlp_swiglu = !device_info.supports_immad &&
+                               device_info.execution_units_count >= 128 &&
+                               !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion)
-            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
-        // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
+        // Therefore, run MarkDequantization again to fold ZP constant.
+        manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, true);
         if (device_info.supports_immad) {
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
@@ -969,18 +980,34 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
-        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
         if (device_info.supports_immad) {
+            auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                     return true;
                 }
 
                 auto weight_shape = root->get_input_partial_shape(1);
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
                 if (innermost_size < 32) {
-                    GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << dynamic_quantization_group_size << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: shape is too small - " << innermost_size << std::endl;
+                    return true;
+                }
+
+                // AZP does not support 8bit weight
+                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym
+                    && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
+                    return true;
+                }
+
+                bool has_wzp = root->get_input_size() > 4;
+                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
+                    && has_wzp
+                    && dynamic_quantization_group_size != UINT64_MAX) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " asym 8bit weight does not support grouped quantization" << std::endl;
                     return true;
                 }
                 return false;

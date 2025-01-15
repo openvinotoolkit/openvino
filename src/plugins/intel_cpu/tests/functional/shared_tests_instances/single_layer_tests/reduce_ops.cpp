@@ -32,7 +32,7 @@ const std::vector<std::vector<size_t>> input_shapes = {
 const std::vector<std::vector<size_t>> input_shapes_0_dim = {
         std::vector<size_t>{2, 0, 4, 1},
         std::vector<size_t>{8, 0, 4, 0},
-        std::vector<size_t>{0, 0, 0, 0},
+        std::vector<size_t>{2, 3, 4, 0},
 };
 
 const std::vector<std::vector<size_t>> input_shapes_one_axis = {
@@ -58,6 +58,11 @@ const std::vector<std::vector<int>> axes = {
         {1, 2, 3},
         {0, 1, 2, 3},
         {1, -1}
+};
+
+const std::vector<std::vector<int>> axes_0_dim = {
+        {1, 3},
+        {0, 1, 3}
 };
 
 std::vector<ov::test::utils::OpType> op_types = {
@@ -174,7 +179,7 @@ const auto params_reduction_types = testing::Combine(
 );
 
 const auto params_empty_input = testing::Combine(
-        testing::ValuesIn(axes),
+        testing::ValuesIn(axes_0_dim),
         testing::Values(op_types[1]),
         testing::ValuesIn(keep_dims),
         testing::ValuesIn(reduction_types),

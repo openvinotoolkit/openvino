@@ -152,25 +152,25 @@ model is already downloaded, this step is skipped.
 
 .. parsed-literal::
 
-    model/vehicle-detection-0200.xml:   0%|          | 0.00/181k [00:00<?, ?B/s]
+    vehicle-detection-0200.xml:   0%|          | 0.00/181k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/vehicle-detection-0200.bin:   0%|          | 0.00/6.93M [00:00<?, ?B/s]
+    vehicle-detection-0200.bin:   0%|          | 0.00/6.93M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/vehicle-attributes-recognition-barrier-0039.xml:   0%|          | 0.00/33.7k [00:00<?, ?B/s]
+    vehicle-attributes-recognition-barrier-0039.xml:   0%|          | 0.00/33.7k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/vehicle-attributes-recognition-barrier-0039.bin:   0%|          | 0.00/2.39M [00:00<?, ?B/s]
+    vehicle-attributes-recognition-barrier-0039.bin:   0%|          | 0.00/2.39M [00:00<?, ?B/s]
 
 
 Load Models
@@ -287,8 +287,6 @@ channel with ``expand_dims`` function.
         filename=filename,
         directory=directory,
         show_progress=False,
-        silent=True,
-        timeout=30,
     )
     assert Path(image_file).exists()
     

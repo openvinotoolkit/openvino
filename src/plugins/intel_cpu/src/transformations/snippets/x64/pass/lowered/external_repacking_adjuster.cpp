@@ -50,16 +50,18 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         // Firstly, batch dims are set
         VectorDims requested_blocked_shape(shape.begin(), shape.end() - brgemm_kernel_rank);
         // Then, the blocked dims are formed
-        requested_blocked_shape.insert(
-            requested_blocked_shape.end(),
-            {snippets::utils::div_up(K, vnni_factor), std::max(N, brgemm_utils::repacking::compute_inner_n_block(precision)), vnni_factor});
+        requested_blocked_shape.insert(requested_blocked_shape.end(),
+                                       {snippets::utils::div_up(K, vnni_factor),
+                                        std::max(N, brgemm_utils::repacking::compute_inner_n_block(precision)),
+                                        vnni_factor});
 
         VectorDims requested_order(shape.size() - brgemm_kernel_rank);
         std::iota(requested_order.begin(), requested_order.end(), 0);
         const auto last_idx = shape.size() - 1;
         requested_order.insert(requested_order.end(), {last_idx - 1, last_idx, last_idx - 1});
 
-        optimal_descs[i] = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
+        optimal_descs[i] =
+            std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
 
         ov::snippets::VectorDims shape_for_offset(cpu_config->tensor_rank - shape.size(), 1);
         shape_for_offset.insert(shape_for_offset.end(), requested_blocked_shape.begin(), requested_blocked_shape.end());
@@ -68,5 +70,5 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     return true;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

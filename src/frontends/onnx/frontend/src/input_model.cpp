@@ -533,6 +533,13 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
             it->add_names(tensor_names.second);
         }
     }
+
+    // Set model output names
+    for (auto&& result : model->get_results()) {
+        if (!is_type<op::v0::Parameter>(result->get_input_source_output(0).get_node())) {
+            result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
+        }
+    }
 }
 
 void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {

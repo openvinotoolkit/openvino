@@ -26,7 +26,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto output_layout = impl_params.get_output_layout();
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-    dnnl::memory::dims dilation(input_layout.get_spatial_rank(), 1);
+    dnnl::memory::dims dilation(stride.size(), 1);
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
@@ -49,6 +49,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
     if (insert_count > 0) {
         stride.insert(stride.end(), insert_count, 1);
+        dilation.insert(dilation.end(), insert_count, 0);
         pad_l.insert(pad_l.end(), insert_count, 0);
         pad_r.insert(pad_r.end(), insert_count, 0);
     }

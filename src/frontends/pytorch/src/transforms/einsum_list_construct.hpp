@@ -14,7 +14,7 @@ namespace pass {
 
 class AtenEinsumListConstructReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer");
     AtenEinsumListConstructReplacer();
 };
 

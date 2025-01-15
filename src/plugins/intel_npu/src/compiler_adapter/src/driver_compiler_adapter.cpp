@@ -4,8 +4,6 @@
 
 #include "driver_compiler_adapter.hpp"
 
-#include <ze_graph_ext.h>
-
 #include <fstream>
 #include <regex>
 #include <string_view>
@@ -19,6 +17,7 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/mvn_fusion.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
 #include <transformations/common_optimizations/pull_through_reduce.hpp>
@@ -79,7 +78,6 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 
@@ -257,7 +255,8 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
         ov::element::u8,
         ov::element::i8,
     };
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(decompression_precisions, /*fold_subtract_const=*/true);
+    manager.register_pass<ov::pass::MarkDequantization>(decompression_precisions, /*fold_subtract_const=*/true);
+    manager.register_pass<ov::pass::KeepConstsPrecision>(decompression_precisions, /*fold_subtract_const=*/true);
     manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
@@ -276,8 +275,8 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     pass_config->disable<ov::pass::PullThroughReduce>();
     pass_config->disable<ov::pass::AddFakeQuantizeFusion>();
     pass_config->disable<ov::pass::FakeQuantizeMulFusion>();
+    pass_config->disable<ov::pass::MulFakeQuantizeFusion>();
 
-    // NMS conversion passes
     manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
     manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
     manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
@@ -310,6 +309,7 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     decomp->set_name("ov::pass::CommonDecompositions");
 
     manager.register_pass<ov::pass::ConstantFolding>();
+
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
     manager.register_pass<ov::pass::UnrollIf>();
 

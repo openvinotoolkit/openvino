@@ -190,7 +190,7 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1W8E4FHIlTVstfRkYmNOjbr0VDXTZm0jD
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 34.1MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 17.2MB/s]
 
 .. parsed-literal::
 
@@ -215,13 +215,13 @@ next cell loads the model and the pre-trained weights.
 
 .. parsed-literal::
 
-    Loading model weights from: 'model/u2net_lite/u2net_lite.pth'
+    /tmp/ipykernel_2254056/1036642300.py:7: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      net.load_state_dict(state_dict=torch.load(model_path, map_location="cpu"))
 
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3590581/1036642300.py:7: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      net.load_state_dict(state_dict=torch.load(model_path, map_location="cpu"))
+    Loading model weights from: 'model/u2net_lite/u2net_lite.pth'
 
 
 
@@ -247,7 +247,7 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/vision-background-removal/model/u2net.py:23: UserWarning: `nn.functional.upsample` is deprecated. Use `nn.functional.interpolate` instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/vision-background-removal/model/u2net.py:23: UserWarning: `nn.functional.upsample` is deprecated. Use `nn.functional.interpolate` instead.
       src = F.upsample(src,size=tar.shape[2:],mode='bilinear')
 
 
@@ -273,12 +273,13 @@ repository <https://github.com/xuebinqin/U-2-Net/>`__ and multiplied by
 .. code:: ipython3
 
     IMAGE_URI = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg"
+    IMAGE_NAME = "coco_hollywood.jpg"
     
     input_mean = np.array([123.675, 116.28, 103.53]).reshape(1, 3, 1, 1)
     input_scale = np.array([58.395, 57.12, 57.375]).reshape(1, 3, 1, 1)
     
     image = cv2.cvtColor(
-        src=load_image(IMAGE_URI),
+        src=load_image(IMAGE_NAME, IMAGE_URI),
         code=cv2.COLOR_BGR2RGB,
     )
     
@@ -336,7 +337,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.107 seconds, FPS: 9.35.
+    Inference finished. Inference time: 0.109 seconds, FPS: 9.19.
 
 
 Visualize Results
@@ -389,12 +390,13 @@ background pixels a value of 0. Replace the background image as follows:
 
 .. code:: ipython3
 
-    BACKGROUND_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/wall.jpg"
+    BACKGROUND_IMAGE_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/wall.jpg"
+    BACKGROUND_IMAGE_NAME = "wall.jpg"
     OUTPUT_DIR = "output"
     
     os.makedirs(name=OUTPUT_DIR, exist_ok=True)
     
-    background_image = cv2.cvtColor(src=load_image(BACKGROUND_FILE), code=cv2.COLOR_BGR2RGB)
+    background_image = cv2.cvtColor(src=load_image(BACKGROUND_IMAGE_NAME, BACKGROUND_IMAGE_URL), code=cv2.COLOR_BGR2RGB)
     background_image = cv2.resize(src=background_image, dsize=(image.shape[1], image.shape[0]))
     
     # Set all the foreground pixels from the result to 0
@@ -403,7 +405,7 @@ background pixels a value of 0. Replace the background image as follows:
     new_image = background_image + bg_removed_result
     
     # Save the generated image.
-    new_image_path = Path(f"{OUTPUT_DIR}/{Path(IMAGE_URI).stem}-{Path(BACKGROUND_FILE).stem}.jpg")
+    new_image_path = Path(f"{OUTPUT_DIR}/{Path(IMAGE_URI).stem}-{BACKGROUND_IMAGE_NAME}")
     cv2.imwrite(filename=str(new_image_path), img=cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR))
     
     # Display the original image and the image with the new background side by side

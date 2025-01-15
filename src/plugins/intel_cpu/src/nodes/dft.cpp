@@ -4,17 +4,17 @@
 
 #include "dft.h"
 
+#include <cmath>
+#include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
-#include <cmath>
-#include "dnnl_extension_utils.h"
 
-#include "openvino/core/parallel.hpp"
-#include "onednn/dnnl.h"
-#include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
-#include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -104,10 +104,10 @@ void DFT::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, ov::element::f32},
-                                                       {LayoutType::ncsp, ov::element::i32}});
+    std::vector<PortConfigurator> inDataConfigurators(
+        {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({LayoutType::ncsp,  ov::element::i32});
+        inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
@@ -172,8 +172,12 @@ size_t calculateOffsetFromStrides(const std::vector<size_t>& coords, const std::
     return offset;
 }
 
-void gatherToBufferND(float* buffer, const float* data, size_t axis, const std::vector<size_t>& dimIndexes,
-                                     const std::vector<size_t>& shape, const std::vector<size_t>& strides) {
+void gatherToBufferND(float* buffer,
+                      const float* data,
+                      size_t axis,
+                      const std::vector<size_t>& dimIndexes,
+                      const std::vector<size_t>& shape,
+                      const std::vector<size_t>& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -184,8 +188,12 @@ void gatherToBufferND(float* buffer, const float* data, size_t axis, const std::
     }
 }
 
-void applyBufferND(const float* buffer, float* output, size_t axis, const std::vector<size_t>& dimIndexes,
-                                  const std::vector<size_t>& shape, const std::vector<size_t>& strides) {
+void applyBufferND(const float* buffer,
+                   float* output,
+                   size_t axis,
+                   const std::vector<size_t>& dimIndexes,
+                   const std::vector<size_t>& shape,
+                   const std::vector<size_t>& strides) {
     size_t numberOfComplex = shape[axis];
     size_t offset = calculateOffsetFromStrides(dimIndexes, strides);
 
@@ -196,8 +204,12 @@ void applyBufferND(const float* buffer, float* output, size_t axis, const std::v
     }
 }
 
-void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t>& inputShape, const std::vector<size_t>& inputStrides,
-                                    float* output, const std::vector<size_t>& outputShape, const std::vector<size_t>& outputStrides) {
+void copyDataToOutputWithSignalSize(const float* input,
+                                    const std::vector<size_t>& inputShape,
+                                    const std::vector<size_t>& inputStrides,
+                                    float* output,
+                                    const std::vector<size_t>& outputShape,
+                                    const std::vector<size_t>& outputStrides) {
     auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
     auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), size_t(1), std::multiplies<size_t>());
     std::fill_n(output, totalOutput, 0.f);
@@ -221,7 +233,10 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 
     const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
     const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
-    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1, inputShape.end(), size_t(1), std::multiplies<size_t>());
+    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
+                                             inputShape.end(),
+                                             size_t(1),
+                                             std::multiplies<size_t>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
@@ -231,7 +246,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
     } while (copyStep(iterationCounter, iterationRange));
 }
 
-} // namespace
+}  // namespace
 
 void DFT::execute(dnnl::stream strm) {
     const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
@@ -269,7 +284,8 @@ void DFT::execute(dnnl::stream strm) {
     if (inputShape != outputShape) {
         copyDataToOutputWithSignalSize(src, inputShape, inputStrides, dst, outputShape, outputStrides);
     } else {
-        auto totalElements = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
+        auto totalElements =
+            std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
         cpu_memcpy(dst, src, totalElements * sizeof(float));
     }
 
@@ -315,17 +331,32 @@ void DFT::dftNd(float* output,
                     std::vector<float> gatheredData(outputLen * 2);
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
-                    gatherToBufferND(gatheredData.data(), output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
+                    gatherToBufferND(gatheredData.data(),
+                                     output,
+                                     currentAxis,
+                                     parallelIterationCounter,
+                                     outputShape,
+                                     outputStrides);
                     const float* resultBufPtr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
-                    applyBufferND(resultBufPtr, output, currentAxis, parallelIterationCounter, outputShape, outputStrides);
+                    applyBufferND(resultBufPtr,
+                                  output,
+                                  currentAxis,
+                                  parallelIterationCounter,
+                                  outputShape,
+                                  outputStrides);
                 });
                 iterationCounter[parallelDimIndex] = iterationRange[parallelDimIndex] - 1;
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
         } else {
             std::vector<float> gatheredData(outputLen);
             do {
-                gatherToBufferND(gatheredData.data(), output, currentAxis, iterationCounter, outputShape, outputStrides);
+                gatherToBufferND(gatheredData.data(),
+                                 output,
+                                 currentAxis,
+                                 iterationCounter,
+                                 outputShape,
+                                 outputStrides);
                 naiveDFT(gatheredData.data(), outputLen, inverse);
                 applyBufferND(gatheredData.data(), output, currentAxis, iterationCounter, outputShape, outputStrides);
             } while (nextIterationStep(iterationCounter, iterationRange, currentAxis));
@@ -585,6 +616,6 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 #endif
 }
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

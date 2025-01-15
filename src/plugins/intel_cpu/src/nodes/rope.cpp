@@ -4,16 +4,16 @@
 
 #include "rope.h"
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
-#include "kernels/x64/rope_kernel.hpp"
-
 #include <chrono>
 #include <string>
 #include <vector>
+
+#include "common/bfloat16.hpp"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "kernels/x64/rope_kernel.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/plain_tensor.hpp"
 
 using namespace ov::intel_cpu::kernel;
 
@@ -32,7 +32,8 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
     m_config = node->get_config();
 }
 
-static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param, bool check_vec_size2 = false) {
+static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param,
+                                                              bool check_vec_size2 = false) {
     std::shared_ptr<kernel::JitKernelBase> res;
 
     MAYBE_UNUSED(param);
@@ -63,12 +64,16 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_c
     if (res)
         res->create_kernel();
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
     return res;
 }
 
-static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const void* src, void* dst, const float* cos, const float* sin) {
+static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
+                          const void* src,
+                          void* dst,
+                          const float* cos,
+                          const float* sin) {
     MAYBE_UNUSED(ker);
     MAYBE_UNUSED(src);
     MAYBE_UNUSED(dst);
@@ -84,7 +89,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
     call_args.dst = dst;
     (*ker)(&call_args);
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 }
 
 template <typename T>
@@ -325,10 +330,10 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     void execute(dnnl::stream strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
-        ov::intel_cpu::PlainTensor t_src(inputs[0]);    // [batch, length, head_cnt*head_size * 3]
-        ov::intel_cpu::PlainTensor t_cos(inputs[1]);    // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_sin(inputs[2]);    // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_dst(outputs[0]);   // [batch, length, head_cnt, head_size]>
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
+        ov::intel_cpu::PlainTensor t_cos(inputs[1]);   // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_sin(inputs[2]);   // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);  // [batch, length, head_cnt, head_size]>
         auto rotary_dims = t_cos.size(3);
 
         if (m_config.slice_stop - m_config.slice_start > 0) {

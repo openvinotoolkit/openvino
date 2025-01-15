@@ -130,7 +130,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
+        manager.register_pass<ov::pass::MarkDequantization>(
             element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
     }
     if (!m_use_shapes) {

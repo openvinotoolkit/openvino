@@ -189,7 +189,7 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (funcInput.get_element_type() == ov::element::bf16) {
+            if (funcInput.get_element_type() == ov::element::bf16 || funcInput.get_element_type() == ov::element::f16) {
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -1;
                 in_data.range = 2;
@@ -232,6 +232,9 @@ protected:
             configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         }
 
+        if (inputPrecisions[0] == ElementType::f16)
+            configuration.insert({ov::hint::inference_precision(ov::element::f16)});
+
         // Snippets MHA tokenization has limitations to avoid performance degradations. These limitations depend on
         // target machine. Just for testing, we disable these limitations to allow Snippets to tokenize pattern on all
         // machines for validation.
@@ -251,6 +254,9 @@ TEST_P(MHATest, CompareWithRefs) {
         this->GetParam();
 
     if (inputPrecisions[0] == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    if (inputPrecisions[0] == ElementType::f16 && !ov::with_cpu_x86_avx512_core_amx_fp16())
         GTEST_SKIP();
 
     if (!ov::with_cpu_x86_avx512_core())
@@ -301,6 +307,20 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
         ::testing::Values(
             std::vector<ElementType>{ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16}),
+        ::testing::ValuesIn(matMulIn0Precisions),
+        ::testing::ValuesIn(patternTypes),
+        ::testing::Values(ExpectedNodes{{"Subgraph", 1},
+                                        {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    MHATest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MHA_FP16,
+    MHATest,
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(inputShapes)),
+        ::testing::Values(
+            std::vector<ElementType>{ElementType::f16, ElementType::f16, ElementType::f16, ElementType::f16}),
         ::testing::ValuesIn(matMulIn0Precisions),
         ::testing::ValuesIn(patternTypes),
         ::testing::Values(ExpectedNodes{{"Subgraph", 1},

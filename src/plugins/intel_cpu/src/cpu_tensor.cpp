@@ -16,7 +16,8 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
 
     // only support plain data format ncsp.
     auto memdesc = m_memptr->getDescPtr();
-    OPENVINO_ASSERT(memdesc->hasLayoutType(LayoutType::ncsp), "intel_cpu::Tensor only supports memory with ncsp layout.");
+    OPENVINO_ASSERT(memdesc->hasLayoutType(LayoutType::ncsp),
+                    "intel_cpu::Tensor only supports memory with ncsp layout.");
 
     m_element_type = memdesc->getPrecision();
 }
@@ -24,8 +25,14 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
 void Tensor::set_shape(ov::Shape new_shape) {
     const auto& shape = m_memptr->getDescPtr()->getShape();
     if (shape.isStatic()) {
-        DEBUG_LOG("tensor's memory object ", m_memptr.get(), ", ", vec2str(shape.getStaticDims()), " -> ", new_shape.to_string());
-        if (shape.getStaticDims() == new_shape) return;
+        DEBUG_LOG("tensor's memory object ",
+                  m_memptr.get(),
+                  ", ",
+                  vec2str(shape.getStaticDims()),
+                  " -> ",
+                  new_shape.to_string());
+        if (shape.getStaticDims() == new_shape)
+            return;
     }
 
     auto desc = m_memptr->getDescPtr();
@@ -69,7 +76,7 @@ void Tensor::update_strides() const {
     OPENVINO_ASSERT(blocked_desc, "not a valid blocked memory descriptor.");
     auto& strides = blocked_desc->getStrides();
     m_strides.resize(strides.size());
-    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this] (const size_t stride) {
+    std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
         return stride * m_element_type.size();
     });
 }
@@ -96,5 +103,5 @@ std::shared_ptr<ITensor> make_tensor(MemoryPtr mem) {
     return std::make_shared<Tensor>(mem);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

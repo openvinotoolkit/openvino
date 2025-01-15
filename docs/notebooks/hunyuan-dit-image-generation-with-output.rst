@@ -36,6 +36,7 @@ using OpenVINO. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ for optimizing model
 in low precision.
 
+
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__

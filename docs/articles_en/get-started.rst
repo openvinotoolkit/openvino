@@ -62,14 +62,14 @@ OpenVINO provides a wide array of examples and documentation showing how to work
 OpenVINO Basics
 +++++++++++++++
 
-Learn the basics of working with models and inference in OpenVINO. Begin with “Hello World” Interactive Tutorials that show how to prepare models, run inference, and retrieve results using the OpenVINO API. Then, explore other examples from the Open Model Zoo and OpenVINO Code Samples that can be adapted for your own application.
+Learn the basics of working with models and inference in OpenVINO. Begin with “Hello World” Interactive Tutorials that show how to prepare models, run inference, and retrieve results using the OpenVINO API. Then, explore OpenVINO Code Samples that can be adapted for your own application.
 
 .. _interactive-learn-openvino/interactive-tutorials-python:
 
 Interactive Tutorials - Jupyter Notebooks
 -----------------------------------------
 
-Start with :doc:`interactive Python <learn-openvino/interactive-tutorials-python>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
+Start with :doc:`interactive Python <learn-openvino/interactive-tutorials-python>` that show the basics of model inference, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
 * `Hello Image Classification <notebooks/hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
 * `OpenVINO Runtime API Tutorial <notebooks/openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO

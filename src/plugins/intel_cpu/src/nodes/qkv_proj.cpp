@@ -7,16 +7,16 @@
 #include <string>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "kernels/x64/mlp_utils.hpp"
+#    include "kernels/x64/mlp_utils.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -55,7 +55,7 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     std::vector<Work> works;
-    QKVProjection * m_node;
+    QKVProjection* m_node;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
@@ -66,7 +66,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
     WeightBuffer wbuffer;
 
-    Executor(QKVProjection * pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
+    Executor(QKVProjection* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
         PlainTensor w0(pnode->getSrcMemoryAtPort(1));
         PlainTensor w1(pnode->getSrcMemoryAtPort(2));
         PlainTensor w2(pnode->getSrcMemoryAtPort(3));
@@ -104,7 +104,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 if (blkN) {
                     auto& work = works[cur_work_id++];
                     work.blk_K_size = cache_blk_k_size;
-                    work.n0 = (start_blkN) * REG_BLK_N_SIZE;
+                    work.n0 = (start_blkN)*REG_BLK_N_SIZE;
                     work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
                     work.BN = blkN * REG_BLK_N_SIZE;
                     work.k0 = 0;
@@ -135,9 +135,16 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             create_works(w2.ptr_v(), 2, proj_size2, n_group_workers[2]);
         }
 
-        DEBUG_LOG("QKVProj hidden_size=", K, " proj_sizes=",
-                    proj_size0, ",", proj_size1, ",", proj_size2,
-                    " used_nthr=", cur_work_id);
+        DEBUG_LOG("QKVProj hidden_size=",
+                  K,
+                  " proj_sizes=",
+                  proj_size0,
+                  ",",
+                  proj_size1,
+                  ",",
+                  proj_size2,
+                  " used_nthr=",
+                  cur_work_id);
 
         wbuffer.alloc(works, weight_element_size);
 
@@ -145,9 +152,14 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8)
-                    work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(work.p_raw_weights), stride_in_bytes, true);
+                    work.setup(wbuffer.get<int8_t>(ithr),
+                               reinterpret_cast<int8_t*>(work.p_raw_weights),
+                               stride_in_bytes,
+                               true);
                 else
-                    work.setup(wbuffer.get<T>(ithr), reinterpret_cast<ov::float16*>(work.p_raw_weights), stride_in_bytes);
+                    work.setup(wbuffer.get<T>(ithr),
+                               reinterpret_cast<ov::float16*>(work.p_raw_weights),
+                               stride_in_bytes);
             }
         });
     }
@@ -162,7 +174,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             for (auto& work : works) {
                 if (work) {
                     auto C_size = work.set_C(M, reinterpret_cast<float*>(cur_scratch_base));
-                    allocator.register_allocation(C_size, [&](void* ptr){
+                    allocator.register_allocation(C_size, [&](void* ptr) {
                         work.set_C(M, reinterpret_cast<float*>(ptr));
                     });
                 }
@@ -171,7 +183,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
             if (m_node->m_config.quantized) {
                 m_quant_act.M = M;
                 m_quant_act.K = m_node->m_config.hidden_size;
-                allocator.register_allocation(m_quant_act.size(), [&](void* ptr){
+                allocator.register_allocation(m_quant_act.size(), [&](void* ptr) {
                     m_quant_act.setup(ptr);
                 });
             }
@@ -265,18 +277,17 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     if (m_node->m_config.quantized) {
                         // dequantize output & convert to f32 in-place
                         auto* p_wsum = work.w_sum_per_oc.template ptr<float>();
-                        ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(
-                            BM,
-                            work.BN,
-                            reinterpret_cast<int32_t*>(src),
-                            stride_src,
-                            src,
-                            stride_src,
-                            m_quant_act.scale,
-                            m_quant_act.zp,
-                            p_wsum,
-                            w_scale[work.output_id] + work.n0,
-                            asym);
+                        ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(BM,
+                                                                               work.BN,
+                                                                               reinterpret_cast<int32_t*>(src),
+                                                                               stride_src,
+                                                                               src,
+                                                                               stride_src,
+                                                                               m_quant_act.scale,
+                                                                               m_quant_act.zp,
+                                                                               p_wsum,
+                                                                               w_scale[work.output_id] + work.n0,
+                                                                               asym);
                     }
                     // compress accumulation result into target
                     for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
@@ -298,8 +309,8 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 #else
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
-    QKVProjection * m_pnode;
-    Executor(QKVProjection * pnode) : m_pnode(pnode) {}
+    QKVProjection* m_pnode;
+    Executor(QKVProjection* pnode) : m_pnode(pnode) {}
     void execute() override {}
 };
 #endif
@@ -327,7 +338,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
 
-    const auto & config = context->getConfig();
+    const auto& config = context->getConfig();
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0)
         concurrency = parallel_get_max_threads();
@@ -357,7 +368,9 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16, "Unexpected rtPrecision:", rtPrecision);
+    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
+                    "Unexpected rtPrecision:",
+                    rtPrecision);
 
     if (m_config.quantized) {
         auto weightPrecision = ov::element::i8;
@@ -367,9 +380,21 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(1), false, -1);  // q_proj
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(2), false, -1);  // k_proj
         inPortConfigs.emplace_back(LayoutType::ncsp, weightPrecision, getInputShapeAtPort(3), false, -1);  // v_proj
-        inPortConfigs.emplace_back(LayoutType::ncsp, wScalePrecision, getInputShapeAtPort(4), false, -1);  // q_proj deq-scale per-OC
-        inPortConfigs.emplace_back(LayoutType::ncsp, wScalePrecision, getInputShapeAtPort(5), false, -1);  // k_proj deq-scale per-OC
-        inPortConfigs.emplace_back(LayoutType::ncsp, wScalePrecision, getInputShapeAtPort(6), false, -1);  // v_proj deq-scale per-OC
+        inPortConfigs.emplace_back(LayoutType::ncsp,
+                                   wScalePrecision,
+                                   getInputShapeAtPort(4),
+                                   false,
+                                   -1);  // q_proj deq-scale per-OC
+        inPortConfigs.emplace_back(LayoutType::ncsp,
+                                   wScalePrecision,
+                                   getInputShapeAtPort(5),
+                                   false,
+                                   -1);  // k_proj deq-scale per-OC
+        inPortConfigs.emplace_back(LayoutType::ncsp,
+                                   wScalePrecision,
+                                   getInputShapeAtPort(6),
+                                   false,
+                                   -1);  // v_proj deq-scale per-OC
 
         // initialize output port
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
@@ -406,7 +431,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     errorMessage = "QKVProjection needs at least 3 cores to work";
                     return false;
                 }
-                float unbalance_ratio = static_cast<float>(concurrency % 3)/static_cast<float>(concurrency / 3);
+                float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
                 if (unbalance_ratio > 0.2f) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;

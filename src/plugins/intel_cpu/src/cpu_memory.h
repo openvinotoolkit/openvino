@@ -4,17 +4,17 @@
 
 #pragma once
 
-#include "memory_desc/cpu_memory_desc.h"
-#include "dnnl_extension_utils.h"
-#include <onednn/dnnl.h>
 #include <cpu_shape.h>
-
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
+#include <onednn/dnnl.h>
 
 #include <memory>
 #include <mutex>
 #include <unordered_set>
+
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -47,7 +47,8 @@ public:
     virtual void* getRawPtr() const noexcept = 0;
 
     /**
-     * @brief Allows to set externally allocated memory buffer. In that case, the object has no control over the provided memory.
+     * @brief Allows to set externally allocated memory buffer. In that case, the object has no control over the
+     * provided memory.
      * @param ptr - pointer to the memory
      * @param size - size of the memory buffer
      */
@@ -82,11 +83,11 @@ public:
 private:
     bool m_useExternalStorage = false;
     size_t m_memUpperBound = 0ul;
-    std::unique_ptr<void, void (*)(void *)> m_data;
+    std::unique_ptr<void, void (*)(void*)> m_data;
     int numa_node;
 
-    static void release(void *ptr);
-    static void destroy(void *ptr);
+    static void release(void* ptr);
+    static void destroy(void* ptr);
 };
 
 class IMemoryBlockObserver : public IMemoryBlock {
@@ -128,13 +129,13 @@ public:
     }
 
     DnnlMemBlockHandle(const DnnlMemBlockHandle&) = delete;
-    DnnlMemBlockHandle& operator= (const DnnlMemBlockHandle&) = delete;
+    DnnlMemBlockHandle& operator=(const DnnlMemBlockHandle&) = delete;
 
     DnnlMemBlockHandle(DnnlMemBlockHandle&& source) {
         std::swap(m_pMemBlock, source.m_pMemBlock);
         std::swap(m_pMem, source.m_pMem);
     }
-    DnnlMemBlockHandle& operator= (DnnlMemBlockHandle&& rhs) {
+    DnnlMemBlockHandle& operator=(DnnlMemBlockHandle&& rhs) {
         std::swap(m_pMemBlock, rhs.m_pMemBlock);
         std::swap(m_pMem, rhs.m_pMem);
         return *this;
@@ -166,7 +167,7 @@ public:
     virtual const MemoryDesc& getDesc() const = 0;
     virtual MemoryDescPtr getDescPtr() const = 0;
 
-    virtual void* getData() const = 0; // pointer to the actual memory
+    virtual void* getData() const = 0;  // pointer to the actual memory
 
     template <typename T, typename datatype = typename std::decay<T>::type>
     T* getDataAs() const {
@@ -177,7 +178,7 @@ public:
         return static_cast<T*>(getData());
     }
 
-    virtual size_t getSize() const = 0; // in bytes
+    virtual size_t getSize() const = 0;  // in bytes
     virtual const Shape& getShape() const = 0;
     virtual const VectorDims& getStaticDims() const = 0;
 
@@ -199,7 +200,7 @@ public:
         return false;
     }
 
-    //oneDNN specifics for backward compatibility
+    // oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
 
     ov::element::Type getPrecision() const {
@@ -211,8 +212,8 @@ public:
     }
 
     template <typename T,
-            typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-            typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     std::shared_ptr<T> getDescWithType() const;
 };
 
@@ -241,17 +242,17 @@ public:
     StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     StaticMemory(const StaticMemory&) = delete;
-    StaticMemory& operator= (const StaticMemory&) = delete;
+    StaticMemory& operator=(const StaticMemory&) = delete;
 
     StaticMemory(Memory&&) = delete;
-    StaticMemory& operator= (StaticMemory&&) = delete;
+    StaticMemory& operator=(StaticMemory&&) = delete;
 
     const MemoryDesc& getDesc() const override;
     MemoryDescPtr getDescPtr() const override;
 
-    void* getData() const override; // pointer to the actual memory
+    void* getData() const override;  // pointer to the actual memory
 
-    size_t getSize() const override; // in bytes
+    size_t getSize() const override;  // in bytes
     const Shape& getShape() const override;
     const VectorDims& getStaticDims() const override;
 
@@ -262,7 +263,7 @@ public:
 
     MemoryBlockPtr getMemoryBlock() const override;
 
-    //oneDNN specifics for backward compatibility
+    // oneDNN specifics for backward compatibility
     dnnl::memory getPrimitive() const override;
 
     void nullify() override;
@@ -284,10 +285,10 @@ public:
     Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryBlockPtr block);
 
     Memory(const Memory&) = delete;
-    Memory& operator= (const Memory&) = delete;
+    Memory& operator=(const Memory&) = delete;
 
     Memory(Memory&&) = delete;
-    Memory& operator= (Memory&&) = delete;
+    Memory& operator=(Memory&&) = delete;
 
     dnnl::memory getPrimitive() const override;
 
@@ -341,7 +342,7 @@ private:
     bool m_padsZeroing = true;
     class DnnlMemPrimHandle {
     public:
-        explicit DnnlMemPrimHandle(const Memory* memObjPtr): m_memObjPtr(memObjPtr) {}
+        explicit DnnlMemPrimHandle(const Memory* memObjPtr) : m_memObjPtr(memObjPtr) {}
         bool isInit() const;
         dnnl::memory getPrim() const;
         void resetDnnlPrim();
@@ -376,7 +377,7 @@ public:
     private:
         bool m_use_external_storage = false;
         size_t m_str_upper_bound = 0lu;
-        std::unique_ptr<OvString, void (*)(OvString *)> m_data;
+        std::unique_ptr<OvString, void (*)(OvString*)> m_data;
 
         static void release(OvString* ptr) {}
         static void destroy(OvString* ptr);
@@ -390,7 +391,9 @@ public:
         : StringMemory(engine, desc.clone(), data) {}
 
     StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryBlockPtr& block)
-        : m_engine(engine), m_mem_desc(desc), m_memoryBlock(block) {}
+        : m_engine(engine),
+          m_mem_desc(desc),
+          m_memoryBlock(block) {}
 
     StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryBlockPtr& block)
         : StringMemory(engine, desc.clone(), block) {}
@@ -405,7 +408,7 @@ public:
 
     void* getData() const override;
 
-    size_t getSize() const override; // In bytes
+    size_t getSize() const override;  // In bytes
 
     const Shape& getShape() const override {
         return m_mem_desc->getShape();
@@ -443,8 +446,18 @@ bool mbind_move(void* data, size_t size, int numaNodeID);
 bool mbind_move(const MemoryCPtr mem, int numaNodeID);
 bool mbind_move(const dnnl::memory mem, int numaNodeID);
 
-MemoryPtr split_horizontal(const dnnl::engine& eng, const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill = true);
-MemoryPtr split_vertical(const dnnl::engine& eng, const MemoryPtr src, int dim, int w_rank, int w_size, bool need_fill = true);
+MemoryPtr split_horizontal(const dnnl::engine& eng,
+                           const MemoryPtr src,
+                           int dim,
+                           int w_rank,
+                           int w_size,
+                           bool need_fill = true);
+MemoryPtr split_vertical(const dnnl::engine& eng,
+                         const MemoryPtr src,
+                         int dim,
+                         int w_rank,
+                         int w_size,
+                         bool need_fill = true);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

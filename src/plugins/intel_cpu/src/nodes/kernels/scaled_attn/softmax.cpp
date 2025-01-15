@@ -13,10 +13,10 @@
 #    include <immintrin.h>
 #endif
 
+#include "common.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
-#include "common.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -39,13 +39,33 @@ void attn_softmax(void* a,
     if (precision == ov::element::f16) {
         auto _a = reinterpret_cast<ov::float16*>(a);
         auto _alibi = reinterpret_cast<ov::float16*>(alibi);
-        attn_softmax_kernel<ov::float16>(_a, a_dst, scale, _alibi, attn_mask, causal_mask, select_nfltmax_at_0, len, total_size, attn_mask_prec, dst_precision);
+        attn_softmax_kernel<ov::float16>(_a,
+                                         a_dst,
+                                         scale,
+                                         _alibi,
+                                         attn_mask,
+                                         causal_mask,
+                                         select_nfltmax_at_0,
+                                         len,
+                                         total_size,
+                                         attn_mask_prec,
+                                         dst_precision);
         return;
     }
 #endif
     auto _a = reinterpret_cast<float*>(a);
     auto _alibi = reinterpret_cast<float*>(alibi);
-    attn_softmax_kernel<float>(_a, a_dst, scale, _alibi, attn_mask, causal_mask, select_nfltmax_at_0, len, total_size, attn_mask_prec, dst_precision);
+    attn_softmax_kernel<float>(_a,
+                               a_dst,
+                               scale,
+                               _alibi,
+                               attn_mask,
+                               causal_mask,
+                               select_nfltmax_at_0,
+                               len,
+                               total_size,
+                               attn_mask_prec,
+                               dst_precision);
 }
 
 }  // namespace XARCH

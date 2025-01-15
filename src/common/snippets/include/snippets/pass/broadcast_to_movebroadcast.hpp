@@ -19,6 +19,7 @@ namespace pass {
  */
 class BroadcastToMoveBroadcast: public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::BroadcastToMoveBroadcast");
     BroadcastToMoveBroadcast();
 };
 

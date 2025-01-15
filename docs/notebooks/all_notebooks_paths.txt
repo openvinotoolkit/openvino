@@ -1,7 +1,6 @@
 notebooks/3D-pose-estimation-webcam/3D-pose-estimation.ipynb
 notebooks/3D-segmentation-point-clouds/3D-segmentation-point-clouds.ipynb
 notebooks/action-recognition-webcam/action-recognition-webcam.ipynb
-notebooks/amused-lightweight-text-to-image/amused-lightweight-text-to-image.ipynb
 notebooks/animate-anyone/animate-anyone.ipynb
 notebooks/async-api/async-api.ipynb
 notebooks/auto-device/auto-device.ipynb
@@ -19,9 +18,7 @@ notebooks/ddcolor-image-colorization/ddcolor-image-colorization.ipynb
 notebooks/depth-anything/depth-anything.ipynb
 notebooks/depth-anything/depth-anything-v2.ipynb
 notebooks/detectron2-to-openvino/detectron2-to-openvino.ipynb
-notebooks/distilbert-sequence-classification/distilbert-sequence-classification.ipynb
 notebooks/distil-whisper-asr/distil-whisper-asr.ipynb
-notebooks/dolly-2-instruction-following/dolly-2-instruction-following.ipynb
 notebooks/dynamicrafter-animating-images/dynamicrafter-animating-images.ipynb
 notebooks/efficient-sam/efficient-sam.ipynb
 notebooks/encodec-audio-compression/encodec-audio-compression.ipynb
@@ -33,6 +30,7 @@ notebooks/film-slowmo/film-slowmo.ipynb
 notebooks/florence2/florence2.ipynb
 notebooks/flux.1-image-generation/flux.1-image-generation.ipynb
 notebooks/freevc-voice-conversion/freevc-voice-conversion.ipynb
+notebooks/glm-edge-v/glm-edge-v.ipynb
 notebooks/gpu-device/gpu-device.ipynb
 notebooks/grammar-correction/grammar-correction.ipynb
 notebooks/grounded-segment-anything/grounded-segment-anything.ipynb
@@ -43,11 +41,11 @@ notebooks/hello-segmentation/hello-segmentation.ipynb
 notebooks/hello-world/hello-world.ipynb
 notebooks/hugging-face-hub/hugging-face-hub.ipynb
 notebooks/hunyuan-dit-image-generation/hunyuan-dit-image-generation.ipynb
-notebooks/image-bind/image-bind.ipynb
 notebooks/image-classification-quantization/image-classification-quantization.ipynb
 notebooks/instant-id/instant-id.ipynb
 notebooks/instruct-pix2pix-image-editing/instruct-pix2pix-image-editing.ipynb
 notebooks/internvl2/internvl2.ipynb
+notebooks/janus-multimodal-generation/janus-multimodal-generation.ipynb
 notebooks/jax-to-openvino/jax-classification-to-openvino.ipynb
 notebooks/jina-clip/jina-clip.ipynb
 notebooks/knowledge-graphs-conve/knowledge-graphs-conve.ipynb
@@ -67,13 +65,13 @@ notebooks/llm-chatbot/llm-chatbot.ipynb
 notebooks/llm-question-answering/llm-question-answering.ipynb
 notebooks/llm-rag-langchain/llm-rag-langchain.ipynb
 notebooks/llm-rag-llamaindex/llm-rag-llamaindex.ipynb
+notebooks/localai/localai.ipynb
 notebooks/magika-content-type-recognition/magika-content-type-recognition.ipynb
 notebooks/meter-reader/meter-reader.ipynb
 notebooks/minicpm-v-multimodal-chatbot/minicpm-v-multimodal-chatbot.ipynb
 notebooks/mllama-3.2/mllama-3.2.ipynb
 notebooks/mms-massively-multilingual-speech/mms-massively-multilingual-speech.ipynb
 notebooks/mobileclip-video-search/mobileclip-video-search.ipynb
-notebooks/mobilevlm-language-assistant/mobilevlm-language-assistant.ipynb
 notebooks/modelscope-to-openvino/modelscope-to-openvino.ipynb
 notebooks/model-server/model-server.ipynb
 notebooks/multilora-image-generation/multilora-image-generation.ipynb
@@ -92,7 +90,6 @@ notebooks/optimize-preprocessing/optimize-preprocessing.ipynb
 notebooks/outetts-text-to-speech/outetts-text-to-speech.ipynb
 notebooks/paddle-ocr-webcam/paddle-ocr-webcam.ipynb
 notebooks/paddle-to-openvino/paddle-to-openvino-classification.ipynb
-notebooks/paint-by-example/paint-by-example.ipynb
 notebooks/parler-tts-text-to-speech/parler-tts-text-to-speech.ipynb
 notebooks/person-counting-webcam/person-counting.ipynb
 notebooks/person-tracking-webcam/person-tracking.ipynb
@@ -139,7 +136,6 @@ notebooks/stable-diffusion-v2/stable-diffusion-v2-text-to-image-demo.ipynb
 notebooks/stable-diffusion-v2/stable-diffusion-v2-text-to-image.ipynb
 notebooks/stable-diffusion-v3/stable-diffusion-v3.ipynb
 notebooks/stable-diffusion-v3/stable-diffusion-v3-torch-fx.ipynb
-notebooks/stable-diffusion-xl/segmind-vegart.ipynb
 notebooks/stable-diffusion-xl/stable-diffusion-xl.ipynb
 notebooks/stable-fast-3d/stable-fast-3d.ipynb
 notebooks/stable-video-diffusion/stable-video-diffusion.ipynb
@@ -156,14 +152,12 @@ notebooks/tflite-selfie-segmentation/tflite-selfie-segmentation.ipynb
 notebooks/tflite-to-openvino/tflite-to-openvino.ipynb
 notebooks/tiny-sd-image-generation/tiny-sd-image-generation.ipynb
 notebooks/torchvision-zoo-to-openvino/convnext-classification.ipynb
-notebooks/typo-detector/typo-detector.ipynb
 notebooks/vehicle-detection-and-recognition/vehicle-detection-and-recognition.ipynb
 notebooks/vision-background-removal/vision-background-removal.ipynb
 notebooks/vision-monodepth/vision-monodepth.ipynb
 notebooks/wav2lip/wav2lip.ipynb
 notebooks/whisper-asr-genai/whisper-asr-genai.ipynb
 notebooks/whisper-subtitles-generation/whisper-subtitles-generation.ipynb
-notebooks/wuerstchen-image-generation/wuerstchen-image-generation.ipynb
 notebooks/yolov10-optimization/yolov10-optimization.ipynb
 notebooks/yolov11-optimization/yolov11-instance-segmentation.ipynb
 notebooks/yolov11-optimization/yolov11-keypoint-detection.ipynb

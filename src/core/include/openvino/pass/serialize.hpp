@@ -11,6 +11,10 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
+#ifdef OPENVINO_CPP_VER_17
+#    include <filesystem>
+#endif
+
 namespace ov {
 namespace pass {
 
@@ -34,6 +38,13 @@ public:
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
+
+#ifdef OPENVINO_CPP_VER_17
+    Serialize(const std::filesystem::path& xmlPath,
+              const std::filesystem::path& binPath,
+              Version version = Version::UNSPECIFIED)
+        : Serialize(xmlPath.string(), binPath.string(), version) {}
+#endif
 
 private:
     std::ostream* m_xmlFile;

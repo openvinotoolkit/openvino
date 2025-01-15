@@ -8,7 +8,7 @@
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "kernels/x64/mlp_kernel.hpp"
+#    include "kernels/x64/mlp_kernel.hpp"
 #endif
 
 namespace ov {
@@ -43,7 +43,8 @@ private:
         virtual ~ExecutorBase() = default;
     };
     std::shared_ptr<ExecutorBase> m_executor;
-    template <typename T> struct Executor;
+    template <typename T>
+    struct Executor;
 
     QKVProjectionNode::Config m_config;
 };

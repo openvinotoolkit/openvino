@@ -1,4 +1,5 @@
-﻿opt-125m-gptq,INT4-MIXED,32,833.1,15.6,3.9,256.4
+﻿Topology,Precision,Input Size,max rss memory,1st latency (ms),2nd latency (ms),2nd tok/sec
+opt-125m-gptq,INT4-MIXED,32,833.1,15.6,3.9,256.4
 opt-125m-gptq,INT4-MIXED,1024,955.9,553.8,4.8,208.3
 bloomz-560m,INT4-MIXED,32,1457.5,48.5,11.1,90.1
 qwen2-0.5b,INT4-MIXED,32,1167.8,95.7,11.5,87.0

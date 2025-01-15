@@ -49,5 +49,5 @@ private:
 using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;
 using ProxyMemoryBlockCPtr = std::shared_ptr<const ProxyMemoryBlock>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

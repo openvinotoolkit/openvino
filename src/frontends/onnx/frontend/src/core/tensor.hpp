@@ -313,7 +313,7 @@ private:
         } else {
             buffer = ext_data.load_external_data(m_model_dir);
         }
-        return std::vector<T>(buffer->get_ptr<char>(), buffer->get_ptr<char>() + buffer->size());
+        return std::vector<T>(buffer->get_ptr<T>(), buffer->get_ptr<T>() + (buffer->size() / sizeof(T)));
     }
 
     const void* get_data_ptr() const {

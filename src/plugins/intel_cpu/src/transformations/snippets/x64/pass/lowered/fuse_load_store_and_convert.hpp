@@ -18,7 +18,7 @@ namespace pass {
  *        Fuse Store and ConvertTruncation into one op StoreConvertTruncation
  * @ingroup snippets
  */
-class FuseLoadStoreConvert: public snippets::lowered::pass::RangedPass {
+class FuseLoadStoreConvert : public snippets::lowered::pass::RangedPass {
 public:
     FuseLoadStoreConvert() = default;
     OPENVINO_RTTI("FuseLoadStoreConvert", "RangedPass");

@@ -117,14 +117,21 @@ Download pretrained model and test image
     tflite_model_path = Path("selfie_multiclass_256x256.tflite")
     tflite_model_url = "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite"
     
-    if not tflite_model_path.exists():
-        download_file(tflite_model_url, tflite_model_path)
+    download_file(tflite_model_url, tflite_model_path)
 
 
 
 .. parsed-literal::
 
     selfie_multiclass_256x256.tflite:   0%|          | 0.00/15.6M [00:00<?, ?B/s]
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+
 
 
 Convert Tensorflow Lite model to OpenVINO IR format
@@ -258,12 +265,9 @@ Additionally, the input image is represented as an RGB image in UINT8
     
     # Read input image and convert it to RGB
     test_image_url = "https://user-images.githubusercontent.com/29454499/251036317-551a2399-303e-4a4a-a7d6-d7ce973e05c5.png"
-    image_path = "example-img.png"
+    image_name = "example-img.png"
     
-    if not Path(image_path).exists():
-        img = download_file(test_image_url, image_path)
-    
-    img = load_image(image_path)
+    img = load_image(image_name, test_image_url)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
     
@@ -300,13 +304,6 @@ Additionally, the input image is represented as an RGB image in UINT8
     
     # Convert input data from uint8 [0, 255] to float32 [0, 1] range and add batch dimension
     normalized_img = np.expand_dims(padded_img.astype(np.float32) / 255, 0)
-
-
-
-.. parsed-literal::
-
-    example-img.png:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
-
 
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
@@ -586,11 +583,10 @@ set \ ``use_popup=True``.
         VIDEO_SOURCE = 0  # Webcam
     else:
         VIDEO_SOURCE = "CEO-Pat-Gelsinger-on-Leading-Intel.mp4"
-        if not Path(VIDEO_SOURCE).exists():
-            download_file(
-                "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4",
-                VIDEO_SOURCE,
-            )
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4",
+            VIDEO_SOURCE,
+        )
 
 
 
