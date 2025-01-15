@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace intel_cpu {
 
 class ReadValueWithSubgraph : public ov::op::util::SubGraphOp, public ov::op::util::VariableExtension {
 public:
-    OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset");
+    OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset", ov::op::util::SubGraphOp);
 
     ReadValueWithSubgraph() = default;
     ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable, std::shared_ptr<ov::Model> body);
