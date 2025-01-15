@@ -7,11 +7,8 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "npuw/compiled_model.hpp"
-#include "npuw/llm_compiled_model.hpp"
-#include "npuw/serialization.hpp"
-#include "driver_compiler_adapter.hpp"
 #include "compiler_adapter_factory.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -23,6 +20,8 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/llm_compiled_model.hpp"
+#include "npuw/serialization.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -451,7 +450,7 @@ Plugin::Plugin()
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::compiler_dynamic_quantization.name(),
-         {min_compiler_requirement(ICOMPILER_MAKE_VERSION(6,4)),
+         {min_compiler_requirement(ICOMPILER_MAKE_VERSION(7, 1)),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILER_DYNAMIC_QUANTIZATION>();

@@ -542,8 +542,8 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
-    // COMPILER_DYNAMIC_QUANTIZATION is not supported in versions < 6.4 - need to remove it
-    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 4)) {
+    // COMPILER_DYNAMIC_QUANTIZATION is not supported in versions < 7.1 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 1)) {
         std::ostringstream dqstr;
         dqstr << ov::intel_npu::compiler_dynamic_quantization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
               << VALUE_DELIMITER;
