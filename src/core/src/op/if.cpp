@@ -33,15 +33,21 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
         return ov::PartialShape::dynamic();
     }
     if (then_rank.get_length() != else_rank.get_length()) {
+        auto isScalar = [](const ov::PartialShape& pshape) {
+            return ((pshape.rank() == 0) || (pshape.rank() == 1 && pshape.get_shape()[0] == 1));
+        };
         // Union of scalar and 1D case
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
+            if (isScalar(then_pshape) && isScalar(else_pshape)) {
+                return ov::PartialShape{1};
+            }
             return ov::PartialShape::dynamic(1);
         } else {
             return ov::PartialShape::dynamic();
         }
     }
-    ov::PartialShape new_dims;
 
+    ov::PartialShape new_dims;
     // If ranges are equal each dimension of then_body output is union with each dimension of
     // else_body
     for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin(); then_it != then_pshape.cend();
