@@ -11,6 +11,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/except.hpp"
 
+#ifndef EXPAND
+    #define EXPAND(N) N
+#endif
+
 #ifndef COUNT_N
     #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
 #endif
@@ -23,14 +27,11 @@
     #define CAT(a, b) a ## b
 #endif
 
-#ifndef EXPAND
-    #define EXPAND(N) N
-#endif
-
 #define GET_EXCEPT_LAST_IMPL(N, ...) CAT(GET_EXCEPT_LAST_IMPL_, N)(__VA_ARGS__)
 #define GET_EXCEPT_LAST_IMPL_2(_0, _1) _0
 #define GET_EXCEPT_LAST_IMPL_3(_0, _1, _2) _0, _1
 #define GET_EXCEPT_LAST_IMPL_4(_0, _1, _2, _3) _0, _1, _2
+#define GET_EXCEPT_LAST_IMPL_5(_0, _1, _2, _3, _4) _0, _1, _2, _3
 
 #define GET_EXCEPT_LAST(...) EXPAND(GET_EXCEPT_LAST_IMPL(COUNT(__VA_ARGS__), __VA_ARGS__))
 
@@ -45,10 +46,25 @@
 
 #define GET_LAST(...) GET_LAST_IMPL(COUNT(__VA_ARGS__), _, __VA_ARGS__ ,,,,,,,,,,,)
 
-#define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
+#define OV_CONFIG_DECLARE_LOCAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
     ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{GET_EXCEPT_LAST(__VA_ARGS__)};
+#define OV_CONFIG_DECLARE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
+    static ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar;
 
-#define OV_CONFIG_DECLARE_GETTERS(PropertyNamespace, PropertyVar, Visibility, ...) \
+#define OV_CONFIG_DECLARE_LOCAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
+    const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() const { \
+        if (m_is_finalized) { \
+            return m_ ## PropertyVar.value; \
+        } else { \
+            if (m_user_properties.find(PropertyNamespace::PropertyVar.name()) != m_user_properties.end()) { \
+                return m_user_properties.at(PropertyNamespace::PropertyVar.name()).as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
+            } else { \
+                return m_ ## PropertyVar.value; \
+            } \
+        } \
+    }
+
+#define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
     const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() const { \
         if (m_is_finalized) { \
             return m_ ## PropertyVar.value; \
@@ -68,13 +84,16 @@
         { #PropertyNamespace "::" #PropertyVar, PropertyNamespace::PropertyVar.name(), GET_LAST(__VA_ARGS__)},
 
 #define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
+    OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
 
 #define OV_CONFIG_RELEASE_INTERNAL_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
+    OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
 
 #define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
+    OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
+
+#define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...) \
+    OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG_GLOBAL, __VA_ARGS__)
 
 namespace ov {
 #define ENABLE_DEBUG_CAPS
@@ -82,8 +101,9 @@ enum class OptionVisibility : uint8_t {
     RELEASE = 1 << 0,            // Option can be set for any build type via public interface, environment and config file
     RELEASE_INTERNAL = 1 << 1,   // Option can be set for any build type via environment and config file only
     DEBUG = 1 << 2,              // Option can be set for debug builds only via environment and config file
+    DEBUG_GLOBAL = 1 << 3,       // Global option can be set for debug builds only via environment and config file
 #ifdef ENABLE_DEBUG_CAPS
-    ANY = 0x07,                  // Any visibility is valid including DEBUG
+    ANY = 0x0F,                  // Any visibility is valid including DEBUG
 #else
     ANY = 0x03,                  // Any visibility is valid excluding DEBUG
 #endif
@@ -213,6 +233,10 @@ public:
     util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
         set_property(ov::AnyMap{std::forward<Properties>(properties)...});
     }
+    template <typename... Properties>
+    util::EnableIfAllStringAny<void, Properties...> set_user_property(Properties&&... properties) {
+        set_user_property(ov::AnyMap{std::forward<Properties>(properties)...});
+    }
 
     std::string to_string() const;
 
@@ -243,13 +267,14 @@ protected:
         if (!is_set_by_user(property)) {
             auto rt_info_val = rt_info.find(property.name());
             if (rt_info_val != rt_info.end()) {
-                set_user_property(property(rt_info_val->second.template as<T>()));
+                set_user_property({property(rt_info_val->second.template as<T>())}, OptionVisibility::RELEASE | OptionVisibility::RELEASE_INTERNAL);
             }
         }
     }
 
     ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
-    ov::AnyMap read_env(const std::vector<std::string>& prefixes) const;
+    ov::AnyMap read_env() const;
+    ov::Any read_env(const std::string& s) const;
     void cleanup_unsupported(ov::AnyMap& config) const;
 
     std::map<std::string, ConfigOptionBase*> m_options_map;
@@ -265,6 +290,8 @@ protected:
     void print_help() const;
 
     bool m_is_finalized = false;
+
+    const char* m_allowed_env_prefix = "OV_";
 };
 
 }  // namespace ov
