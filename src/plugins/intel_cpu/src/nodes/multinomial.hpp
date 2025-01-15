@@ -7,8 +7,8 @@
 #include <random>
 #include <string>
 
-#include "openvino/core/parallel.hpp"
 #include "node.h"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {

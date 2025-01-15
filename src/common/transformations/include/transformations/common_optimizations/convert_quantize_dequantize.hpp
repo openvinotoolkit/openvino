@@ -31,6 +31,6 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
 
 class ov::pass::ConvertQuantizeDequantize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertQuantizeDequantize", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertQuantizeDequantize");
     ConvertQuantizeDequantize();
 };

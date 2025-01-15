@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API ReduceL1Decomposition;
  */
 class ov::pass::ReduceL1Decomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReduceL1Decomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReduceL1Decomposition");
     ReduceL1Decomposition();
 };

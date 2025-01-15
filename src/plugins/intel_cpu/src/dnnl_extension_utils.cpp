@@ -36,6 +36,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
     case dnnl::memory::data_type::f8_e8m0:
+    case dnnl::memory::data_type::f8_e4m3:
+    case dnnl::memory::data_type::f8_e5m2:
     case dnnl::memory::data_type::f4_e2m1:
         return 1;
     case dnnl::memory::data_type::undef:
@@ -47,79 +49,87 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
 
 dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType) {
     switch (elementType) {
-        case ov::element::f32:
-            return memory::data_type::f32;
-        case ov::element::i32:
-            return memory::data_type::s32;
-        case ov::element::bf16:
-            return memory::data_type::bf16;
-        case ov::element::i8:
-            return memory::data_type::s8;
-        case ov::element::u8:
-        case ov::element::boolean:
-            return memory::data_type::u8;
-        case ov::element::u1:
-            return memory::data_type::bin;
-        case ov::element::f16:
-            return memory::data_type::f16;
-        case ov::element::nf4:
-            return memory::data_type::nf4;
-        case ov::element::i4:
-            return memory::data_type::s4;
-        case ov::element::u4:
-            return memory::data_type::u4;
-        case ov::element::f8e8m0:
-            return memory::data_type::f8_e8m0;
-        case ov::element::f4e2m1:
-            return memory::data_type::f4_e2m1;
-        case ov::element::undefined:
-            return memory::data_type::undef;
-        default: {
-            OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
-        }
+    case ov::element::f32:
+        return memory::data_type::f32;
+    case ov::element::i32:
+        return memory::data_type::s32;
+    case ov::element::bf16:
+        return memory::data_type::bf16;
+    case ov::element::i8:
+        return memory::data_type::s8;
+    case ov::element::u8:
+    case ov::element::boolean:
+        return memory::data_type::u8;
+    case ov::element::u1:
+        return memory::data_type::bin;
+    case ov::element::f16:
+        return memory::data_type::f16;
+    case ov::element::nf4:
+        return memory::data_type::nf4;
+    case ov::element::i4:
+        return memory::data_type::s4;
+    case ov::element::u4:
+        return memory::data_type::u4;
+    case ov::element::f8e8m0:
+        return memory::data_type::f8_e8m0;
+    case ov::element::f8e4m3:
+        return memory::data_type::f8_e4m3;
+    case ov::element::f8e5m2:
+        return memory::data_type::f8_e5m2;
+    case ov::element::f4e2m1:
+        return memory::data_type::f4_e2m1;
+    case ov::element::undefined:
+        return memory::data_type::undef;
+    default: {
+        OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
+    }
     }
 }
 
 ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::data_type& dataType) {
     switch (dataType) {
-        case memory::data_type::f32:
-            return ov::element::f32;
-        case memory::data_type::s32:
-            return ov::element::i32;
-        case memory::data_type::bf16:
-            return ov::element::bf16;
-        case memory::data_type::s8:
-            return ov::element::i8;
-        case memory::data_type::u8:
-            return ov::element::u8;
-        case memory::data_type::bin:
-            return ov::element::u1;
-        case memory::data_type::f16:
-            return ov::element::f16;
-        case memory::data_type::f64:
-            return ov::element::f64;
-        case memory::data_type::nf4:
-            return ov::element::nf4;
-        case memory::data_type::s4:
-            return ov::element::i4;
-        case memory::data_type::u4:
-            return ov::element::u4;
-        case memory::data_type::f8_e8m0:
-            return ov::element::f8e8m0;
-        case memory::data_type::f4_e2m1:
-            return ov::element::f4e2m1;
-        case memory::data_type::undef:
-            return ov::element::undefined;
-        default: {
-            OPENVINO_THROW("Unsupported data type.");
-        }
+    case memory::data_type::f32:
+        return ov::element::f32;
+    case memory::data_type::s32:
+        return ov::element::i32;
+    case memory::data_type::bf16:
+        return ov::element::bf16;
+    case memory::data_type::s8:
+        return ov::element::i8;
+    case memory::data_type::u8:
+        return ov::element::u8;
+    case memory::data_type::bin:
+        return ov::element::u1;
+    case memory::data_type::f16:
+        return ov::element::f16;
+    case memory::data_type::f64:
+        return ov::element::f64;
+    case memory::data_type::nf4:
+        return ov::element::nf4;
+    case memory::data_type::s4:
+        return ov::element::i4;
+    case memory::data_type::u4:
+        return ov::element::u4;
+    case memory::data_type::f8_e8m0:
+        return ov::element::f8e8m0;
+    case memory::data_type::f8_e4m3:
+        return ov::element::f8e4m3;
+    case memory::data_type::f8_e5m2:
+        return ov::element::f8e5m2;
+    case memory::data_type::f4_e2m1:
+        return ov::element::f4e2m1;
+    case memory::data_type::undef:
+        return ov::element::undefined;
+    default: {
+        OPENVINO_THROW("Unsupported data type.");
+    }
     }
 }
 
-Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
-    return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
+Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim& dim) {
+    return dim == DNNL_RUNTIME_DIM_VAL ? Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
 }
-dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim &dim) {
+dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim& dim) {
     return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<dnnl::memory::dim>(dim);
 }
 
@@ -141,25 +151,25 @@ memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
 
 memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
     switch (rank) {
-        case 0:
-        case 1:
-            return memory::format_tag::a;
-        case 2:
-            return memory::format_tag::ab;
-        case 3:
-            return memory::format_tag::abc;
-        case 4:
-            return memory::format_tag::abcd;
-        case 5:
-            return memory::format_tag::abcde;
-        case 6:
-            return memory::format_tag::abcdef;
-        default:
-            return memory::format_tag::undef;
+    case 0:
+    case 1:
+        return memory::format_tag::a;
+    case 2:
+        return memory::format_tag::ab;
+    case 3:
+        return memory::format_tag::abc;
+    case 4:
+        return memory::format_tag::abcd;
+    case 5:
+        return memory::format_tag::abcde;
+    case 6:
+        return memory::format_tag::abcdef;
+    default:
+        return memory::format_tag::undef;
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc& desc) {
     return makeDescriptor(desc.get());
 }
 
@@ -182,7 +192,8 @@ size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc)
     return size;
 }
 
-std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const memory::desc &desc, const Shape &shape) {
+std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const memory::desc& desc,
+                                                                             const Shape& shape) {
     if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
     } else {
@@ -190,7 +201,9 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     }
 }
 
-DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
+DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd,
+                                               const dnnl::query& what,
+                                               int idx) {
     auto query = dnnl::convert_to_c(what);
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
@@ -201,7 +214,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
 }
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
-    const char *res;
+    const char* res;
     dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
     if (status != dnnl_success)
         OPENVINO_THROW("query_impl_info_str failed.");
@@ -209,10 +222,9 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
 }
 
 bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type) {
-    return DnnlExtensionUtils::find_implementation(desc,
-                                                   [impl_type](impl_desc_type cur_impl_type){
-                                                       return cur_impl_type == impl_type;
-                                                   });
+    return DnnlExtensionUtils::find_implementation(desc, [impl_type](impl_desc_type cur_impl_type) {
+        return cur_impl_type == impl_type;
+    });
 }
 
 dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc) {
@@ -233,31 +245,33 @@ const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
 
 bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #if defined(OV_CPU_WITH_ACL)
-    return one_of(alg, Algorithm::EltwiseRelu,
-                       Algorithm::EltwiseTanh,
-                       Algorithm::EltwiseElu,
-                       Algorithm::EltwiseAbs,
-                       Algorithm::EltwiseSqrt,
-                       Algorithm::EltwiseSoftRelu,
-                       Algorithm::EltwiseSigmoid,
-                       Algorithm::EltwiseClamp);
+    return one_of(alg,
+                  Algorithm::EltwiseRelu,
+                  Algorithm::EltwiseTanh,
+                  Algorithm::EltwiseElu,
+                  Algorithm::EltwiseAbs,
+                  Algorithm::EltwiseSqrt,
+                  Algorithm::EltwiseSoftRelu,
+                  Algorithm::EltwiseSigmoid,
+                  Algorithm::EltwiseClamp);
 #elif defined(OPENVINO_ARCH_X86_64)
-    return one_of(alg, Algorithm::EltwiseRelu,
-                       Algorithm::EltwiseGeluErf,
-                       Algorithm::EltwiseGeluTanh,
-                       Algorithm::EltwiseElu,
-                       Algorithm::EltwiseSigmoid,
-                       Algorithm::EltwiseClamp,
-                       Algorithm::EltwiseTanh,
-                       Algorithm::EltwiseSwish,
-                       Algorithm::EltwiseHswish,
-                       Algorithm::EltwiseMish,
-                       Algorithm::EltwiseHsigmoid,
-                       Algorithm::EltwiseRoundHalfToEven,
-                       Algorithm::EltwiseRoundHalfAwayFromZero,
-                       Algorithm::EltwiseAbs,
-                       Algorithm::EltwiseSqrt,
-                       Algorithm::EltwiseSoftRelu);
+    return one_of(alg,
+                  Algorithm::EltwiseRelu,
+                  Algorithm::EltwiseGeluErf,
+                  Algorithm::EltwiseGeluTanh,
+                  Algorithm::EltwiseElu,
+                  Algorithm::EltwiseSigmoid,
+                  Algorithm::EltwiseClamp,
+                  Algorithm::EltwiseTanh,
+                  Algorithm::EltwiseSwish,
+                  Algorithm::EltwiseHswish,
+                  Algorithm::EltwiseMish,
+                  Algorithm::EltwiseHsigmoid,
+                  Algorithm::EltwiseRoundHalfToEven,
+                  Algorithm::EltwiseRoundHalfAwayFromZero,
+                  Algorithm::EltwiseAbs,
+                  Algorithm::EltwiseSqrt,
+                  Algorithm::EltwiseSoftRelu);
 #else
     return false;
 #endif
@@ -269,5 +283,5 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
     return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

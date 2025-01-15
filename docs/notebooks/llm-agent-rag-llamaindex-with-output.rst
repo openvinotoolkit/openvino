@@ -230,7 +230,7 @@ code:
         if repo_name == "OpenVINO":
             hf_hub.snapshot_download(llm_model_id.value, local_dir=llm_model_path)
         else:
-            !optimum_cli(llm_model_id.value,  llm_model_path, additional_args=-{"task": "text-generation-with-past", "weight-format": "int4"})
+            optimum_cli(llm_model_id.value, llm_model_path, additional_args=-{"task": "text-generation-with-past", "weight-format": "int4"})
 
 Download Embedding model
 ~~~~~~~~~~~~~~~~~~~~~~~~

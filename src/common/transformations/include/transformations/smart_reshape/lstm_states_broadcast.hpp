@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API LSTMStatesBroadcast;
 
 class ov::pass::LSTMStatesBroadcast : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("LSTMStatesBroadcast", "0");
+    OPENVINO_MODEL_PASS_RTTI("LSTMStatesBroadcast");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

@@ -16,7 +16,7 @@ public:
 
     LLMMLPNode() = default;
 
-    enum class ACT_FN { SILU = 0, GELU = 1};
+    enum class ACT_FN { SILU = 0, GELU = 1 };
 
     struct Config {
         ACT_FN act;

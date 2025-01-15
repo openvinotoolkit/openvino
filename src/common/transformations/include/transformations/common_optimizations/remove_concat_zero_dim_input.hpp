@@ -24,7 +24,7 @@ class OPENVINO_API DisableRemoveConcatZeroDimInput;
 
 class RemoveConcatZeroDimInput : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveConcatZeroDimInput", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RemoveConcatZeroDimInput");
     RemoveConcatZeroDimInput();
 };
 

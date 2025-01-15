@@ -5,6 +5,8 @@ import platform
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 

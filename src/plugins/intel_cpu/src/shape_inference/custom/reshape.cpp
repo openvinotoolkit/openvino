@@ -3,7 +3,9 @@
 //
 
 #include "reshape.hpp"
+
 #include <vector>
+
 #include "utils.hpp"
 #include "utils/general_utils.h"
 
@@ -20,11 +22,10 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     const auto data = memPtr->getData();
     const auto& dims = memPtr->getStaticDims();
     const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
-    std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
-                                          memPtr->getDesc().getPrecision(),
-                                          data,
-                                          outputPatternSize,
-                                          ov::util::Cast<int64_t>());
+    std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(memPtr->getDesc().getPrecision(),
+                                                                   data,
+                                                                   outputPatternSize,
+                                                                   ov::util::Cast<int64_t>());
     VectorDims outputShape(outputPatternSize);
     size_t outputProduct = 1;
     int32_t minusOneIdx = -1;
@@ -57,9 +58,11 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     }
     inputProduct = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<Dim>());
     outputProduct = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<Dim>());
-    if (minusOneCount > 1  || inputProduct != outputProduct) {
-        OPENVINO_THROW("[cpu]reshape: the shape of input data ", ov::intel_cpu::vec2str(inputShape),
-                    " conflicts with the reshape pattern ", ov::intel_cpu::vec2str(outPattern));
+    if (minusOneCount > 1 || inputProduct != outputProduct) {
+        OPENVINO_THROW("[cpu]reshape: the shape of input data ",
+                       ov::intel_cpu::vec2str(inputShape),
+                       " conflicts with the reshape pattern ",
+                       ov::intel_cpu::vec2str(outPattern));
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
@@ -78,18 +81,18 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         const auto& dims = memPtr->getStaticDims();
         if (dims.size() != 0) {
             const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
-            std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
-                                                  memPtr->getDesc().getPrecision(),
-                                                  data,
-                                                  outputPatternSize,
-                                                  ov::util::Cast<int64_t>());
+            std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(memPtr->getDesc().getPrecision(),
+                                                                           data,
+                                                                           outputPatternSize,
+                                                                           ov::util::Cast<int64_t>());
             std::vector<int64_t> originOutPattern = outPattern;
             std::vector<bool> removeMask(inputShapeSize, false);
             for (size_t i = 0; i < outputPatternSize; i++) {
                 if (outPattern[i] < 0) {
                     outPattern[i] = inputShapeSize + outPattern[i];
                 }
-                if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize) && inputShape[outPattern[i]] == 1) {
+                if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize) &&
+                    inputShape[outPattern[i]] == 1) {
                     removeMask[outPattern[i]] = true;
                 }
             }
@@ -100,9 +103,9 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
             }
         } else {
             for (size_t i = 0; i < inputShapeSize; i++) {
-                 if (inputShape[i] != 1) {
-                     outputShape.push_back(inputShape[i]);
-                 }
+                if (inputShape[i] != 1) {
+                    outputShape.push_back(inputShape[i]);
+                }
             }
         }
     } else {
@@ -124,11 +127,10 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     const auto data = memPtr->getData();
     const auto& dims = memPtr->getStaticDims();
     size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
-    std::vector<int64_t> originOutPattern = ov::get_raw_data_as<int64_t>(
-                                          memPtr->getDesc().getPrecision(),
-                                          data,
-                                          outputPatternSize,
-                                          ov::util::Cast<int64_t>());
+    std::vector<int64_t> originOutPattern = ov::get_raw_data_as<int64_t>(memPtr->getDesc().getPrecision(),
+                                                                         data,
+                                                                         outputPatternSize,
+                                                                         ov::util::Cast<int64_t>());
     // remove repeated pattern
     std::unordered_set<int64_t> tmp(originOutPattern.begin(), originOutPattern.end());
     std::vector<int64_t> outPattern = std::vector<int64_t>(tmp.begin(), tmp.end());
@@ -159,8 +161,10 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
         }
     }
     if (existError) {
-        OPENVINO_THROW("[cpu]unsqueeze: the shape of input data ", ov::intel_cpu::vec2str(inputShape),
-                " conflicts with the unsqueeze pattern ", ov::intel_cpu::vec2str(originOutPattern));
+        OPENVINO_THROW("[cpu]unsqueeze: the shape of input data ",
+                       ov::intel_cpu::vec2str(inputShape),
+                       " conflicts with the unsqueeze pattern ",
+                       ov::intel_cpu::vec2str(originOutPattern));
     }
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
@@ -177,6 +181,6 @@ ShapeInferPtr ReshapeShapeInferFactory::makeShapeInfer() const {
     }
 }
 
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

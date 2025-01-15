@@ -11,10 +11,51 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "transformations/convert_precision.hpp"
 
 using namespace ov;
 
-TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
+TEST_F(TransformationTestsF, KeepConstPrecision) {
+    {
+        auto lp_const = std::make_shared<opset10::Constant>(element::u4, Shape{27}, 1);
+
+        const auto target_shape = std::make_shared<opset10::Constant>(ov::element::i64, ov::Shape{3}, 3);
+        auto reshape = std::make_shared<opset10::Reshape>(lp_const, target_shape, false);
+
+        auto second_convert = std::make_shared<opset10::Convert>(reshape, element::f32);
+        auto zero_point = opset10::Constant::create(element::f32, Shape{}, {127});
+        auto subtract = std::make_shared<opset10::Subtract>(second_convert, zero_point);
+        auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto stub_op = std::make_shared<opset10::Relu>(multiply);
+        model = std::make_shared<Model>(stub_op, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u4});
+    manager.register_pass<pass::ConstantFolding>();
+    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u4});
+    manager.register_pass<pass::ConvertPrecision>(ov::element::u4, ov::element::u8, type_to_fuse_map{}, false, false);
+
+    {
+        auto lp_const = std::make_shared<opset10::Constant>(element::u4, Shape{3, 3, 3}, 1);
+        auto second_convert = std::make_shared<opset10::Convert>(lp_const, element::f32);
+        auto zero_point = opset10::Constant::create(element::f32, Shape{}, {127});
+        auto subtract = std::make_shared<opset10::Subtract>(second_convert, zero_point);
+        auto scale = opset10::Constant::create(element::f32, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto stub_op = std::make_shared<opset10::Relu>(multiply);
+        model_ref = std::make_shared<Model>(stub_op, ParameterVector{});
+
+        mark_as_dequantization_node(subtract);
+        mark_as_dequantization_node(multiply);
+        enable_keep_const_precision(lp_const);
+        ov::pass::disable_constant_folding(second_convert);
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationTransformation) {
     // Input graph:
     //
     //     Parameter
@@ -37,7 +78,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
     //              \              /
     //                 Convolution
     //
-    // After MarkDequantizationSubgraph all Subtract and Multiply nodes from above graph
+    // After MarkDequantization all Subtract and Multiply nodes from above graph
     // are marked with 'DequantizationNode' attribute.
     // All 'Convert(DCF)' nodes from above graph are marked with 'DisableConstantFolding' attribute
     // Weights and zero points are marked with 'KeepConstPrecision' attribute
@@ -82,7 +123,8 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
         model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
-    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
     manager.register_pass<pass::ConstantFolding>();
 
     {
@@ -138,7 +180,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
-TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint) {
+TEST_F(TransformationTestsF, MarkDequantizationTransformationNoZeroPoint) {
     // Input graph:
     //
     //     Parameter
@@ -158,7 +200,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
     //              \              /
     //                 Convolution
     //
-    // After MarkDequantizationSubgraph all Multiply nodes from above graph
+    // After MarkDequantization all Multiply nodes from above graph
     // are marked with 'DequantizationNode' attribute.
     // Also 'Convert(DCF)' node from above graph is marked with 'DisableConstantFolding' attribute
     // Weights node is marked with 'KeepConstPrecision' attribute
@@ -197,7 +239,8 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
         model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
-    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
     manager.register_pass<pass::ConstantFolding>();
 
     {
@@ -242,7 +285,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
-TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPointFP16) {
+TEST_F(TransformationTestsF, MarkDequantizationTransformationNoZeroPointFP16) {
     // Input graph:
     //
     //     Parameter
@@ -262,7 +305,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
     //              \              /
     //                 Convolution
     //
-    // After MarkDequantizationSubgraph all Multiply nodes from above graph
+    // After MarkDequantization all Multiply nodes from above graph
     // are marked with 'DequantizationNode' attribute.
     // Also 'Convert(DCF)' node from above graph is marked with 'DisableConstantFolding' attribute
     // Weights node is marked with 'KeepConstPrecision' attribute
@@ -305,9 +348,8 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
         model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
-    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
-    manager.register_pass<pass::DisableDecompressionConvertConstantFolding>();
-    manager.register_pass<pass::ConstantFolding>();
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
@@ -355,7 +397,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
-TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstantWeights) {
+TEST_F(TransformationTestsF, MarkDequantizationTransformationNotConstantWeights) {
     // Input graph:
     //
     //     Parameter
@@ -378,7 +420,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstant
     //              \              /
     //                 Convolution
     //
-    // After MarkDequantizationSubgraph all Subtract and Multiply nodes from above graph
+    // After MarkDequantization all Subtract and Multiply nodes from above graph
     // are marked with 'DequantizationNode' attribute.
     // Also all 'Convert(DCF)' nodes from above graph are marked with 'DisableConstantFolding' attribute
     // Weights and zero point nodes are marked with 'KeepConstPrecision' attribute
@@ -426,7 +468,8 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstant
         model = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
-    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8, element::i8});
+    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8, element::i8});
     manager.register_pass<pass::ConstantFolding>();
 
     {
@@ -481,7 +524,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNotConstant
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
-TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationFoldSubConst) {
+TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
     // Input graph:           After transformation:
     //
     // Constant    Constant               Constant
@@ -495,7 +538,7 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationFoldSubCons
     //    |       /                                \        /
     //   Multiply                                   Multiply
     //
-    // After MarkDequantizationSubgraph all Subtract and Multiply nodes from above graph
+    // After MarkDequantization all Subtract and Multiply nodes from above graph
     // are marked with 'DequantizationNode' attribute.
     // Also all 'Convert(DCF)' node before weights is marked with 'DisableConstantFolding' attribute
     // but Convert before Dequantization Sub const isn't because fold_subtract_const is set to true
@@ -512,7 +555,8 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationFoldSubCons
         model = std::make_shared<ov::Model>(ov::OutputVector{multiply});
     }
 
-    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8}, true);
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8}, true);
+    manager.register_pass<pass::KeepConstsPrecision>(element::TypeVector{element::u8}, true);
     manager.register_pass<pass::ConstantFolding>();
 
     {

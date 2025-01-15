@@ -15,7 +15,7 @@ namespace pass {
 // Results marked as unused by Saved Model settings
 class SavedModelUnusedRemover : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::SavedModelUnusedRemover");
+    OPENVINO_MODEL_PASS_RTTI("ov::frontend::tensorflow::pass::SavedModelUnusedRemover");
     SavedModelUnusedRemover() {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

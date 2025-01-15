@@ -30,6 +30,6 @@ class TRANSFORMATIONS_API SequenceFusion;
 
 class ov::pass::SequenceFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SequenceFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SequenceFusion");
     SequenceFusion();
 };

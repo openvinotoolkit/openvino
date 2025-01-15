@@ -4,7 +4,7 @@
 
 from openvino import Model, PartialShape
 from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
+from openvino.passes import ModelPass, Matcher, MatcherPass, WrapType
 
 
 def get_relu_model():

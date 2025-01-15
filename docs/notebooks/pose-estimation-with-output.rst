@@ -126,13 +126,13 @@ precision in the code below.
 
 .. parsed-literal::
 
-    model/intel/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.xml:   0%|          | 0.00/474k [0…
+    human-pose-estimation-0001.xml:   0%|          | 0.00/474k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/intel/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.bin:   0%|          | 0.00/4.03M […
+    human-pose-estimation-0001.bin:   0%|          | 0.00/4.03M [00:00<?, ?B/s]
 
 
 Load the model

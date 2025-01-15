@@ -465,21 +465,6 @@ void SyncInferRequest::wait() {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
             }
-        } else if (!is_dynamic && is_remote_tensor_impl && output_memory) {
-            auto& stream = m_graph->get_network()->get_stream();
-            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem
-                && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                auto plugin_tensor = m_plugin_outputs.at(port_idx);
-                if (is_convert_required(plugin_tensor.ptr->get_element_type(), iremote_tensor_ptr->get_element_type())) {
-                    auto& stream = m_graph->get_network()->get_stream();
-                    convert_and_copy(plugin_tensor.ptr.get(), iremote_tensor_ptr.get(), stream);
-                } else {
-                    iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
-                }
-            } else {
-                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
-            }
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
@@ -910,16 +895,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
-    if (!is_remote_tensor_impl && !is_generic_remote && !convert_needed) {
-        auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
-        if (!same_host_mem(memory, src_ptr)) {
-            // WA: Set need_lockable_mem as a blocking argument
-            // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
-            // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
-            // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-            ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
-        }
-    }
     if (convert_needed) {
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
@@ -930,7 +905,11 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         if (!is_remote_tensor_impl && !is_generic_remote) {
             auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
-                ret_event = memory->copy_from(stream, src_ptr, false);
+                // WA: Set need_lockable_mem as a blocking argument
+                // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
+                // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
+                // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);

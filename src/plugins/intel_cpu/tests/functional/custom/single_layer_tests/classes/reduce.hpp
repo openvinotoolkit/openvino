@@ -52,6 +52,8 @@ const std::vector<std::vector<int>>& axes();
 const std::vector<std::vector<int>>& axesND();
 const std::vector<ov::test::utils::OpType>& opTypes();
 const std::vector<utils::ReductionType>& reductionTypes();
+const std::vector<utils::ReductionType>& reductionTypesArithmetic();
+const std::vector<utils::ReductionType>& reductionTypesCompare();
 const std::vector<ElementType>& inpOutPrc();
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfig();
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32();

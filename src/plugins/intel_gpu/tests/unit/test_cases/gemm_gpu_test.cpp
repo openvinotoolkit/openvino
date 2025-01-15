@@ -2883,7 +2883,7 @@ public:
         network->get_program()->get_compilation_context().wait_all();
 
         auto& lo = network->get_program()->get_layout_optimizer();
-        ASSERT_TRUE(lo.get_optimization_attributes().use_onednn_impls);
+        ASSERT_TRUE(lo.has_all_enabled_onednn_impls_optimization_attribute());
 
         // Check if OneDNN's impl is used for the next execute() call
         network->execute();

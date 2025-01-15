@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API TransposeToReshape;
  */
 class ov::pass::TransposeToReshape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeToReshape", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeToReshape");
     TransposeToReshape();
 };

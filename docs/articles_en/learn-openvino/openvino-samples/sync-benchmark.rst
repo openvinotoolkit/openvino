@@ -8,15 +8,13 @@ Sync Benchmark Sample
 
 This sample demonstrates how to estimate performance of a model using Synchronous
 Inference Request API. It makes sense to use synchronous inference only in latency
-oriented scenarios. Models with static input shapes are supported. Unlike
-`demos <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/README.md>`__
-this sample does not have other configurable command-line
+oriented scenarios. Models with static input shapes are supported.
+This sample does not have other configurable command-line
 arguments. Feel free to modify sample's source code to try out different options.
 Before using the sample, refer to the following requirements:
 
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: `yolo-v3-tf <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/yolo-v3-tf/README.md>`__,
-  `face-detection-0200 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/face-detection-0200/README.md>`__ models.
+- The sample has been validated with: the yolo-v3-tf and face-detection-0200 models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
@@ -167,6 +165,6 @@ Additional Resources
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
 - `Sync Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/sync_benchmark/README.md>`__
 - `Sync Benchmark C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/benchmark/sync_benchmark/README.md>`__

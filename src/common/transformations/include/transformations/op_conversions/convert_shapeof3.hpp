@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertShapeOf3;
 
 class ov::pass::ConvertShapeOf3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertShapeOf3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertShapeOf3");
     ConvertShapeOf3();
 };

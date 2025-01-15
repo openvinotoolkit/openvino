@@ -29,6 +29,6 @@ class TRANSFORMATIONS_API DilatedConvolutionConverter;
 
 class ov::pass::DilatedConvolutionConverter : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DilatedConvolutionConverter", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DilatedConvolutionConverter");
     DilatedConvolutionConverter();
 };

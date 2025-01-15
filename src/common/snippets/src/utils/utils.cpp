@@ -317,14 +317,21 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
 }
 
 int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx) {
-    size_t dim_idx = 0;
+    const auto& shape = expr_port.get_descriptor_ptr()->get_shape();
     const auto& layout = expr_port.get_descriptor_ptr()->get_layout();
     switch (expr_port.get_type()) {
-        case lowered::ExpressionPort::Input: dim_idx = utils::get_input_dim_idx(layout, idx); break;
-        case lowered::ExpressionPort::Output: dim_idx = utils::get_output_dim_idx(layout, idx); break;
-        default: OPENVINO_THROW("Unsupported expression port type!");
+        case lowered::ExpressionPort::Input: return get_dim_in_stride(shape, layout, idx);
+        case lowered::ExpressionPort::Output: return get_dim_out_stride(shape, layout, idx);
     }
-    return get_stride(dim_idx, expr_port.get_descriptor_ptr()->get_shape());
+    OPENVINO_THROW("Unsupported expression port type!");
+}
+
+int64_t get_dim_in_stride(const VectorDims& shape, const VectorDims& layout, size_t idx) {
+    return get_stride(utils::get_input_dim_idx(layout, idx), shape);
+}
+
+int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, size_t idx) {
+    return get_stride(utils::get_output_dim_idx(layout, idx), shape);
 }
 
 void visit_path(const lowered::ExpressionPtr& expr,

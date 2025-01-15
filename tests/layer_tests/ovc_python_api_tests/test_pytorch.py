@@ -1118,7 +1118,7 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.ovc import convert_model
         pytorch_model = create_pt_model_with_custom_op()
 
-        # Check that mo raises error message of wrong argument.
+        # Check that OVC raises error message of wrong argument.
         with self.assertRaisesRegex(TypeError, ".*got an unexpected keyword argument 'example_inputs'.*"):
             convert_model(pytorch_model, example_inputs=(torch.tensor(1),))
 
@@ -1164,7 +1164,7 @@ class ConvertRaises(unittest.TestCase):
         def relu_bad(n):
             assert False, "Something happened"
 
-        # Check that mo raises error message of wrong argument.
+        # Check that OVC raises error message of wrong argument.
         with self.assertRaisesRegex(Exception, ".*Conversion is failed for: aten::relu.*"):
             convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
                 ConversionExtension("aten::relu", relu_bad)])

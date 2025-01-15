@@ -233,6 +233,38 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_dynamic_without_squeeze_axis
     EXPECT_NO_THROW(pass_manager.run_passes(f));
 }
 
+TEST_F(TransformationTestsF, reshape_reshape_elimination_v1_dynamic) {
+    {
+        auto input = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 32, 1, 128}));
+
+        auto top_reshape_const = op::v0::Constant::create(element::i32, Shape{4}, {-1, 32, 1, 128});
+        auto top_reshape = std::make_shared<op::v1::Reshape>(input, top_reshape_const, false);
+
+        auto bottom_reshape_const = op::v0::Constant::create(element::i32, Shape{2}, {-1, 4096});
+        auto bottom_reshape = std::make_shared<op::v1::Reshape>(top_reshape, bottom_reshape_const, false);
+
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 4096}));
+        auto add = std::make_shared<op::v1::Add>(bottom_reshape, add_param);
+        model = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, add_param});
+    }
+    {
+        auto input = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 32, 1, 128}));
+
+        auto bottom_reshape_const = op::v0::Constant::create(element::i32, Shape{2}, {-1, 4096});
+        auto bottom_reshape = std::make_shared<op::v1::Reshape>(input, bottom_reshape_const, false);
+
+        auto add_param = make_shared<op::v0::Parameter>(element::f32, PartialShape({-1, 4096}));
+        auto add = std::make_shared<op::v1::Add>(bottom_reshape, add_param);
+        model_ref = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, add_param});
+    }
+
+    manager.register_pass<ov::pass::NopElimination>();
+    manager.run_passes(model);
+
+    auto res = comparator.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 TEST(nop_elimination, reshape_elimination_v1_dynamic_negative) {
     auto arg = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     auto pattern = make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));

@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertShuffleChannels3;
 
 class ov::pass::ConvertShuffleChannels3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertShuffleChannels3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertShuffleChannels3");
     ConvertShuffleChannels3();
 };

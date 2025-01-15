@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class MLPFusion: public ov::pass::MatcherPass {
+class MLPFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MLPFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MLPFusion");
     MLPFusion();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

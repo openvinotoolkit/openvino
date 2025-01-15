@@ -95,6 +95,8 @@ DEFINE_string(
 DEFINE_string(data_shape, "",
     "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
     "In case of one input size: \"[1,3,224,224]\"");
+DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
+        "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -247,6 +249,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Performance counters:                     " << FLAGS_pc << std::endl;
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
+    std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Reference files direcotry:                "
                   << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
@@ -1329,7 +1332,15 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
         return false;
     }
 
+    std::vector<std::string> skipped_layers;
+    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+
     for (const auto& [tensorName, output] : outputs) {
+        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+            std::cout << "Skip RRMSE test for layers: " << tensorName << std::endl;
+            continue;
+        }
+
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
@@ -1397,7 +1408,15 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
         return false;
     }
 
+    std::vector<std::string> skipped_layers;
+    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+
     for (const auto& [tensorName, output] : outputs) {
+        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+            std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
+            continue;
+        }
+
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 

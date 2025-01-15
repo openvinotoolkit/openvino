@@ -43,4 +43,6 @@ def get_convert_model_help_specifics():
             {'action': 'version',
              # FIXME: Why the following is not accessible from arg parser?
              'version': 'OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version())},
+        'verbose':
+            {'description': 'Print detailed information about conversion.'}
     }

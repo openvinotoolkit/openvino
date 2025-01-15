@@ -18,6 +18,7 @@ namespace pass {
  */
 class ReduceToSnippetsReduce: public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ReduceToSnippetsReduce");
     ReduceToSnippetsReduce();
 };
 

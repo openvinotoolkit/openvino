@@ -8,7 +8,7 @@
         "ticket": 135715
     },
     {
-        "error_text": "GnuTLS recv error",
+        "error_text": "error: RPC failed",
         "ticket": 131918
     },
     {
@@ -82,5 +82,29 @@
     {
         "error_text": "Upload progress stalled",
         "ticket": 152933
+    },
+    {
+        "error_text": "because the GET request got Content-Type",
+        "ticket": 158400
+    },
+    {
+        "error_text": "Unable to make request:",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failed to make request",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 159323
+    },
+    {
+        "error_text": "HTTP response code said error",
+        "ticket": 159398
+    },
+    {
+        "error_text": "download failed after attempts",
+        "ticket": 159547
     }
 ]

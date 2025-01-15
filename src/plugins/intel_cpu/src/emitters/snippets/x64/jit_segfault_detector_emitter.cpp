@@ -4,8 +4,9 @@
 
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "jit_segfault_detector_emitter.hpp"
-#include "emitters/plugin/x64/utils.hpp"
+#    include "jit_segfault_detector_emitter.hpp"
+
+#    include "emitters/plugin/x64/utils.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -18,22 +19,28 @@ namespace intel_cpu {
 std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
     std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
 
-jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-    jit_emitter* target_emitter, bool is_load, bool is_store, std::string target_node_name) :
-    jit_emitter(host, host_isa),
-    m_target_emitter(target_emitter),
-    is_target_use_load_emitter(is_load),
-    is_target_use_store_emitter(is_store),
-    m_target_node_name(target_node_name) {
-}
+jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                                                                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                                                                     jit_emitter* target_emitter,
+                                                                     bool is_load,
+                                                                     bool is_store,
+                                                                     std::string target_node_name)
+    : jit_emitter(host, host_isa),
+      m_target_emitter(target_emitter),
+      is_target_use_load_emitter(is_load),
+      is_target_use_store_emitter(is_store),
+      m_target_node_name(target_node_name) {}
 
-size_t jit_uni_segfault_detector_emitter::get_inputs_num() const { return 1; }
+size_t jit_uni_segfault_detector_emitter::get_inputs_num() const {
+    return 1;
+}
 
 const jit_emitter* jit_uni_segfault_detector_emitter::get_target_emitter() const {
     return m_target_emitter;
 }
 
-void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                                  const std::vector<size_t>& out_vec_idxs) const {
     save_target_emitter();
     if (is_target_use_load_emitter) {
         memory_track(in_vec_idxs[0]);
@@ -47,7 +54,8 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     EmitABIRegSpills spill(h);
     spill.preamble();
 
-    const auto &set_local_handler_overload = static_cast<void (*)(jit_uni_segfault_detector_emitter*)>(set_local_handler);
+    const auto& set_local_handler_overload =
+        static_cast<void (*)(jit_uni_segfault_detector_emitter*)>(set_local_handler);
     h->mov(h->rax, reinterpret_cast<size_t>(set_local_handler_overload));
     h->mov(abi_param1, reinterpret_cast<uint64_t>(this));
 
@@ -85,7 +93,7 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
     h->pop(h->r15);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif

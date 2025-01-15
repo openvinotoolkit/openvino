@@ -19,6 +19,7 @@ class LP_TRANSFORMATIONS_API BaseMatcherPass;
 
 class LP_TRANSFORMATIONS_API ov::pass::low_precision::BaseMatcherPass : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::BaseMatcherPass");
     BaseMatcherPass(const AttributeParameters& params = AttributeParameters());
     AttributeParameters params;
 };

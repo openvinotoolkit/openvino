@@ -30,7 +30,7 @@ Basic Usage
 
       The benchmarking application works with models in the OpenVINO IR
       (``model.xml`` and ``model.bin``) and ONNX (``model.onnx``) formats.
-      Make sure to :doc:`convert your models <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+      Make sure to :doc:`convert your models <../../openvino-workflow/model-preparation/convert-model-to-ir>`
       if necessary.
 
       To run benchmarking with default options on a model, use the following command:
@@ -56,7 +56,7 @@ Basic Usage
 
       The benchmarking application works with models in the OpenVINO IR, TensorFlow,
       TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it,
-      OpenVINO also allows you to :doc:`convert your models <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+      OpenVINO also allows you to :doc:`convert your models <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
 
       To run benchmarking with default options on a model, use the following command:
 
@@ -349,7 +349,7 @@ following usage message:
                                     [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-nstreams NUMBER_STREAMS] [-inference_only [INFERENCE_ONLY]]
                                     [-infer_precision INFER_PRECISION] [-ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}]
                                     [-op {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}] [-iop INPUT_OUTPUT_PRECISION] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
-                                    [-nthreads NUMBER_THREADS] [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-latency_percentile LATENCY_PERCENTILE]
+                                    [-nthreads NUMBER_THREADS] [-pin {YES,NO}] [-latency_percentile LATENCY_PERCENTILE]
                                     [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-pc [PERF_COUNTS]]
                                     [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]] [-exec_graph_path EXEC_GRAPH_PATH] [-dump_config DUMP_CONFIG] [-load_config LOAD_CONFIG]
 
@@ -462,10 +462,8 @@ following usage message:
               -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                                     Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
 
-              -pin {YES,NO,NUMA,HYBRID_AWARE}, --infer_threads_pinning {YES,NO,NUMA,HYBRID_AWARE}
-                                    Optional. Enable threads->cores ('YES' which is OpenVINO runtime's default for conventional CPUs), threads->(NUMA)nodes ('NUMA'),
-                                    threads->appropriate core types ('HYBRID_AWARE', which is OpenVINO runtime's default for Hybrid CPUs) or completely disable ('NO') CPU threads
-                                    pinning for CPU-involved inference.
+              -pin {YES,NO}, --infer_threads_pinning {YES,NO}
+                                    Optional. Enable threads->cores pinning for CPU-involved inference.
 
 
             Statistics dumping options:
@@ -577,11 +575,7 @@ following usage message:
 
             Device-specific performance options:
                 -nthreads  <integer>          Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-                -pin  <string>  ("YES"|"CORE") / "HYBRID_AWARE" / ("NO"|"NONE") / "NUMA"  Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):
-                                            enabling threads->cores pinning("YES", which is already default for any conventional CPU),
-                                            letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
-                                            threads->(NUMA)nodes("NUMA") or
-                                            completely disable("NO") CPU inference threads pinning
+                -pin  <string>  "YES" / "NO"  Optional. Explicit threads->cores pinning for CPU inference tasks (leave empty to let the OpenVINO make a choice).
 
             Statistics dumping options:
                 -latency_percentile     Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
@@ -937,4 +931,4 @@ Additional Resources
 
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`

@@ -122,12 +122,21 @@ public:
         return m_layout;
     }
 
+    void set_names_compatibility_mode(const bool compatiblity_mode) {
+        m_names_compatiblity_mode = compatiblity_mode;
+    }
+
+    const bool get_names_compatibility_mode() const {
+        return m_names_compatiblity_mode;
+    }
+
 protected:
     element::Type m_type = element::dynamic;
     bool m_type_set = false;
 
     Layout m_layout = Layout();
     bool m_layout_set = false;
+    bool m_names_compatiblity_mode = false;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};

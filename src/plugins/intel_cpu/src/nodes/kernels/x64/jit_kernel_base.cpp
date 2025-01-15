@@ -10,14 +10,11 @@ namespace ov {
 namespace intel_cpu {
 namespace kernel {
 
-JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
-        : x64::jit_generator(name, isa), m_isa(isa) {
+JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa) : x64::jit_generator(name, isa), m_isa(isa) {
     vlen = x64::isa_max_vlen(isa);
 }
 
-void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& v_dst,
-                                    const Xbyak::Xmm& v_src,
-                                    const Xbyak::Operand& op) {
+void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vfmsub132ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
@@ -31,9 +28,7 @@ void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vfnmadd132ps(const Xbyak::Xmm& v_dst,
-                                     const Xbyak::Xmm& v_src,
-                                     const Xbyak::Operand& op) {
+void JitKernelBase::uni_vfnmadd132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vfnmadd132ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
@@ -48,9 +43,7 @@ void JitKernelBase::uni_vfnmadd132ps(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vfmsub231ps(const Xbyak::Xmm& v_dst,
-                                    const Xbyak::Xmm& v_src,
-                                    const Xbyak::Operand& op) {
+void JitKernelBase::uni_vfmsub231ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vfmsub231ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
@@ -65,9 +58,7 @@ void JitKernelBase::uni_vfmsub231ps(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst,
-                               const Xbyak::Ymm& v_src,
-                               const Xbyak::Operand& op) {
+void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpaddd(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
@@ -99,9 +90,7 @@ void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vpaddq(const Xbyak::Xmm& v_dst,
-                               const Xbyak::Xmm& v_src,
-                               const Xbyak::Operand& op) {
+void JitKernelBase::uni_vpaddq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpaddq(v_dst, v_src, op);
     } else {
@@ -112,9 +101,7 @@ void JitKernelBase::uni_vpaddq(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst,
-                               const Xbyak::Ymm& v_src,
-                               const Xbyak::Operand& op) {
+void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpsubd(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
@@ -146,9 +133,7 @@ void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vsubpd(const Xbyak::Xmm& v_dst,
-                               const Xbyak::Xmm& v_src,
-                               const Xbyak::Operand& op) {
+void JitKernelBase::uni_vsubpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vsubpd(v_dst, v_src, op);
     } else {
@@ -159,9 +144,7 @@ void JitKernelBase::uni_vsubpd(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vmulpd(const Xbyak::Xmm& v_dst,
-                               const Xbyak::Xmm& v_src,
-                               const Xbyak::Operand& op) {
+void JitKernelBase::uni_vmulpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vmulpd(v_dst, v_src, op);
     } else {
@@ -172,9 +155,7 @@ void JitKernelBase::uni_vmulpd(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vpmuludq(const Xbyak::Xmm& v_dst,
-                                 const Xbyak::Xmm& v_src,
-                                 const Xbyak::Operand& op) {
+void JitKernelBase::uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpmuludq(v_dst, v_src, op);
     } else {
@@ -185,9 +166,7 @@ void JitKernelBase::uni_vpmuludq(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vdivps(const Xbyak::Xmm& v_dst,
-                               const Xbyak::Operand& op1,
-                               const Xbyak::Operand& op2) {
+void JitKernelBase::uni_vdivps(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op1, const Xbyak::Operand& op2) {
     if (isValidIsa(x64::avx)) {
         vdivps(v_dst, op1, op2);
     } else {
@@ -198,9 +177,7 @@ void JitKernelBase::uni_vdivps(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vdivpd(const Xbyak::Xmm& v_dst,
-                               const Xbyak::Xmm& v_src,
-                               const Xbyak::Operand& op) {
+void JitKernelBase::uni_vdivpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vdivpd(v_dst, v_src, op);
     } else {
@@ -211,9 +188,7 @@ void JitKernelBase::uni_vdivpd(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vandps(const Xbyak::Xmm& v_dst,
-                               const Xbyak::Xmm& vSrs,
-                               const Xbyak::Operand &op) {
+void JitKernelBase::uni_vandps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vandps(v_dst, vSrs, op);
     } else {
@@ -224,9 +199,7 @@ void JitKernelBase::uni_vandps(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vandnps(const Xbyak::Xmm& v_dst,
-                                const Xbyak::Xmm& vSrs,
-                                const Xbyak::Operand &op) {
+void JitKernelBase::uni_vandnps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vandnps(v_dst, vSrs, op);
     } else {
@@ -237,9 +210,9 @@ void JitKernelBase::uni_vandnps(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::gatherdd(const Xbyak::Xmm&    v_dst,
-                             const Xbyak::Reg64&  rSrcPtr,
-                             const Xbyak::Xmm&    vSrcShift,
+void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
+                             const Xbyak::Reg64& rSrcPtr,
+                             const Xbyak::Xmm& vSrcShift,
                              const Xbyak::Opmask& kReadMask,
                              const bool useMask,
                              const bool zeroFill) {
@@ -254,17 +227,18 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm&    v_dst,
     vpgatherdd(v_dst | kReadMask, ptr[rSrcPtr + vSrcShift]);
 }
 
-void JitKernelBase::gatherdd(const Xbyak::Xmm&   v_dst,
+void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
                              const Xbyak::Reg64& rSrcPtr,
-                             const Xbyak::Xmm&   vSrcShift,
-                             const Xbyak::Xmm&   vReadMask,
+                             const Xbyak::Xmm& vSrcShift,
+                             const Xbyak::Xmm& vReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    if (v_dst.getIdx() == vSrcShift.getIdx() || v_dst.getIdx() == vReadMask.getIdx() || vSrcShift.getIdx() == vReadMask.getIdx()) {
+    if (v_dst.getIdx() == vSrcShift.getIdx() || v_dst.getIdx() == vReadMask.getIdx() ||
+        vSrcShift.getIdx() == vReadMask.getIdx()) {
         OPENVINO_THROW("Any pair of the index, mask, or destination registers cannot be the same.");
     }
     if (zeroFill)
-        pxor(v_dst, v_dst); // Don't use vpxor. It zeros the rest of the YMM register.
+        pxor(v_dst, v_dst);  // Don't use vpxor. It zeros the rest of the YMM register.
 
     if (isValidIsa(x64::avx2)) {
         if (!useMask)
@@ -280,7 +254,7 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm&   v_dst,
             Xbyak::Label lLoopNext;
             if (useMask) {
                 uni_vpextrd(r32Aux, vReadMask, i);
-                cmp(r32Aux, 0); // TODO: check significant bit
+                cmp(r32Aux, 0);  // TODO: check significant bit
                 je(lLoopNext, T_NEAR);
             }
             uni_vpextrd(r32Aux, vSrcShift, i);
@@ -292,13 +266,14 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm&   v_dst,
     }
 }
 
-void JitKernelBase::gatherdd(const Xbyak::Ymm&   v_dst,
+void JitKernelBase::gatherdd(const Xbyak::Ymm& v_dst,
                              const Xbyak::Reg64& rSrcPtr,
-                             const Xbyak::Ymm&   vSrcShift,
-                             const Xbyak::Ymm&   vReadMask,
+                             const Xbyak::Ymm& vSrcShift,
+                             const Xbyak::Ymm& vReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    if (v_dst.getIdx() == vSrcShift.getIdx() || v_dst.getIdx() == vReadMask.getIdx() || vSrcShift.getIdx() == vReadMask.getIdx()) {
+    if (v_dst.getIdx() == vSrcShift.getIdx() || v_dst.getIdx() == vReadMask.getIdx() ||
+        vSrcShift.getIdx() == vReadMask.getIdx()) {
         OPENVINO_THROW("Any pair of the index, mask, or destination registers cannot be the same.");
     }
     if (isValidIsa(x64::avx2)) {
@@ -309,8 +284,7 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm&   v_dst,
 
         vpgatherdd(v_dst, ptr[rSrcPtr + vSrcShift], vReadMask);
     } else {
-        Xbyak::Xmm xmmDst      = Xbyak::Xmm(v_dst.getIdx()),
-                   xmmSrcShft  = Xbyak::Xmm(vSrcShift.getIdx()),
+        Xbyak::Xmm xmmDst = Xbyak::Xmm(v_dst.getIdx()), xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx()),
                    xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
         for (uint8_t i = 0; i < 2; i++) {
             gatherdd(xmmDst, rSrcPtr, xmmSrcShft, xmmReadMask, useMask, zeroFill);
@@ -323,7 +297,7 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm&   v_dst,
     }
 }
 
-void JitKernelBase::uni_vpbroadcastq(const Xbyak::Xmm &x, const Xbyak::Operand &op) {
+void JitKernelBase::uni_vpbroadcastq(const Xbyak::Xmm& x, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpbroadcastq(x, op);
     } else {
@@ -332,7 +306,7 @@ void JitKernelBase::uni_vpbroadcastq(const Xbyak::Xmm &x, const Xbyak::Operand &
     }
 }
 
-void JitKernelBase::uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &op) {
+void JitKernelBase::uni_vpbroadcastd(const Xbyak::Xmm& x, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpbroadcastd(x, op);
     } else if (isValidIsa(x64::avx)) {
@@ -348,7 +322,7 @@ void JitKernelBase::uni_vpbroadcastd(const Xbyak::Xmm &x, const Xbyak::Operand &
     }
 }
 
-void JitKernelBase::uni_vpbroadcastd(const Xbyak::Ymm &x, const Xbyak::Operand &op) {
+void JitKernelBase::uni_vpbroadcastd(const Xbyak::Ymm& x, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpbroadcastd(x, op);
     } else {
@@ -375,8 +349,7 @@ void JitKernelBase::uni_vroundpd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& 
     }
 }
 
-void JitKernelBase::uni_vcvtdq2pd(const Xbyak::Xmm& v_dst,
-                                  const Xbyak::Operand& op) {
+void JitKernelBase::uni_vcvtdq2pd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vcvtdq2pd(v_dst, op);
     } else {
@@ -384,8 +357,7 @@ void JitKernelBase::uni_vcvtdq2pd(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vcvtpd2dq(const Xbyak::Xmm& v_dst,
-                                  const Xbyak::Operand& op) {
+void JitKernelBase::uni_vcvtpd2dq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx)) {
         vcvtpd2dq(v_dst, op);
     } else {
@@ -393,8 +365,7 @@ void JitKernelBase::uni_vcvtpd2dq(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::uni_vpmovzxdq(const Xbyak::Xmm& v_dst,
-                                  const Xbyak::Operand& op) {
+void JitKernelBase::uni_vpmovzxdq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op) {
     if (isValidIsa(x64::avx2)) {
         vpmovzxdq(v_dst, op);
     } else {
@@ -416,8 +387,7 @@ void JitKernelBase::uni_vshufpd(const Xbyak::Xmm& v_dst,
     }
 }
 
-void JitKernelBase::fillRestWorkMask(const Xbyak::Opmask& dstMask,
-                                     const Xbyak::Reg64& rWorkRest) {
+void JitKernelBase::fillRestWorkMask(const Xbyak::Opmask& dstMask, const Xbyak::Reg64& rWorkRest) {
     auto rOnes = getReg64();
 
     mov(rOnes, 0xFFFFFFFFFFFFFFFF);
@@ -493,11 +463,11 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
     L(lEnd);
 }
 
-void JitKernelBase::load(const Xbyak::Xmm&     v_dst,
+void JitKernelBase::load(const Xbyak::Xmm& v_dst,
                          const Xbyak::Address& srcAddr,
-                         const Xbyak::Reg64&   rLoadNum,
-                         const size_t          typeSize,
-                         const bool            zeroFilling) {
+                         const Xbyak::Reg64& rLoadNum,
+                         const size_t typeSize,
+                         const bool zeroFilling) {
     if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         OPENVINO_THROW("Could not load data with type size ", typeSize);
     }
@@ -523,11 +493,11 @@ void JitKernelBase::load(const Xbyak::Xmm&     v_dst,
     L(lEnd);
 }
 
-void JitKernelBase::load(const Xbyak::Ymm&     v_dst,
+void JitKernelBase::load(const Xbyak::Ymm& v_dst,
                          const Xbyak::Address& srcAddr,
-                         const Xbyak::Reg64&   rLoadNum,
-                         const size_t          typeSize,
-                         const bool            zeroFilling) {
+                         const Xbyak::Reg64& rLoadNum,
+                         const size_t typeSize,
+                         const bool zeroFilling) {
     if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         OPENVINO_THROW("Could not load data with type size ", typeSize);
     }
@@ -564,9 +534,9 @@ void JitKernelBase::load(const Xbyak::Ymm&     v_dst,
 }
 
 void JitKernelBase::store(const Xbyak::Address& dstAddr,
-                          const Xbyak::Xmm&     v_src,
-                          const Xbyak::Reg64&   rToStoreNum,
-                          const size_t          typeSize) {
+                          const Xbyak::Xmm& v_src,
+                          const Xbyak::Reg64& rToStoreNum,
+                          const size_t typeSize) {
     if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         OPENVINO_THROW("Could not store data with type size ", typeSize);
     }
@@ -592,9 +562,9 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
 }
 
 void JitKernelBase::store(const Xbyak::Address& dstAddr,
-                          const Xbyak::Ymm&     v_src,
-                          const Xbyak::Reg64&   rToStoreNum,
-                          const size_t          typeSize) {
+                          const Xbyak::Ymm& v_src,
+                          const Xbyak::Reg64& rToStoreNum,
+                          const size_t typeSize) {
     if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         OPENVINO_THROW("Could not store data with type size ", typeSize);
     }
@@ -631,11 +601,11 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
 
 void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
                              const Xbyak::Reg64& rSrc,
-                             const Xbyak::Xmm&   vReadMask,
-                             const Xbyak::Xmm&   vSrcShift,
+                             const Xbyak::Xmm& vReadMask,
+                             const Xbyak::Xmm& vSrcShift,
                              const Xbyak::Reg64& rToStoreNum,
-                             const bool          useMask,
-                             const bool          zeroFill) {
+                             const bool useMask,
+                             const bool zeroFill) {
     Xbyak::Label lEnd;
     auto rAux = getReg64();
     Xbyak::Reg32 r32Aux = Xbyak::Reg32(rAux.getIdx());
@@ -671,11 +641,11 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
 
 void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
                              const Xbyak::Reg64& rSrc,
-                             const Xbyak::Ymm&   vReadMask,
-                             const Xbyak::Ymm&   vSrcShift,
+                             const Xbyak::Ymm& vReadMask,
+                             const Xbyak::Ymm& vSrcShift,
                              const Xbyak::Reg64& rToStoreNum,
-                             const bool          useMask,
-                             const bool          zeroFill) {
+                             const bool useMask,
+                             const bool zeroFill) {
     Xbyak::Label lEnd;
     if (isValidIsa(x64::avx2)) {
         auto vAux = RegistersPool::Reg<Xbyak::Ymm>(registersPool);
@@ -684,8 +654,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     } else if (isValidIsa(x64::avx)) {
         const uint8_t typeSize = sizeof(int);
         const uint8_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
-        Xbyak::Xmm xmmReadMask  = Xbyak::Xmm(vReadMask.getIdx()),
-                   xmmSrcShft   = Xbyak::Xmm(vSrcShift.getIdx());
+        Xbyak::Xmm xmmReadMask = Xbyak::Xmm(vReadMask.getIdx()), xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx());
         for (uint8_t i = 0; i < 2; i++) {
             memMovDD(rDst, rSrc, xmmReadMask, xmmSrcShft, rToStoreNum, useMask, zeroFill);
 
@@ -707,6 +676,6 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     L(lEnd);
 }
 
-} // namespace kernel
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov

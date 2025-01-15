@@ -14,7 +14,7 @@ class BatchToSpace : public Node {
 public:
     BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
 
     // output shape can potentially be empty
@@ -25,14 +25,18 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    bool needPrepareParams() const override { return false; };
-    bool needShapeInfer() const override {return true;};
+    bool needPrepareParams() const override {
+        return false;
+    };
+    bool needShapeInfer() const override {
+        return true;
+    };
     void executeDynamicImpl(dnnl::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    template<typename T>
+    template <typename T>
     void batchToSpaceKernel();
 
 private:
@@ -42,6 +46,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

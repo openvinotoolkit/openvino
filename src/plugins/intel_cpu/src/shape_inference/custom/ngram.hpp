@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -13,9 +14,8 @@ using Result = IShapeInfer::Result;
 class NgramShapeInfer : public ShapeInferEmptyPads {
 public:
     NgramShapeInfer(const size_t k) : m_k(k) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
@@ -33,7 +33,6 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

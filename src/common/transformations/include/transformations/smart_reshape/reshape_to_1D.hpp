@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API ReshapeTo1D;
 
 class ov::pass::ReshapeTo1D : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeTo1D", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapeTo1D");
     ReshapeTo1D();
 };

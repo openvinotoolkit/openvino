@@ -3,26 +3,26 @@
 //
 
 #include "arbitrary_order_desc_creator.h"
+
 #include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
 
-ArbitraryOrderDescCreator::ArbitraryOrderDescCreator(VectorDims order) :
-    m_order(std::move(order)) {
+ArbitraryOrderDescCreator::ArbitraryOrderDescCreator(VectorDims order) : m_order(std::move(order)) {
     OPENVINO_ASSERT(std::adjacent_find(m_order.begin(), m_order.end()) == m_order.end(),
-        "Can't construct ArbitraryOrderDescCreator, order vector contains repetitive elements",
-        vec2str(m_order));
+                    "Can't construct ArbitraryOrderDescCreator, order vector contains repetitive elements",
+                    vec2str(m_order));
 }
 
-CpuBlockedMemoryDesc
-ArbitraryOrderDescCreator::createDesc(const ov::element::Type& precision, const Shape& srcShape) const {
+CpuBlockedMemoryDesc ArbitraryOrderDescCreator::createDesc(const ov::element::Type& precision,
+                                                           const Shape& srcShape) const {
     auto&& dims = srcShape.getDims();
     OPENVINO_ASSERT(dims.size() == m_order.size(),
-        "Couldn't create a tensor descriptor, shape and order size mismatch. Shape: ",
-        vec2str(dims),
-        " order: ",
-        vec2str(m_order));
+                    "Couldn't create a tensor descriptor, shape and order size mismatch. Shape: ",
+                    vec2str(dims),
+                    " order: ",
+                    vec2str(m_order));
 
     VectorDims blkDims(dims.size());
     for (size_t i = 0; i < dims.size(); ++i) {
@@ -36,5 +36,5 @@ size_t ArbitraryOrderDescCreator::getMinimalRank() const {
     return m_order.size();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

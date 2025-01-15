@@ -11,6 +11,10 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
+#ifdef OPENVINO_CPP_VER_17
+#    include <filesystem>
+#endif
+
 namespace ov {
 namespace pass {
 
@@ -22,7 +26,7 @@ namespace pass {
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Serialize");
+    OPENVINO_MODEL_PASS_RTTI("Serialize");
 
     enum class Version : uint8_t {
         UNSPECIFIED = 0,  // Use the latest or function version
@@ -34,6 +38,13 @@ public:
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
+
+#ifdef OPENVINO_CPP_VER_17
+    Serialize(const std::filesystem::path& xmlPath,
+              const std::filesystem::path& binPath,
+              Version version = Version::UNSPECIFIED)
+        : Serialize(xmlPath.string(), binPath.string(), version) {}
+#endif
 
 private:
     std::ostream* m_xmlFile;
@@ -52,7 +63,7 @@ private:
  */
 class OPENVINO_API StreamSerialize : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("StreamSerialize");
+    OPENVINO_MODEL_PASS_RTTI("StreamSerialize");
 
     struct DataHeader {
         size_t custom_data_offset;

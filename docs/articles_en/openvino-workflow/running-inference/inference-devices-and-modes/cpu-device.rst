@@ -357,7 +357,6 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::enable_hyper_threading``
 - ``ov::hint::enable_cpu_pinning``
 - ``ov::num_streams``
-- ``ov::affinity``
 - ``ov::inference_num_threads``
 - ``ov::cache_dir``
 - ``ov::intel_cpu::denormals_optimization``
@@ -373,8 +372,6 @@ Read-only properties
 - ``ov::device::full_name``
 - ``ov::device::capabilities``
 
-.. note::
-   ``ov::affinity`` is replaced by ``ov::hint::enable_cpu_pinning``. As such, it is deprecated in the 2024.0 release and will be removed in the 2025 release.
 
 External Dependencies
 ###########################################################

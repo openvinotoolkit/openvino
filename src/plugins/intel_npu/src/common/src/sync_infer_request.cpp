@@ -177,6 +177,8 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     bool is_input = ov::op::util::is_parameter(port.get_node());
     std::string tensor_type = is_input ? "input" : "output";
 
+    OPENVINO_ASSERT(tensor->is_continuous(), "The tensor is not continuous");
+
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
                     "The tensor element type is not corresponding with output element type (",
                     tensor->get_element_type(),

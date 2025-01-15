@@ -4,11 +4,11 @@
 
 #include "composite.h"
 
-#include "nodes/input.h"
 #include "cpu_memory.h"
+#include "nodes/input.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -46,7 +46,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
         inConfs.emplace_back(desc);
-        graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        graphInputConfig.emplace_back(node::Input::InputConfig{std::move(desc), true});
     }
 
     std::vector<Input::OutputConfig> graphOutputConfig;
@@ -65,7 +65,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
         outConfs.emplace_back(desc);
     }
 
-    const NodeConfig config(inConfs, outConfs);
+    const NodeConfig config(std::move(inConfs), std::move(outConfs));
 
     supportedPrimitiveDescriptors.clear();
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
@@ -75,7 +75,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagramm for memory mapping / reuse
 void Composite::createPrimitive() {
-    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
+    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
     std::vector<MemoryPtr> inputMemory;
@@ -83,7 +83,7 @@ void Composite::createPrimitive() {
         inputMemory.emplace_back(getSrcMemoryAtPort(i));
     }
 
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
+    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
     std::vector<MemoryPtr> outputMemory;
@@ -99,7 +99,7 @@ void Composite::execute(dnnl::stream) {
 }
 
 void Composite::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
+    execute(std::move(strm));
 
     // since the shape inference is not performed for the composite node
     // a memory of the extra child edges, attached to the output ports

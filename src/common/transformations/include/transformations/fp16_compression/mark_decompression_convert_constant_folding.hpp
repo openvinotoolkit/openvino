@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API MarkCompressedFloatConstants;
  */
 class ov::pass::EnableDecompressionConvertConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EnableDecompressionConvertConstantFolding", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EnableDecompressionConvertConstantFolding");
     EnableDecompressionConvertConstantFolding();
 };
 
@@ -36,7 +36,7 @@ public:
  */
 class ov::pass::DisableDecompressionConvertConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DisableDecompressionConvertConstantFolding", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DisableDecompressionConvertConstantFolding");
     DisableDecompressionConvertConstantFolding();
 };
 
@@ -46,7 +46,7 @@ public:
  */
 class ov::pass::KeepConstAndDecompression : public MatcherPass {
 public:
-    OPENVINO_RTTI("KeepConstAndDecompression", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KeepConstAndDecompression");
     KeepConstAndDecompression();
 };
 
@@ -56,7 +56,7 @@ public:
  */
 class ov::pass::KeepConstantsPrecisionAndAddConverts : public MatcherPass {
 public:
-    OPENVINO_RTTI("KeepConstantsPrecisionAndAddConverts", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KeepConstantsPrecisionAndAddConverts");
     KeepConstantsPrecisionAndAddConverts();
 };
 
@@ -69,6 +69,6 @@ public:
  */
 class ov::pass::MarkCompressedFloatConstants : public MatcherPass {
 public:
-    OPENVINO_RTTI("KeepFWPrecisionFor16BitFloatConstants", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkCompressedFloatConstants");
     MarkCompressedFloatConstants();
 };

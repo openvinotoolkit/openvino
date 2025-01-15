@@ -11,7 +11,7 @@ namespace intel_cpu {
 namespace node {
 
 class MemoryNode {
- public:
+public:
     explicit MemoryNode(std::string id) : m_id(id) {}
     explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
@@ -33,6 +33,6 @@ public:
 using MmemoryStateNodePtr = std::shared_ptr<MemoryStateNode>;
 using MemoryStateNodeCPtr = std::shared_ptr<const MemoryStateNode>;
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

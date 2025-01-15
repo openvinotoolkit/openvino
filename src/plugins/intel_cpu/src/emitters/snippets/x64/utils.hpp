@@ -13,13 +13,17 @@ namespace utils {
 
 inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
     std::vector<Xbyak::Reg64> regs(idxs.size());
-    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Xbyak::Reg64(static_cast<int>(idx));});
+    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx) {
+        return Xbyak::Reg64(static_cast<int>(idx));
+    });
     return regs;
 }
 
 inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs) {
     std::vector<size_t> idxs(regs.size());
-    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) { return reg.idx; });
+    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) {
+        return reg.idx;
+    });
     return idxs;
 }
 
@@ -46,8 +50,11 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
  * @param aux_reg aux register
  * @param runtime_offset offset in runtime params `abi_param1`
  */
-void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset,
-                                           Xbyak::Reg64 ptr_reg, Xbyak::Reg64 aux_reg, size_t runtime_offset);
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+                                           size_t stack_offset,
+                                           Xbyak::Reg64 ptr_reg,
+                                           Xbyak::Reg64 aux_reg,
+                                           size_t runtime_offset);
 
 /**
  * @brief Push data pointer on stack adding static offset `ptr_offset`
@@ -56,9 +63,11 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* 
  * @param ptr_reg register contains data pointer
  * @param ptr_offset offset which will be added to data pointer
  */
-void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h, size_t stack_offset,
-                                          Xbyak::Reg64 ptr_reg, size_t ptr_offset);
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+                                          size_t stack_offset,
+                                          Xbyak::Reg64 ptr_reg,
+                                          size_t ptr_offset);
 
-}   // namespace utils
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace utils
+}  // namespace intel_cpu
+}  // namespace ov

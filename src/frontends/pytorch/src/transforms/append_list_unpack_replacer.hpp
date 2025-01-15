@@ -14,7 +14,7 @@ namespace pass {
 
 class AppendListUnpackReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::AppendListUnpackReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::AppendListUnpackReplacer");
     AppendListUnpackReplacer();
 };
 

@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertNMS9ToNMSIEInternal;
 
 class ov::pass::ConvertNMS9ToNMSIEInternal : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNMS9ToNMSIEInternal", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNMS9ToNMSIEInternal");
     ConvertNMS9ToNMSIEInternal();
 };

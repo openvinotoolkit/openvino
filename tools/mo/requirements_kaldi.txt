@@ -1,8 +1,0 @@
--c ../constraints.txt
-# wa: conversion for stateful models is failed on higher numpy versions
-numpy>=1.16.6,<1.25; python_version<"3.12"
-numpy>=1.16.6,<1.27; python_version>="3.12"
-networkx
-defusedxml
-requests
-fastjsonschema

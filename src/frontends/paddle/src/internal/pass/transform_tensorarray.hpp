@@ -14,7 +14,7 @@ namespace pass {
 
 class TransformTensorArray : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformTensorArray");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::paddle::pass::TransformTensorArray");
     TransformTensorArray(std::vector<std::shared_ptr<Model>> functions);
 
 private:

@@ -26,7 +26,7 @@ private:
     template <class OV_INDEX_TYPE>
     void executeImpl();
 
-    template<typename T_idx>
+    template <typename T_idx>
     struct StringTensorPackExecute;
 };
 

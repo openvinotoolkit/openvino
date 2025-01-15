@@ -264,6 +264,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         }
         if (params.inputs[0].Feature().v % tuning_data.feature_block_size != 0) {
             jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
+        } else {
+            jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 0));
         }
     } else {
         DimensionAccessHelperJit input0_dims(params.inputs[0]);

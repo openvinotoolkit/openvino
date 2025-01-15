@@ -50,6 +50,14 @@ int32_t OptionParser<int32_t>::parse(std::string_view val) {
     }
 }
 
+uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
+    try {
+        return std::stoul(val.data());
+    } catch (...) {
+        OPENVINO_THROW("Value '%s' is not a valid UINT32 option", val.data());
+    }
+}
+
 int64_t OptionParser<int64_t>::parse(std::string_view val) {
     try {
         return std::stoll(val.data());

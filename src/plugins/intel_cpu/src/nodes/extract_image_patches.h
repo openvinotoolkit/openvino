@@ -30,8 +30,11 @@ struct jit_extract_image_patches_args {
 };
 
 struct jit_uni_extract_image_patches_kernel {
-    void (*ker_)(const jit_extract_image_patches_args *);
-    void operator()(const jit_extract_image_patches_args *args) { assert(ker_); ker_(args); }
+    void (*ker_)(const jit_extract_image_patches_args*);
+    void operator()(const jit_extract_image_patches_args* args) {
+        assert(ker_);
+        ker_(args);
+    }
     jit_extract_image_patches_params jpp;
     virtual void create_ker() = 0;
     explicit jit_uni_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : ker_(nullptr), jpp(jpp) {}
@@ -42,7 +45,7 @@ class ExtractImagePatches : public Node {
 public:
     ExtractImagePatches(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -51,11 +54,7 @@ public:
     void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    enum class ExtImgPatcherPadType {
-        VALID,
-        SAME_LOWER,
-        SAME_UPPER
-    };
+    enum class ExtImgPatcherPadType { VALID, SAME_LOWER, SAME_UPPER };
 
 private:
     std::vector<size_t> _ksizes;
@@ -69,14 +68,13 @@ private:
     struct ExtractImagePatchesExecutor {
         ExtractImagePatchesExecutor() = default;
         virtual void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) = 0;
-        jit_extract_image_patches_params fillJpp(
-            const VectorDims& inDims,
-            const VectorDims& outDims,
-            const VectorDims& kSizes,
-            const VectorDims& strides,
-            const VectorDims& rates,
-            const ExtImgPatcherPadType& padType,
-            const size_t prcSize);
+        jit_extract_image_patches_params fillJpp(const VectorDims& inDims,
+                                                 const VectorDims& outDims,
+                                                 const VectorDims& kSizes,
+                                                 const VectorDims& strides,
+                                                 const VectorDims& rates,
+                                                 const ExtImgPatcherPadType& padType,
+                                                 const size_t prcSize);
         virtual ~ExtractImagePatchesExecutor() = default;
 
     protected:
@@ -93,30 +91,31 @@ private:
     executorPtr execPtr = nullptr;
 
     struct ExtractImagePatchesJitExecutor : public ExtractImagePatchesExecutor {
-        ExtractImagePatchesJitExecutor(
-            const VectorDims& inDims,
-            const VectorDims& outDims,
-            const VectorDims& kSizes,
-            const VectorDims& strides,
-            const VectorDims& rates,
-            const ExtImgPatcherPadType& padType,
-            const size_t prcSize);
+        ExtractImagePatchesJitExecutor(const VectorDims& inDims,
+                                       const VectorDims& outDims,
+                                       const VectorDims& kSizes,
+                                       const VectorDims& strides,
+                                       const VectorDims& rates,
+                                       const ExtImgPatcherPadType& padType,
+                                       const size_t prcSize);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
-        void executeOptimizedGeneric(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
+        void executeOptimizedGeneric(void* src,
+                                     void* dst,
+                                     const VectorDims& istrides,
+                                     const VectorDims& ostrides) const;
 
     private:
         std::unique_ptr<jit_uni_extract_image_patches_kernel> pKernel;
     };
 
     struct ExtractImagePatchesRefExecutor : public ExtractImagePatchesExecutor {
-        ExtractImagePatchesRefExecutor(
-            const VectorDims& inDims,
-            const VectorDims& outDims,
-            const VectorDims& kSizes,
-            const VectorDims& strides,
-            const VectorDims& rates,
-            const ExtImgPatcherPadType& padType,
-            const size_t prcSize);
+        ExtractImagePatchesRefExecutor(const VectorDims& inDims,
+                                       const VectorDims& outDims,
+                                       const VectorDims& kSizes,
+                                       const VectorDims& strides,
+                                       const VectorDims& rates,
+                                       const ExtImgPatcherPadType& padType,
+                                       const size_t prcSize);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
 
@@ -125,6 +124,6 @@ private:
     };
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

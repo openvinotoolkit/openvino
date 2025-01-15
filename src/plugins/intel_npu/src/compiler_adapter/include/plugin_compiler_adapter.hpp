@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"

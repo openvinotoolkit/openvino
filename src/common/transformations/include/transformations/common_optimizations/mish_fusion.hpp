@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API MishFusion;
  */
 class ov::pass::MishFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MishFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MishFusion");
     MishFusion();
 };

@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API WeightsDequantizeToFakeQuantize;
  */
 class ov::pass::WeightsDequantizeToFakeQuantize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("WeightsDequantizeToFakeQuantize", "0");
+    OPENVINO_MATCHER_PASS_RTTI("WeightsDequantizeToFakeQuantize");
     WeightsDequantizeToFakeQuantize();
 };

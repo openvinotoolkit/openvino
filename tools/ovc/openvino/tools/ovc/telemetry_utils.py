@@ -24,6 +24,12 @@ def is_optimum():
             return True
     return False
 
+def is_torch_compile():
+    import traceback
+    for line in traceback.format_stack():
+        if os.path.join("torch", "_dynamo", "backends", "registry.py") in line:
+            return True
+    return False
 
 def init_ovc_telemetry(app_name='OVC', app_version=None):
     app_version = app_version if app_version is not None else get_rt_version()

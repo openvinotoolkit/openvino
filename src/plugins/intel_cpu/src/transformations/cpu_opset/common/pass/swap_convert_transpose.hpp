@@ -11,8 +11,9 @@ namespace intel_cpu {
 
 class SwapConvertTranspose : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("SwapConvertTranspose");
     SwapConvertTranspose();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

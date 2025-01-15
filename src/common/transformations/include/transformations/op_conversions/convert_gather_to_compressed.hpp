@@ -17,6 +17,6 @@ class TRANSFORMATIONS_API ConvertGatherToGatherCompressed;
 
 class ov::pass::ConvertGatherToGatherCompressed : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGatherToGatherCompressed", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGatherToGatherCompressed");
     ConvertGatherToGatherCompressed();
 };

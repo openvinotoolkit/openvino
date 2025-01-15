@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertBroadcastToTiles: public ov::pass::MatcherPass {
+class ConvertBroadcastToTiles : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBroadcastToTiles", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBroadcastToTiles");
     ConvertBroadcastToTiles();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

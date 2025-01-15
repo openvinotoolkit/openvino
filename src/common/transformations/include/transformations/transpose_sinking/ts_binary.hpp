@@ -37,6 +37,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSBinaryBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSBinaryBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSBinaryBackward");
     TSBinaryBackward();
 };

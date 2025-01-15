@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertScatterElementsUpdate12ToScatterElementsUpdate3 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertScatterElementsUpdate12ToScatterElementsUpdate3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertScatterElementsUpdate12ToScatterElementsUpdate3");
     ConvertScatterElementsUpdate12ToScatterElementsUpdate3();
 };
 

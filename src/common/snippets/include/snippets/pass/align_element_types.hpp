@@ -19,7 +19,7 @@ namespace pass {
  */
 class AlignElementTypes: public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("AlignElementTypes");
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::AlignElementTypes");
     AlignElementTypes(std::vector<ov::element::Type> input_precisions,
                       std::vector<ov::element::Type> output_precisions);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

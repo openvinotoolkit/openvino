@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3");
     ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3();
 };
 

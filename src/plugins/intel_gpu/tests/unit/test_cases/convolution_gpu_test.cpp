@@ -10784,11 +10784,12 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
 
     auto is_weight_1x1 = (p.wei_shape[p.wei_shape.size() - 1] == 1 && p.wei_shape[p.wei_shape.size() - 2] == 1);
     auto is_valid_output = p.wei_shape[0] % 16 == 0;
-    auto is_valid_strid = p.stride[0] == 1 && p.stride[1] == 1;
-    auto is_valid_padding = p.pad_begin[0] == 0 && p.pad_begin[1] == 0 && p.pad_end[0] == 0 && p.pad_end[1] == 0;
+    auto is_valid_strid = std::all_of(p.stride.begin(), p.stride.end(), [](size_t i) { return i == 1; });
+    auto is_valid_padding = std::all_of(p.pad_begin.begin(), p.pad_begin.end(), [](int i) { return i == 0; })
+        && std::all_of(p.pad_end.begin(), p.pad_end.end(), [](int i) { return i == 0; });
 
     if (!is_weight_1x1 || !is_valid_output || !is_valid_strid || !is_valid_padding) {
-        std::cout << "[ SKIPPED ] The test is skipped (is_weight_1x1:" << is_weight_1x1 << ", is_valid_output" << is_valid_output
+        std::cout << "[ SKIPPED ] The test is skipped (is_weight_1x1: " << is_weight_1x1 << ", is_valid_output: " << is_valid_output
                   << ", is_valid_strid: " << is_valid_strid << ", is_valid_padding: " << is_valid_padding << std::endl;
         ASSERT_EQ(1, 1);
         return;
@@ -10819,7 +10820,14 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         return outputs_ref.at("conv").get_memory();
     };
 
-    auto in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    cldnn::layout in_layout;
+    if (p.in_shape[2] % 2 == 0) {
+        // input feature is static
+        in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    } else {
+        // input feature is dynamic
+        in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    }
     auto input = engine.allocate_memory({ p.in_shape, data_types::f16, format::b_fs_yx_fsv16 });
     auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, is_grouped ? format::bfzyx : format::bfyx});
 

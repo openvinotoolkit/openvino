@@ -37,7 +37,7 @@ TEST(DecoderTransformation, FunctionPass) {
 namespace _decoder_transformation_test {
 class TestPass : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::TestPass");
+    OPENVINO_MODEL_PASS_RTTI("ov::pass::TestPass");
     TestPass() = default;
     TestPass(const TestPass& tp) = default;
     bool run_on_model(const std::shared_ptr<ov::Model>&) override {

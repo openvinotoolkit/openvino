@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API BatchNormDecomposition;
 
 class ov::pass::BatchNormDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BatchNormDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BatchNormDecomposition");
     BatchNormDecomposition();
 };

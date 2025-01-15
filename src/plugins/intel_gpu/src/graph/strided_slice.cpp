@@ -193,6 +193,10 @@ void strided_slice_inst::on_execute() {
 void strided_slice_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
+
+    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+        return;
+
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 

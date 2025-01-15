@@ -72,10 +72,6 @@ void* ZeroEngineBackend::getContext() const {
     return _initStruct->getContext();
 }
 
-const std::shared_ptr<ZeroInitStructsHolder>& ZeroEngineBackend::getInitStruct() const {
-    return _initStruct;
-}
-
 void ZeroEngineBackend::updateInfo(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
     if (_devices.size() > 0) {
@@ -83,6 +79,10 @@ void ZeroEngineBackend::updateInfo(const Config& config) {
             dev.second->updateInfo(config);
         }
     }
+}
+
+const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
+    return _initStruct;
 }
 
 }  // namespace intel_npu

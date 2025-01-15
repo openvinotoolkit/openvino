@@ -17,6 +17,6 @@ class TRANSFORMATIONS_API ConvertMulticlassNmsToMulticlassNmsIE;
 
 class ov::pass::ConvertMulticlassNmsToMulticlassNmsIE : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("public", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMulticlassNmsToMulticlassNmsIE");
     ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type = true);
 };

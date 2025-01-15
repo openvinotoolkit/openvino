@@ -92,7 +92,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
             !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<strided_slice>() ||
                impl_param.is_type<crop>() ||
                impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});

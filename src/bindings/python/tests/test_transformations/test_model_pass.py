@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-from openvino.runtime.passes import Manager
+from openvino.passes import Manager
 
 from tests.test_transformations.utils.utils import get_relu_model, MyModelPass
 

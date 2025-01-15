@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class ConvertFullyConnectedToFullyConnectedCompressed: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertFullyConnectedToFullyConnectedCompressed", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertFullyConnectedToFullyConnectedCompressed");
     ConvertFullyConnectedToFullyConnectedCompressed();
 };
 

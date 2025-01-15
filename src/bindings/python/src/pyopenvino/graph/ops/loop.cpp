@@ -11,6 +11,7 @@
 #include "openvino/util/log.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -91,7 +92,8 @@ void regclass_graph_op_Loop(py::module m) {
 
     cls.def(
         "set_function",
-        [](const std::shared_ptr<ov::op::v5::Loop>& self, const std::shared_ptr<ov::Model>& func) {
+        [](const std::shared_ptr<ov::op::v5::Loop>& self, const py::object& ie_api_model) {
+            const auto func = Common::utils::convert_to_model(ie_api_model);
             self->set_function(func);
         },
         py::arg("func"));

@@ -6,7 +6,7 @@ import numpy as np
 import openvino as ov
 
 import openvino.runtime.opset13 as ops
-from openvino import Type, PartialShape, Model, Tensor, compile_model
+from openvino import Type, PartialShape, Model, Strides, Tensor, compile_model
 from openvino.runtime.op import Constant
 from openvino.helpers import pack_data, unpack_data
 
@@ -756,7 +756,7 @@ def test_get_data_casting_packed(src_dtype, ov_type, dst_dtype, copy_flag):
     ],
 )
 def test_const_from_tensor(shared_flag):
-    shape = [1, 3, 32, 32]
+    shape = [1, 2, 3, 3]
     arr = np.ones(shape).astype(np.float32)
     ov_tensor = Tensor(arr, shape, Type.f32)
     ov_const = ops.constant(tensor=ov_tensor, shared_memory=shared_flag)
@@ -771,3 +771,6 @@ def test_const_from_tensor(shared_flag):
     else:
         assert not np.array_equal(ov_const.data, arr)
         assert not np.shares_memory(arr, ov_const.data)
+
+    assert ov_const.strides == [72, 36, 12, 4]
+    assert ov_const.get_tensor_view().get_strides() == Strides([72, 36, 12, 4])

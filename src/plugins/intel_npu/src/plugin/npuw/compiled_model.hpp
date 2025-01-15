@@ -22,10 +22,16 @@ class Plugin;
 
 namespace ov {
 namespace npuw {
+class ICompiledModel : public ov::ICompiledModel {
+public:
+    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                            const ov::AnyMap& properties);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+};
 
 class InferRequest;
-
-class CompiledModel : public ov::ICompiledModel {
+class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -78,6 +84,7 @@ private:
     void implement_properties();
 
     void finalize_weights_bank();
+    void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
 
@@ -134,6 +141,7 @@ private:
         //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
         std::vector<weights::LazyTensor> lazy_closure;
+        std::vector<int64_t> closure_uid;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;

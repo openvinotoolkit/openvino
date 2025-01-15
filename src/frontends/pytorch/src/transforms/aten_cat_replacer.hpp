@@ -15,7 +15,7 @@ namespace pass {
 // This transformation replaces pattern prim::ListConstruct->aten::append{none or many}->aten::cat
 class AtenCatToConcat : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenCatToConcat");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::AtenCatToConcat");
     AtenCatToConcat();
 };
 

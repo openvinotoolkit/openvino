@@ -39,6 +39,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSDataMovementBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSDataMovementBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSDataMovementBackward");
     TSDataMovementBackward();
 };

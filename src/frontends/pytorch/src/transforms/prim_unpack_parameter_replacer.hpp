@@ -27,7 +27,7 @@ namespace pass {
 // tuples only and the most nested objects in those tuples are tensors.
 class DecomposeUnpackParameters : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeUnpackParameters");
+    OPENVINO_MODEL_PASS_RTTI("ov::frontend::pytorch::pass::DecomposeUnpackParameters");
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 

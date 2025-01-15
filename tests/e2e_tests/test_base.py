@@ -95,7 +95,7 @@ def _test_run(instance, pregen_irs, record_property, prepare_test_info, inferenc
                     log.error('IR pre-generation failed. IR will be generated in runtime ...')
                 else:
                     if not mo_log:
-                        log.warning('IR was collected successfully, but MO log was not saved.')
+                        log.warning('IR was collected successfully, but OVC log was not saved.')
                     else:
                         with open(mo_log, "r") as file:
                             mo_output = file.read()

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "node.h"
 #include "common/permute_kernel.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +17,7 @@ public:
     ~ShuffleChannels() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
@@ -55,6 +55,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

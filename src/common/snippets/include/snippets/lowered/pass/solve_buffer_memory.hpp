@@ -34,6 +34,10 @@ public:
      */
     bool run(lowered::LinearIR& linear_ir) override;
 
+    // For the better performance data should be aligned with cache line size.
+    // The majority of CPUs have cache line size `64` bytes.
+    constexpr static size_t byte_alignment = 64;
+
 private:
     using Buffers = std::vector<BufferExpressionPtr>;
     /**
@@ -64,8 +68,6 @@ private:
     void set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions);
 
     size_t& m_static_buffer_scratchpad_size;
-
-    constexpr static size_t m_alignment = 32; // 32 bytes for data alignment in allocated memory
 };
 
 } // namespace pass

@@ -57,7 +57,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::KernelStatic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::KernelDynamic, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
-        SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Reshape, ReshapeShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Brgemm, BrgemmShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceMax, ReduceShapeInfer),
@@ -65,7 +64,9 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         // Note that Result has no output PortConnectors, so the shape must be empty
         SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //
-        SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
+        SHAPE_INFER_OP_SPECIFIC(op::LoadReorder),
+        SHAPE_INFER_OP_SPECIFIC(op::Reshape),
+        SHAPE_INFER_OP_SPECIFIC(op::Reorder),
         SHAPE_INFER_OP_SPECIFIC(op::RankNormalization),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),

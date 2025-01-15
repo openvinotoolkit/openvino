@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <array>
+
 #include "common/dnnl_executor.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "node.h"
-
-#include <array>
 
 namespace ov {
 namespace intel_cpu {
@@ -22,7 +22,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
-    MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
 
@@ -53,12 +53,11 @@ private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc);
-    std::pair<Shape, Shape>
-    makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;
+    std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const;
 
     bool withBiases;
 
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims& dims, bool initWeights);
+    void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights);
 
     std::string errorPrefix;
 
@@ -69,6 +68,6 @@ private:
     DnnlBlockedMemoryDescPtr outDataDesc;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API ConcatFusion;
 
 class ov::pass::ConcatFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConcatFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConcatFusion");
     ConcatFusion();
 };

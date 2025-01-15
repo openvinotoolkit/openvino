@@ -310,20 +310,28 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
-        auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
-        auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
-                                                       v0::Constant::create(element::i64, Shape{}, {-1}),
-                                                       v0::Constant::create(element::i64, Shape{}, {0}));
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
         } else {
-            // most likely `scale` below will always be a constant in real inference, but dynamic dimension
-            // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
-            // instead of just a constant node representing one of the dimensions.
-            scale = std::make_shared<v1::Divide>(
-                v0::Constant::create(element::f32, Shape{}, {1}),
-                std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
+            auto real_q_ps = real_q.get_partial_shape();
+
+            bool rank_is_static = real_q_ps.rank().is_static();
+            if (rank_is_static && real_q_ps[real_q_ps.rank().get_length() - 1].is_static()) {
+                auto hidden_dim_len = static_cast<float>(real_q_ps[real_q_ps.rank().get_length() - 1].get_length());
+                scale = v0::Constant::create(element::f32, Shape{}, {1.0 / std::sqrt(hidden_dim_len)});
+            } else {
+                // most likely `scale` below will always be a constant in real inference, but dynamic dimension
+                // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
+                // instead of just a constant node representing one of the dimensions.
+                auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
+                auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
+                                                               v0::Constant::create(element::i64, Shape{}, {-1}),
+                                                               v0::Constant::create(element::i64, Shape{}, {0}));
+                scale = std::make_shared<v1::Divide>(
+                    v0::Constant::create(element::f32, Shape{}, {1}),
+                    std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
+            }
         }
 
         std::shared_ptr<Node> alibi_slopes;
@@ -429,6 +437,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             parameters_to_remove.push_back(param);
         }
 
+        pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
         return true;
     };

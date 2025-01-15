@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API MVN6Decomposition;
  */
 class ov::pass::MVN6Decomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MVN6Decomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MVN6Decomposition");
     MVN6Decomposition();
 };

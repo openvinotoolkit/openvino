@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertROIAlign3To9;
  */
 class ov::pass::ConvertROIAlign3To9 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertROIAlign3To9", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertROIAlign3To9");
     ConvertROIAlign3To9();
 };

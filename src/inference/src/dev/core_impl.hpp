@@ -22,14 +22,95 @@ using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
+class CoreConfig final {
+public:
+    CoreConfig() = default;
+    CoreConfig(const CoreConfig& other);
+    CoreConfig& operator=(const CoreConfig&) = delete;
+
+    struct CacheConfig {
+        std::string _cacheDir;
+        std::shared_ptr<ov::ICacheManager> _cacheManager;
+
+        static CacheConfig create(const std::string& dir);
+    };
+
+    void set(const ov::AnyMap& config);
+
+    /**
+     * @brief Removes core-level properties from config and triggers new state for core config
+     * @param config - config to be updated
+     */
+    void set_and_update(ov::AnyMap& config);
+
+    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
+    void set_cache_dir_for_device(const std::string& dir, const std::string& name);
+
+    std::string get_cache_dir() const;
+
+    bool get_enable_mmap() const;
+
+    CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
+
+    // Creating thread-safe copy of global config including shared_ptr to ICacheManager
+    CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
+
+    // remove core properties
+    static void remove_core(ov::AnyMap& config);
+    static void remove_core_skip_cache_dir(ov::AnyMap& config);
+
+private:
+    mutable std::mutex _cacheConfigMutex;
+    CacheConfig _cacheConfig;
+    std::map<std::string, CacheConfig> _cacheConfigPerDevice;
+    bool _flag_enable_mmap = true;
+};
+
 struct Parsed {
     std::string _deviceName;
     AnyMap _config;
+    CoreConfig _core_config;
 };
 
+/**
+ * @brief Provides Parsed device name and configuration.
+ *
+ * Uses default core configuration updated with user properties from config.
+ * The core properties are removed from user configuration for HW devices only.
+ * @note The `CACHE_DIR` is not removed from compiled configuration.
+ *
+ * @param deviceName                Device name to be parsed
+ * @param config                    User configuration to be parsed.
+ * @param keep_auto_batch_property  If set keep auto batch properties in compile properties.
+ * @return Parsed:
+ * - device name
+ * - compile properties
+ * - core configuration
+ */
 Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
                                  const AnyMap& config = {},
-                                 const bool keep_core_property = false);
+                                 const bool keep_auto_batch_property = false);
+
+/**
+ * @brief Provides Parsed device name and configuration.
+ *
+ * Uses user core configuration which is updated with user properties from config.
+ * The core properties are removed from user configuration for HW devices only.
+ * @note The `CACHE_DIR` is not removed from compiled configuration.
+ *
+ * @param deviceName                Device name to be parsed
+ * @param coreConfig                Core configuration used as base for parsed output.
+ * @param config                    User configuration to be parsed.
+ * @param keep_auto_batch_property  If set keep auto batch properties in compile properties.
+ * @return Parsed:
+ * - device name
+ * - compile properties
+ * - core configuration
+ */
+Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
+                                 const CoreConfig& coreConfig,
+                                 const AnyMap& config = {},
+                                 const bool keep_auto_batch_property = false);
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'
@@ -61,47 +142,17 @@ private:
     bool is_proxy_device(const ov::Plugin& plugin) const;
     bool is_proxy_device(const std::string& dev_name) const;
 
-    class CoreConfig final {
-    public:
-        struct CacheConfig {
-            std::string _cacheDir;
-            std::shared_ptr<ov::ICacheManager> _cacheManager;
-
-            static CacheConfig create(const std::string& dir);
-        };
-
-        /**
-         * @brief Removes core-level properties from config and triggers new state for core config
-         * @param config - config to be updated
-         */
-        void set_and_update(ov::AnyMap& config);
-
-        OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
-        void set_cache_dir_for_device(const std::string& dir, const std::string& name);
-
-        std::string get_cache_dir() const;
-
-        bool get_enable_mmap() const;
-
-        // Creating thread-safe copy of config including shared_ptr to ICacheManager
-        // Passing empty or not-existing name will return global cache config
-        CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
-
-    private:
-        mutable std::mutex _cacheConfigMutex;
-        CacheConfig _cacheConfig;
-        std::map<std::string, CacheConfig> _cacheConfigPerDevice;
-        bool _flag_enable_mmap = true;
-    };
-
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
+                              bool mmap_enabled = false,
                               const std::string model_path = {})
             : cacheManager(cache_manager),
-              modelPath(model_path) {}
+              modelPath(model_path),
+              mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
+        bool mmap_enabled = false;
     };
 
     // Core settings (cache config, etc)
@@ -256,7 +307,9 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
                                           const std::shared_ptr<AlignedBuffer>& weights) const override;
 
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const override;
+    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
+                                          const std::string& bin_path,
+                                          const AnyMap& properties) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const std::string& device_name,
@@ -291,7 +344,9 @@ public:
 
     ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config, const bool keep_core_property = true) const override;
+    ov::AnyMap get_supported_property(const std::string& device_name,
+                                      const ov::AnyMap& config,
+                                      const bool keep_core_property = true) const override;
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const std::string& device_name) const override;
 

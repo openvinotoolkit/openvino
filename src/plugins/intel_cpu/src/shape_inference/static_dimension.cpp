@@ -11,13 +11,15 @@ std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension) {
     return str << dimension.get_length();
 }
 
-StaticDimension::StaticDimension(value_type dimension)
-        : m_dimension(dimension) {}
+StaticDimension::StaticDimension(value_type dimension) : m_dimension(dimension) {}
 
-StaticDimension::StaticDimension(value_type ldimension, value_type udimension)
-        : m_dimension(ldimension) {
+StaticDimension::StaticDimension(value_type ldimension, value_type udimension) : m_dimension(ldimension) {
     OPENVINO_ASSERT(ldimension == udimension,
-                    "Can not create StaticDimension out of [", ldimension, ", ", udimension, "]");
+                    "Can not create StaticDimension out of [",
+                    ldimension,
+                    ", ",
+                    udimension,
+                    "]");
 }
 
 bool StaticDimension::operator==(const StaticDimension& dim) const {
@@ -110,5 +112,5 @@ StaticDimension::value_type StaticDimension::get_min_length() const {
     return m_dimension;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

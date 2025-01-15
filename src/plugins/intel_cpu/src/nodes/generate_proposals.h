@@ -14,7 +14,7 @@ class GenerateProposals : public Node {
 public:
     GenerateProposals(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -35,13 +35,13 @@ private:
     //      scores,  shape [rois_num]
     //      roi_num, shape [N]
 
-    const int INPUT_IM_INFO {0};
-    const int INPUT_ANCHORS {1};
-    const int INPUT_DELTAS {2};
-    const int INPUT_SCORES {3};
-    const int OUTPUT_ROIS {0};
-    const int OUTPUT_SCORES {1};
-    const int OUTPUT_ROI_NUM {2};
+    const int INPUT_IM_INFO{0};
+    const int INPUT_ANCHORS{1};
+    const int INPUT_DELTAS{2};
+    const int INPUT_SCORES{3};
+    const int OUTPUT_ROIS{0};
+    const int OUTPUT_SCORES{1};
+    const int OUTPUT_ROI_NUM{2};
 
     float min_size_ = 0.f;
     int pre_nms_topn_ = 0;
@@ -52,6 +52,6 @@ private:
     std::vector<int> roi_indices_;
 };
 
-}   // namespace node
+}  // namespace node
 }  // namespace intel_cpu
 }  // namespace ov

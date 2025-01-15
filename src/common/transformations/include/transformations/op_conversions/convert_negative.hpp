@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertNegative;
 
 class ov::pass::ConvertNegative : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNegative", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNegative");
     ConvertNegative();
 };

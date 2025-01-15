@@ -253,6 +253,8 @@ void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& 
     // For example:
     //
     // class ExampleGraphRewrite: public pass::GraphRewrite {
+    // public:
+    //      OPENVINO_GRAPH_REWRITE_RTTI("ExampleGraphRewrite");
     //      ExampleGraphRewrite() {
     //          add_mather<TestMatcher1, false /* disabled by default */>();
     //          add_mather<TestMatcher2>();

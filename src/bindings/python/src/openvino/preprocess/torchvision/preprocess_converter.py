@@ -5,7 +5,7 @@
 from typing import Callable, Any, Union
 import logging
 
-import openvino.runtime as ov
+import openvino as ov
 
 
 class PreprocessConverter():

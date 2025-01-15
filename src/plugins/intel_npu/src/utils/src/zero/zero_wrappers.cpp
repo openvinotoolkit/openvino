@@ -24,9 +24,11 @@ EventPool::~EventPool() {
     }
 }
 
-Event::Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index) : _log("Event", Logger::global().level()) {
+Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
+    : _event_pool(event_pool),
+      _log("Event", Logger::global().level()) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(event_pool, &event_desc, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(_event_pool->handle(), &event_desc, &_handle));
 }
 void Event::AppendSignalEvent(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendSignalEvent",

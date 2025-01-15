@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API ConvertScatterElementsToScatter;
  */
 class ov::pass::ConvertScatterElementsToScatter : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertScatterElementsToScatter", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertScatterElementsToScatter");
     ConvertScatterElementsToScatter();
 };

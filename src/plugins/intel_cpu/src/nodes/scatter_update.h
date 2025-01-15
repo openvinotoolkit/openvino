@@ -4,26 +4,23 @@
 
 #pragma once
 
+#include <utility>
+
 #include "node.h"
 #include "openvino/op/scatter_elements_update.hpp"
-#include <utility>
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-enum class ScatterUpdateMode {
-    ScatterUpdate,
-    ScatterNDUpdate,
-    ScatterElementsUpdate
-};
+enum class ScatterUpdateMode { ScatterUpdate, ScatterNDUpdate, ScatterElementsUpdate };
 
 namespace scatter_reductions {
 enum class CommonReduction { NONE, SUM, SUB, PROD, MIN, MAX, MEAN };
 class ReduceMultiply {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data *= *src_data;
     }
 };
@@ -31,7 +28,7 @@ public:
 class ReduceAdd {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data += *src_data;
     }
 };
@@ -39,7 +36,7 @@ public:
 class ReduceSub {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data -= *src_data;
     }
 };
@@ -47,7 +44,7 @@ public:
 class ReduceMean {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data += *src_data;
     }
 };
@@ -55,7 +52,7 @@ public:
 class ReduceMaximum {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data = std::max(*dst_data, *src_data);
     }
 };
@@ -63,7 +60,7 @@ public:
 class ReduceMinimum {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data = std::min(*dst_data, *src_data);
     }
 };
@@ -71,7 +68,7 @@ public:
 class ReduceNone {
 public:
     template <typename DT>
-    void operator() (DT* dst_data, const DT* src_data) const {
+    void operator()(DT* dst_data, const DT* src_data) const {
         *dst_data = *src_data;
     }
 };
@@ -97,20 +94,35 @@ public:
 
     using Reduction = scatter_reductions::CommonReduction;
     template <typename DataType, typename KernelType>
-    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType& kernel);
+    void scatterElementsUpdate(const MemoryPtr& mem_data,
+                               const MemoryPtr& mem_indices,
+                               const MemoryPtr& mem_updates,
+                               int axis,
+                               const KernelType& kernel);
     template <typename DataType>
-    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                                int axis, const scatter_reductions::ReduceMean& kernel);
+    void scatterElementsUpdate(const MemoryPtr& mem_data,
+                               const MemoryPtr& mem_indices,
+                               const MemoryPtr& mem_updates,
+                               int axis,
+                               const scatter_reductions::ReduceMean& kernel);
     template <typename DataType, typename KernelType>
-    void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, const KernelType& kernel);
-    void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
+    void scatterNDUpdate(const MemoryPtr& mem_data,
+                         const MemoryPtr& mem_indices,
+                         const MemoryPtr& mem_updates,
+                         const KernelType& kernel);
+    void scatterNDUpdate(const MemoryPtr& mem_data,
+                         const MemoryPtr& mem_indices,
+                         const MemoryPtr& mem_updates,
                          const scatter_reductions::ReduceNone& kernel);
 
 private:
-    void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
+    void scatterUpdate(uint8_t* indicesPtr, uint8_t* updatePtr, int axis, uint8_t* dstDataPtr);
     void scatterNDUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr);
-    void scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
-    inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
+    void scatterElementsUpdate(const MemoryPtr& dstMemPtr,
+                               const MemoryPtr& indicesMemPtr,
+                               const MemoryPtr& updateMemPtr,
+                               int axis);
+    inline int64_t getIndicesValue(uint8_t* indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
@@ -129,6 +141,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -59,6 +59,11 @@ public:
     Napi::Value get_element_type(const Napi::CallbackInfo& info);
     /** @return Napi::Number containing tensor size as total number of elements. */
     Napi::Value get_size(const Napi::CallbackInfo& info);
+    /**
+     * @brief Getter to check if tensor is continuous
+     * @return Napi::Boolean
+    */
+    Napi::Value is_continuous(const Napi::CallbackInfo& info);
 
 private:
     ov::Tensor _tensor;

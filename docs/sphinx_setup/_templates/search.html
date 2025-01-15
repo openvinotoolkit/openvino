@@ -9,7 +9,7 @@
 
 {% block body %}
 <atomic-search-interface id="search" localization-compatibility-version="v4"
-fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+  fields-to-include='["ovversion", "ovcategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
   <atomic-search-layout>
     <atomic-layout-section section="search">
       <atomic-search-box>
@@ -17,23 +17,21 @@ fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "
       </atomic-search-box>
     </atomic-layout-section>
     <atomic-layout-section section="facets">
-      <div class="view-selector-container">
-        <button id="view-selector-grid" class="view-selector">
-          <i class="fas fa-th"></i> Grid
-        </button>
-        <button id="view-selector-list" class="view-selector">
-          <i class="fas fa-list"></i> List
-        </button>
-      </div>
-      <atomic-facet 
-        facet-id="ovversion" field="ovversion" label="Version">
-      </atomic-facet>
-      <!-- <atomic-category-facet 
-        field="ovversioncategory" label="Categories"
-        sort-criteria="occurrences"
-        delimiting-character="/">
-      </atomic-category-facet> -->
-      <atomic-facet facet-id="ovdoctype" field="ovdoctype" label="Category" with-search="true"></atomic-facet>
+      <atomic-facet-manager>
+        <div class="view-selector-container">
+          <button id="view-selector-grid" class="view-selector">
+            <i class="fas fa-th"></i> Grid
+          </button>
+          <button id="view-selector-list" class="view-selector">
+            <i class="fas fa-list"></i> List
+          </button>
+        </div>
+        <atomic-category-facet facet-id="ovcategory" field="ovcategory" label="Category" depends-on-ovversion
+          sort-criteria="occurrences" number-of-values="4" with-search="true" delimiting-character="|">
+        </atomic-category-facet>
+        <atomic-facet facet-id="ovversion" field="ovversion" label="Version" sort-criteria="occurrences">
+        </atomic-facet>
+      </atomic-facet-manager>
     </atomic-layout-section>
     <atomic-layout-section section="main">
       <atomic-layout-section section="status">

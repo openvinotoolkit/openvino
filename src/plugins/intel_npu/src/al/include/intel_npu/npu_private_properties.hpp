@@ -306,13 +306,6 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: boolean, default is false
- * This option allows to omit loading the weights until inference is created
- */
-static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
-
-/**
  * @brief Read-only property to get the name of used backend
  */
 static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_name{"NPU_BACKEND_NAME"};
@@ -326,6 +319,15 @@ static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_n
  * Available values: enable-partial-workload-management=true/false
  */
 static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to run inferences sequentially, in the order in which they were created
+ * @note Experimental property, for now it only works in very specific scenarios. We need driver updates before we can
+ * implement a robust solution for in-order execution
+ */
+static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
 
 }  // namespace intel_npu
 }  // namespace ov

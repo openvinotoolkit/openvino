@@ -29,6 +29,6 @@ class TRANSFORMATIONS_API ClampFusion;
 
 class ov::pass::ClampFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ClampFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ClampFusion");
     ClampFusion();
 };

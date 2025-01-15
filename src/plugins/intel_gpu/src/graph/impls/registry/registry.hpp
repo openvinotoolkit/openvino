@@ -19,6 +19,7 @@
 #define OV_GPU_WITH_OCL 1
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
+#define OV_GPU_WITH_CM 1
 
 #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
 #define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
@@ -61,6 +62,12 @@
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #else
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...)
+#endif
+
+#if OV_GPU_WITH_CM
+#    define OV_GPU_CREATE_INSTANCE_CM(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
+#else
+#    define OV_GPU_CREATE_INSTANCE_CM(...)
 #endif
 
 #if OV_GPU_WITH_OCL
@@ -130,6 +137,8 @@ REGISTER_IMPLS(fully_connected);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
+REGISTER_IMPLS(lstm_cell);
+REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);
@@ -143,6 +152,7 @@ REGISTER_IMPLS(scatter_elements_update);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
+REGISTER_IMPLS(fake_convert);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
@@ -171,7 +181,6 @@ REGISTER_DEFAULT_IMPLS(grid_sample, OCL_S);
 REGISTER_DEFAULT_IMPLS(group_normalization, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(kv_cache, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(lrn, OCL_S);
-REGISTER_DEFAULT_IMPLS(lstm_elt, OCL_S);
 REGISTER_DEFAULT_IMPLS(multiclass_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(multinomial, OCL_S);
 REGISTER_DEFAULT_IMPLS(mutable_data, OCL_S);
@@ -214,3 +223,5 @@ REGISTER_DEFAULT_IMPLS(unique_count, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(scaled_dot_product_attention, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(rope, OCL_S, OCL_D);
+REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
+REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);

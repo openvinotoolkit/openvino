@@ -4,10 +4,11 @@
 
 #include "brgemm_kernel.hpp"
 
-#include "dnnl_extension_utils.h"
-#include "utils/cpu_utils.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <openvino/core/except.hpp>
+
+#include "dnnl_extension_utils.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl;
@@ -100,8 +101,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
-                brgemmCtx.LDA = k ? K_blk : (is_avx_f16_only ? K : lda); // f16 use f32 internally
-                brgemmCtx.LDB = (!is_f32 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/fp16/b_transposed needs copy
+                brgemmCtx.LDA = k ? K_blk : (is_avx_f16_only ? K : lda);  // f16 use f32 internally
+                brgemmCtx.LDB =
+                    (!is_f32 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/fp16/b_transposed needs copy
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(srcType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(weiType));
@@ -158,8 +160,8 @@ const size_t BrgemmKernel::get_scratch_b_size() const {
 }
 
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
-                                 std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                                 bool use_amx) {
+                               std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                               bool use_amx) {
     brgemm_desc_t brgDesc;
 
     const bool is_int8 =
@@ -208,7 +210,8 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         brgattr.max_bs = 1;
         brgattr.wary_tail_read = false;
         brgattr.hint_innermost_loop = brgemm_innermost_undef;
-        // if b_accumulate is true, it means we want c+=a*b. jit_brgemm_amx_uker_base_t::load_accumulators can support this using tileload(c) without postops
+        // if b_accumulate is true, it means we want c+=a*b. jit_brgemm_amx_uker_base_t::load_accumulators can support
+        // this using tileload(c) without postops
         brgattr.use_uker = true;
         brgattr.use_interleave_stores = true;
         brgattr.hint_prefetching = brgemm_kernel_prefetching_t::brgemm_prf1;
@@ -248,7 +251,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.K_tail = K_tail;
     brgCopyKernelConf.K_blk = K_blk;
     brgCopyKernelConf.use_buffer_a_tail_only = false;
-    //padding K tail to K_blk, LDA is the stride for target tensor
+    // padding K tail to K_blk, LDA is the stride for target tensor
     brgCopyKernelConf.LDA = LDA;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.s8s8_compensation_required = false;
@@ -258,9 +261,13 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
     // copy_a_kernel assumes that in/out tensor has same data type except f16
     // copy_a_kernel has special path for f16: assuming input(f16) -> output(f32)
-    brgCopyKernelConf.a_dt_sz = is_avx_f16_only ? sizeof(ov::float16) : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.a_dt_sz = is_avx_f16_only
+                                    ? sizeof(ov::float16)
+                                    : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     // copied A has the same precision of original
-    brgCopyKernelConf.tr_a_dt_sz = is_avx_f16_only ? sizeof(float) : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.tr_a_dt_sz =
+        is_avx_f16_only ? sizeof(float)
+                        : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
 
@@ -282,9 +289,9 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
-    brgCopyKernelConf.orig_wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
     brgCopyKernelConf.wei_n_blk = N_blk;
-    brgCopyKernelConf.wei_tag =  transpose ? dnnl_ba : dnnl_ab;
+    brgCopyKernelConf.wei_tag = transpose ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
     brgCopyKernelConf.transposed_B = transpose;
 
@@ -298,10 +305,14 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.K_tail = 0;
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
     // f16 is computed by upconverting. in(f16) -> out(f32)
-    brgCopyKernelConf.b_dt_sz = is_avx_f16_only ? sizeof(ov::float16) :
-        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
-    brgCopyKernelConf.tr_b_dt_sz = is_avx_f16_only ?  sizeof(float) :
-        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.b_dt_sz =
+        is_avx_f16_only
+            ? sizeof(ov::float16)
+            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.tr_b_dt_sz =
+        is_avx_f16_only
+            ? sizeof(float)
+            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {
@@ -390,12 +401,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
-                callBrgemm(brgemmCtx,
-                           brgKernels[getBrgIdx(mIdx, k, n)],
-                           local_a_ptr,
-                           weight_ptr,
-                           out_ptr,
-                           wsp);
+                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, wsp);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;

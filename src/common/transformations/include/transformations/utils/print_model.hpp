@@ -19,6 +19,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pass.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -390,7 +391,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
 class OPENVINO_API PrintModel : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::PrintModel");
+    OPENVINO_MODEL_PASS_RTTI("ov::pass::PrintModel");
 
     PrintModel(std::string file_name) {
         static int dump_index = 0;

@@ -121,6 +121,19 @@ TEST_P(InferRequestPropertiesTest, ReusableCPUStreamsExecutor) {
         }
     }
 }
+
+TEST_P(InferRequestPropertiesTest, ConfigHasUnsupportedPluginProperty) {
+    configuration.insert({ov::enable_mmap(false)});
+    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
+        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
+        OV_ASSERT_NO_THROW(core->set_property(target_device, configuration));
+    }
+    // Compile model to target plugins
+    execNet = core->compile_model(function, target_device, configuration);
+    OV_ASSERT_NO_THROW(execNet.create_infer_request());
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

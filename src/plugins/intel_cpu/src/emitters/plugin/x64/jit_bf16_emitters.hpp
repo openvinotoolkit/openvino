@@ -11,16 +11,22 @@ namespace intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
-    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-        ov::element::Type exec_prc = ov::element::bf16) : jit_emitter(host, host_isa, exec_prc) {
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
-            !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-            prepare_table();
+    enum class conversion_mode { default_mode, saturation_mode };
+    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host,
+                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                          ov::element::Type exec_prc = ov::element::bf16,
+                          conversion_mode mode = conversion_mode::default_mode)
+        : jit_emitter(host, host_isa, exec_prc) {
+        prepare_table();
+        mode_ = mode;
     }
 
-    size_t get_inputs_num() const override { return 1; }
+    size_t get_inputs_num() const override {
+        return 1;
+    }
 
 private:
+    conversion_mode mode_ = conversion_mode::default_mode;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
             emit_isa<dnnl::impl::cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
@@ -36,9 +42,29 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
         using namespace Xbyak;
-        using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        using Vmm = typename dnnl::impl::utils::
+            conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         Vmm in = Vmm(in_vec_idxs[0]);
+        if (mode_ == conversion_mode::saturation_mode) {
+            Vmm vmm_temp = Vmm(out_vec_idxs[0]);
+
+            h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
+            h->uni_vminps(vmm_temp, vmm_temp, table_val("bf16_max"));
+
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                h->vfixupimmps(vmm_temp, in, table_val("selector"), 0);
+            } else {
+                Vmm mask = Vmm(aux_vec_idxs[0]);
+                h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
+                h->uni_vblendvps(vmm_temp, vmm_temp, table_val("nan"), mask);
+                h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
+                h->uni_vblendvps(vmm_temp, vmm_temp, table_val("inf"), mask);
+                h->uni_vcmpps(mask, in, table_val("neg_inf"), 0x00);  // _CMP_EQ_OQ
+                h->uni_vblendvps(vmm_temp, vmm_temp, table_val("neg_inf"), mask);
+            }
+            h->uni_vmovups(in, vmm_temp);
+        }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             Ymm out = Ymm(out_vec_idxs[0]);
@@ -79,7 +105,7 @@ private:
             h->uni_vpackusdw(aux, aux, aux);
 
             if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8); //11 01 10 00
+                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8);  // 11 01 10 00
                 h->vextracti128(out, Ymm(aux.getIdx()), 0);
             } else {
                 h->uni_vmovups(out, aux);
@@ -114,6 +140,11 @@ private:
         push_arg_entry_of("rounding", 0x00010000, true);
         push_arg_entry_of("selector", selector_int32, true);
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
+        push_arg_entry_of("bf16_max", 0x7F7F0000, true);
+        push_arg_entry_of("bf16_min", 0xFF7F0000, true);
+        push_arg_entry_of("nan", 0x7FC00000, true);
+        push_arg_entry_of("inf", 0x7F800000, true);
+        push_arg_entry_of("neg_inf", 0xFF800000, true);
     }
 
     size_t aux_vecs_count() const override {
@@ -123,5 +154,5 @@ private:
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
