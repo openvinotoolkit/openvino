@@ -6,9 +6,17 @@ import pytest
 import numpy as np
 from pathlib import Path
 from contextlib import nullcontext as does_not_raise
+import warnings
 
 
 import openvino.runtime as ov
+with warnings.catch_warnings(record=True) as w:
+    import openvino.runtime.opset13 as ops
+    warnings.simplefilter("always")
+
+    assert len(w) > 0
+    assert issubclass(w[-1].category, DeprecationWarning)
+
 from openvino.runtime import (
     Model,
     Core,
@@ -19,8 +27,6 @@ from openvino.runtime import (
     serialize,
     Type,
 )
-
-import openvino.runtime.opset13 as ops
 import openvino.runtime.opset8 as ops8
 from openvino.runtime.op import Constant, Parameter
 from openvino.runtime import Extension
