@@ -47,8 +47,6 @@ ListConstructReplacer::ListConstructReplacer() {
     const auto& select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list});
     // replace list construct for aten::repeat(tensor,  prim::ListConstruct(shapes)))
     const auto& tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list});
-    // replace aten::permute(tensor, prim::ListConstruct)
-    const auto& transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
     // aten::split_with_sizes case
     const auto& vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
     // aten::upsample... case inside the body when body was removed
@@ -63,7 +61,6 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                             equal_op,
                                                                             select_op,
                                                                             tile_op,
-                                                                            transpose_op,
                                                                             vsplit_op,
                                                                             interpolate_op,
                                                                             rand_op});
