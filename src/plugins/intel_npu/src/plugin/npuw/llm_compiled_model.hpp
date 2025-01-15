@@ -53,6 +53,7 @@ private:
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
+    ov::AnyMap m_non_llm_props;
 
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;

@@ -70,9 +70,10 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream) const;
+    void serialize(std::ostream& stream, bool is_weightless, const std::string& weights_path) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin);
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                      bool is_weightless, const std::string& weights_path);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
