@@ -620,7 +620,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Write config
     write(stream, m_cfg);
-    write(stream, m_non_npuw_props);
+    // FIXME: utilize overload instead
+    write(stream, m_non_npuw_props.size());
+    for (const auto& p : m_non_npuw_props) {
+        write(stream, p.first);
+        write_any(stream, p.second);
+    }
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -681,7 +686,17 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Deserialize config
     read(stream, compiled->m_cfg);
-    read(stream, compiled->m_non_npuw_props);
+    compiled->m_cfg.parseEnvVars();
+    // FIXME: utilize overload instead
+    std::size_t props_size;
+    read(stream, props_size);
+    for (std::size_t i = 0; i < props_size; ++i) {
+        std::string key;
+        read(stream, key);
+        ov::Any val;
+        read_any(stream, val);
+        compiled->m_non_npuw_props[key] = val;
+    }
     compiled->implement_properties();
 
     // Deserialize compiled submodels

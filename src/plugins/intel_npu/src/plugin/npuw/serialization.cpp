@@ -23,6 +23,10 @@ void ov::npuw::s11n::write(std::ostream& stream, const bool& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
 }
 
+void ov::npuw::s11n::write(std::ostream& stream, const float& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
 void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::Spatial& var) {
     using ov::npuw::s11n::write;
 
@@ -74,10 +78,50 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node
     write(stream, var.get_names());
 }
 
-void ov::npuw::s11n::write(std::ostream& stream, const ov::Any& var) {
+enum class AnyType : int {
+    STRING = 0,
+    CHARS,
+    INT,
+    UINT32,
+    INT64,
+    UINT64,
+    SIZET,
+    FLOAT,
+    BOOL
+};
+
+void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     // FIXME: figure out a proper way to serialize Any (for config)
-    NPUW_ASSERT(var.is<std::string>() && "Can't serialize ov::Any which is not std::string!");
-    write(stream, var.as<std::string>());
+    if (var.is<std::string>()) {
+        write(stream, int(AnyType::STRING));
+        write(stream, var.as<std::string>());
+    } else if (var.is<const char*>()) {
+        write(stream, int(AnyType::CHARS));
+        write(stream, std::string(var.as<const char*>()));
+    } else if (var.is<std::size_t>()) {
+        write(stream, int(AnyType::SIZET));
+        write(stream, var.as<std::size_t>());
+    } else if (var.is<int>()) {
+        write(stream, int(AnyType::INT));
+        write(stream, var.as<int>());
+    } else if (var.is<int64_t>()) {
+        write(stream, int(AnyType::INT64));
+        write(stream, var.as<int64_t>());
+    } else if (var.is<uint32_t>()) {
+        write(stream, int(AnyType::UINT32));
+        write(stream, var.as<uint32_t>());
+    } else if (var.is<uint64_t>()) {
+        write(stream, int(AnyType::UINT64));
+        write(stream, var.as<uint64_t>());
+    } else if (var.is<float>()) {
+        write(stream, int(AnyType::FLOAT));
+        write(stream, var.as<float>());
+    } else if (var.is<bool>()) {
+        write(stream, int(AnyType::BOOL));
+        write(stream, var.as<bool>());
+    } else {
+        NPUW_ASSERT(false && "Unsupported type");
+    }
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -92,6 +136,10 @@ void ov::npuw::s11n::read(std::istream& stream, std::string& var) {
 }
 
 void ov::npuw::s11n::read(std::istream& stream, bool& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, float& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
@@ -176,9 +224,48 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::Node>& var) 
     var->set_friendly_name(*names.begin());  // any_name ?
 }
 
-void ov::npuw::s11n::read(std::istream& stream, ov::Any& var) {
+void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
     // FIXME: ugly, but cannot use .read(stream) here due to its usage of operator>>()
-    std::string var_str;
-    read(stream, var_str);
-    var = std::move(var_str);
+    int type_int;
+    read(stream, type_int);
+    AnyType type = static_cast<AnyType>(type_int);
+    if (type == AnyType::STRING) {
+        std::string val;
+        read(stream, val);
+        var = std::move(val);
+    } else if (type == AnyType::CHARS) {
+        std::string val;
+        read(stream, val);
+        var = std::move(val);
+    } else if (type == AnyType::SIZET) {
+        std::size_t val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::INT) {
+        int val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::INT64) {
+        int64_t val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::UINT32) {
+        uint32_t val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::UINT64) {
+        uint64_t val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::FLOAT) {
+        float val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::BOOL) {
+        bool val;
+        read(stream, val);
+        var = val;
+    } else {
+        NPUW_ASSERT(false && "Unsupported type");
+    }
 }
