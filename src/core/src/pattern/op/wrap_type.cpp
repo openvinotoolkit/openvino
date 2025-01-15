@@ -20,12 +20,15 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         auto& pattern_map = matcher->get_pattern_value_map();
         pattern_map[shared_from_this()] = graph_value;
         matcher->add_node(graph_value);
-        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", std::string(matcher->level * 4, ' '), "-- TYPE and PREDICATE MATCHED. CHECKING PATTERN ARGUMENTS:");
-        return (get_input_size() == 0
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "├─ TYPE and PREDICATE MATCHED. CHECKING ", get_input_size(), " PATTERN ARGUMENTS: ", pattern_value.get_node_shared_ptr()->get_name());
+        auto res =  (get_input_size() == 0
                     ? true
                     : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "│");
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), (res ? "└─ ALL ARGUMENTS MATCHED: " : "└─ ARGUMENTS DIDN'T MATCH: "), pattern_value.get_node_shared_ptr()->get_name());
+        return res;
     }
-    OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", std::string(matcher->level * 4, ' '), "-- NODES' TYPE or PREDICATE DIDN'T MATCH");
+    OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "└─ NODES' TYPE or PREDICATE DIDN'T MATCH: ", pattern_value.get_node_shared_ptr()->get_name());
     return false;
 }
 

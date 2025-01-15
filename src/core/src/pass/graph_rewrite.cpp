@@ -291,17 +291,17 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
                 const bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 OPENVINO_DEBUG_EMPTY("[", m->get_name(), "]");
-                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: callback ", (status ? "succeded" : "failed"), "\n");
+                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: PATTERN MATCHED, CALLBACK ", (status ? "SUCCEDED" : "FAILED"), "\n");
                 m->clear_state();
                 return status;
             } catch (const std::exception& exp) {
                 OPENVINO_DEBUG_EMPTY("[", m->get_name(), "]");
-                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: callback has thrown: ", exp.what());
-                OPENVINO_THROW("[", m->get_name(), "] END: node: ", node_version_type_name_str(node), " callback has thrown: ", exp.what());
+                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: PATTERN MATCHED, CALLBACK HAS THROWN: ", exp.what());
+                OPENVINO_THROW("[", m->get_name(), "] END: node: ", node_version_type_name_str(node), " CALLBACK HAS THROWN: ", exp.what(), "\n");
             }
         }
         OPENVINO_DEBUG_EMPTY("[", m->get_name(), "]");
-        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: pattern not matched\n");
+        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: PATTERN DIDN'T MATCH\n");
         m->clear_state();
         return false;
     };

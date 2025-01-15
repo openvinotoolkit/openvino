@@ -29,10 +29,24 @@ public:
         return m_stream;
     }
 
+static std::string level_string_fun(int level) {
+    std::string res;
+    res.reserve(4 * level);
+    for (int i = 0; i < level; ++i) {
+        res += "│    ";
+    }
+    return res;
+}
+
+
 private:
     std::function<void(const std::string&)> m_handler_func;
     std::stringstream m_stream;
 };
+
+// // TODO: maybe move to a different place
+#define level_string(level) \
+    ov::util::LogHelper::level_string_fun(level)
 
 class Logger {
     friend class LogHelper;

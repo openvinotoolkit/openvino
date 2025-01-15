@@ -538,6 +538,7 @@ bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
         (matcher->is_strict_mode() &&
          (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
           !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
+        
         return false;
     }
 
@@ -566,11 +567,19 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-        matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
-        auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
-        return true;
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "├─ TYPE MATCHED. CHECKING PATTERN ARGUMENTS2:");
+        if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
+            auto& pattern_map = matcher->get_pattern_value_map();
+            pattern_map[shared_from_this()] = graph_value;
+            OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "│");
+            OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "└─ ALL ARGUMENTS MATCHED: ", graph_value.get_node_shared_ptr()->get_name());
+            return true;
+        }
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "│");
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "└─ ARGUMENTS DIDN'T MATCH: ", graph_value.get_node_shared_ptr()->get_name());
+    } else {
+        OPENVINO_DEBUG_EMPTY("[", matcher->get_name(), "] ", level_string(matcher->level), "└─ TYPE DIDN'T MATCH: ", get_name(), " - ", graph_value.get_node_shared_ptr()->get_name());
     }
     return false;
 }

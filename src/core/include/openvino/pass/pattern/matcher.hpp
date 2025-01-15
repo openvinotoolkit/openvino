@@ -17,12 +17,6 @@
 #include "openvino/pass/pattern/op/any_output.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 
-// white space width TODO: think of better name, code and place
-// #define WW(N) (std::string(N, ' '))
-#define WW(N) (std::string(0, ' '))
-#define LVL_WIDTH(level) \
-    WW(1 + (level + 1) * 4)
-
 namespace ov {
 namespace pass {
 class GraphRewrite;

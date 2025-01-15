@@ -127,9 +127,9 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
-    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]");
-    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", std::string(this->level * 4, ' '), "MATCHING PATTERN NODE: ", node_with_arguments(pattern_value.get_node_shared_ptr()));
-    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", std::string(this->level * 4, ' '), "AGAINST  GRAPH   NODE: ", node_with_arguments(graph_value.get_node_shared_ptr()));
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level));
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "┌─ MATCHING PATTERN NODE: ", node_with_arguments(pattern_value.get_node_shared_ptr()));
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "├─ AGAINST  GRAPH   NODE: ", node_with_arguments(graph_value.get_node_shared_ptr()));
 
     return pattern_node->match_value(this, pattern_value, graph_value);
 }
@@ -137,17 +137,21 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
         this->level++;
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level));
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "┌─ ARGUMENT ", i);
+        this->level++;
         if (!match_value(pattern_args.at(i), args.at(i))) {
-            // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     ABORTING: Argument ", i,
-            //                      " mismatch. Expected in pattern: ",
-            //                      node_version_type_name_str(pattern_args.at(i).get_node_shared_ptr()),
-            //                      ". Found in graph: ", node_version_type_name_str(args.at(i).get_node_shared_ptr()));
+            this->level--;
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "│");
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "└─ ARGUMENT ", i, " DIDN'T MATCH ");
             this->level--;
             return false;
         }
         this->level--;
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "│");
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "└─ ARGUMENT ", i, " MATCHED");
+        this->level--;
     }
-    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     ALL ARGUMENTS MATCHED");
     return true;
 }
 
@@ -156,6 +160,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", "SIZE PROBLEM");
         // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", LVL_WIDTH(this->level), "ABORTING: Arguments count mismatch. Expected ",
         //                      pattern_args.size(), " arguments in pattern node. Found", 
         //                      args.size(), " arguments in graph node.");
@@ -171,23 +176,38 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
                       return n1 < n2;
                   });
         do {
-            // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", LVL_WIDTH(this->level), "match_permutation()1 for ", node_with_arguments(pattern_node->shared_from_this()));
+            this->level++;
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level));
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "┌─ NEW PERMUTATION");
             auto saved = start_match();
             if (match_permutation(pattern_args, args)) {
-                // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", "EXIT 1");
-                return saved.finish(true);
+                auto res = saved.finish(true);
+                OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "│");
+                OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "└─ PERMUTATION MATCHED");
+                this->level--;
+                return res;
             }
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "│");
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "└─ PERMUTATION DIDN'T MATCH");
+            this->level--;
         } while (std::next_permutation(begin(pattern_args),
                                        end(pattern_args),
                                        [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
                                            return n1 < n2;
                                        }));
     } else {
-        // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", LVL_WIDTH(this->level), "match_permutation()2 for ", node_with_arguments(pattern_node->shared_from_this()));
-        return match_permutation(pattern_args, args);
+        this->level++;
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level));
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "┌─ GRAPH NODE IS NOT COMMUTATIVE, A SINGLE PERMUTATION PRESENT ONLY");
+        auto res = match_permutation(pattern_args, args);
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "│");
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "└─ PERMUTATION ", (res ? " MATCHED" : " DIDN'T MATCH"));
+        this->level--;
+        return res;
     }
 
-    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]");
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "│");
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "] ", level_string(this->level), "├─ NONE OF PERMUTATIONS MATCHED");
     return false;
 }
 

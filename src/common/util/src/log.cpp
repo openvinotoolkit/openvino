@@ -16,6 +16,16 @@ void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
 }
 
+// std::string ov::util::LogHelper::level_string(int level) {
+//     std::string level_string;
+//     level_string.reserve(level * 4); //TODO: think how much to reserve
+//     for (int i = 0; i < level; ++i) {
+//         level_string += "│  ";
+//     }
+//     return level_string;
+//     // return ""; //for now
+// }
+
 ov::util::LogHelper::LogHelper(LOG_TYPE type,
                                const char* file,
                                int line,
