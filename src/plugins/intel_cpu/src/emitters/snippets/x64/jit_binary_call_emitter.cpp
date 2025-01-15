@@ -33,7 +33,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
 }
 
 void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
-                                                    const std::vector<size_t>& mem_ptrs_idxs) const {
+                                                    const std::vector<size_t>& used_gpr_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(sizeof(abi_param_regs) / sizeof(*abi_param_regs) >= num_binary_args,
                               "Requested number of runtime arguments is not supported");
     // This regs will be corrupted, since we'll use them to pass runtime args
@@ -44,7 +44,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     m_call_address_reg = Reg64(static_cast<int>(aux_gpr_idxs.back()));
     aux_gpr_idxs.pop_back();
     bool spill_required = false;
-    m_callee_saved_reg = Reg64(static_cast<int>(get_callee_saved_aux_gpr(aux_gpr_idxs, mem_ptrs_idxs, spill_required)));
+    m_callee_saved_reg = Reg64(static_cast<int>(get_callee_saved_aux_gpr(aux_gpr_idxs, used_gpr_idxs, spill_required)));
     if (spill_required)
         m_regs_to_spill.emplace(snippets::RegType::gpr, m_callee_saved_reg.getIdx());
     m_regs_initialized = true;

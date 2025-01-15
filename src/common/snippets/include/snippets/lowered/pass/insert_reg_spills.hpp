@@ -16,7 +16,7 @@ namespace pass {
  * @brief Default function to enable RegSpill insertion
  * @return True if RegSpill is required around a certain op, False otherwise.
  */
-inline bool brgemm_reg_spill(const ExpressionPtr& expr) {
+inline bool needs_reg_spill_default(const ExpressionPtr& expr) {
     return ov::is_type<snippets::op::Brgemm>(expr->get_node());
 }
 
@@ -29,7 +29,7 @@ class InsertRegSpills : public Pass {
 public:
     OPENVINO_RTTI("InsertRegSpills", "", Pass)
     explicit InsertRegSpills(RegManager& reg_manager,
-                             std::function<bool(const ExpressionPtr&)> needs_reg_spill = brgemm_reg_spill) :
+                             std::function<bool(const ExpressionPtr&)> needs_reg_spill = needs_reg_spill_default) :
         m_reg_manager(reg_manager), m_needs_reg_spill(std::move(needs_reg_spill)) {}
     bool run(LinearIR& linear_ir) override;
 

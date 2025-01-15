@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 /**
- * @brief Base class for binary call emitters. It's main function is to allocate 2 auxiliary registers needed for binary
+ * @brief Base class for binary call emitters. Its main function is to allocate 2 auxiliary registers needed for binary
  * call emission: one is any gpr to store callable address, the second one is a callee-saved reg to organize rsp
  * alignment before the call. It also creates a set of registers to spill that can be passed directly to
  * EmitABIRegSpills.
@@ -37,7 +37,7 @@ protected:
      */
     const Xbyak::Reg64& get_call_address_reg() const;
     /**
-     * @brief Returns a calle-saved gpr that can be used align rsp before the call instruction. This method can be used
+     * @brief Returns a callee-saved gpr that can be used align rsp before the call instruction. This method can be used
      * only after init_binary_call_regs(...)
      */
     const Xbyak::Reg64& get_callee_saved_reg() const;
@@ -45,9 +45,10 @@ protected:
      * @brief Initializes registers that can be then obtained via get_regs_to_spill(), get_call_address_reg() or
      * get_callee_saved_reg().
      * @param num_binary_args - the number of arguments of the binary that will be called
-     * @param mem_ptrs_idxs - indices of in/out registers that must be preserved during aux reg allocation
+     * @param used_gpr_idxs - indices of registers that must be preserved during aux reg allocation, usually in/out
+     * memory pointers
      */
-    void init_binary_call_regs(size_t num_binary_args, const std::vector<size_t>& mem_ptrs_idxs) const;
+    void init_binary_call_regs(size_t num_binary_args, const std::vector<size_t>& used_gpr_idxs) const;
     /**
      * @brief Initializes registers that can be then obtained via get_regs_to_spill(), get_call_address_reg() or
      * get_callee_saved_reg().
@@ -61,7 +62,7 @@ protected:
 
 private:
     // Note: init_regs() can be called only from emit_impl, since it needs initialized regs
-    // init_impl os a constant method, so all these fields have to be mutable
+    // init_impl is a constant method, so all these fields have to be mutable
     mutable std::set<snippets::Reg> m_regs_to_spill{};
     mutable Xbyak::Reg64 m_callee_saved_reg;
     mutable Xbyak::Reg64 m_call_address_reg;
