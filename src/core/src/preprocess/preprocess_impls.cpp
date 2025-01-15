@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,7 +211,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     // Replace parameter
     for (auto consumer : consumers) {
-        if (dynamic_cast<ov::opset8::Result*>(consumer.get_node())) {
+        if (ov::as_type<ov::opset8::Result>(consumer.get_node())) {
             // Some result points to old parameter (Param->Result case), need to trigger revalidation
             need_validate = true;
         }
@@ -415,7 +415,7 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
     const auto& start_out_node_names = node.get_tensor().get_names();
-    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    result = ov::as_type_ptr<opset8::Result>(node.get_node_shared_ptr());
     auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
     PostprocessingContext context(model_layout);
     if (get_tensor_data()->is_layout_set()) {

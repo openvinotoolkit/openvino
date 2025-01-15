@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -21,7 +21,7 @@ from openvino import (
 
 import openvino.properties as props
 import openvino.properties.hint as hints
-from openvino.runtime import Extension
+from openvino import Extension
 from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,

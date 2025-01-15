@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 
 #include "common.hpp"
 #include "pyopenvino/core/remote_context.hpp"
+#include "pyopenvino/graph/op_extension.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -701,6 +702,19 @@ void regclass_Core(py::module m) {
 
             :param extensions: List of Extension objects.
             :type extensions: list[openvino.runtime.Extension]
+        )");
+
+    cls.def(
+        "add_extension",
+        [](ov::Core& self, py::object dtype) {
+            self.add_extension(PyOpExtension(dtype));
+        },
+        py::arg("custom_op"),
+        R"(
+            Registers custom Op to a Core object.
+
+            :param custom_op: type of custom Op
+            :type custom_op: openvino.Op
         )");
 
     cls.def("get_available_devices",

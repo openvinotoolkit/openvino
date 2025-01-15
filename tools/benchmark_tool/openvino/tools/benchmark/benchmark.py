@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import time
 from datetime import datetime
 from math import ceil
-from openvino.runtime import Core, get_version, AsyncInferQueue
+from openvino import Core, get_version, AsyncInferQueue
 
 from .utils.constants import GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger

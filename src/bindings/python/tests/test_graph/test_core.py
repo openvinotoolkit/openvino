@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -9,7 +9,7 @@ import pytest
 
 from openvino import Dimension, Model, PartialShape, Shape
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 
 
 def test_dimension():

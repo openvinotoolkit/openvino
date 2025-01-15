@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> configsInferRequestRunTests = {{ov::log::level(ov::log::Level::INFO)}};
+const std::vector<ov::AnyMap> configsInferRequestRunTests = {{ov::log::level(ov::log::Level::ERR)}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests,
