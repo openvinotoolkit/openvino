@@ -142,8 +142,6 @@ public:
     // So this method should be called after setting all user properties, but before apply_user_properties() call.
     void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info, const bool is_llm);
 
-    bool is_model_llm(std::shared_ptr<ov::Model>& model);
-
     std::string to_string() const;
 
 protected:
