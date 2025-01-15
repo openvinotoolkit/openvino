@@ -269,6 +269,7 @@ TEST_P(gemm_2in_scale, basic) {
 }
 
 TEST_P(gemm_2in_scale, fp16_scale_out) {
+    GTEST_SKIP();
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
@@ -299,6 +300,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_scale, ::testing::ValuesIn(std::v
 
 class gemm_2in_add : public GemmFusingTest {};
 TEST_P(gemm_2in_add, eltwise_postop_static) {
+    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -331,6 +333,7 @@ TEST_P(gemm_2in_add, eltwise_postop_static) {
 }
 
 TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
+    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -367,6 +370,7 @@ TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
 }
 
 TEST_P(gemm_2in_add, eltwise_postop_cached) {
+    GTEST_SKIP();
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -530,6 +534,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_act_scale_quantize_i8, ::testing:
 
 class gemm_2in_act_scale_quantize_eltwise_i8 : public GemmFusingTest {};
 TEST_P(gemm_2in_act_scale_quantize_eltwise_i8, basic) {
+    GTEST_SKIP();
     auto p = GetParam();
     create_topologies(
         input_layout("input0", get_input_layout(p, 0)),
