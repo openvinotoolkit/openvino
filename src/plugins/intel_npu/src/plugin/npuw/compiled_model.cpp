@@ -364,7 +364,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt, end_sub_idx)) {
+        if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
@@ -996,8 +996,9 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
     const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
     const std::size_t end_idx = m_compiled_submodels.size();
+    const std::size_t real_idx = m_compiled_submodels[id].replaced_by.value_or(id);
 
-    if (ov::npuw::util::is_set(id, dof_opt, end_idx)) {
+    if (ov::npuw::util::is_set(id, dof_opt, real_idx, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
     }
 }
