@@ -111,8 +111,8 @@ static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     OPENVINO_ASSERT(img_pshape.is_static(), "Dynamic shapes are not supported for PriorBox operation yet");
 
     if (!output_pshape.is_dynamic()) {
-        const auto output_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
-        const auto image_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        const auto output_size_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
 
         // output_size should be constant to be static output shape
         OPENVINO_ASSERT(output_size_constant,
@@ -183,8 +183,8 @@ static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8
     auto output_pshape = op->get_output_partial_shape(0);
 
     if (!output_pshape.is_dynamic()) {
-        const auto output_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
-        const auto image_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        const auto output_size_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
 
         // output_size should be constant to be static output shape
         OPENVINO_ASSERT(output_size_constant,
