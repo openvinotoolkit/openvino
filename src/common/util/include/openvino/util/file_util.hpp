@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
 #include "openvino/util/wstring_cast_util.hpp"
 
@@ -160,23 +161,24 @@ bool directory_exists(const std::string& path);
 bool directory_exists(const std::wstring& path);
 #endif
 
+inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
+    const auto& file_name_result = file_name.native();
+    const auto pos = file_name_result.find('!');
+    if (pos != std::decay_t<decltype(file_name_result)>::npos) {
+        return ov::util::Path(file_name_result.substr(0, pos));
+    }
+
+    return file_name;
+}
+
 /**
  * @brief      Returns file size for file
  * @param[in]  path  The file name
  * @return     file size
  */
-inline int64_t file_size(const char* path) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* file_name = widefilename.c_str();
-#elif defined(__ANDROID__) || defined(ANDROID)
-    std::string file_name = path;
-    std::string::size_type pos = file_name.find('!');
-    if (pos != std::string::npos) {
-        file_name = file_name.substr(0, pos);
-    }
-#else
-    const char* file_name = path;
+inline int64_t file_size(const ov::util::Path& file_name) {
+#if defined(__ANDROID__) || defined(ANDROID)
+    const ov::util::Path& file_name = cut_android_path(file_name);
 #endif
     std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
     return in.tellg();
@@ -211,8 +213,11 @@ inline bool file_exists(const char* path) {
  * @param[in]  path  The file name
  * @return     file size
  */
+inline int64_t file_size(const wchar_t* path) {
+    return file_size(wstring_to_string(path));
+}
 inline int64_t file_size(const std::wstring& path) {
-    return file_size(wstring_to_string(path).c_str());
+    return file_size(wstring_to_string(path));
 }
 
 /**
@@ -224,15 +229,6 @@ inline bool file_exists(const std::wstring& path) {
     return file_exists(wstring_to_string(path).c_str());
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief      Returns file size for file
- * @param[in]  path  The file name
- * @return     file size
- */
-inline int64_t file_size(const std::string& path) {
-    return file_size(path.c_str());
-}
 
 /**
  * @brief      Returns true if file exists
