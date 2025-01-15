@@ -55,8 +55,8 @@ private:
     GetPropertiesMap m_prop_to_opt;
 
     KVCacheDesc m_kvcache_desc;
-    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    ov::SoPtr<ov::ICompiledModel> m_kvcache_compiled;
+    ov::SoPtr<ov::ICompiledModel> m_prefill_compiled;
 };
 
 }  // namespace npuw

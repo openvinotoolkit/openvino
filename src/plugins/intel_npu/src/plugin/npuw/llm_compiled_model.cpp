@@ -513,16 +513,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
-    m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
-    OPENVINO_ASSERT(m_kvcache_compiled,
-                    "Can't create ov::npuw::CompiledModel for passed kvcache "
-                    "model and its config, please check passed config.");
-    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
-    OPENVINO_ASSERT(m_prefill_compiled,
-                    "Can't create ov::npuw::CompiledModel for passed prefill "
-                    "model and its config, please check passed config.");
+    m_kvcache_compiled = plugin->get_core()->compile_model(kvcache_model, "CPU");
+    // std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+    //     ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
+    // OPENVINO_ASSERT(m_kvcache_compiled,
+    //                 "Can't create ov::npuw::CompiledModel for passed kvcache "
+    //                 "model and its config, please check passed config.");
+    m_prefill_compiled = plugin->get_core()->compile_model(prefill_model, "CPU");
+    // std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+    //     ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+    // OPENVINO_ASSERT(m_prefill_compiled,
+    //                 "Can't create ov::npuw::CompiledModel for passed prefill "
+    //                 "model and its config, please check passed config.");
 
     implement_properties();
 
@@ -573,16 +575,16 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, m_cfg);
 
     // Serialize CompiledModels
-    m_kvcache_compiled->serialize(stream);
-    m_prefill_compiled->serialize(stream);
+    // m_kvcache_compiled->serialize(stream);
+    // m_prefill_compiled->serialize(stream);
 
     // Serialize weights bank (if required)
-    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
-    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    // FIXME: support weightless flow
-    write(stream, kv_bank->get_name());
-    kv_bank->serialize(stream);
+    // const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    // const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    // NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // // FIXME: support weightless flow
+    // write(stream, kv_bank->get_name());
+    // kv_bank->serialize(stream);
 
     LOG_INFO("Done.");
 }
@@ -595,84 +597,84 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     using namespace ov::npuw::s11n;
 
-    // Sanity check magic number
-    std::array<uint8_t, 6> serialization_indicator;
-    read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+    // // Sanity check magic number
+    // std::array<uint8_t, 6> serialization_indicator;
+    // read(stream, serialization_indicator);
+    // NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 
-    // Deserialize general meta info
-    int vmajor, vminor, vpatch;
-    std::string s11n_version;
-    read(stream, vmajor);
-    read(stream, vminor);
-    read(stream, vpatch);
-    read(stream, s11n_version);
+    // // Deserialize general meta info
+    // int vmajor, vminor, vpatch;
+    // std::string s11n_version;
+    // read(stream, vmajor);
+    // read(stream, vminor);
+    // read(stream, vpatch);
+    // read(stream, s11n_version);
 
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       " Serialized by OV ",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       " Current OV version ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       " NPUW serialized by version ",
-                       s11n_version,
-                       " NPUW current serialization version ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    // if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+    //     s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+    //     OPENVINO_THROW("This blobs was serialized with different OV version!",
+    //                    " Serialized by OV ",
+    //                    vmajor,
+    //                    '.',
+    //                    vminor,
+    //                    '.',
+    //                    vpatch,
+    //                    " Current OV version ",
+    //                    OPENVINO_VERSION_MAJOR,
+    //                    '.',
+    //                    OPENVINO_VERSION_MINOR,
+    //                    '.',
+    //                    OPENVINO_VERSION_PATCH,
+    //                    " NPUW serialized by version ",
+    //                    s11n_version,
+    //                    " NPUW current serialization version ",
+    //                    NPUW_SERIALIZATION_VERSION);
+    // }
 
-    // Deserialize model name first
-    std::string model_name;
-    read(stream, model_name);
+    // // Deserialize model name first
+    // std::string model_name;
+    // read(stream, model_name);
 
-    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
-    // to continue deserialization
-    ov::ParameterVector parameters;
-    ov::NodeVector results;
+    // // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
+    // // to continue deserialization
+    // ov::ParameterVector parameters;
+    // ov::NodeVector results;
 
-    read(stream, parameters);
-    read(stream, results);
+    // read(stream, parameters);
+    // read(stream, results);
 
-    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+    // auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
 
-    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
+    // auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
 
-    // Deserialize LLMCompiledModel-specific data
-    read(stream, compiled->m_kvcache_desc.max_prompt_size);
-    read(stream, compiled->m_kvcache_desc.total_size);
-    read(stream, compiled->m_kvcache_desc.num_stored_tokens);
-    read(stream, compiled->m_kvcache_desc.dim);
+    // // Deserialize LLMCompiledModel-specific data
+    // read(stream, compiled->m_kvcache_desc.max_prompt_size);
+    // read(stream, compiled->m_kvcache_desc.total_size);
+    // read(stream, compiled->m_kvcache_desc.num_stored_tokens);
+    // read(stream, compiled->m_kvcache_desc.dim);
 
-    // Deserialize config
-    read(stream, compiled->m_cfg);
+    // // Deserialize config
+    // read(stream, compiled->m_cfg);
 
-    // Deserialize CompiledModels
-    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
-    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
+    // // Deserialize CompiledModels
+    // compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
+    // compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
 
-    // Deserialize weights bank (if required)
-    std::string bank_name;
-    read(stream, bank_name);
-    auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+    // // Deserialize weights bank (if required)
+    // std::string bank_name;
+    // read(stream, bank_name);
+    // auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
 
-    // FIXME: support weightless option
-    compiled->m_kvcache_compiled->m_weights_bank = bank;
-    compiled->m_prefill_compiled->m_weights_bank = bank;
+    // // FIXME: support weightless option
+    // compiled->m_kvcache_compiled->m_weights_bank = bank;
+    // compiled->m_prefill_compiled->m_weights_bank = bank;
 
-    // After bank deserialization - reconstruct NPU closures from the bank
-    compiled->m_kvcache_compiled->reconstruct_closure();
-    compiled->m_prefill_compiled->reconstruct_closure();
+    // // After bank deserialization - reconstruct NPU closures from the bank
+    // compiled->m_kvcache_compiled->reconstruct_closure();
+    // compiled->m_prefill_compiled->reconstruct_closure();
 
-    LOG_INFO("Done.");
-    return compiled;
+    // LOG_INFO("Done.");
+    return std::shared_ptr<ov::npuw::LLMCompiledModel>();
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
