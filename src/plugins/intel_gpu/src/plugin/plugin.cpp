@@ -26,7 +26,11 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -40,8 +44,6 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -65,9 +67,28 @@ namespace intel_gpu {
 #undef REGISTER_FACTORY
 
 const auto is_llm = [](const std::shared_ptr<const ov::Model>& model) -> bool {
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
-        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model))
-        return true;
+    using namespace ov::pass::pattern;
+
+    auto past = wrap_type<ov::op::v6::ReadValue>();
+    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
+    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
+    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
+    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
+    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
+    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
+    auto present = wrap_type<ov::op::v6::Assign>({present_input});
+
+    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
+
+    for (auto& op : model->get_ordered_ops()) {
+        if (kvcache_matcher->match(op)) {
+            return true;
+        }
+    }
+
     return false;
 };
 
