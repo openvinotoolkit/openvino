@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,6 +177,7 @@ OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);
 OP_CONVERTER(translate_tensor_list_resize_op);
 OP_CONVERTER(translate_tensor_list_concat_v2_op);
+OP_CONVERTER(translate_tensor_scatter_add_op);
 OP_CONVERTER(translate_tensor_scatter_update_op);
 OP_CONVERTER(translate_tile_op);
 OP_CONVERTER(translate_tobool_op);

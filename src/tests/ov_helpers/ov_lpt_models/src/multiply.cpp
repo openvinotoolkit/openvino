@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,10 +69,10 @@ std::shared_ptr<ov::Model> MultiplyFunction::get(const ov::element::Type model_p
 
     ov::ParameterVector inputs;
     if (ov::is_type<ov::opset1::Parameter>(branchNodes1.input)) {
-        inputs.push_back(std::dynamic_pointer_cast<ov::opset1::Parameter>(branchNodes1.input));
+        inputs.push_back(ov::as_type_ptr<ov::opset1::Parameter>(branchNodes1.input));
     }
     if (ov::is_type<ov::opset1::Parameter>(branchNodes2.input)) {
-        inputs.push_back(std::dynamic_pointer_cast<ov::opset1::Parameter>(branchNodes2.input));
+        inputs.push_back(ov::as_type_ptr<ov::opset1::Parameter>(branchNodes2.input));
     }
 
     return std::make_shared<ov::Model>(results, inputs, "MultiplyTransformation");

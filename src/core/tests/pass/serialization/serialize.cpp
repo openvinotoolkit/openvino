@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ TEST_P(SerializationTest, SaveModel) {
     });
 }
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(SerializationTest, CompareFunctionsByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     const auto out_bin_path = std::filesystem::path(m_out_bin_path);

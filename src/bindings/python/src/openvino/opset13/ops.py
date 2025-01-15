@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
@@ -343,7 +343,7 @@ def constant(
 @nameable_op
 def constant(  # noqa: F811
     tensor: Tensor,
-    shared_memory: bool = False,
+    shared_memory: bool = True,
     name: Optional[str] = None,
 ) -> Constant:
     return Constant(tensor, shared_memory=shared_memory)

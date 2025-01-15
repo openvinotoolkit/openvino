@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1144,6 +1144,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
             shape_info_ptr[offset++] = upper_pads[j];  // pad_after
         }
     }
+}
+
+void primitive_inst::set_shape_info_memory_subbuffer(memory::ptr addr) {
+    _shape_info_memory = addr;
 }
 
 void primitive_inst::allocate_shape_info_memory() {
