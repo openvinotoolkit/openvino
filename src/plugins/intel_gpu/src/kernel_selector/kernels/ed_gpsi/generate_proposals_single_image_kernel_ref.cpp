@@ -51,6 +51,9 @@ ExperimentalDetectronGenerateProposalsSingleImageRef::DispatchData SetDefault(
         dispatch_data.gws = {bottom_H, bottom_W, anchors_num};
     } else if (idx == 3) {
         dispatch_data.gws = {params.post_nms_count, 1, 1};
+    } else if (idx == 1) {
+        dispatch_data.gws = {16, 1, 1};
+        dispatch_data.lws = {16, 1, 1};
     } else {
         dispatch_data.gws = {1, 1, 1};
     }

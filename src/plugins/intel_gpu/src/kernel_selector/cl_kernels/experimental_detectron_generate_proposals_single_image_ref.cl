@@ -102,7 +102,16 @@ inline void FUNC(swap_box)(__global Box* a, __global Box* b) {
 }
 
 inline int FUNC(partition)(__global Box* arr, int l, int h) {
-    INPUT0_TYPE pivotScore = arr[h].score;
+    int static_counter = 0;
+    static_counter++;
+    int pivot_idx = l;
+    if(static_counter%3 == 0) {
+        pivot_idx = (l+h)/2;
+    }
+    if(static_counter%3 == 1) {
+        pivot_idx = h;
+    }
+    INPUT0_TYPE pivotScore = arr[pivot_idx].score;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
         if (arr[j].score > pivotScore) {
@@ -110,7 +119,7 @@ inline int FUNC(partition)(__global Box* arr, int l, int h) {
             FUNC_CALL(swap_box)(&arr[i], &arr[j]);
         }
     }
-    FUNC_CALL(swap_box)(&arr[i + 1], &arr[h]);
+    FUNC_CALL(swap_box)(&arr[i + 1], &arr[pivot_idx]);
     return (i + 1);
 }
 
@@ -129,66 +138,96 @@ inline void FUNC(bubbleSortIterative)(__global Box* arr, int l, int h) {
     }
 }
 
-inline void FUNC(quickSortIterative)(__global Box* arr, int l, int h) {
-    // Create an auxiliary stack
-    const int kStackSize = 100;
-    int stack[kStackSize];
-
-    // initialize top of stack
-    int top = -1;
-
-    // push initial values of l and h to stack
-    stack[++top] = l;
-    stack[++top] = h;
-
-    // Keep popping from stack while is not empty
-    while (top >= 0) {
-        // Pop h and l
-        h = stack[top--];
-        l = stack[top--];
-        bool all_zeroes = true; //when all zeroes algorithm stuck
-        for(int i=l;i<h;i++) {
-            if(arr[i].score != 0.0f) {
-                all_zeroes = false;
-                break;
-            }
-        }
-        if(all_zeroes) {
-            continue;
-        }
-        // Set pivot element at its correct position
-        // in sorted array
-        int p = FUNC_CALL(partition)(arr, l, h);
-
-        // If there are elements on left side of pivot,
-        // then push left side to stack
-        if (p - 1 > l) {
-            if (top >= (kStackSize - 1)) {
-                FUNC_CALL(bubbleSortIterative)(arr, l, p - 1);
-            } else {
-                stack[++top] = l;
-                stack[++top] = p - 1;
-            }
-        }
-
-        // If there are elements on right side of pivot,
-        // then push right side to stack
-        if (p + 1 < h) {
-            if (top >= (kStackSize - 1)) {
-                FUNC_CALL(bubbleSortIterative)(arr, p + 1, h);
-            } else {
-                stack[++top] = p + 1;
-                stack[++top] = h;
-            }
-        }
-    }
-}
-
 // 1. Sort boxes by scores
 KERNEL(edgpsi_ref_stage_1)(__global OUTPUT_TYPE* proposals) {
     __global Box* boxes = (__global Box*)proposals;
+    const int id = get_global_id(0);
+    int l = 0, h = NUM_PROPOSALS-1;
+    // Create an auxiliary stack
+    const int kStackSize = 100;
+    __local int stack[kStackSize];
+    // initialize top of stack
+    __local int top; 
+    if(id==0) {      
+        top = -1;
+        // push initial values of l and h to stack
+        stack[++top] = l;
+        stack[++top] = h;
 
-    FUNC_CALL(quickSortIterative)(boxes, 0, NUM_PROPOSALS-1);
+        // Keep popping from stack while is not empty
+        int run_counter = 0;
+        const int maximal_counter = 4; //log2(16) , 16 is worker num
+        while (top >= 0 && run_counter < maximal_counter) {
+            run_counter++;
+            // Pop h and l
+            h = stack[top--];
+            l = stack[top--];
+            // Set pivot element at its correct position
+            // in sorted array
+            int p = FUNC_CALL(partition)(boxes, l, h);
+
+            // If there are elements on left side of pivot,
+            // then push left side to stack
+            if (p - 1 > l) {
+                if (top >= (kStackSize - 1)) {
+                    FUNC_CALL(bubbleSortIterative)(boxes, l, p - 1);
+                } else {
+                    stack[++top] = l;
+                    stack[++top] = p - 1;
+                }
+            }
+
+            // If there are elements on right side of pivot,
+            // then push right side to stack
+            if (p + 1 < h) {
+                if (top >= (kStackSize - 1)) {
+                    FUNC_CALL(bubbleSortIterative)(boxes, p + 1, h);
+                } else {
+                    stack[++top] = p + 1;
+                    stack[++top] = h;
+                }
+            }
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(id<top/2) {
+        l = stack[id*2];
+        h = stack[id*2+1];
+        int private_stack[kStackSize];
+        int private_top = -1;
+        private_stack[++private_top] = l;
+        private_stack[++private_top] = h;
+        while (private_top >= 0) {
+            // Pop h and l
+            h = private_stack[private_top--];
+            l = private_stack[private_top--];
+            // Set pivot element at its correct position
+            // in sorted array
+            int p = FUNC_CALL(partition)(boxes, l, h);
+
+            // If there are elements on left side of pivot,
+            // then push left side to stack
+            if (p - 1 > l) {
+                if (top >= (kStackSize - 1)) {
+                    FUNC_CALL(bubbleSortIterative)(boxes, l, p - 1);
+                } else {
+                    private_stack[++private_top] = l;
+                    private_stack[++private_top] = p - 1;
+                }
+            }
+
+            // If there are elements on right side of pivot,
+            // then push right side to stack
+            if (p + 1 < h) {
+                if (top >= (kStackSize - 1)) {
+                    FUNC_CALL(bubbleSortIterative)(boxes, p + 1, h);
+                } else {
+                    private_stack[++private_top] = p + 1;
+                    private_stack[++private_top] = h;
+                }
+            }
+        }
+    }
 }
 #undef Box
 #endif /* EDGPSI_STAGE_1 */
