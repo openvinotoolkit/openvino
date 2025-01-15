@@ -90,7 +90,7 @@ const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
 }
 
 WeightsSharing::Statistics WeightsSharing::dumpStatistics() const {
-    Statistics retVal = {0 , 0};
+    Statistics retVal = {0, 0};
 
     std::lock_guard<std::mutex> lock(guard);
 

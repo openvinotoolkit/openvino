@@ -911,7 +911,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
     memoryRegions.erase(it, memoryRegions.end());
 
-    //Set up the memory control subsystem.
+    // Set up the memory control subsystem.
     this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(this->_name));
     m_pMemoryControl->insert(memoryRegions, syncNodesInds);
     auto memoryBlocks = m_pMemoryControl->solve();

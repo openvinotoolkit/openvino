@@ -93,7 +93,8 @@ static void dumpToCSV(std::ofstream& os,
         auto weights_statistics = weights_cache.dumpStatistics();
         if (!weights_statistics.empty()) {
             os << ";;;;;;" << std::endl;
-            os << "Weights cache statistics" << ";;;;;;" << std::endl;
+            os << "Weights cache statistics"
+               << ";;;;;;" << std::endl;
             os << "Socket ID;"
                << "Total size [bytes];"
                << "Total memory objects [-];"

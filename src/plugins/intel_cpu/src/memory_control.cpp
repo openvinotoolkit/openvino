@@ -128,7 +128,7 @@ private:
     std::shared_ptr<MemoryBlockWithRelease> m_pBlock;
     size_t m_max_requested_size = 0;
 };
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS
 
 class IMemoryManager {
 public:

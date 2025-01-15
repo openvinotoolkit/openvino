@@ -69,7 +69,7 @@ void DebugCapsConfig::readProperties() {
 
     if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_LEVEL")))
         memoryStatisticsDumpLevel = std::stoi(envVarValue);
-    
+
     if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH")))
         memoryStatisticsDumpPath = envVarValue;
 }
