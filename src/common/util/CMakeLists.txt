@@ -26,6 +26,7 @@ endif()
 
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/file_util.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/wstring_cast_util.cpp"
     PROPERTIES COMPILE_DEFINITIONS OpenVINO_VERSION="${OpenVINO_VERSION}")
 
 source_group("src" FILES ${LIBRARY_SRC})
