@@ -344,7 +344,9 @@ TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
     }
 }
 
-TEST_P(InferRequestRunTests, SetRandomTensorOverZeroTensor0) {
+using RandomTensorOverZeroTensorRunTests = InferRequestRunTests;
+
+TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -390,7 +392,7 @@ TEST_P(InferRequestRunTests, SetRandomTensorOverZeroTensor0) {
     delete[] buffer;
 }
 
-TEST_P(InferRequestRunTests, SetRandomTensorOverZeroTensor1) {
+TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
