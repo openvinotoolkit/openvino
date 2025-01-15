@@ -28,7 +28,7 @@ def test_reload_openvino_runtime():
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
 
-            import openvino.runtime  # Warning is raised here 
+            import openvino.runtime  # Warning is raised here
             importlib.reload(openvino.runtime)  # Second warning on reload
 
             assert len(w) == 2

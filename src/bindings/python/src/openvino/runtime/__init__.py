@@ -7,24 +7,13 @@
 
 import warnings
 warnings.simplefilter("always", DeprecationWarning)
-import inspect
-stack = inspect.stack()
+warnings.warn(
+    "The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. "
+    "Please replace `openvino.runtime` with `openvino`.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
-if stack[-1].code_context is None:  # python interactive mode
-    warnings.warn(
-        "The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. "
-        "Please replace `openvino.runtime` with `openvino`.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-else:
-    warnings.warn(
-        "The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. "
-        "Please replace `openvino.runtime` with `openvino`.\n"
-        f"{stack[-1].filename}:{stack[-1].lineno}:\n\t{stack[-1].code_context[0]}",
-        DeprecationWarning,
-        stacklevel=2
-    )
 
 from openvino._pyopenvino import get_version
 
