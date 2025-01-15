@@ -132,7 +132,7 @@ void Bank::evaluate_and_allocate() {
             // Detach the evaluated LazyTensor from its memory here - when it is 100%
             // not needed anymore (transformations, if any, and copies are done)
             // Note: this is the non-CPU path!
-            const_cast<LazyTensor&>(lt).detach();
+            // const_cast<LazyTensor&>(lt).detach();
         });
     }
 }
