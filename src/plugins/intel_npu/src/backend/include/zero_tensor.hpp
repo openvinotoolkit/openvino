@@ -41,6 +41,9 @@ public:
     bool memory_address_changed();
     void reset_memory_flag();
 
+    bool tensor_was_shared_with_user();
+    void set_tensor_shared_with_user();
+
     ~ZeroTensor();
 
 private:
@@ -61,6 +64,7 @@ private:
     ov::Allocator _allocator;
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
+    bool _tensor_shared_with_user = false;
 };
 
 }  // namespace intel_npu

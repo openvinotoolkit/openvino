@@ -145,6 +145,13 @@ void ZeroTensor::reset_memory_flag() {
     _reset_tensor_memory = false;
 }
 
+bool ZeroTensor::tensor_was_shared_with_user() {
+    return _tensor_shared_with_user;
+}
+void ZeroTensor::set_tensor_shared_with_user() {
+    _tensor_shared_with_user = true;
+}
+
 ZeroTensor::~ZeroTensor() {
     destroy_memory();
 }

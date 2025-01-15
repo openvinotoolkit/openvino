@@ -234,7 +234,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         levelZeroTensors = tensor;
         updateCommandListArg = true;
     } else {
-        if (levelZeroTensors && std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors) == nullptr) {
+        auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
+        if (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user()) {
             _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
@@ -424,6 +425,11 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     auto& userTensors = isInput ? get_user_input(ioIndex) : _userOutputTensors.at(ioIndex);
 
     if (userTensors) {
+        auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr);
+        if (zeroTensor != nullptr) {
+            zeroTensor->set_tensor_shared_with_user();
+        }
+
         _logger.debug("ZeroInferRequest::get_tensor - tensor allocated, get the tensor");
         return userTensors;
     }
@@ -440,7 +446,12 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
                                        isInput ? *_inputAllocator : *_outputAllocator,
                                        _graph->get_batch_size());
 
-    return levelZeroTensors;
+    auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
+    if (zeroTensor != nullptr) {
+        zeroTensor->set_tensor_shared_with_user();
+    }
+
+    return userTensors;
 }
 
 void ZeroInferRequest::infer() {
