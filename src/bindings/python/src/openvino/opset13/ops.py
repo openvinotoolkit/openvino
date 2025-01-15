@@ -343,7 +343,7 @@ def constant(
 @nameable_op
 def constant(  # noqa: F811
     tensor: Tensor,
-    shared_memory: bool = False,
+    shared_memory: bool = True,
     name: Optional[str] = None,
 ) -> Constant:
     return Constant(tensor, shared_memory=shared_memory)

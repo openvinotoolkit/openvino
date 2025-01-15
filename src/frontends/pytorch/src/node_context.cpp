@@ -111,7 +111,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
+    if (ov::as_type_ptr<v0::Parameter>(input_node)) {
         // We need to look into external context for inputs that would be feed into this parameter
         size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
         if (m_ext_tensor_map.count(tensor_idx)) {
@@ -298,7 +298,7 @@ template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
     FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input with index: ", index, " is none.");
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
-    auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node);
+    auto input = ov::as_type_ptr<PtFrameworkNode>(input_node);
     FRONT_END_GENERAL_CHECK(input,
                             "Input node with index ",
                             index,
@@ -327,7 +327,7 @@ Any NodeContext::get_values_from_const_input(int index) const {
     if (input_is_none(index))
         return {};
     auto input_val = get_input_from_visible_context(index);
-    if (auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_val.get_node_shared_ptr())) {
+    if (auto input = ov::as_type_ptr<PtFrameworkNode>(input_val.get_node_shared_ptr())) {
         const auto& attrs = input->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {
             return {};
