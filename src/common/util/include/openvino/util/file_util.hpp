@@ -90,19 +90,6 @@ const std::string& path_to_string(const Path& path) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
- * @brief Conversion from wide character string to a single-byte chain.
- * @param wstr A wide-char string
- * @return A multi-byte string
- */
-std::string wstring_to_string(const std::wstring& wstr);
-/**
- * @brief Conversion from single-byte chain to wide character string.
- * @param str A null-terminated string
- * @return A wide-char string
- */
-std::wstring string_to_wstring(const std::string& str);
-
-/**
  * @brief Convert path as wide character string to a single-byte chain.
  * @param path  Path as wide-char string.
  * @return A char string
