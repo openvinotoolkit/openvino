@@ -270,6 +270,11 @@ public:
     virtual std::vector<int> get_rank() = 0;
 
     /**
+     * @brief Reset cpu map table when user set enable_cpu_reservation = true
+     */
+    virtual void cpu_reset() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */

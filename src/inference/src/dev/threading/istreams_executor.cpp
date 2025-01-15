@@ -159,8 +159,12 @@ void IStreamsExecutor::Config::update_executor_config() {
     const auto proc_type_table = get_proc_type_table();
     bool streams_info_available = false;
 
-    if (_cpu_reservation && (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0)) {
-        OPENVINO_THROW("proc_type_table is empty. No CPU resources available!");
+    if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
+        if (_cpu_reservation) {
+            OPENVINO_THROW("[ Config ] proc_type_table is empty. No CPU resources available!");
+        } else {
+            return;
+        }
     }
 
     if (!_streams_info_table.empty()) {

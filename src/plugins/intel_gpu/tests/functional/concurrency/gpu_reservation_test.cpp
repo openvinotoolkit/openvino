@@ -33,14 +33,16 @@ TEST_F(GpuReservationTest, Mutiple_CompiledModel_Reservation) {
     ov::AnyMap property_config = {{ov::num_streams.name(), 1},
                                   {ov::inference_num_threads.name(), 1},
                                   {ov::hint::enable_cpu_reservation.name(), true}};
+    ov::AnyMap property_config_gpu = {{ov::num_streams.name(), ov::streams::Num(1)},
+                                      {ov::hint::enable_cpu_reservation.name(), true}};
 
     std::vector<std::thread> threads(2);
     for (auto& thread : threads) {
         thread = std::thread([&]() {
             auto value = counter++;
             (void)core->compile_model(models[value % models.size()],
-                                     target_devices[value % target_devices.size()],
-                                     property_config);
+                                      target_devices[value % target_devices.size()],
+                                      value == 0 ? property_config : property_config_gpu);
         });
     }
 

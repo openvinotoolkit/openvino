@@ -15,6 +15,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
+using namespace testing;
 using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
@@ -50,3 +51,36 @@ TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
             thread.join();
     }
 }
+
+TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
+    std::vector<std::shared_ptr<ov::Model>> models;
+    Config config = {ov::enable_profiling(true)};
+    Device target_device(ov::test::utils::DEVICE_CPU);
+    models.emplace_back(ov::test::utils::make_2_input_subtract());
+
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    core->set_property(target_device, config);
+    ov::AnyMap property_config = {{ov::num_streams.name(), 1},
+                                  {ov::inference_num_threads.name(), 2000},
+                                  {ov::hint::enable_hyper_threading.name(), true},
+                                  {ov::hint::enable_cpu_reservation.name(), true}};
+    auto compiled_model = core->compile_model(models[0], target_device, property_config);
+    EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
+}
+
+#if defined(__linux__)
+TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
+    std::vector<std::shared_ptr<ov::Model>> models;
+    Config config = {ov::enable_profiling(true)};
+    Device target_device(ov::test::utils::DEVICE_CPU);
+    models.emplace_back(ov::test::utils::make_2_input_subtract());
+
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    core->set_property(target_device, config);
+    ov::AnyMap property_config = {{ov::inference_num_threads.name(), 1},
+                                  {ov::hint::enable_cpu_reservation.name(), true}};
+    auto compiled_model = core->compile_model(models[0], target_device, property_config);
+    auto cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning.name());
+    ASSERT_EQ(cpu_pinning, true);
+}
+#endif

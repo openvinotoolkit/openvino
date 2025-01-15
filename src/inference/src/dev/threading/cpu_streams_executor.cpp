@@ -92,14 +92,6 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (_impl->_config.get_name().find("StreamsExecutor") == std::string::npos) {
-                try {
-                    set_cpu_used(_cpu_ids, NOT_USED);
-                } catch (const ov::Exception&) {
-                    // Destructor should not throw - catch needed for static analysis.
-                    // CPU::CPU() won't throw here as cpu_info() is called from Stream constructor.
-                }
-            }
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
@@ -153,6 +145,10 @@ struct CPUStreamsExecutor::Impl {
                 _cpu_ids =
                     stream_id < static_cast<int>(stream_processors.size()) ? stream_processors[stream_id] : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
+                    if (_impl->_config.get_cpu_reservation()) {
+                        std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
+                        _impl->_cpu_ids_all.insert(_impl->_cpu_ids_all.end(), _cpu_ids.begin(), _cpu_ids.end());
+                    }
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = get_process_mask();
@@ -457,6 +453,8 @@ struct CPUStreamsExecutor::Impl {
     CustomThreadLocal _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
     bool _isExit = false;
+    std::vector<int> _cpu_ids_all;
+    std::mutex _cpu_ids_mutex;
 };
 
 int CPUStreamsExecutor::get_stream_id() {
@@ -492,9 +490,20 @@ std::vector<int> CPUStreamsExecutor::get_rank() {
     return stream->_rank;
 }
 
+void CPUStreamsExecutor::cpu_reset() {
+    if (!_impl->_cpu_ids_all.empty()) {
+        set_cpu_used(_impl->_cpu_ids_all, NOT_USED);
+        {
+            std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
+            _impl->_cpu_ids_all.clear();
+        }
+    }
+}
+
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
+    cpu_reset();
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
         _impl->_isStopped = true;
