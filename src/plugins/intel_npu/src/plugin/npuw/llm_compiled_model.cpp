@@ -309,11 +309,11 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
 
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
-
     bool compiler_dq = false;
-    const auto device_caps =
-        plugin->get_property(ov::device::capabilities.name(), ov::AnyMap{}).as<std::vector<std::string>>();
-    if (std::find(device_caps.begin(), device_caps.end(), "COMPILER_DYNAMIC_QUANTIZATION") != device_caps.end()) {
+    const auto supported_properties =
+        plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
+    if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
+        supported_properties.end()) {
         compiler_dq = true;
     }
     return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
@@ -328,7 +328,7 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
-ov::AnyMap get_baseline_common_config() {
+ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
         {"NPUW_DEVICES", "NPU"},
@@ -339,11 +339,19 @@ ov::AnyMap get_baseline_common_config() {
         {"NPUW_WEIGHTS_BANK", "shared"},
         {"NPUW_SLICE_OUT", "YES"},
         {"NPUW_FUNCALL_ASYNC", "YES"}};
+    // FIXME: this config logic is getting more and more complex
+    if (npudesc.has_value() && npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+        config.emplace("NPUW_DQ_FULL", "NO");
+        config.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
+        config.erase("NPUW_DCOFF_TYPE");
+        config.erase("NPUW_DCOFF_SCALE");
+    }
     return config;
 }
 
-ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model) {
-    auto config = get_baseline_common_config();
+ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+    auto config = get_baseline_common_config(npudesc);
     const char* npu_l0 = std::getenv("DISABLE_OPENVINO_GENAI_NPU_L0");
     if (npu_l0 && std::atoi(npu_l0) == 1) {
         config.emplace("NPUW_WEIGHTS_BANK_ALLOC", "CPU");
@@ -354,17 +362,17 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model) {
 }
 
 ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
-    auto config = get_default_common_config(model);
-    if (is_cw_compressed(model)) {
-        config.emplace("NPUW_DQ", "YES");
-    } else {
-        config.emplace("NPUW_PMM", "NO");
-    }
+    auto config = get_default_common_config(model, npudesc);
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
     }
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ_FULL", "NO");
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        if (is_cw_compressed(model)) {
+            config.emplace("NPUW_DQ", "YES");
+        } else {
+            config.emplace("NPUW_PMM", "NO");
+        }
     }
     return config;
 }
@@ -372,20 +380,19 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, c
 ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
                                        const std::optional<NPUDesc>& npudesc,
                                        const ::intel_npu::npuw::llm::GenerateHint hint) {
-    auto config = get_default_common_config(model);
+    auto config = get_default_common_config(model, npudesc);
     if (hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
-    // NB: Unconditionally set for generation model
-    config.emplace("NPUW_DQ", "YES");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_DPU_GROUPS", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
-    if (npudesc.has_value() && npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ_FULL", "NO");
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
     }
     return config;
 }
@@ -441,6 +448,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // preserve them somewhere.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -494,8 +503,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
+    auto prefill_config_addition_value =
+        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    auto generate_config_addition_value =
+        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
+    merge_config_with(prefill_config, prefill_config_addition_value);
+    merge_config_with(generate_config, generate_config_addition_value);
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
@@ -595,21 +611,21 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
         OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       " Serialized by OV ",
+                       "\nSerialized by OV ",
                        vmajor,
                        '.',
                        vminor,
                        '.',
                        vpatch,
-                       " Current OV version ",
+                       "\nCurrent OV version ",
                        OPENVINO_VERSION_MAJOR,
                        '.',
                        OPENVINO_VERSION_MINOR,
                        '.',
                        OPENVINO_VERSION_PATCH,
-                       " NPUW serialized by version ",
+                       "\nNPUW serialized by version ",
                        s11n_version,
-                       " NPUW current serialization version ",
+                       "\nNPUW current serialization version ",
                        NPUW_SERIALIZATION_VERSION);
     }
 
@@ -637,6 +653,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    compiled->implement_properties();
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);

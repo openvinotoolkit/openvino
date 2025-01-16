@@ -85,7 +85,7 @@ typename std::enable_if<
                         bool>::value,
     bool>::type
 is_type(Value value) {
-    return value->get_type_info().is_castable(Type::get_type_info_static());
+    return value && value->get_type_info().is_castable(Type::get_type_info_static());
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise

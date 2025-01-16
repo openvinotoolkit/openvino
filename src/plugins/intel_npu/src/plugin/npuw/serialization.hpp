@@ -27,6 +27,7 @@ class Config;
 namespace ov {
 
 // Forward declaration
+class Any;
 class Node;
 class Tensor;
 template <class>
@@ -52,19 +53,23 @@ namespace s11n {
 void write(std::ostream& stream, const std::streampos& var);
 void write(std::ostream& stream, const std::string& var);
 void write(std::ostream& stream, const bool& var);
+void write(std::ostream& stream, const float& var);
 void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
 void write(std::ostream& stream, const ov::Tensor& var);
 void write(std::ostream& stream, const ::intel_npu::Config& var);
 void write(std::ostream& stream, const ov::Output<const ov::Node>& var);
+void write_any(std::ostream& stream, const ov::Any& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
 void read(std::istream& stream, bool& var);
+void read(std::istream& stream, float& var);
 void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
 void read(std::istream& stream, ov::Tensor& var);
 void read(std::istream& stream, ::intel_npu::Config& var);
 void read(std::istream& stream, std::shared_ptr<ov::op::v0::Parameter>& var);
 void read(std::istream& stream, std::shared_ptr<ov::Node>& var);
+void read_any(std::istream& stream, ov::Any& var);
 
 // Forward declaration
 template <typename T1, typename T2>

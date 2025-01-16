@@ -116,8 +116,8 @@ IRFFTNComplexReplacer::IRFFTNComplexReplacer() {
 
         // Handle norm parameter indicating normalization mode to use. Defaults to "backward".
         std::string norm;
-        if (const auto& fw_node_mode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(
-                irfftn_op->input_value(3).get_node_shared_ptr())) {
+        if (const auto& fw_node_mode =
+                ov::as_type_ptr<ov::op::util::FrameworkNode>(irfftn_op->input_value(3).get_node_shared_ptr())) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
                 norm = attrs.at("string_value");
