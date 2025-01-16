@@ -38,7 +38,7 @@ template <element::Type_t T_act_elem,
           element::Type_t T_in_gamma_elem = T_act_elem,
           element::Type_t T_in_beta_elem = T_act_elem>
 class GroupNormalizationFusionTestsFixture
-    : public ::testing::TestWithParam<ValuesContainerWithPositiveTestFlag> {
+    : public TestWithParam<ValuesContainerWithPositiveTestFlag> {
 public:
     static constexpr element::Type_t T_act_elem_t = T_act_elem;
     static constexpr element::Type_t T_gn_gamma_elem_t = T_gn_gamma_elem;
@@ -394,7 +394,7 @@ std::vector<RawValuesContainer> valid_vals = {
                     64,
                     1e-6f)};
 
-auto invalid_vals = ::testing::Values(
+auto invalid_vals = Values(
     std::make_tuple(false, PartialShape{1, 320}, Shape{}, Shape{}, Shape{}, Shape{}, 1, 1e-5f),
     std::make_tuple(false,
                     PartialShape{1, 320, 2, 2},
@@ -444,7 +444,7 @@ std::vector<ValuesContainerWithPositiveTestFlag> add_positive_test_flag_to_vals(
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionPositiveTests_f16,
                          GroupNormalizationFusionTestsFixture_f16,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f16,
                          GroupNormalizationFusionTestsFixture_f16,
@@ -452,7 +452,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f16,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionPositiveTests_bf16,
                          GroupNormalizationFusionTestsFixture_bf16,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_bf16,
                          GroupNormalizationFusionTestsFixture_bf16,
@@ -460,7 +460,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_bf16,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionPositiveTests_f32,
                          GroupNormalizationFusionTestsFixture_f32,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTests_f32,
                          GroupNormalizationFusionTestsFixture_f32,
@@ -468,7 +468,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTests_f32,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u8,
                          GroupNormalizationFusionTestsFixture_u8,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u8,
                          GroupNormalizationFusionTestsFixture_u8,
@@ -476,7 +476,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u8,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u16,
                          GroupNormalizationFusionTestsFixture_u16,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u16,
                          GroupNormalizationFusionTestsFixture_u16,
@@ -484,7 +484,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u16,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u32,
                          GroupNormalizationFusionTestsFixture_u32,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u32,
                          GroupNormalizationFusionTestsFixture_u32,
@@ -492,7 +492,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u32,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u64,
                          GroupNormalizationFusionTestsFixture_u64,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u64,
                          GroupNormalizationFusionTestsFixture_u64,
@@ -500,7 +500,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u64,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i8,
                          GroupNormalizationFusionTestsFixture_i8,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i8,
                          GroupNormalizationFusionTestsFixture_i8,
@@ -508,7 +508,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i8,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i16,
                          GroupNormalizationFusionTestsFixture_i16,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i16,
                          GroupNormalizationFusionTestsFixture_i16,
@@ -516,7 +516,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i16,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i32,
                          GroupNormalizationFusionTestsFixture_i32,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i32,
                          GroupNormalizationFusionTestsFixture_i32,
@@ -524,7 +524,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i32,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i64,
                          GroupNormalizationFusionTestsFixture_i64,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i64,
                          GroupNormalizationFusionTestsFixture_i64,
@@ -532,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i64,
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f8e4m3,
                          GroupNormalizationFusionTestsFixture_f8e4m3,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e4m3,
                          GroupNormalizationFusionTestsFixture_f8e4m3,
@@ -540,7 +540,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e4m3
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f8e5m2,
                          GroupNormalizationFusionTestsFixture_f8e5m2,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e5m2,
                          GroupNormalizationFusionTestsFixture_f8e5m2,
@@ -548,7 +548,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e5m2
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f4e2m1,
                          GroupNormalizationFusionTestsFixture_f4e2m1,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f4e2m1,
                          GroupNormalizationFusionTestsFixture_f4e2m1,
@@ -556,7 +556,7 @@ INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f4e2m1
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f8e8m0,
                          GroupNormalizationFusionTestsFixture_f8e8m0,
-                         ::testing::ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
 
 INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e8m0,
                          GroupNormalizationFusionTestsFixture_f8e8m0,
