@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from openvino.frontend.jax.passes import filter_element, filter_ivalue, filter_param
-from openvino.runtime import op, Type as OVType, Shape, OVAny
+from openvino import op, Type as OVType, Shape, OVAny
 
 numpy_to_ov_type_map = {
     np.float32: OVType.f32,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,6 +201,8 @@ static const std::vector<std::string> models{
     std::string("expand_v2_tensor/expand_v2_tensor.pdmodel"),
     std::string("expand_v2_tensor_list/expand_v2_tensor_list.pdmodel"),
     std::string("expand_v2_tensor_list2/expand_v2_tensor_list2.pdmodel"),
+    std::string("expand_as_v2_1/expand_as_v2_1.pdmodel"),
+    std::string("expand_as_v2_2/expand_as_v2_2.pdmodel"),
     std::string("exp_test_float32/exp_test_float32.pdmodel"),
     std::string("eye/eye.pdmodel"),
     std::string("eye_int32/eye_int32.pdmodel"),
@@ -283,6 +285,9 @@ static const std::vector<std::string> models{
     std::string("less_than_float32/less_than_float32.pdmodel"),
     std::string("less_than_int32/less_than_int32.pdmodel"),
     std::string("less_than_int64/less_than_int64.pdmodel"),
+    std::string("less_equal_float32/less_equal_float32.pdmodel"),
+    std::string("less_equal_int32/less_equal_int32.pdmodel"),
+    std::string("less_equal_int64/less_equal_int64.pdmodel"),
     std::string("linear_downsample_false_0/linear_downsample_false_0.pdmodel"),
     std::string("linear_downsample_false_1/linear_downsample_false_1.pdmodel"),
     std::string("linear_downsample_true_0/linear_downsample_true_0.pdmodel"),

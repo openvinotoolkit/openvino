@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,6 +113,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::enable_cpu_pinning.name(),
+                               ". Expected only true/false.");
+            }
+        } else if (key == ov::hint::enable_cpu_reservation.name()) {
+            try {
+                enableCpuReservation = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_cpu_reservation.name(),
                                ". Expected only true/false.");
             }
         } else if (key == ov::hint::scheduling_core_type.name()) {

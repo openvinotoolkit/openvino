@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13, "The input number of PagedAttention should be 13.");
+    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
+                    "The input number of PagedAttention should be 13 or 16.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -130,6 +131,23 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[1].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(1)));
 
+    if (orgInputNumber == 16) {
+        // rotated_block_indices, int, [num_rotated_blocks || 0]
+        config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(ov::element::i32,
+                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
+        // rotation_deltas, int, [num_rotated_blocks, block_size || 1] || [0]
+        config.inConfs[PagedAttentionExecutor::ID_ROTATION_DELTAS].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
+        // rotation_trig_lut, float, [max_context_len, embedding_size (aka S) || 0]
+        config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(ov::element::f32,
+                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
+    }
+
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
@@ -140,7 +158,7 @@ void PagedAttention::createPrimitive() {
     PagedAttentionKey key = {rtPrecision};
 
     auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);

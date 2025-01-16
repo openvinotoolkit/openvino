@@ -14,7 +14,7 @@ namespace op {
 //         representation (which can store multiple states in a single variable) at the graph level.
 class ReadValues : public ReadValue {
 public:
-    OPENVINO_OP("ReadValues", "gpu_opset");
+    OPENVINO_OP("ReadValues", "gpu_opset", ReadValue);
 
     ReadValues() = default;
 

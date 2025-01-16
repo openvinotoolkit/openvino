@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ inline std::shared_ptr<Model> get_model() {
 
 inline ov::pass::param_callback get_callback() {
     return [](const std::shared_ptr<const Node>& node) -> bool {
-        if (std::dynamic_pointer_cast<const op::v1::Divide>(node)) {
+        if (ov::as_type_ptr<const op::v1::Divide>(node)) {
             return true;
         } else {
             return false;

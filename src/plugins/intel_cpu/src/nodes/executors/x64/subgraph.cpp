@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,12 +80,16 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
     m_repacking_impl_type = snippet_config->repacking_impl_type;
     m_repacked_inputs = snippet_config->repacked_inputs;
 
-    auto external_buffer_size = std::accumulate(m_repacked_inputs.begin(),
-                                                m_repacked_inputs.end(),
-                                                size_t(0),
-                                                [](size_t sum, const std::pair<size_t, RepackedInput>& p) {
-                                                    return sum + p.second.desc()->getCurrentMemSize();
-                                                });
+    auto external_buffer_size =
+        std::accumulate(m_repacked_inputs.begin(),
+                        m_repacked_inputs.end(),
+                        size_t(0),
+                        [](size_t sum, const std::pair<size_t, RepackedInput>& p) {
+                            auto curr_mem_size = p.second.desc()->getCurrentMemSize();
+                            OPENVINO_ASSERT(curr_mem_size != ov::intel_cpu::MemoryDesc::UNDEFINED_SIZE,
+                                            "Current repacking buffer memory size is undefined");
+                            return sum + curr_mem_size;
+                        });
 
     if (get_repacking_impl_type() == RepackingImplType::IN_PARALLEL) {
         // When external repacking is applied in parallel section,

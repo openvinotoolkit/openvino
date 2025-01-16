@@ -526,7 +526,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         manager,
         [](const_node_ptr& node) -> bool {
-            const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
+            const auto maxpool = ov::as_type_ptr<const ov::op::v14::MaxPool>(node);
             return !maxpool || maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
         },
         ov::pass::ConvertMaxPool14ToMaxPool8);
@@ -534,7 +534,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         manager,
         [](const_node_ptr& node) -> bool {
-            const auto avgpool = std::dynamic_pointer_cast<const ov::op::v14::AvgPool>(node);
+            const auto avgpool = ov::as_type_ptr<const ov::op::v14::AvgPool>(node);
             return !avgpool || avgpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
         },
         ov::pass::ConvertAvgPool14ToAvgPool1);
@@ -1064,29 +1064,17 @@ void Transformations::MainSnippets(void) {
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
         const auto is_int8 = in_type0 == ov::element::i8;
-        if (is_fp32)
-            return true;
-        // Only FP32 dynamic MHA is supported
-        if (matmul->is_dynamic())
-            return false;
         if (matmul->get_transpose_a())
             return false;
-        // [150842] The execution of Brgemm INT8/BF16/FP16 on AMX platforms depends on the value of "K % VNNIFactor".
-        //          For more details, please teake a look at the ticket 150842
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-            const auto& b_shape = matmul->get_input_partial_shape(1);
-            const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
-            const size_t brgemm_vnni_factor_for_real16 = 2;  // 4/2(size in term of byte for bf16/fp16)
-            if (is_bf16 || is_fp16)
-                return K.is_static() && (K.get_length() % brgemm_vnni_factor_for_real16 == 0);
-            if (is_int8)
-                return K.is_static();
-        }
+        if (is_fp32)
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
         if (is_int8)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
         if (is_bf16)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
         if (is_fp16)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
         return true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -290,7 +290,7 @@ auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::No
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
-    const auto elementwise = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(node);
+    const auto elementwise = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(node);
     return
         (elementwise == nullptr) ||
         (elementwise->get_input_partial_shape(0).size() == elementwise->get_input_partial_shape(1).size()) ||

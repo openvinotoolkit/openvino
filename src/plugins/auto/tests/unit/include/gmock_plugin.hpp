@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ namespace mock_auto_plugin {
 class MockAutoPlugin : public Plugin {
 public:
     MOCK_METHOD((std::string), get_device_list, ((const ov::AnyMap&)), (const, override));
+    MOCK_METHOD((bool), is_meta_device, ((const std::string&)), (const, override));
     MOCK_METHOD((std::list<DeviceInformation>),
                 get_valid_device,
                 ((const std::vector<DeviceInformation>&), const std::string&),

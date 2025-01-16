@@ -15,7 +15,7 @@ namespace op {
 /// This operation updates data of the corresponding Variable
 class KVCacheCompressed : public ov::intel_gpu::op::KVCache {
 public:
-    OPENVINO_OP("KVCacheCompressed", "gpu_opset");
+    OPENVINO_OP("KVCacheCompressed", "gpu_opset", ov::intel_gpu::op::KVCache);
 
     using QuantizationAttrs = ov::op::internal::DynamicQuantize::Attributes;
 
