@@ -40,9 +40,13 @@ TEST_F(GpuReservationTest, Mutiple_CompiledModel_Reservation) {
     for (auto& thread : threads) {
         thread = std::thread([&]() {
             auto value = counter++;
-            (void)core->compile_model(models[value % models.size()],
-                                      target_devices[value % target_devices.size()],
-                                      value == 0 ? property_config : property_config_gpu);
+            auto compiled_model = core->compile_model(models[value % models.size()],
+                                                      target_devices[value % target_devices.size()],
+                                                      value == 0 ? property_config : property_config_gpu);
+            auto num_streams = compiled_model.get_property(ov::num_streams.name());
+            auto cpu_reservation = compiled_model.get_property(ov::hint::enable_cpu_reservation.name());
+            ASSERT_EQ(num_streams, ov::streams::Num(1));
+            ASSERT_EQ(cpu_reservation, true);
         });
     }
 

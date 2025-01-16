@@ -31,18 +31,22 @@ TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     core->set_property(target_device, config);
-    ov::AnyMap property_config_reserve = {{ov::num_streams.name(), 1},
+    ov::AnyMap property_config_reserve = {{ov::num_streams.name(), ov::streams::Num(1)},
                                           {ov::inference_num_threads.name(), 1},
                                           {ov::hint::enable_cpu_reservation.name(), true}};
-    ov::AnyMap property_config = {{ov::num_streams.name(), 1}, {ov::inference_num_threads.name(), 1}};
+    ov::AnyMap property_config = {{ov::num_streams.name(), ov::streams::Num(1)}, {ov::inference_num_threads.name(), 1}};
 
     std::vector<std::thread> threads(2);
     for (auto& thread : threads) {
         thread = std::thread([&]() {
             auto value = counter++;
-            (void)core->compile_model(models[value % models.size()],
-                                     target_device,
-                                     value == 1 ? property_config : property_config_reserve);
+            auto compiled_model = core->compile_model(models[value % models.size()],
+                                                      target_device,
+                                                      value == 1 ? property_config : property_config_reserve);
+            auto cpu_reservation = compiled_model.get_property(ov::hint::enable_cpu_reservation.name());
+            auto num_streams = compiled_model.get_property(ov::num_streams.name());
+            ASSERT_EQ(cpu_reservation, value == 1 ? false : true);
+            ASSERT_EQ(num_streams, ov::streams::Num(1));
         });
     }
 
