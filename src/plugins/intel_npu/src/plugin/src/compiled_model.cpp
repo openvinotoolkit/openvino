@@ -264,6 +264,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
+        {ov::intel_npu::compiler_dynamic_quantization.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
+          }}},
         {ov::intel_npu::turbo.name(),
          {isPropertySupported(ov::intel_npu::turbo.name()),
           ov::PropertyMutability::RO,

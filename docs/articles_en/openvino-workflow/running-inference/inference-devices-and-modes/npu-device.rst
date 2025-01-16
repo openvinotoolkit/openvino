@@ -143,6 +143,7 @@ offer a limited set of supported OpenVINO features.
          ov::enable_profiling
          ov::workload_type
          ov::intel_npu::compilation_mode_params
+         ov::intel_npu::compiler_dynamic_quantization
          ov::intel_npu::turbo
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles
