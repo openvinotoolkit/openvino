@@ -83,6 +83,7 @@
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
+#include "plugin/transformations/sink_reshape.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -984,6 +985,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
+
+        manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
             auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
