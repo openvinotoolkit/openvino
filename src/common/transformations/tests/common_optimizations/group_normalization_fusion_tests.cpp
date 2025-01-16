@@ -68,33 +68,23 @@ public:
         if (positive_test) {
             if ((instance_norm_gamma_shape != Shape{}) && (shape_size(instance_norm_gamma_shape) != num_groups))
                 FAIL() << "Unexpected shape of instance norm beta - expected either empty shape (which means that it "
-                          "will not "
-                          "be put in the graph) or shape with exactly num_groups elements that can be merged with the "
-                          "result "
-                          "of MVN.";
+                          "will not  be put in the graph) or shape with exactly num_groups elements that can be "
+                          "merged with the result of MVN.";
 
             if ((instance_norm_beta_shape != Shape{}) && (shape_size(instance_norm_beta_shape) != num_groups))
                 FAIL() << "Unexpected shape of instance norm beta - expected either empty shape (which means that it "
-                          "will not "
-                          "be put in the graph) or shape with exactly num_groups elements that can be merged with the "
-                          "result "
-                          "of MVN.";
+                          "will not  be put in the graph) or shape with exactly num_groups elements that can be "
+                          "merged with the result of MVN.";
 
-            if ((group_norm_gamma_shape != Shape{}) && (shape_size(group_norm_gamma_shape) != num_channels))
+            if (shape_size(group_norm_gamma_shape) != num_channels)
                 FAIL()
-                    << "Unexpected shape of group norm gamma - expected either empty shape (which means that it will "
-                       "not "
-                       "be put in the graph) or shape with exactly num_channels elements that can be merged with the "
-                       "result "
-                       "of instance norm.";
+                    << "Unexpected shape of group norm gamma - expected shape with exactly num_channels elements that "
+                       "can be merged with the result of instance norm.";
 
-            if ((group_norm_beta_shape != Shape{}) && (shape_size(group_norm_gamma_shape) != num_channels))
+            if (shape_size(group_norm_beta_shape) != num_channels)
                 FAIL()
-                    << "Unexpected shape of group norm beta - expected either empty shape (which means that it will "
-                       "not "
-                       "be put in the graph) or shape with exactly num_channels elements that can be merged with the "
-                       "result "
-                       "of instance norm.";
+                    << "Unexpected shape of group norm beta - expected shape with exactly num_channels elements that "
+                       "can be merged with the result of instance norm.";
         }
         auto instance_norm_gamma_present = (instance_norm_gamma_shape != Shape{});
         auto instance_norm_beta_present = (instance_norm_beta_shape != Shape{});
