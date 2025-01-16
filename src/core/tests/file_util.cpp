@@ -461,8 +461,7 @@ TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
 class CutAndroidPathTests : public ::testing::TestWithParam<std::tuple<ov::util::Path, ov::util::Path>> {};
 
 TEST_P(CutAndroidPathTests, HandlesStringPaths) {
-    ov::util::Path file_name = std::get<0>(GetParam());
-    ov::util::Path expected = std::get<1>(GetParam());
+    const auto& [file_name, expected] = GetParam();
     ov::util::Path result = ov::util::cut_android_path(file_name);
     EXPECT_EQ(result, expected);
 }
@@ -510,43 +509,34 @@ class FileUtilTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // Create a temporary files for testing
-        {
-            std::ofstream outfile("test_file_0.txt");
-            outfile.close();
-        }
+        { std::ofstream outfile("test_file_0.txt"); }
         {
             std::ofstream outfile("test_file_21.txt");
             outfile << "This is a test file." << std::endl;
-            outfile.close();
         }
         {
             std::ofstream outfile("test_file_21x1000.txt");
             for (int i = 0; i < 1000; ++i) {
                 outfile << "This is a test file." << std::endl;
             }
-            outfile.close();
         }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         {
             std::ofstream outfile(ov::util::Path(u8"这是_u8_.txt"));
             outfile << "This is a test file." << std::endl;
-            outfile.close();
         }
         {
             std::ofstream outfile(ov::util::Path(U"这是_u16_.txt"));
             outfile << "This is a test file." << std::endl;
-            outfile.close();
         }
         {
             std::ofstream outfile(ov::util::Path(U"这是_u32_.txt"));
             outfile << "This is a test file." << std::endl;
-            outfile.close();
         }
         {
             std::ofstream outfile(ov::util::WPath(L"这是_wstring_.txt"));
             outfile << "This is a test file." << std::endl;
-            outfile.close();
         }
 #endif
     }

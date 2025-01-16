@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace ov {
 namespace util {
 
 #if defined(OPENVINO_HAS_FILESYSTEM)
-// There are known issues related with usage of std::filesystem::path unicode represenataion:
+// There are known issues with usage of std::filesystem::path unicode represenataion:
 // * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
 // * https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 // Working compiler versions has been designated with godbolt.
@@ -45,14 +45,14 @@ using Path = std::experimental::filesystem::path;
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)
-#    define GCC_VER_LESS_THEN_12_3
+#    define GCC_VER_LESS_THAN_12_3
 #endif
 
 #if defined(__clang__) && __clang_major__ < 17
-#    define CLANG_VER_LESS_THEN_17
+#    define CLANG_VER_LESS_THAN_17
 #endif
 
-#if defined(GCC_VER_LESS_THEN_12_3) || defined(CLANG_VER_LESS_THEN_17)
+#if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
 auto WPath = [](const std::wstring& wpath) {
     return ov::util::Path{ov::util::wstring_to_string(wpath)};
 };
