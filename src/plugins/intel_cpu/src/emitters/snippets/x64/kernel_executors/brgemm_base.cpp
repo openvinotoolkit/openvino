@@ -8,6 +8,7 @@
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
 
 #define DIM_CAST(X)   static_cast<dnnl_dim_t>(X)
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -253,9 +254,10 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
 
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
+    const auto& brgemm_tpp_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node || brgemm_tpp_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
-    if (with_repacking(brgemm_node->get_type()))
+    if (brgemm_node && with_repacking(brgemm_node->get_type()))
         LDB = DIM_CAST(brgemm_utils::repacking::compute_LDB(LDB, brgemm_node->get_input_element_type(1)));
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
