@@ -162,7 +162,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
     ov::Core core;
     bool reservation = false;
-    int32_t threads = 0, input_threads = 2;
+    int32_t threads = 0, input_threads = 1;
 
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
 
