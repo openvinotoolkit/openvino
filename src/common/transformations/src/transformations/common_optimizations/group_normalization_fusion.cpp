@@ -265,7 +265,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         // we need to cast mvn to MVN layer type in order to read actual epsilon value
         const auto& mvn_out = pattern_map.at(mvn_m);
-        const auto& mvn = std::dynamic_pointer_cast<ov::op::v6::MVN>(mvn_out.get_node_shared_ptr());
+        const auto& mvn = ov::as_type_ptr<ov::op::v6::MVN>(mvn_out.get_node_shared_ptr());
         const auto& epsilon = mvn->get_eps();
 
         // we can finally create GroupNormalization op
