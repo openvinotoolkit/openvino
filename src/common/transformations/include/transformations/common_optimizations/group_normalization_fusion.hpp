@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API GroupNormalizationFusion;
 
 class ov::pass::GroupNormalizationFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GroupNormalizationFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GroupNormalizationFusion");
     GroupNormalizationFusion();
 };
