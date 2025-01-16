@@ -43,6 +43,8 @@ public:
             m_sub_compiled_models.clear();
             m_sub_memory_manager->_memorys_table.clear();
         }
+        auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
+        streamsExecutor->cpu_reset();
     }
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
