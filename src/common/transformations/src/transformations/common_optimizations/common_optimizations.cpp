@@ -128,13 +128,13 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.set_per_pass_validation(false);
 
     using namespace ov::pass;
+    REGISTER_PASS(manager, MOCTransformations, true, false)
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
     // MOCTransformations contain StridedSliceOptimization transformation,
     // so we must call SliceToStridedSlice before MOCTransformations call
     REGISTER_PASS(manager, SliceToStridedSlice, true)
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
-    REGISTER_PASS(manager, MOCTransformations, true, false)
 
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
