@@ -57,6 +57,8 @@ public:
 
     std::vector<int> get_rank() override;
 
+    void cpu_reset() override;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;
