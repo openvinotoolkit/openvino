@@ -53,13 +53,13 @@ using Path = std::experimental::filesystem::path;
 #endif
 
 #if defined(GCC_VER_LESS_THEN_12_3) || defined(CLANG_VER_LESS_THEN_17)
-inline ov::util::Path WPath(const std::wstring& wpath) {
-    return {ov::util::wstring_to_string(wpath)};
-}
+auto WPath = [](const std::wstring& wpath) {
+    return ov::util::Path{ov::util::wstring_to_string(wpath)};
+};
 #else
-inline ov::util::Path WPath(const std::wstring& wpath) {
-    return {wpath};
-}
+auto WPath = [](const std::wstring& wpath) {
+    return ov::util::Path{wpath};
+};
 #endif
 
 }  // namespace util
