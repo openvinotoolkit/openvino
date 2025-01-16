@@ -29,13 +29,11 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/convert_precision.hpp"
 
 using namespace ov;
@@ -501,7 +499,6 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen) {
         auto res = makeOP<v0::Result>({sdpa});
 
         model = std::make_shared<ov::Model>(OutputVector{res}, params);
-        manager.register_pass<ov::pass::VisualizeTree>("check.svg");
         manager.register_pass<ov::pass::SDPAToPagedAttention>();
     }
 
