@@ -466,15 +466,6 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.head_size > 256)
         return false;
 
-    int DISABLE_MICRO = 0;
-    if (const auto env_var = std::getenv("DISABLE_MICRO")) {
-        std::istringstream ss(env_var);
-        ss >> DISABLE_MICRO;
-    }
-
-    if (DISABLE_MICRO)
-        return false;
-
     // Do not use sdpa_micro kernel with a scalar-value mask
     if (params.inputs.size() > 3 && !params.inputs[3].is_dynamic() && params.inputs[3].LogicalSize() == 1)
         return false;
