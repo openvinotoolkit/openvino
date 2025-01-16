@@ -34,6 +34,7 @@ struct Const {
         m_cached_type = m_node->get_element_type();
         m_cached_shape = m_node->get_shape();
         m_cached_ptr = m_node->get_data_ptr();
+        m_byte_size = m_node->get_byte_size();
     }
     std::size_t hash() const {
         std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
@@ -48,6 +49,7 @@ struct Const {
                 m_cached_ptr == other.m_cached_ptr);
     }
     ov::Tensor eval() const {
+        NPUW_ASSERT(!was_deserialized && "Const::eval() cannot be called on deserialized LazyTensor");
         NPUW_ASSERT(m_node && "Const::eval() can only happen before detach");
         return ov::npuw::util::tensor_from_const(m_node);
     }
@@ -66,7 +68,7 @@ struct Const {
         write(stream, m_cached_type.to_string());
         write(stream, m_cached_shape);
         write(stream, m_offset);
-        write(stream, m_node->get_byte_size());
+        write(stream, m_byte_size);
     }
     static Const deserialize(std::istream& stream) {
         using namespace ov::npuw::s11n;
@@ -104,6 +106,13 @@ struct Concat {
         std::vector<ov::Tensor> to_concat;
         for (const auto& lt : tensors) {
             to_concat.push_back(lt.eval());
+        }
+        return ov::npuw::util::concat(to_concat, axis);
+    }
+    ov::Tensor eval(std::istream& stream) const {
+        std::vector<ov::Tensor> to_concat;
+        for (const auto& lt : tensors) {
+            to_concat.push_back(lt.eval(stream));
         }
         return ov::npuw::util::concat(to_concat, axis);
     }
@@ -161,6 +170,22 @@ struct Unpack {
         }
         return dst;
     }
+    ov::Tensor eval(std::istream& stream) const {
+        const auto& gti = ov::get_tensor_impl;
+        const auto& tw = w.eval(stream);
+        const auto& tz = z.eval(stream);
+        const auto& ts = s.eval(stream);
+        NPUW_ASSERT(tw);
+        ov::Tensor dst(type, shape);
+        if (tw && tz && ts) {
+            ov::npuw::util::unpack(gti(tw), gti(tz), gti(ts), gti(dst));
+        } else if (tw && ts) {
+            ov::npuw::util::unpack(gti(tw), gti(ts), gti(dst));
+        } else {
+            NPUW_ASSERT(false && "Unsupported combination");
+        }
+        return dst;
+    }
     void detach() {
         w.detach();
         z.detach();
@@ -206,6 +231,9 @@ struct Permute {
     ov::Tensor eval() const {
         return ov::npuw::util::permute(tensor.eval(), axes);
     }
+    ov::Tensor eval(std::istream& stream) const {
+        return ov::npuw::util::permute(tensor.eval(stream), axes);
+    }
     void detach() {
         tensor.detach();
     }
@@ -239,6 +267,10 @@ struct Convert {
     ov::Tensor eval() const {
         NPUW_ASSERT(ov::element::f16 == type);
         return ov::npuw::util::to_f16(tensor.eval());
+    }
+    ov::Tensor eval(std::istream& stream) const {
+        NPUW_ASSERT(ov::element::f16 == type);
+        return ov::npuw::util::to_f16(tensor.eval(stream));
     }
     void detach() {
         tensor.detach();
@@ -336,21 +368,9 @@ ov::Tensor LazyTensorImpl::eval(std::istream& stream) const {
     some kind of indicator that the only difference is concat and we should look for an existing ov::Tensor.
     Perhaps it should be done after model compilation and not handled here.
     */
-    return std::visit(overloaded{[](const op::Concat& op) {
-                                     return op.eval();
-                                 },
-                                 [&stream](const op::Const& op) {
-                                     return op.eval(stream);
-                                 },
-                                 [](const op::Convert& op) {
-                                     return op.eval();
-                                 },
-                                 [](const op::Permute& op) {
-                                     return op.eval();
-                                 },
-                                 [](const op::Unpack& op) {
-                                     return op.eval();
-                                 }},
+    return std::visit(overloaded{[&stream](const auto& op) {
+                          return op.eval(stream);
+                      }},
                       m_transform);
 }
 

@@ -177,7 +177,10 @@ void Bank::evaluate_and_allocate(std::ifstream& weights_stream) {
             std::unique_lock<std::mutex> guard(device_bank.mutex);
             if (device_for_alloc == "CPU") {
                 // No allocation needed
-                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
+                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor =
+                    ov::Tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
+                // FIXME: is this copy needed?
+                transformed_tensor.copy_to(device_bank.storage[device_bank.registered_tensors.at(lt)].tensor);
                 return;
             }
 

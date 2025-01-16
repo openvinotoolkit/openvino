@@ -12,6 +12,7 @@
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -222,9 +223,6 @@ private:
     // Matches a pair of {func_name, layer_name} to it's counter.
     std::map<std::pair<std::string, std::string>, size_t> dup_scalars;
 
-    // FIXME: ugly and shouldn't be here. Used for serialization purposes
-    std::unordered_map<const void*, std::size_t> m_const_to_offset;
-    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
     void set_const_offset(ov::npuw::weights::LazyTensor& lt, const std::shared_ptr<ov::op::v0::Constant>& const_node);
 
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
@@ -295,9 +293,7 @@ public:
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(_cfg) {
-        store_const_offsets(_model);
-    }
+          cfg(_cfg) {}
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -336,37 +332,13 @@ private:
     ::intel_npu::Config& cfg;
 };
 
-// FIXME: copy-pasted in CompiledModel
-void Partitioner::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node_ptr : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node_ptr)) {
-            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            const auto& rt_info = c->get_rt_info();
-            auto data_ptr = c->get_data_ptr();
-            auto offset_iter = rt_info.find("offset");
-            if (offset_iter == rt_info.end()) {
-                continue;
-            }
-            std::size_t offset = offset_iter->second.as<std::size_t>();
-            auto map_iter = m_const_to_offset.find(data_ptr);
-            if (map_iter != m_const_to_offset.end()) {
-                // Already there - check that offset is the same
-                NPUW_ASSERT(map_iter->second == offset &&
-                            "Model contains two constants with same pointer and different offset!");
-            } else {
-                m_const_to_offset[data_ptr] = offset;
-            }
-        }
-    }
-}
-
 void Partitioner::set_const_offset(ov::npuw::weights::LazyTensor& lt,
                                    const std::shared_ptr<ov::op::v0::Constant>& const_node) {
-    auto data = const_node->get_data_ptr();
-    auto iter = m_const_to_offset.find(data);
-    if (iter != m_const_to_offset.end()) {
-        lt.set_const_offset(iter->second);
-    }
+    auto rt_info = const_node->get_rt_info();
+    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+    NPUW_ASSERT(weightless_cache_attr != rt_info.end());
+    std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    lt.set_const_offset(offset);
 }
 
 void Partitioner::identifySubgraphs() {

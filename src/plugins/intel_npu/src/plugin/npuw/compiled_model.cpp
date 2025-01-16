@@ -30,6 +30,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "llm_compiled_model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -943,13 +944,13 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node_ptr)) {
             const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            const auto& rt_info = c->get_rt_info();
-            auto data_ptr = c->get_data_ptr();
-            auto offset_iter = rt_info.find("offset");
-            if (offset_iter == rt_info.end()) {
+            auto rt_info = c->get_rt_info();
+            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr == rt_info.end()) {
                 continue;
             }
-            std::size_t offset = offset_iter->second.as<std::size_t>();
+            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+            auto data_ptr = c->get_data_ptr();
             auto map_iter = m_const_to_offset.find(data_ptr);
             if (map_iter != m_const_to_offset.end()) {
                 // Already there - check that offset is the same
@@ -960,6 +961,7 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
             }
         }
     }
+    std::cout << "DONE" << std::endl;
 }
 
 void ov::npuw::CompiledModel::detach_memory() {

@@ -279,6 +279,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
     for (const auto& t : var) {
         if (!t) {
             write(stream, false);
+            return;
         } else {
             write(stream, true);
         }
