@@ -145,10 +145,11 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : RepackedInputKernel(), jit_generator(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : jit_generator(jit_name()),
+    : RepackedInputKernel(),
+      jit_generator(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
       wei_data_size(dnnl_data_type_size(conf.get_wei_dt())),
@@ -169,9 +170,11 @@ status_t BrgemmCopyBKernel::create_kernel() {
     return code;
 }
 
-void BrgemmCopyBKernel::operator()(const call_args* args) const {
+void BrgemmCopyBKernel::operator()(const void* args) const {
+    const auto* call_args = reinterpret_cast<const BrgemmCopyBKernel::call_args*>(args);
+    OV_CPU_JIT_EMITTER_ASSERT(call_args, "Call arguments are nullptr!");
     OV_CPU_JIT_EMITTER_ASSERT(ker_, "Kernel is nullptr");
-    ker_(args);
+    ker_(call_args);
 }
 
 void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(

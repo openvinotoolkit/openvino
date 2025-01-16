@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,6 +45,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     deqPrecision(params.deqPrecision),
     defaultPrecisions(params.defaultPrecisions),
     reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
+    scalingMode(params.scalingMode),
     context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {

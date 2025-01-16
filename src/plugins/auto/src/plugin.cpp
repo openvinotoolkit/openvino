@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,10 @@ namespace {
             return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node)) {
+            if (ov::as_type_ptr<ov::op::v1::Convolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+                ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
                     return "FP32";
@@ -98,6 +98,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+bool Plugin::is_meta_device(const std::string& priorities) const {
+    std::vector<std::string> candidate_devices = m_plugin_config.parse_priorities_devices(priorities);
+    for (const auto& device : candidate_devices) {
+        if (device.find("AUTO") == 0 || device.find("MULTI") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& priorities,
                                                           const ov::AnyMap& properties) const {
     std::vector<DeviceInformation> meta_devices;
@@ -130,17 +140,13 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
         if (get_device_name() == "MULTI") {
             auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto is_set_affinity = properties.find(ov::affinity.name()) != properties.end();
-            OPENVINO_SUPPRESS_DEPRECATED_END
             auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
+            if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
                 // setting tput as the default performance mode if
                 // 1. no hints setting for MULTI plugin
-                // 2. no affinity setting for MULTI plugin
-                // 3. no inference_num_threads setting for MULTI plugin
-                // 4. no ov::device::properties(secondary properties) setting for target device
-                // 5. no ov::num_streams setting for target device
+                // 2. no inference_num_threads setting for MULTI plugin
+                // 3. no ov::device::properties(secondary properties) setting for target device
+                // 4. no ov::num_streams setting for target device
                 device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
             }
         }
@@ -369,11 +375,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::unordered_map<std::string, ov::Any> multi_model_config;
     std::vector<DeviceInformation> meta_devices;
     auto priorities = load_config.get_property(ov::device::priorities);
-     if (priorities.empty() && !work_mode_auto)
+    if (priorities.empty() && !work_mode_auto)
         OPENVINO_THROW("KEY_MULTI_DEVICE_PRIORITIES key is not set for ", get_device_name());
-    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
-        OPENVINO_THROW("The device candidate list should not include the meta plugin for ", get_device_name());
-    }
+    if (is_meta_device(priorities))
+        OPENVINO_THROW("The meta device should not in the device candidate list: ", priorities);
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
     auto auto_s_context = std::make_shared<ScheduleContext>();
@@ -831,8 +836,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
 
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
-            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
+            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }

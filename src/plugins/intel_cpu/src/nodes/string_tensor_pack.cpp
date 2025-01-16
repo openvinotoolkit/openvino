@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ bool StringTensorPack::needPrepareParams() const {
 }
 
 void StringTensorPack::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
+    execute(std::move(strm));
 }
 
 template <class T_idx>
@@ -80,6 +80,10 @@ struct StringTensorPack::StringTensorPackExecute {
         ctx.node.executeImpl<T_idx>();
     }
 };
+
+bool StringTensorPack::isExecutable() const {
+    return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
+}
 
 void StringTensorPack::execute(dnnl::stream strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();

@@ -11,7 +11,7 @@ from time import perf_counter
 
 import openvino as ov
 import datasets
-from openvino.runtime import get_version
+from openvino import get_version
 from transformers import AutoTokenizer
 from transformers.onnx import export
 from transformers.onnx.features import FeaturesManager

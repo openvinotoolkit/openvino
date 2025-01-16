@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1290,64 +1290,6 @@ static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads
 static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threads{"COMPILATION_NUM_THREADS"};
 
 /**
- * @brief Enum to define possible affinity patterns
- * @ingroup ov_runtime_cpp_prop_api
- */
-enum class Affinity {
-    NONE = -1,  //!<  Disable threads affinity pinning
-    CORE = 0,   //!<  Pin threads to cores, best for static benchmarks
-    NUMA = 1,   //!<  Pin threads to NUMA nodes, best for real-life, contented cases. On the Windows and MacOS* this
-                //!<  option behaves as CORE
-    HYBRID_AWARE = 2,  //!< Let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency
-                       //!< tasks. On the hybrid CPUs this option is default
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
-    switch (affinity) {
-    case Affinity::NONE:
-        return os << "NONE";
-    case Affinity::CORE:
-        return os << "CORE";
-    case Affinity::NUMA:
-        return os << "NUMA";
-    case Affinity::HYBRID_AWARE:
-        return os << "HYBRID_AWARE";
-    default:
-        OPENVINO_THROW("Unsupported affinity pattern");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
-    std::string str;
-    is >> str;
-    if (str == "NONE") {
-        affinity = Affinity::NONE;
-    } else if (str == "CORE") {
-        affinity = Affinity::CORE;
-    } else if (str == "NUMA") {
-        affinity = Affinity::NUMA;
-    } else if (str == "HYBRID_AWARE") {
-        affinity = Affinity::HYBRID_AWARE;
-    } else {
-        OPENVINO_THROW("Unsupported affinity pattern: ", str);
-    }
-    return is;
-}
-/** @endcond */
-
-/**
- * @deprecated Use ov::hint::enable_cpu_pinning
- * @brief The name for setting CPU affinity per thread option.
- * @ingroup ov_runtime_cpp_prop_api
- * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
- * environment variable is set (as affinity is configured explicitly)
- */
-OPENVINO_DEPRECATED(
-    "This property is deprecated and will be removed soon. Use ov::hint::enable_cpu_pinning instead of it.")
-static constexpr Property<Affinity> affinity{"AFFINITY"};
-
-/**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -1359,4 +1301,28 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> exec
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
  */
 static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
+
+/**
+ * @brief The precision of key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> key_cache_precision{"KEY_CACHE_PRECISION"};
+
+/**
+ * @brief The precision of value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> value_cache_precision{"VALUE_CACHE_PRECISION"};
+
+/**
+ * @brief The group_size of key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size{"KEY_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief The group_size of value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
 }  // namespace ov

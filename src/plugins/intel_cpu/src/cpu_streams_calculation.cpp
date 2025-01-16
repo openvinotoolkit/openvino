@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,9 @@
 #include <numeric>
 #include <unordered_set>
 
+#if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
+#endif
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "openvino/op/fake_quantize.hpp"
@@ -552,6 +555,12 @@ int get_model_prefer_threads(const int num_streams,
     const int sockets = get_num_sockets();
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
+#if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
+        config.modelPreferThreads = 8;
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_128)) {
+            config.modelPreferThreads = 16;
+        }
+#else
         const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
         switch (isa) {
@@ -579,7 +588,7 @@ int get_model_prefer_threads(const int num_streams,
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
 
-#if ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__linux__))
+#    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         config.modelPreferThreads = 4;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if (networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) {
@@ -590,7 +599,7 @@ int get_model_prefer_threads(const int num_streams,
                     (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::LIMITED))) {
             config.modelPreferThreads = 8;
         }
-#elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
+#    elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
@@ -612,7 +621,7 @@ int get_model_prefer_threads(const int num_streams,
                    networkToleranceForLowCache.ratio_compute_convs > ov::MemBandwidthPressure::LIMITED) {
             config.modelPreferThreads = 2;
         }
-#else
+#    else
         config.modelPreferThreads = 0;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
@@ -631,6 +640,7 @@ int get_model_prefer_threads(const int num_streams,
             (proc_type_table[0][HYPER_THREADING_PROC] == proc_type_table[0][MAIN_CORE_PROC])) {
             config.modelPreferThreads = 2;
         }
+#    endif
 #endif
     }
 
@@ -708,6 +718,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            false,
                                                            cpu_pinning,
+                                                           true,
                                                            std::move(streams_info_table)};
 
     return proc_type_table;

@@ -79,9 +79,4 @@ runs:
     - if: ${{ inputs.show-cache-info == 'true' }}
       name: Get pip cache info
       shell: bash
-      run: |
-        echo "Cache size: "
-        du -h -d2 ${{ env.PIP_CACHE_DIR }}
-        echo "Cache info: "
-        python3 -m pip cache info
-      continue-on-error: true
+      run: python3 -m pip cache info

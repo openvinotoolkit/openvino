@@ -21,15 +21,6 @@ using namespace ov::snippets::utils;
 
 namespace ov {
 namespace intel_cpu {
-namespace {
-bool get_is_transposed(const ov::snippets::lowered::ExpressionPtr& expr) {
-    const auto& layout = expr->get_input_port_descriptor(0)->get_layout();
-    const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
-    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),
-                              "supports only N dim placed as last or pre last dimension");
-    return is_transposed;
-}
-}  // namespace
 
 jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
                                                      cpu_isa_t isa,
@@ -50,7 +41,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
     const auto& src_prc = brgemm_repack->get_src_element_type();
     const auto& wei_prc = brgemm_repack->get_input_element_type(0);
     const auto wei_N_blk = brgemm_utils::repacking::compute_inner_n_block(wei_prc);
-    const auto is_transposed = get_is_transposed(expr);
+    const auto is_transposed = BrgemmCopyB::is_transposed(expr->get_input_port_descriptor(0)->get_layout());
     const auto brgemm_type = get_brgemm_type(src_prc, is_transposed);
     const auto primitive_isa = brgemm_utils::get_primitive_isa(src_prc, with_amx(brgemm_type));
     m_with_comp = with_compensations(brgemm_type);

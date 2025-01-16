@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,7 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
+    if (ov::as_type_ptr<v0::Parameter>(input_node)) {
         // We need to look into external context for inputs that would be feed into this parameter
         size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
         if (m_ext_tensor_map.count(tensor_idx)) {
@@ -145,39 +145,65 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     return model;
 }
 
+Output<Node> NodeContext::get_input(int index) const {
+    size_t index_ = static_cast<size_t>(index);
+    auto input = m_decoder_inputs.at(index);
+    if (input == 0) {
+        // Case when input can be inlined (possible only for fx decoder)
+        if (m_decoder->is_input_inlined(index_)) {
+            if (m_decoder->input_is_none(index_)) {
+                // some operations like aten.index.Tensor can have None inputs
+                auto dummy_decoder = std::make_shared<InternalOpDecoder>("torch::None", 1);
+                auto fw_node = std::make_shared<PtFrameworkNode>(dummy_decoder, OutputVector{});
+                auto attrs = fw_node->get_attrs();
+                attrs["none_value"] = "";
+                attrs[PtFrameworkNode::failed_conversion_key] =
+                    "None constant cannot be converted to OpenVINO opset and should be removed by consuming "
+                    "operation.";
+                fw_node->set_attrs(attrs);
+                return fw_node->output(0);
+            } else {
+                auto inlined_decoder = m_decoder->get_inlined_input_decoder(index_);
+                auto inlined_ctx = NodeContext(inlined_decoder,
+                                               m_ext_tensor_map,
+                                               m_tensor_map,
+                                               m_external_parameters,
+                                               m_mutated_tensors,
+                                               m_translate_session);
+                auto inlined_input = m_translate_session->convert_node(inlined_ctx);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1,
+                                        "Incorrect inlined input with index: ",
+                                        index,
+                                        " for operation ",
+                                        get_op_type());
+                return inlined_input[0];
+            }
+        }
+    }
+    auto tensor_it = m_tensor_map->find(input);
+    FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input, " exist.");
+    return tensor_it->second;
+}
+
+Output<Node> NodeContext::get_input(const std::string& name) const {
+    FRONT_END_GENERAL_CHECK(has_attribute(name), "Input with name ", name, " doesn't exist");
+    auto attr = get_attribute_as_any(name);
+    if (attr.is<Output<Node>>()) {
+        // Case when input is constant value
+        return attr.as<Output<Node>>();
+    } else if (attr.is<type::PyNone>()) {
+        // None means input is unknown type, most likely a Node
+        auto input = m_decoder->get_named_input(name);
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
+        return m_tensor_map->at(input);
+    }
+    FRONT_END_GENERAL_CHECK(false, "Input has type which can't be converted to ov::Node.");
+}
+
 OutputVector NodeContext::inputs() const {
     OutputVector res;
     for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
-        auto input = m_decoder_inputs.at(i);
-        if (input == 0) {
-            // Case when input can be inlined (possible only for fx decoder)
-            if (m_decoder->is_input_inlined(i)) {
-                if (input_is_none(i)) {
-                    // some operations like aten.index.Tensor can have None inputs
-                    auto dummy_decoder = std::make_shared<InternalOpDecoder>("torch::None", 1);
-                    auto fw_node = std::make_shared<PtFrameworkNode>(dummy_decoder, OutputVector{});
-                    auto attrs = fw_node->get_attrs();
-                    attrs["none_value"] = "";
-                    attrs[PtFrameworkNode::failed_conversion_key] =
-                        "None constant cannot be converted to OpenVINO opset and should be removed by consuming "
-                        "operation.";
-                    fw_node->set_attrs(attrs);
-                    res.push_back(fw_node->output(0));
-                } else {
-                    auto inlined_input = m_decoder->inlined_input(i);
-                    FRONT_END_GENERAL_CHECK(inlined_input.size() == 1,
-                                            "Incorrect inlined input with index: ",
-                                            i,
-                                            " for operation ",
-                                            get_op_type());
-                    res.push_back(inlined_input[0]);
-                }
-                continue;
-            }
-        }
-        auto tensor_it = m_tensor_map->find(input);
-        FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input, " exist.");
-        res.push_back(tensor_it->second);
+        res.push_back(get_input(static_cast<int>(i)));
     }
     return res;
 }
@@ -272,7 +298,7 @@ template <>
 std::string NodeContext::const_input<std::string>(size_t index) const {
     FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input with index: ", index, " is none.");
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
-    auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node);
+    auto input = ov::as_type_ptr<PtFrameworkNode>(input_node);
     FRONT_END_GENERAL_CHECK(input,
                             "Input node with index ",
                             index,
@@ -301,7 +327,7 @@ Any NodeContext::get_values_from_const_input(int index) const {
     if (input_is_none(index))
         return {};
     auto input_val = get_input_from_visible_context(index);
-    if (auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_val.get_node_shared_ptr())) {
+    if (auto input = ov::as_type_ptr<PtFrameworkNode>(input_val.get_node_shared_ptr())) {
         const auto& attrs = input->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {
             return {};
