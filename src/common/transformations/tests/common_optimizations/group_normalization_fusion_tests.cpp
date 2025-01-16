@@ -22,14 +22,23 @@
 using namespace testing;
 using namespace ov;
 
+using ValuesContainerWithPositiveTestFlag =
+    std::tuple<bool,                // whether it's a positive test that should run reference model or a negative test
+               PartialShape,        // (partial) shape of input/output tensor (all dims except channel can be dynamic)
+               Shape,               // shape of optional instance norm gamma tensor (or empty shape if not used)
+               Shape,               // shape of optional instance norm beta tensor (or empty shape if not used)
+               Shape,               // shape of group norm gamma tensor
+               Shape,               // shape of group norm beta tensor
+               unsigned long long,  // number of groups
+               float>;              // epsilon
+
 template <element::Type_t T_act_elem,
           element::Type_t T_gn_gamma_elem = T_act_elem,
           element::Type_t T_gn_beta_elem = T_act_elem,
           element::Type_t T_in_gamma_elem = T_act_elem,
           element::Type_t T_in_beta_elem = T_act_elem>
 class GroupNormalizationFusionTestsFixture
-    : public ::testing::TestWithParam<
-          std::tuple<bool, PartialShape, Shape, Shape, Shape, Shape, unsigned long long, float>> {
+    : public ::testing::TestWithParam<ValuesContainerWithPositiveTestFlag> {
 public:
     static constexpr element::Type_t T_act_elem_t = T_act_elem;
     static constexpr element::Type_t T_gn_gamma_elem_t = T_gn_gamma_elem;
@@ -338,8 +347,6 @@ TEST_P(GroupNormalizationFusionTestsFixture_f8e8m0, GroupNormalizationFusionTest
 }
 
 using RawValuesContainer = std::tuple<PartialShape, Shape, Shape, Shape, Shape, unsigned long long, float>;
-using ValuesContainerWithPositiveTestFlag =
-    std::tuple<bool, PartialShape, Shape, Shape, Shape, Shape, unsigned long long, float>;
 
 std::vector<RawValuesContainer> valid_vals = {
     std::make_tuple(Shape{1, 320}, Shape{}, Shape{}, Shape{320}, Shape{320}, 1, 1e-5f),
