@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 if [ $EUID -ne 0 ]; then
