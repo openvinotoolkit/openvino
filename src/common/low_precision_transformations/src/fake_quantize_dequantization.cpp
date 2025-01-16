@@ -25,6 +25,7 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
     const std::shared_ptr<opset1::Multiply>& multiply,
     const std::shared_ptr<ov::opset1::Constant>& multiplyConstant) :
+    channelDimIndex(1ul),
     data(data),
     convert(convert),
     subtract(subtract),
@@ -32,9 +33,6 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
-    // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
-    channelDimIndex = 1ul;
-
     const auto rank = data.get_partial_shape().rank();
     if (rank.is_static()) {
         std::string data_src_type = data.get_node()->get_type_name();
