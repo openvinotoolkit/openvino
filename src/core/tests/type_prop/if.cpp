@@ -365,7 +365,7 @@ TEST(type_prop, if_output_one_element) {
     if_op->set_input(Y, nullptr, Ye);
     auto res = if_op->set_output(then_body_res, else_body_res);
     auto result0 = make_shared<ov::op::v0::Result>(res);
-    PartialShape out_shape{PartialShape{1}};
+    PartialShape out_shape{1};
     auto sh = result0->get_output_partial_shape(0);
     EXPECT_EQ(sh, out_shape);
 }

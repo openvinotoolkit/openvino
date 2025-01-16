@@ -34,12 +34,12 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
     }
     if (then_rank.get_length() != else_rank.get_length()) {
         auto is_one_element = [](const ov::PartialShape& pshape) {
-            return pshape.size() == 0 || pshape[0].get_max_length() == 1;
+            return pshape.size() == 0 || (pshape.is_static() && pshape[0].get_length() == 1);
         };
         // Union of scalar and 1D case
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
-            return (is_one_element(then_pshape) && is_one_element(else_pshape)) ?
-                    ov::PartialShape{1} : ov::PartialShape::dynamic(1);
+            return (is_one_element(then_pshape) && is_one_element(else_pshape)) ? ov::PartialShape{1}
+                                                                                : ov::PartialShape::dynamic(1);
         } else {
             return ov::PartialShape::dynamic();
         }
