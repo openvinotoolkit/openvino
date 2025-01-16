@@ -23,6 +23,7 @@ namespace pass {
  */
 class MHAParallelWAOptimizer : public lowered::pass::RuntimeOptimizer {
 public:
+    OPENVINO_RTTI("MHAParallelWAOptimizer", "", RuntimeOptimizer)
     MHAParallelWAOptimizer() = default;
     MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, const RuntimeConfigurator* configurator);
 

@@ -57,10 +57,24 @@ public:
     virtual size_t get_lanes() const = 0;
 
     /**
-     * @brief gets number of registers for a target machine
-     * @return number of registers
+     * @brief Get all possible ABI argument registers.
+     * The number of actually used register depends on the signature of the called binary.
+     * @return vector os snippets::Reg
      */
-    virtual size_t get_reg_count() const = 0;
+    virtual std::vector<snippets::Reg> get_abi_arg_regs() const = 0;
+
+    /**
+     * @brief Get all available general-purpose registers.
+     * Returns only registers that are not reserved for special purposes (e.g. stack pointer or instruction address).
+     * @return  vector os snippets::Reg
+     */
+    virtual std::vector<snippets::Reg> get_gp_reg_pool() const = 0;
+    /**
+    * @brief Get all available vector registers.
+     * Returns only registers that are not reserved for special purposes
+     * @return  vector os snippets::Reg
+    */
+    virtual std::vector<snippets::Reg> get_vec_reg_pool() const = 0;
 
     /**
      * @brief called by generator to all the emitter for a target machine

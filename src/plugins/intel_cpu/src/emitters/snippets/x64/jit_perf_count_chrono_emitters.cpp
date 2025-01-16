@@ -41,7 +41,7 @@ void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t>& i
     h->mov(h->rax, reinterpret_cast<size_t>(set_start_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_start_node.get()));
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rax);
     spill.rsp_restore();
 
@@ -74,7 +74,7 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_
     h->mov(h->rax, reinterpret_cast<size_t>(set_accumulated_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_end_node.get()));
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rax);
     spill.rsp_restore();
 

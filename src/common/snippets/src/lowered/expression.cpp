@@ -182,8 +182,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
         return ss.str();
     };
 
-    std::vector<size_t> in_regs, out_regs;
-    std::vector<std::string> in_reg_types, out_reg_types;
+    std::ostringstream in_regs, out_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
     std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
@@ -201,8 +200,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
         if (!layout.empty() && !utils::is_planar_layout(layout))
             layouts.emplace_back("in_layout_" + std::to_string(i), layout);
 
-        in_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
-        in_regs.emplace_back(desc->get_reg().idx);
+        in_regs << desc->get_reg() << " ";
     }
     for (size_t i = 0; i < get_output_count(); i++) {
         const auto& desc = m_output_port_descriptors[i];
@@ -218,17 +216,16 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
         if (!layout.empty() && !utils::is_planar_layout(layout))
             layouts.emplace_back("out_layout_" + std::to_string(i), layout);
 
-        out_reg_types.emplace_back(regTypeToStr(desc->get_reg().type));
-        out_regs.emplace_back(desc->get_reg().idx);
+        out_regs << desc->get_reg() << " ";
     }
 
-    if (!in_regs.empty()) {
-        visitor.on_attribute("in_regs", in_regs);
-        visitor.on_attribute("in_reg_types", in_reg_types);
+    if (!in_regs.str().empty()) {
+        std::vector<std::string> tmp {in_regs.str()};
+        visitor.on_attribute("in_regs", tmp);
     }
-    if (!out_regs.empty()) {
-        visitor.on_attribute("out_regs", out_regs);
-        visitor.on_attribute("out_reg_types", out_reg_types);
+    if (!out_regs.str().empty()) {
+        std::vector<std::string> tmp {out_regs.str()};
+        visitor.on_attribute("out_regs", tmp);
     }
     for (auto& s : shapes)
         visitor.on_attribute(s.first, s.second);

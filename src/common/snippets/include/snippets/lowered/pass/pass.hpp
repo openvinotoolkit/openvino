@@ -59,7 +59,7 @@ public:
  */
 class Pass : public PassBase {
 public:
-    OPENVINO_RTTI("snippets::lowered::pass::Pass", "", PassBase)
+    OPENVINO_RTTI("snippets::lowered::pass::Pass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -75,7 +75,7 @@ public:
  */
 class ConstPass : public PassBase {
 public:
-    OPENVINO_RTTI("snippets::lowered::pass::ConstPass", "", PassBase)
+    OPENVINO_RTTI("snippets::lowered::pass::ConstPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -91,7 +91,7 @@ public:
  */
 class RangedPass : public PassBase {
 public:
-    OPENVINO_RTTI("snippets::lowered::pass::RangedPass", "", PassBase)
+    OPENVINO_RTTI("snippets::lowered::pass::RangedPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR

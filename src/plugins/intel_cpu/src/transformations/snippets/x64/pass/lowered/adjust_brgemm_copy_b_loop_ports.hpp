@@ -20,7 +20,7 @@ namespace pass {
  */
 class AdjustBrgemmCopyBLoopPorts : public snippets::lowered::pass::ConstPass {
 public:
-    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "0", snippets::lowered::pass::ConstPass);
+    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "", ConstPass)
     AdjustBrgemmCopyBLoopPorts() = default;
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
     static bool update_loop_info(const snippets::lowered::UnifiedLoopInfoPtr& uni_loop_info);
