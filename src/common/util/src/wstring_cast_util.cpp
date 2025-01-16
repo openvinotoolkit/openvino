@@ -9,6 +9,10 @@
 #    include <codecvt>
 #    include <locale>
 
+#    ifdef _WIN32
+#        include <windows.h>
+#    endif
+
 #    ifdef __clang__
 #        pragma clang diagnostic push
 #        pragma clang diagnostic ignored "-Wdeprecated-declarations"
