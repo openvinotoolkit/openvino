@@ -105,10 +105,10 @@ inline int FUNC(partition)(__global Box* arr, int l, int h) {
     static int static_counter = 0;
     static_counter++;
     int pivot_idx = l;
-    if(static_counter%3 == 0) {
+    if (static_counter%3 == 0) { //cyclic pivot selection rotation
         pivot_idx = (l+h)/2;
     }
-    if(static_counter%3 == 1) {
+    if (static_counter%3 == 1) {
         pivot_idx = h;
     }
     INPUT0_TYPE pivotScore = arr[pivot_idx].score;
