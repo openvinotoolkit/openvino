@@ -13,8 +13,7 @@ namespace ov {
 namespace util {
 
 #if defined(OPENVINO_HAS_FILESYSTEM)
-// There are known issues related with usage of std::filesystem::path unocode represenataion:
-// https://jira.devtools.intel.com/browse/CVS-160477
+// There are known issues related with usage of std::filesystem::path unicode represenataion:
 // * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
 // * https://stackoverflow.com/questions/58521857/cross-platform-way-to-handle-stdstring-stdwstring-with-stdfilesystempath
 // Working compiler versions has been designated with godbolt.
