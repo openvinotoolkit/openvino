@@ -14,8 +14,8 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "transformations/convert_precision.hpp"
 #include "serialization.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace opp = ov::pass::pattern;
 class TransposeValueTensors : public ov::pass::MatcherPass {
