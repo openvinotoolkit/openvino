@@ -235,8 +235,8 @@ void ExecutionConfig::update_specific_default_properties(const cldnn::device_inf
         return;
     specific_default_properties_is_set = true;
 
-    // Enable KV-cache compression by default
-    if (get_property(ov::hint::kv_cache_precision) == ov::element::undefined) {
+    // Enable KV-cache compression by default for non-systolic platforms MFDNN-11755
+    if (get_property(ov::hint::kv_cache_precision) == ov::element::undefined  && !info.supports_immad) {
         set_property(ov::hint::kv_cache_precision(ov::element::i8));
     }
 
