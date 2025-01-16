@@ -102,7 +102,7 @@ inline void FUNC(swap_box)(__global Box* a, __global Box* b) {
 }
 
 inline int FUNC(partition)(__global Box* arr, int l, int h) {
-    int static_counter = 0;
+    static int static_counter = 0;
     static_counter++;
     int pivot_idx = l;
     if(static_counter%3 == 0) {
