@@ -145,10 +145,6 @@ struct CPUStreamsExecutor::Impl {
                 _cpu_ids =
                     stream_id < static_cast<int>(stream_processors.size()) ? stream_processors[stream_id] : _cpu_ids;
                 if (_cpu_ids.size() > 0) {
-                    if (_impl->_config.get_cpu_reservation()) {
-                        std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
-                        _impl->_cpu_ids_all.insert(_impl->_cpu_ids_all.end(), _cpu_ids.begin(), _cpu_ids.end());
-                    }
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = get_process_mask();
@@ -341,6 +337,7 @@ struct CPUStreamsExecutor::Impl {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
+        auto processor_ids = _config.get_stream_processor_ids();
         if (streams_num != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min<std::size_t>(streams_num, numaNodes.size()),
@@ -349,6 +346,10 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = std::move(numaNodes);
         }
         for (auto streamId = 0; streamId < streams_num; ++streamId) {
+            if (_config.get_cpu_reservation()) {
+                std::lock_guard<std::mutex> lock(_cpu_ids_mutex);
+                _cpu_ids_all.insert(_cpu_ids_all.end(), processor_ids[streamId].begin(), processor_ids[streamId].end());
+            }
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config.get_name() + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
