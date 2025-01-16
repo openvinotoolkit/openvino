@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 from openvino import Core, Layout, Model, Shape, Tensor, Type
-from openvino.runtime.utils.decorators import custom_preprocess_function
-from openvino.runtime import Output
+from openvino.utils.decorators import custom_preprocess_function
+from openvino import Output
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm, PaddingMode
 
 

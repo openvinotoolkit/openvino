@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ void regclass_graph_op_Constant(py::module m) {
                      return Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory);
                  }),
                  py::arg("tensor"),
-                 py::arg("shared_memory") = false);
+                 py::arg("shared_memory") = true);
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<char>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<ov::float16>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<float>&>());

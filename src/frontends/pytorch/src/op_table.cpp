@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -173,6 +173,7 @@ OP_CONVERTER(translate_outer);
 OP_CONVERTER(translate_pack_padded_sequence);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pad_packed_sequence);
+OP_CONVERTER(translate_permute);
 OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
@@ -589,7 +590,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::outer", op::translate_outer},
         {"aten::pad", op::translate_pad},
         {"aten::pairwise_distance", op::translate_pairwise_distance},
-        {"aten::permute", op::translate_1to1_match_2_inputs<opset10::Transpose>},
+        {"aten::permute", op::translate_permute},
         {"aten::pixel_shuffle", op::translate_pixel_shuffle},
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
@@ -918,7 +919,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.ones.default", op::translate_ones_fx},
         {"aten.ones.names", op::translate_ones_fx},
         {"aten.ones_like.default", op::translate_ones_like_fx},
-        {"aten.permute.default", op::translate_1to1_match_2_inputs<opset10::Transpose>},
+        {"aten.permute.default", op::translate_permute},
         {"aten.pow.Scalar", op::translate_pow},
         {"aten.pow.Tensor_Scalar", op::translate_pow},
         {"aten.pow.Tensor_Tensor", op::translate_pow},
