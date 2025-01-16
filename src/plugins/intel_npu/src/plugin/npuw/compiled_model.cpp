@@ -961,7 +961,6 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
             }
         }
     }
-    std::cout << "DONE" << std::endl;
 }
 
 void ov::npuw::CompiledModel::detach_memory() {
