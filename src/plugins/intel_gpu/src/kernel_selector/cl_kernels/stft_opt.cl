@@ -9,8 +9,10 @@ typedef float2 cfloat;
 #define crmult(a, b) ((cfloat)(real(a) * (b), imag(a) * (b)))
 #define cadd(a, b)   ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
 #define csub(a, b)   ((cfloat)(real(a) - real(b), imag(a) - imag(b)))
-#define expmi(x)     ((cfloat)(cos(x), -sin(x)))
+#define expmi(x)     ((cfloat)(native_cos(x), -native_sin(x)))
 #define czero()      ((cfloat)(0))
+
+#define X_I_MAX_BUFFER_SIZE 2048
 
 // Unoptimized, the most obvious stft impl from the definition.
 KERNEL(stft_ref)(
@@ -29,7 +31,7 @@ KERNEL(stft_ref)(
     const int frame_step = (int)frame_step_buff[0];
     const int window_size = INPUT1_SIZE_X;
 
-    __local float x_i_shared[window_size];
+    __local float x_i_shared[X_I_MAX_BUFFER_SIZE];
 
     const size_t block_size = get_local_size(0)*get_local_size(1)*get_local_size(2);
 
