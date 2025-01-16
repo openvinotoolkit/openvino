@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         OPENVINO_THROW("CPU: " + errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
+    const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
     m_config = node->get_config();
 }
 
@@ -457,7 +457,7 @@ void RoPE::execute(dnnl::stream strm) {
 
 bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
+        const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
         if (!node) {
             errorMessage = "Only RoPE operation is supported";
             return false;

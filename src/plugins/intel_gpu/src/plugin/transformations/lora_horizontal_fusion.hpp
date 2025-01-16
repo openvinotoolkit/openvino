@@ -80,7 +80,7 @@ namespace intel_gpu {
 
 class LoRAHorizontalFusion: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LoRAHorizontalFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("LoRAHorizontalFusion");
     LoRAHorizontalFusion();
 };
 

@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API TSSplitForward;
  */
 class ov::pass::transpose_sinking::TSSplitForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSSplitForward", "0");
+    OPENVINO_RTTI("ov::pass::TSSplitForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSSplitForward();
 };
 

@@ -43,13 +43,13 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
-        auto fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
+        auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
         ov::NodeVector strided_slice_nodes;
         std::vector<int64_t> split_lengths;
         int64_t begin_offset = 0;
         int64_t end_offset = 0;
         for (const auto& user : fc->get_users()) {
-            const auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(user);
+            const auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(user);
             if (strided_slice_node) {
                 auto valid_ps = [](const ov::PartialShape& shape) -> bool {
                     return shape.rank().is_static() && shape[shape.rank().get_length() - 1].is_static();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -353,7 +353,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
     }
     int constCnt = 0;
 
-    std::shared_ptr<const ov::Model> getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
+    std::shared_ptr<const ov::Model> getFunction = ov::as_type_ptr<const ov::Model>(execGraph);
     ASSERT_NE(getFunction, nullptr);
 
     for (const auto& op : getFunction->get_ops()) {
@@ -405,7 +405,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
     int constCnt = 0;
     // Store all the layers from the executable graph information represented as CNNNetwork
     bool hasOpWithValidTime = false;
-    auto getFunction = std::dynamic_pointer_cast<const ov::Model>(execGraph);
+    auto getFunction = ov::as_type_ptr<const ov::Model>(execGraph);
     ASSERT_NE(nullptr, getFunction);
 
     for (const auto& op : getFunction->get_ops()) {
