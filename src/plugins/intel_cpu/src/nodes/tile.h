@@ -39,8 +39,6 @@ private:
     int tiles = 0;
     bool noTiling = false;
     VectorDims originRepeats;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

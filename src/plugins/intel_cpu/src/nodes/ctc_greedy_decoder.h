@@ -27,8 +27,6 @@ private:
     const size_t DATA_INDEX = 0lu;
     const size_t SEQUENCE_LENGTH_INDEX = 1lu;
     bool mergeRepeated;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

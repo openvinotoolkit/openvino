@@ -168,8 +168,7 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
 }
 
 FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, FCShapeInferFactory(op)),
-      errorPrefix("FullyConnected node with name '" + getName() + "'") {
+    : Node(op, context, FCShapeInferFactory(op)) {
     std::string errorMessage;
     initTensorParallelConfig(context);
     if (!isSupportedOperation(op, errorMessage))

@@ -48,7 +48,6 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
     const auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(op);
     const auto depthNode = ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
     if (depthNode) {
@@ -70,12 +69,12 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         axis += output_dims_size;
     }
     if (axis < 0 || axis >= output_dims_size) {
-        OPENVINO_THROW(errorPrefix, " has unsupported 'axis' attribute: ", oneHot->get_axis());
+        THROW_CPU_NODE_ERR("has unsupported 'axis' attribute: ", oneHot->get_axis());
     }
 
     if (!(((1 + srcDims.size()) == dstDims.size()) ||
           (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1))))
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output dimensions!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
 }
 
 bool OneHot::needShapeInfer() const {
@@ -95,7 +94,7 @@ void OneHot::initSupportedPrimitiveDescriptors() {
     // check a precision of the input tensor
     auto input_precision = getOriginalInputPrecisionAtPort(INDICES_ID);
     if (input_precision != ov::element::i32) {
-        OPENVINO_THROW(errorPrefix, " has incorrect input precision for the input. Only I32 is supported!");
+        THROW_CPU_NODE_ERR("has incorrect input precision for the input. Only I32 is supported!");
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);
 

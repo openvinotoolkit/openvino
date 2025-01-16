@@ -33,14 +33,13 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     if (strides.empty())
-        OPENVINO_THROW(errorPrefix, " has empty strides");
+        THROW_CPU_NODE_ERR("has empty strides");
     stride = strides[0];
 }
 

@@ -41,8 +41,6 @@ private:
     int k = 1;
     float alpha = 1.0f;
     float beta = 1.0f;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

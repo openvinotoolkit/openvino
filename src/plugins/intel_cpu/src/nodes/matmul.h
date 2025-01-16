@@ -59,8 +59,6 @@ private:
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights);
 
-    std::string errorPrefix;
-
     /* whether to transpose input */
     std::array<bool, 2> transposeIn;
 

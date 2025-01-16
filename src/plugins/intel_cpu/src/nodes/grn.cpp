@@ -33,18 +33,17 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
     const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
     if (grn == nullptr)
-        OPENVINO_THROW("Operation with name '", op->get_friendly_name(), "' is not an instance of GRN from opset1.");
+        THROW_CPU_NODE_ERR("is not an instance of GRN from opset1.");
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(0).getRank();
 
     if (dataRank != getOutputShapeAtPort(0).getRank())
-        OPENVINO_THROW(errorPrefix, " has input/output rank mismatch");
+        THROW_CPU_NODE_ERR("has input/output rank mismatch");
 
     bias = grn->get_bias();
 }
@@ -63,18 +62,18 @@ void GRN::prepareParams() {
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!dataMemPtr || !dataMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+        THROW_CPU_NODE_ERR("has undefined input memory");
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined output memory");
+        THROW_CPU_NODE_ERR("has undefined output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& dstDims = dstMemPtr->getStaticDims();
 
     for (size_t i = 0; i < dataDims.size(); ++i) {
         if (dataDims[i] != dstDims[i])
-            OPENVINO_THROW(errorPrefix, " hsd input/output tensors dimensions mismatch");
+            THROW_CPU_NODE_ERR("hsd input/output tensors dimensions mismatch");
     }
 
     if (dataDims.size() > 0)
