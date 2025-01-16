@@ -43,7 +43,7 @@ public:
     typedef typename ov::element_type_traits<T_in_gamma_elem_t>::value_type T_in_gamma_store_t;
     typedef typename ov::element_type_traits<T_in_beta_elem_t>::value_type T_in_beta_store_t;
 
-    virtual void TestBody() {
+    void TestBody() override {
         auto params = GetParam();
         auto positive_test = std::get<0>(params);
         auto data_shape = std::get<1>(params);
