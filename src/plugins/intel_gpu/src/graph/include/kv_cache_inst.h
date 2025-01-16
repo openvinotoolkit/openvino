@@ -62,9 +62,8 @@ public:
         return sequence_axis >= 0 ? sequence_axis : past_layout_rank + sequence_axis;
     }
 
-    static int64_t get_scale_zp_sequence_axis() {
-        // The order of scales and zero points is fixed, so use constant axis
-        const auto scale_zp_concat_axis = 2;
+    static int64_t get_scale_zp_sequence_axis(int64_t sequence_axis, const kv_cache::QuantizationAttributes& quantization_attrs) {
+        const auto scale_zp_concat_axis = quantization_attrs.scales_zp_output_order[sequence_axis];
         return scale_zp_concat_axis;
     }
 
