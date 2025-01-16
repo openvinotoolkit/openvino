@@ -147,7 +147,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             when it is not related to debugging.
 
             :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param xml_path: path where .xml file will be saved
             :type xml_path: Union[str, bytes, pathlib.Path]
             :param bin_path: path where .bin file will be saved (optional),
@@ -204,7 +204,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             compressed to FP16, debug information in model nodes are cleaned up, etc.
 
             :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param output_model: path to output model file
             :type output_model: Union[str, bytes, pathlib.Path]
             :param compress_to_fp16: whether to compress floating point weights to FP16 (default: True). The parameter is ignored for pre-optimized models.
@@ -267,7 +267,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regmodule_graph_op_util(m_op);
     regmodule_experimental(m);
     py::module m_preprocess =
-        m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
+        m.def_submodule("preprocess", "Package openvino.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
     regclass_graph_Model(m);
     regmodule_graph_passes(m);

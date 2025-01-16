@@ -15,7 +15,7 @@ namespace py = pybind11;
 
 void regclass_graph_DiscreteTypeInfo(py::module m) {
     py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>> discrete_type_info(m, "DiscreteTypeInfo");
-    discrete_type_info.doc() = "openvino.runtime.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
+    discrete_type_info.doc() = "openvino.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
 
     discrete_type_info.def(py::init([](const std::string& name, const std::string& version_id) {
                                return std::make_shared<DiscreteTypeInfoWrapper>(name, version_id);
