@@ -118,18 +118,20 @@ public:
 
         std::map<primitive_id, network_output> outputs;
         for (int i = 0; i < warmup; ++i)
-            outputs = network->execute();
+            network->execute();
         network->reset_execution(true);
 
         // Note: Should be based on events, this one
         // also adds up kernel launch time and gpu idle time.
         auto start = std::chrono::system_clock::now();
         for (int i = 0; i < run; ++i)
-            outputs = network->execute();
+            network->execute();
         network->reset_execution(true);
         auto stop = std::chrono::system_clock::now();
 
         const auto d_actual = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+        outputs = network->execute();
         auto output = outputs.at("stft").get_memory();
         auto outputShape = output->get_layout().get_shape();
         std::cout << "Avg Time for output shape " << outputShape << ":" << d_actual / run << " microseconds\n\n";
