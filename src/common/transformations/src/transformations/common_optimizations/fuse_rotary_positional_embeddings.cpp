@@ -640,7 +640,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         auto const_target_shape_0 = makeConst({0, 0, head_cnt, ndims});
         const_target_shape_3 = makeConst({seq_len, batch, head_cnt, ndims});
         flatten_Reshape_501 =
-            makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_0 | const_target_shape_3},
+            makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3 | const_target_shape_0},
                                          {{"special_zero", true}});
     }
     auto slice_Slice_443 = GenSlice(input_key, ndims, INT_MAX, 1, 3);
