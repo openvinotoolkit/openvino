@@ -189,16 +189,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})",
         // TODO: 141068
         R"(smoke_Snippets_FQDecomposition.*netPRC=f16_D=CPU.*)",
-        // Issue: 133173
-        R"(.*smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest.CompareWithRefs/netPRC=bf16.*has_scale=0.*)",
+        // Issue: 160734
         R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[1\]_\{ -18.7 \}_\{ 18.7 \}\}.*)",
-        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*10.4.20.32.2.*_Precision=bf16.*)",
-        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*2.5.7.8.2.*_Precision=bf16.*)",
-        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=bf16.*_signal_size=\(\).*)",
-        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*2.5.7.8.2.*Precision=bf16.*signal_size=\(\).*)",
+        // Issue: 160735
         R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*TS=\{\((10.4.20.32.2|1.120.128.1.2)\)\}.*Precision=f32.*signal_size=\(\).*)",
-        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*1.120.128.1.2.*Precision=bf16.*signal_size=\(\).*)",
-        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\(2.1\)_signal_size=\(\).*)",
         // by calc abs_threshold with expected value
         R"(.*smoke_.*_4D.*/GatherLayerTestCPU.CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)",
         R"(.*smoke.*Mvn6LayerTest.Inference/.*TS.*1.10.5.7.8.*_ModelType=f32.*_Ax=\((2.3.4|-3.-2.-1)\).*)",
