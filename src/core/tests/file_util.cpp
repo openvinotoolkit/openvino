@@ -539,6 +539,12 @@ protected:
             outfile << "This is a test file." << std::endl;
         }
 #endif
+#if defined(__ANDROID__) || defined(ANDROID)
+        {
+            std::ofstream outfile("android_test_file_21.txt");
+            outfile << "This is a test file." << std::endl;
+        }
+#endif
     }
 
     void TearDown() override {
@@ -551,6 +557,9 @@ protected:
         std::filesystem::remove(u"这是_u16_.txt");
         std::filesystem::remove(U"这是_u32_.txt");
         std::filesystem::remove(ov::util::WPath(L"这是_wstring_.txt"));
+#endif
+#if defined(__ANDROID__) || defined(ANDROID)
+        std::filesystem::remove("android_test_file_21.txt");
 #endif
     }
 };
@@ -618,5 +627,18 @@ TEST_F(FileUtilTest, wstringFileSizeTest) {
     EXPECT_EQ(ov::util::file_size("这是_wstring_.txt"), 21);
     EXPECT_EQ(ov::util::file_size(L"这是_wstring_.txt"), 21);
     EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_wstring_.txt")), 21);
+}
+#endif
+
+#if defined(__ANDROID__) || defined(ANDROID)
+TEST_F(FileUtilTest, androidFileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("android_test_file_21.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(L"android_test_file_21.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_21.txt")), 21);
+}
+TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
+    EXPECT_EQ(ov::util::file_size("android_test_file_21.txt!_to_cut.jar"), 21);
+    EXPECT_EQ(ov::util::file_size(L"android_test_file_21.txt!_to_cut.jar"), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_21.txt!_to_cut.jar")), 21);
 }
 #endif
