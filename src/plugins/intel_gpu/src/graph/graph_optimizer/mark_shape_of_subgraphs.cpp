@@ -94,6 +94,12 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
             return false;
     }
 
+    // Exclude output node when it's not dynamic, because will disable USM host memory for infer request`s tensors for
+    // PVC and subsequent dGPUs when use CPU reference implementation
+    if (node.is_output() && !node.is_dynamic()) {
+        return false;
+    }
+
     return true;
 }
 
