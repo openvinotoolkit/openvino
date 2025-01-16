@@ -268,14 +268,13 @@ void add_required_reorders::run(program& p) {
 
             if (prim->requires_alignment(input_pshape)) {
                 auto block_sizes = format::block_sizes(input_layout.format);
+                auto axes = prim->reduction_axes;
                 if (input_layout.is_dynamic() || block_sizes.size() > 1
-                    || (block_sizes.size() == 1 && input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0)) {
+                    || (block_sizes.size() == 1 &&
+                        input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
+                        (axes.size() == 1 && static_cast<size_t>(axes[0]) != block_sizes[0].first))) {
                     auto rank = input_pshape.size();
-                    if (rank == 4) {
-                        input_layout.format = format::bfyx;
-                    } else if (rank == 5) {
-                        input_layout.format = format::bfzyx;
-                    }
+                    input_layout.format = format::get_default_format(rank);
                     auto& dep = usr->as<mvn>().input();
                     auto new_reorder = std::make_shared<reorder>(dep.id() + "_to_plain", dep.id(), input_layout);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
