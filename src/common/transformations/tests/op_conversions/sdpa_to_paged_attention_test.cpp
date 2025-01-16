@@ -34,7 +34,6 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
-#include "transformations/convert_precision.hpp"
 
 using namespace ov;
 using namespace std;
@@ -443,10 +442,9 @@ public:
 
 class SDPAToPATest : public TransformationTestsF, public ::testing::WithParamInterface<element::Type> {};
 
-TEST_P(SDPAToPATest, SDPAToPA_Qwen) {
+TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
     const auto model_precision = GetParam();
     {
-
         // Inputs to SDPA transformer:
         auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
@@ -475,7 +473,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen) {
         // RoPE emb sin/cos init:
         auto neg_cur_seq_len = Qwen7bChatSDPA::neg_mul(current_seq_len);
         auto head_size = shared_ptr<Node>();
-        auto rope_emb_sin = Qwen7bChatSDPA::gen_rope_emb_sin(total_seq_len, neg_cur_seq_len, head_size, model_precision);
+        auto rope_emb_sin =
+            Qwen7bChatSDPA::gen_rope_emb_sin(total_seq_len, neg_cur_seq_len, head_size, model_precision);
         auto rope_emb_cos = Qwen7bChatSDPA::gen_rope_emb_cos(total_seq_len, neg_cur_seq_len, model_precision);
 
         // RoPE for Q,K inputs:
@@ -535,8 +534,10 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen) {
 
         // RoPE emb sin/cos init:
         auto head_size = shared_ptr<Node>();
-        auto rope_emb_sin = Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids_aligned, head_size, model_precision);
-        auto rope_emb_cos = Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids_aligned, model_precision);
+        auto rope_emb_sin =
+            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids_aligned, head_size, model_precision);
+        auto rope_emb_cos =
+            Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids_aligned, model_precision);
 
         // rope Q, K:
         auto rope_Q = Qwen7bChatPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
@@ -584,7 +585,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen) {
     disable_rt_info_check();
 }
 
-TEST_F(TransformationTestsF, SDPAToPA_TotalSequenceLengthPatternQwen) {
+TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
     {
         // Inputs to SDPA transformer:
         auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
@@ -639,13 +640,6 @@ TEST_F(TransformationTestsF, SDPAToPA_TotalSequenceLengthPatternQwen) {
     disable_rt_info_check();
 }
 
-
-const std::vector<ov::element::Type> element_types = {element::f16, element::f32};
-
-INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion,
-                         SDPAToPATest,
-                         testing::ValuesIn(element_types));
-
 static std::shared_ptr<ov::Node> make_param(const PartialShape& pshape,
                                             element::Type element_type,
                                             const std::string& name) {
@@ -659,7 +653,7 @@ static std::shared_ptr<ov::Node> make_param(const PartialShape& pshape,
 // TODO: write a test for StateManagementPattern only (because changes for Alibi are inside it)
 // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
 // checking the graph structure and names, other checks are temporarily disabled:
-TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
+TEST_P(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
         auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
@@ -909,3 +903,16 @@ TEST_F(TransformationTestsF, SDPAToPA_Baichuan2_13b_general_test) {
         disable_rt_info_check();
     }
 }
+
+/*
+As there's often a need to cover specific model's architecutres in these
+tests, please, make sure you name the tests in the following manner:
+SDPAToPA_MODELNAME_PATTERNYOUCOVER:
+i.e. SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern or
+SDPAToPA_Baichuan2_13b_General if this is a test for the
+entire SDPAToPA transformation
+*/
+
+const std::vector<ov::element::Type> element_types = {element::f16, element::f32};
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion, SDPAToPATest, testing::ValuesIn(element_types));

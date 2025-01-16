@@ -73,10 +73,11 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     auto p_neg_const = wrap_type<v0::Constant>();
     auto p_neg_mul = wrap_type<v1::Multiply>({p_current_len, p_neg_const});
 
-    // For it has always been a constant, but this may change in the future.
+    // For now, it has always been a constant, but this may change in the future.
     // In case of model being in FP16, there will be a decompressing subgraph:
     // i.e. Constant -> Convert -> Slice
-    // It hasn't been observed yet, but, theoretically, there can also be a
+    //
+    // Also, it hasn't been observed yet, but, theoretically, there can also be a
     // dequantizing subgraph, so it's going to be any_input() here.
     auto p_rotary_emb_sincos = pattern::any_input();
     // the rotary_emb_cos/rotary_emb_sin are sliced by the total length [1,..4096,1,128]
