@@ -523,9 +523,7 @@ int main(int argc, char* argv[]) {
             }
         }
         auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
-            if (device_name.find(item.first) == 0)
-                return true;
-            return false;
+            return device_name.find(item.first) == 0;
         });
         ov::AnyMap device_config = {};
         if (result != config.end())
@@ -548,6 +546,13 @@ int main(int argc, char* argv[]) {
         }
 
         bool isDynamicNetwork = false;
+        auto areNetworkInputsDynamic = [](benchmark_app::InputsInfo& input_info) {
+            return std::any_of(input_info.begin(),
+                               input_info.end(),
+                               [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
+                                   return i.second.partialShape.is_dynamic();
+                               });
+        };
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
@@ -722,12 +727,7 @@ int main(int argc, char* argv[]) {
             model = preproc.build();
 
             // Check if network has dynamic shapes
-            auto input_info = app_inputs_info[0];
-            isDynamicNetwork = std::any_of(input_info.begin(),
-                                           input_info.end(),
-                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
-                                               return i.second.partialShape.is_dynamic();
-                                           });
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             topology_name = model->get_friendly_name();
 
@@ -789,6 +789,7 @@ int main(int argc, char* argv[]) {
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
                                               compiledModel.inputs());
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             batchSize = get_batch_size(app_inputs_info.at(0));
             warn_if_no_batch(app_inputs_info.at(0));
