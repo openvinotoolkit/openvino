@@ -2124,7 +2124,7 @@ static int runSingleImageTest() {
                                                                                  : refFilesForOneInfer[numberOfTestCase];
             if (!FLAGS_ref_results.empty()) {
                 OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
-                " doesn't match network configuration ", outputsInfo.size());
+                " doesn't match network output configuration: ", outputsInfo.size());
             }
 
             TensorMap inTensors;
