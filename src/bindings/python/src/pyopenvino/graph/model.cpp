@@ -116,9 +116,8 @@ static ov::PartialShape partial_shape_from_handle(const py::handle& handle) {
     } else if (py::isinstance<py::str>(handle)) {
         return ov::PartialShape(handle.cast<std::string>());
     } else {
-        throw py::type_error(
-            "Incorrect value type " + std::string(py::str(handle.get_type())) +
-            " to reshape a model, expected values as openvino.PartialShape, str, list or tuple.");
+        throw py::type_error("Incorrect value type " + std::string(py::str(handle.get_type())) +
+                             " to reshape a model, expected values as openvino.PartialShape, str, list or tuple.");
     }
 }
 
