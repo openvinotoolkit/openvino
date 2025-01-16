@@ -49,8 +49,6 @@ private:
 
     ov::element::Type output_precision;
 
-    std::string errorPrefix;
-
     static const size_t INDICES_ID = 0;
     static const size_t DEPTH_ID = 1;
     static const size_t ON_VALUE_ID = 2;

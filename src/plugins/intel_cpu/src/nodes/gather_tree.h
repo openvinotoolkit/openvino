@@ -56,8 +56,6 @@ private:
     static const size_t GATHER_TREE_END_TOKEN = 3;
 
     ov::element::Type precision;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

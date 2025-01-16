@@ -43,8 +43,6 @@ private:
     int grid_h_;
     float stride_w_;
     float stride_h_;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

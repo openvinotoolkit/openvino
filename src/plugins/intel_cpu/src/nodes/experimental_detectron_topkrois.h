@@ -43,8 +43,6 @@ private:
 
     const int OUTPUT_ROIS{0};
     int max_rois_num_;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

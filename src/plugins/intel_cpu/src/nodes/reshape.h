@@ -31,8 +31,6 @@ public:
 
 private:
     mutable std::vector<int> lastSecondInputValues;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

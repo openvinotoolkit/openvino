@@ -35,10 +35,9 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "ExperimentalDetectronPriorGridGenerator layer with name '" + op->get_friendly_name() + "'";
     const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     const auto& attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;

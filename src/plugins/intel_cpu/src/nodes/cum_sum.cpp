@@ -37,16 +37,14 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "CumSum layer with name '" + op->get_friendly_name() + "' ";
-
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) ||
         getOriginalOutputsNumber() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     const auto& dataShape = getInputShapeAtPort(CUM_SUM_DATA);
     numOfDims = dataShape.getRank();
     if (numOfDims < 1) {
-        OPENVINO_THROW(errorPrefix, " doesn't support 'data' input tensor with rank: ", numOfDims);
+        THROW_CPU_NODE_ERR("doesn't support 'data' input tensor with rank: ", numOfDims);
     }
 
     const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
@@ -59,11 +57,11 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     if (getOriginalInputsNumber() == numOfInputs) {
         const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
         if (axis_shape.is_dynamic() || !ov::is_scalar(axis_shape.to_shape()))
-            OPENVINO_THROW(errorPrefix, " doesn't support 'axis' input tensor with non scalar rank");
+            THROW_CPU_NODE_ERR("doesn't support 'axis' input tensor with non scalar rank");
     }
 
     if (dataShape != getOutputShapeAtPort(0))
-        OPENVINO_THROW(errorPrefix, " has different 'data' input and output dimensions");
+        THROW_CPU_NODE_ERR("has different 'data' input and output dimensions");
 }
 
 void CumSum::initSupportedPrimitiveDescriptors() {
@@ -81,12 +79,12 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                 ov::element::bf16,
                 ov::element::f16,
                 ov::element::f32))
-        OPENVINO_THROW(errorPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
 
     if (inputShapes.size() == numOfInputs) {
         const auto& axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
         if (axisTensorPrec != ov::element::i32 && axisTensorPrec != ov::element::i64)
-            OPENVINO_THROW(errorPrefix, " has unsupported 'axis' input precision: ", axisTensorPrec.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported 'axis' input precision: ", axisTensorPrec.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConf;
@@ -255,11 +253,11 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
         break;
     }
     default: {
-        OPENVINO_THROW(errorPrefix, "  doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
+        THROW_CPU_NODE_ERR("doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
     }
     }
     if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
-        OPENVINO_THROW(errorPrefix, "  has axis with a value out of range: ", axisValueFromBlob);
+        THROW_CPU_NODE_ERR("has axis with a value out of range: ", axisValueFromBlob);
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 

@@ -27,8 +27,6 @@ public:
 
 private:
     int stride;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

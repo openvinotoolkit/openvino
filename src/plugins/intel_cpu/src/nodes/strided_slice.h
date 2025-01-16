@@ -72,22 +72,16 @@ private:
     public:
         StridedSliceExecutor(const StridedSliceAttributes& attrs,
                              const std::vector<MemoryCPtr>& srcMemory,
-                             const std::vector<MemoryCPtr>& dstMemory,
-                             const std::string& errorPrefix)
-            : errorPrefix(errorPrefix) {}
+                             const std::vector<MemoryCPtr>& dstMemory) {}
         virtual void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) = 0;
         virtual ~StridedSliceExecutor() = default;
-
-    protected:
-        const std::string errorPrefix;
     };
 
     class StridedSliceCommonExecutor : public StridedSliceExecutor {
     public:
         StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
                                    const std::vector<MemoryCPtr>& srcMemory,
-                                   const std::vector<MemoryCPtr>& dstMemory,
-                                   const std::string& errorPrefix);
+                                   const std::vector<MemoryCPtr>& dstMemory);
         void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) override;
         void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
         void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
@@ -134,8 +128,6 @@ private:
 
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

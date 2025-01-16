@@ -187,7 +187,6 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix = "Interaction node with name '" + getName() + "'";
     const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {

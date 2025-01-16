@@ -84,8 +84,6 @@ private:
 
     jit_roi_pooling_params refParams = {};
 
-    std::string errorPrefix;
-
     class ROIPoolingExecutor {
     public:
         ROIPoolingExecutor() = default;

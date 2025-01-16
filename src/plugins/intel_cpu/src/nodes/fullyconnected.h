@@ -123,7 +123,6 @@ private:
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;
-    std::string errorPrefix;
 
     FCTensorParallelConfig tp_cfg;
 };

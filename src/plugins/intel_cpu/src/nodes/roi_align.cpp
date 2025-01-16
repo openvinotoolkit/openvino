@@ -698,8 +698,6 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
-
         auto roiAlign = ov::as_type_ptr<const ov::opset9::ROIAlign>(op);
         pooledH = roiAlign->get_pooled_h();
         pooledW = roiAlign->get_pooled_w();
@@ -726,39 +724,38 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
 void ROIAlign::getSupportedDescriptors() {
     if (getParentEdges().size() != 3)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getInputShapeAtPort(2).getRank() != 1) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
     if (proposalsDims[1] != 4) {
-        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
+        THROW_CPU_NODE_ERR("has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
     }
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
     if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        OPENVINO_THROW(errorPrefix,
-                       "has different sizes of inputs for proposals (",
-                       proposalsDims[0],
-                       ") and indexes (",
-                       indexesDims[0],
-                       ")");
+        THROW_CPU_NODE_ERR("has different sizes of inputs for proposals (",
+                           proposalsDims[0],
+                           ") and indexes (",
+                           indexesDims[0],
+                           ")");
     }
 }
 
@@ -835,9 +832,9 @@ void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null input memory");
+        THROW_CPU_NODE_ERR("has null input memory");
     if (!dstMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null destination memory");
+        THROW_CPU_NODE_ERR("has null destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;

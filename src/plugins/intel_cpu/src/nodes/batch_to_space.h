@@ -42,8 +42,6 @@ private:
 private:
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> cropsBeginIn;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

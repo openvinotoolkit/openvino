@@ -33,10 +33,8 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string("CTCLoss layer with name '") + op->get_friendly_name() + "'";
-
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5)
-        OPENVINO_THROW(errorPrefix, " has invalid inputs number.");
+        THROW_CPU_NODE_ERR("has invalid inputs number.");
 
     auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
     ctcMergeRepeated = ctcLossOp->get_ctc_merge_repeated();
@@ -95,7 +93,7 @@ void CTCLoss::execute(dnnl::stream strm) {
         for (size_t b = start; b < end; b++) {
             if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > static_cast<int>(maxTime) ||
                 labelsLength[b] > logitsLength[b]) {
-                errorMsgB[ithr] = errorPrefix + ". Logit length cannot be greater than max sequence length. " +
+                errorMsgB[ithr] = std::string("Logit length cannot be greater than max sequence length. ") +
                                   "Label length cannot be greater than a logit length" +
                                   " and both cannot be negative.\nMaxSeqLen: " + std::to_string(maxTime) +
                                   "; Logit len: " + std::to_string(logitsLength[b]) +
@@ -160,7 +158,7 @@ void CTCLoss::execute(dnnl::stream strm) {
             if (!err.empty())
                 resErr += err + "\n";
         }
-        OPENVINO_THROW(resErr);
+        THROW_CPU_NODE_ERR(resErr);
     }
 
     const size_t TC = maxTime * classesNum;

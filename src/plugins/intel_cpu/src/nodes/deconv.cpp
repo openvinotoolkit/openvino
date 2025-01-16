@@ -167,9 +167,8 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
-    errorPrefix = "Deconvolution node with name '" + getName() + "' ";
     if (!isSupportedOperation(op, errorMessage))
-        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 
     const auto& weightDims = getWeightDims();
 
@@ -233,9 +232,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum ||
             (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
-            OPENVINO_THROW(errorPrefix,
-                           "'output_shape' input has incorrect number of elements. Expected = ",
-                           spDimsNum);
+            THROW_CPU_NODE_ERR("'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
         }
     }
 
@@ -408,7 +405,7 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                             auto upper_bound =
                                 deconvAttrs.stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
                             if (upper_bound < 0) {
-                                OPENVINO_THROW(errorPrefix, ": paddings for dummy shapes can't be computed");
+                                THROW_CPU_NODE_ERR("paddings for dummy shapes can't be computed");
                             }
                         }
 
@@ -506,10 +503,10 @@ void Deconvolution::getSupportedDescriptors() {
             fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     if (getParentEdges().size() != (withBiases ? (biasPort + 1) : biasPort)) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();

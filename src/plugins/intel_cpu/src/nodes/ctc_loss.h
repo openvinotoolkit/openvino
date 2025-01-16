@@ -30,8 +30,6 @@ private:
     bool ctcMergeRepeated;
     bool preprocessCollapseRepeated;
     bool unique;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

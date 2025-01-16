@@ -137,8 +137,6 @@ private:
     // In ov::PartialShape with rank 0 (scalars) is converted to ov::intel_cpu::Shape with rank 1.
     // Add flag set in constructor for workaround for ScatterNDUpdates
     bool isUpdateScalar = false;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

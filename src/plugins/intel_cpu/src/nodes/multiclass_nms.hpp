@@ -66,8 +66,6 @@ private:
 
     bool m_outStaticShape = false;
 
-    std::string m_errorPrefix;
-
     std::vector<std::vector<size_t>> m_numFiltBox;  // number of rois after nms for each class in each image
     std::vector<size_t> m_numBoxOffset;
     const std::string m_inType = "input", m_outType = "output";

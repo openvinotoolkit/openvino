@@ -774,10 +774,9 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix = "Deformable convolution with name '" + op->get_friendly_name() + "'";
     auto defConvNodeBase = ov::as_type_ptr<ov::op::util::DeformableConvolutionBase>(op);
     if (defConvNodeBase == nullptr)
-        OPENVINO_THROW(errorPrefix, " is not an instance of DeformableConvolutionBase.");
+        THROW_CPU_NODE_ERR("is not an instance of DeformableConvolutionBase.");
 
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
@@ -798,7 +797,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op);
         if (defConvNode == nullptr)
-            OPENVINO_THROW(errorPrefix, " is not an instance of DeformableConvolution from opset8.");
+            THROW_CPU_NODE_ERR("is not an instance of DeformableConvolution from opset8.");
         defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
         defConvAttr.with_bilinear_pad = false;
@@ -807,20 +806,20 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
 void DeformableConvolution::getSupportedDescriptors() {
     if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
     if (getInputShapeAtPort(DATA_ID).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, " has unsupported mode. Only 4D blobs are supported as input.");
+        THROW_CPU_NODE_ERR("has unsupported mode. Only 4D blobs are supported as input.");
     }
     if (getInputShapeAtPort(OFF_ID).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, " doesn't support 1st input with rank: ", getInputShapeAtPort(OFF_ID).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(OFF_ID).getRank());
     }
     if (getInputShapeAtPort(WEI_ID).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, " doesn't support 2nd input with rank: ", getInputShapeAtPort(WEI_ID).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(WEI_ID).getRank());
     }
     if (getOutputShapeAtPort(DATA_ID).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, " doesn't support output with rank: ", getOutputShapeAtPort(DATA_ID).getRank());
+        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(DATA_ID).getRank());
     }
 }
 
@@ -1225,23 +1224,23 @@ void DeformableConvolution::prepareParams() {
     auto weiMemPtr = getSrcMemoryAtPort(WEI_ID);
 
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
+        THROW_CPU_NODE_ERR("has undefined destination memory");
     if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+        THROW_CPU_NODE_ERR("has undefined input memory");
     if (!offMemPtr || !offMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined offsets shape memory");
+        THROW_CPU_NODE_ERR("has undefined offsets shape memory");
     if (!weiMemPtr || !weiMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined weights memory");
+        THROW_CPU_NODE_ERR("has undefined weights memory");
 
     if (getOriginalInputsNumber() > 3) {
         auto modMemPtr = getSrcMemoryAtPort(MOD_ID);
         if (!modMemPtr || !modMemPtr->isDefined())
-            OPENVINO_THROW(errorPrefix, " has undefined modulations memory");
+            THROW_CPU_NODE_ERR("has undefined modulations memory");
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        OPENVINO_THROW(errorPrefix, "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     bool withModulation = getParentEdges().size() > 3;

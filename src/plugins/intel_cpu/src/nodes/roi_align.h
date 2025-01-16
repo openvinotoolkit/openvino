@@ -81,8 +81,6 @@ private:
 
     void createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout);
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node
