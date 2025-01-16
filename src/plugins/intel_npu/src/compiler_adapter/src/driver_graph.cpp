@@ -32,9 +32,9 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-void DriverGraph::export_blob(std::ostream& stream) const {
+size_t DriverGraph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
-    size_t blobSize = -1;
+    size_t blobSize;
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {
@@ -47,7 +47,7 @@ void DriverGraph::export_blob(std::ostream& stream) const {
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return;
+        return 0;
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -61,6 +61,7 @@ void DriverGraph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
+    return blobSize;
 }
 
 std::vector<ov::ProfilingInfo> DriverGraph::process_profiling_output(const std::vector<uint8_t>& profData,
