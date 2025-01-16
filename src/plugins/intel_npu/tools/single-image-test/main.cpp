@@ -127,7 +127,13 @@ DEFINE_string(
     ref_dir,
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
-DEFINE_string(ref_results, "", "Reference files used during 'run_test'");
+static constexpr char ref_results_message[] =
+        "String of reference result file(s) to be used during run_test mode. "
+        "For the same test case, the files should be separated by semicolon (;). "
+        "For different test cases, it should be separated by comma (,). "
+        "If ref_dir is provided, the reference files should be relative to the ref_dir. "
+        "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
+DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -1868,8 +1874,8 @@ static int runSingleImageTest() {
             // Make sure that the number of reference files is the same as the number of input files
             if (refFilesPerCase.size() != inputFilesPerCase.size()) {
                 std::cout << "The number of reference files is not equal to the number of input files."
-                    << "  # Reference Files: " << refFilesPerCase.size()
-                    << "  # Input Files: " << inputFilesPerCase.size() << std::endl;
+                    << "  Number of reference files: " << refFilesPerCase.size()
+                    << "  Number of input files: " << inputFilesPerCase.size() << std::endl;
                 return EXIT_FAILURE;
             }
 
@@ -2200,11 +2206,14 @@ static int runSingleImageTest() {
                     const ov::Shape& shape = tensor.get_shape();
 
                     std::string blobFileFullPath;
-
-                    // If reference files are provided, use them
-                    if (!refFiles.empty()) {
+                    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
+                        // Case 1: Reference files & directory are provided (relative path)
+                        blobFileFullPath = FLAGS_ref_dir + "/" + refFiles[numberOfTestCase][outputInd];
+                    } else if (!refFiles.empty()) {
+                        // Case 2: Reference files provided only (absolute path)
                         blobFileFullPath = refFiles[numberOfTestCase][outputInd];
                     } else {
+                        // Case 3: Reference directory provided only
                         std::ostringstream ostr;
                         ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                         const auto blobFileName = ostr.str();
