@@ -1330,3 +1330,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
     }
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv) {
+    const auto model = convert_model("com.microsoft/deform_conv_model.prototxt");
+
+    std::vector<float> data(1 * 3 * 224 * 224, 1.0f); 
+    std::vector<float> offsets(1 * 18 * 224 * 224, 0.5f);  
+    std::vector<float> weights(64 * 3 * 3 * 3, 0.1f); 
+    std::vector<float> expected_output(1 * 64 * 224 * 224, 0.0f); 
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(offsets);
+    test_case.add_input<float>(weights);
+    test_case.add_expected_output<float>(expected_output);
+    test_case.run_with_tolerance_as_fp(1e-6f);
+}
