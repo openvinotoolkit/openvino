@@ -36,6 +36,22 @@ using Path = std::filesystem::path;
 using Path = std::experimental::filesystem::path;
 #endif
 
+#if !defined(__GNUC__) || (__GNUC__ > 12 || __GNUC__ == 12 && __GNUC_MINOR__ >= 3)
+#    define GCC_NOT_USED_OR_VER_AT_LEAST_12_3
+#endif
+
+#if !defined(__clang__) || defined(__clang__) && __clang_major__ >= 17
+#    define CLANG_NOT_USED_OR_VER_AT_LEAST_17
+#endif
+
+#if defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)
+#    define GCC_VER_LESS_THEN_12_3
+#endif
+
+#if defined(__clang__) && __clang_major__ < 17
+#    define CLANG_VER_LESS_THEN_17
+#endif
+
 #if defined(GCC_VER_LESS_THEN_12_3) || defined(CLANG_VER_LESS_THEN_17)
 inline ov::util::Path WPath(const std::wstring& wpath) {
     return {ov::util::wstring_to_string(wpath)};
