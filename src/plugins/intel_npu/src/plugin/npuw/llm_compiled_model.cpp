@@ -448,6 +448,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // preserve them somewhere.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -501,8 +503,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
+    auto prefill_config_addition_value =
+        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    auto generate_config_addition_value =
+        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
+    merge_config_with(prefill_config, prefill_config_addition_value);
+    merge_config_with(generate_config, generate_config_addition_value);
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
@@ -602,21 +611,21 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
         OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       " Serialized by OV ",
+                       "\nSerialized by OV ",
                        vmajor,
                        '.',
                        vminor,
                        '.',
                        vpatch,
-                       " Current OV version ",
+                       "\nCurrent OV version ",
                        OPENVINO_VERSION_MAJOR,
                        '.',
                        OPENVINO_VERSION_MINOR,
                        '.',
                        OPENVINO_VERSION_PATCH,
-                       " NPUW serialized by version ",
+                       "\nNPUW serialized by version ",
                        s11n_version,
-                       " NPUW current serialization version ",
+                       "\nNPUW current serialization version ",
                        NPUW_SERIALIZATION_VERSION);
     }
 
@@ -644,6 +653,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    compiled->implement_properties();
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);
