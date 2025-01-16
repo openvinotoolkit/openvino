@@ -74,8 +74,8 @@ NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     if (pd_version >= 2005000 || pd_version == 0) {
         python_div = true;
     }
-    x = get_1d_tensor(x);
-    y = get_1d_tensor(y);
+    x = get_tensor_safe(x);
+    y = get_tensor_safe(y);
     return node_context.default_single_output_mapping(
         {std::make_shared<default_opset::Divide>(x,
                                                  y,

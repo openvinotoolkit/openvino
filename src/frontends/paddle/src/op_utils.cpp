@@ -29,7 +29,7 @@ Output<Node> get_tensor_list(const OutputVector& node) {
     return res;
 }
 
-Output<Node> get_1d_tensor(const Output<Node>& node) {
+Output<Node> get_tensor_safe(const Output<Node>& node) {
     auto node_dim = node.get_partial_shape().rank().get_length();
     if (node_dim == 0) {
         return std::make_shared<op::default_opset::Unsqueeze>(

@@ -26,10 +26,10 @@ std::shared_ptr<Node> handle_maximum_index(Output<Node>& node, const Output<Node
     return std::make_shared<default_opset::Select>(mask, update_node, node);
 }
 
-void normalize(std::vector<int64_t>& vec, const Output<Node> intput, const std::vector<int64_t> axes_vec) {
+void normalize(std::vector<int64_t>& vec, const Output<Node> input, const std::vector<int64_t> axes_vec) {
     for (size_t i = 0; i < axes_vec.size(); i++) {
         if (vec[i] < 0) {
-            auto x_dim = std::stoll(intput.get_partial_shape()[axes_vec[i]].to_string());
+            auto x_dim = std::stoll(input.get_partial_shape()[axes_vec[i]].to_string());
             vec[i] = vec[i] + x_dim;
         }
     }
@@ -53,46 +53,44 @@ NamedOutputs set_value(const NodeContext& node) {
         value_node = node.get_input("ValueTensor");
     } else {
         auto value_shape = node.get_attribute<std::vector<int64_t>>("shape");
-        auto intput_type = node.get_attribute<ov::element::Type>("dtype");
+        auto input_type = node.get_attribute<ov::element::Type>("dtype");
 
-        if (intput_type == ov::element::i32) {
+        if (input_type == ov::element::i32) {
             if (node.has_attribute("int32_values")) {
                 auto value_arrt = node.get_attribute<std::vector<int32_t>>("int32_values");
-                value_node = {default_opset::Constant::create(intput_type,
+                value_node = {default_opset::Constant::create(input_type,
                                                               Shape{value_shape.begin(), value_shape.end()},
                                                               value_arrt)};
             } else {
                 auto value_arrt = node.get_attribute<std::vector<int64_t>>("values");
                 auto int32_value = std::vector<int32_t>(value_arrt.begin(), value_arrt.end());
-                value_node = {default_opset::Constant::create(intput_type,
+                value_node = {default_opset::Constant::create(input_type,
                                                               Shape{value_shape.begin(), value_shape.end()},
                                                               int32_value)};
             }
-        } else if (intput_type == ov::element::i64) {
+        } else if (input_type == ov::element::i64) {
             auto value_arrt = node.has_attribute("values") ? node.get_attribute<std::vector<int64_t>>("values")
                                                            : node.get_attribute<std::vector<int64_t>>("int64_values");
-            value_node = {default_opset::Constant::create(intput_type,
-                                                          Shape{value_shape.begin(), value_shape.end()},
-                                                          value_arrt)};
-        } else if (intput_type == ov::element::f32) {
+            value_node = {
+                default_opset::Constant::create(input_type, Shape{value_shape.begin(), value_shape.end()}, value_arrt)};
+        } else if (input_type == ov::element::f32) {
             if (node.has_attribute("fp32_values")) {
                 auto value_arrt = node.get_attribute<std::vector<float>>("fp32_values");
-                value_node = {default_opset::Constant::create(intput_type,
+                value_node = {default_opset::Constant::create(input_type,
                                                               Shape{value_shape.begin(), value_shape.end()},
                                                               value_arrt)};
             } else {
                 auto value_arrt = node.get_attribute<std::vector<double>>("values");
                 auto fp32_value = std::vector<float>(value_arrt.begin(), value_arrt.end());
-                value_node = {default_opset::Constant::create(intput_type,
+                value_node = {default_opset::Constant::create(input_type,
                                                               Shape{value_shape.begin(), value_shape.end()},
                                                               fp32_value)};
             }
-        } else if (intput_type == ov::element::f64) {
+        } else if (input_type == ov::element::f64) {
             auto value_arrt = node.has_attribute("values") ? node.get_attribute<std::vector<double>>("values")
                                                            : node.get_attribute<std::vector<double>>("fp64_values");
-            value_node = {default_opset::Constant::create(intput_type,
-                                                          Shape{value_shape.begin(), value_shape.end()},
-                                                          value_arrt)};
+            value_node = {
+                default_opset::Constant::create(input_type, Shape{value_shape.begin(), value_shape.end()}, value_arrt)};
         } else {
             PADDLE_OP_CHECK(node, false, "assign_value only supports int32, int64, float32, float64");
         }

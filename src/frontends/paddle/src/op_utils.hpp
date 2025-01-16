@@ -11,7 +11,7 @@ namespace frontend {
 namespace paddle {
 
 Output<Node> get_tensor_list(const OutputVector& node);
-Output<Node> get_1d_tensor(const Output<Node>& node);
+Output<Node> get_tensor_safe(const Output<Node>& node);
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
