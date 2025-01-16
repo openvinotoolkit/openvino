@@ -30,6 +30,7 @@ auto cpu_properties = []() -> std::vector<ov::AnyMap> {
         // check that hints doesn't override customer value (now for streams and later for other config opts)
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}, {ov::hint::num_requests(3)}},
         {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(3)}},
+        {{ov::hint::enable_cpu_reservation(true)}, {ov::num_streams(1)}, {ov::inference_num_threads(2)}},
     };
 
     auto numa_nodes = ov::get_available_numa_nodes();
