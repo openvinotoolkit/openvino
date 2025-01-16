@@ -129,6 +129,8 @@ void dumpMemoryStats(const DebugCapsConfig& conf,
             OPENVINO_THROW("Unsupported memory stats file extension. Should be '*.csv'. Got ", csv_path.filename());
         }
 
+        csv_path.replace_filename(csv_path.stem().string() + "_" + network_name + csv_path.extension().string());
+
         std::ofstream csv_output(csv_path);
         if (!csv_output.is_open()) {
             OPENVINO_THROW("Cannot open file for writing: ", csv_path);
