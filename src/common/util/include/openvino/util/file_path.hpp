@@ -7,7 +7,7 @@
 #include <cstdio>
 
 #include "openvino/util/filesystem.hpp"
-#include "openvino/util/wstring_cast_util.hpp"
+#include "openvino/util/wstring_convert_util.hpp"
 
 namespace ov {
 namespace util {
