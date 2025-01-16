@@ -17,6 +17,8 @@
 #include "serialization.hpp"
 
 namespace opp = ov::pass::pattern;
+
+// llama2, phi3, etc
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -24,10 +26,74 @@ public:
         std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
         using Ref = std::reference_wrapper<Context>;
     };
+};
 
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors");
-    TransposeValueTensors(Context::Ref ctx) {
+// llama2, phi3, etc
+class TransposeValueTensors_llama2 : public TransposeValueTensors {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama2");
+    TransposeValueTensors_llama2(Context::Ref ctx) {
         register_matcher_llama2(ctx);
+    }
+
+private:
+    void register_matcher_llama2(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            auto matched_node_param     = node_to_output.at(param).get_node_shared_ptr();
+            auto matched_node_concat    = node_to_output.at(concat).get_node_shared_ptr();
+            auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+            auto matched_node_matmul    = node_to_output.at(matmul).get_node_shared_ptr();
+
+            auto matched_param     = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
+            auto matched_concat    = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
+            auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
+            auto matched_matmul    = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+            auto shape = matched_param->get_partial_shape();
+            OPENVINO_ASSERT(shape.size() == 4u);
+            // NB: Transpose Parameter that correspond to V-tensor it will
+            // speed-up its multiplication with attention scores
+            std::swap(shape[2], shape[3]);
+            auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), shape);
+            new_param->set_friendly_name(matched_param->get_friendly_name());
+            new_param->outputs().begin()->get_tensor().set_names(matched_param->outputs().begin()->get_tensor().get_names());
+            ov::replace_node(matched_param, new_param);
+            // NB: Save in order to add/remove to the model later on
+            ctx.get().new_params.push_back(new_param);
+            ctx.get().old_params.push_back(matched_param);
+
+            auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+            auto new_transpose = std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0),
+                                                                          order_cst->output(0));
+            new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
+            ov::replace_node(matched_transpose, new_transpose);
+
+            auto new_concat = std::make_shared<ov::opset13::Concat>(
+                    ov::OutputVector{new_param->output(0), new_transpose->output(0)}, 3u);
+            new_concat->set_friendly_name(matched_concat->get_friendly_name());
+            ov::replace_node(matched_concat, new_concat);
+
+            matched_matmul->set_transpose_b(true);
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
+    }
+};
+
+// llama2, phi3, etc
+class TransposeValueTensors_llama3 : public TransposeValueTensors {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama3");
+    TransposeValueTensors_llama3(Context::Ref ctx) {
         register_matcher_llama3(ctx);
     }
 
@@ -123,59 +189,8 @@ private:
         };
         register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
     }
-
-    // llama2, phi3, etc
-    void register_matcher_llama2(Context::Ref ctx) {
-        auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
-        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
-
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-
-            auto matched_node_param     = node_to_output.at(param).get_node_shared_ptr();
-            auto matched_node_concat    = node_to_output.at(concat).get_node_shared_ptr();
-            auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul    = node_to_output.at(matmul).get_node_shared_ptr();
-
-            auto matched_param     = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
-            auto matched_concat    = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
-            auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
-            auto matched_matmul    = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-
-            auto shape = matched_param->get_partial_shape();
-            OPENVINO_ASSERT(shape.size() == 4u);
-            // NB: Transpose Parameter that correspond to V-tensor it will
-            // speed-up its multiplication with attention scores
-            std::swap(shape[2], shape[3]);
-            auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), shape);
-            new_param->set_friendly_name(matched_param->get_friendly_name());
-            new_param->outputs().begin()->get_tensor().set_names(matched_param->outputs().begin()->get_tensor().get_names());
-            ov::replace_node(matched_param, new_param);
-            // NB: Save in order to add/remove to the model later on
-            ctx.get().new_params.push_back(new_param);
-            ctx.get().old_params.push_back(matched_param);
-
-            auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-            auto new_transpose = std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0),
-                                                                          order_cst->output(0));
-            new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
-            ov::replace_node(matched_transpose, new_transpose);
-
-            auto new_concat = std::make_shared<ov::opset13::Concat>(
-                    ov::OutputVector{new_param->output(0), new_transpose->output(0)}, 3u);
-            new_concat->set_friendly_name(matched_concat->get_friendly_name());
-            ov::replace_node(matched_concat, new_concat);
-
-            matched_matmul->set_transpose_b(true);
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
-    }
 };
+
 
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
@@ -331,7 +346,7 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
     return ppp.build();
 }
 
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
+bool optimize_value_tensors1(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
     rewr.run_on_model(model);
@@ -340,11 +355,12 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     return false;
 }
 
-bool optimize_value_tensors1(std::shared_ptr<ov::Model> model) {
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
     TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
     rewr.run_on_model(model);
 
     model->add_parameters(ctx.new_params);
