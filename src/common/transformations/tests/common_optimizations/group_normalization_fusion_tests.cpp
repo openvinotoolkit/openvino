@@ -220,9 +220,7 @@ public:
                         op::v0::Constant::create(T_gn_gamma_elem_t, Shape{num_channels}, group_norm_gamma_vals);
                 }
             } else {
-                group_norm_gamma_1d = op::v0::Constant::create(T_gn_gamma_elem_t,
-                                                               Shape{num_channels},
-                                                               std::vector<T_gn_gamma_store_t>(num_channels, 1));
+                group_norm_gamma_1d = std::make_shared<op::v0::Constant>(T_gn_gamma_elem_t, Shape{num_channels}, 1);
             }
 
             if (group_norm_beta_present) {
@@ -231,9 +229,7 @@ public:
                         op::v0::Constant::create(T_gn_beta_elem_t, Shape{num_channels}, group_norm_beta_vals);
                 }
             } else {
-                group_norm_beta_1d = op::v0::Constant::create(T_gn_beta_elem_t,
-                                                              Shape{num_channels},
-                                                              std::vector<T_gn_beta_store_t>(num_channels, 0));
+                group_norm_beta_1d = std::make_shared<op::v0::Constant>(T_gn_beta_elem_t, Shape{num_channels}, 0);
             }
 
             auto group_norm = std::make_shared<ov::op::v12::GroupNormalization>(input,
