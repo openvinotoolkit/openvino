@@ -312,8 +312,6 @@ Installing notebooks
 
       1. **Create a Virtual Environment**
 
-         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-
          .. code-block:: sh
 
             python -m venv openvino_env
@@ -364,8 +362,6 @@ Installing notebooks
 
       1. **Create a Virtual Environment**
 
-         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
-
          .. code-block:: sh
 
             python3 -m venv openvino_env
@@ -414,8 +410,6 @@ Installing notebooks
       :sync: macos
 
       1. **Create a Virtual Environment**
-
-         If you already have installed *openvino-dev*, you may skip this step and proceed with the next one.
 
          .. code-block:: sh
 

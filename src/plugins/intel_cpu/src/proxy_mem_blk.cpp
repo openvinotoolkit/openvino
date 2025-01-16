@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "proxy_mem_blk.h"
+
 #include "utils/debug_capabilities.h"
 
 using namespace ov::intel_cpu;
@@ -13,7 +14,7 @@ void ProxyMemoryBlock::setMemBlock(std::shared_ptr<IMemoryBlock> pBlock) {
         return;
     }
 
-    m_pMemBlock = pBlock;
+    m_pMemBlock = std::move(pBlock);
     notifyUpdate();
 }
 
@@ -23,7 +24,7 @@ void ProxyMemoryBlock::setMemBlockResize(std::shared_ptr<IMemoryBlock> pBlock) {
         return;
     }
 
-    m_pMemBlock = pBlock;
+    m_pMemBlock = std::move(pBlock);
     m_pMemBlock->resize(m_size);
     notifyUpdate();
 }

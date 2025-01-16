@@ -91,6 +91,7 @@ struct OpenVINOParams {
     LayerVariantAttr<std::string> output_layout;
     LayerVariantAttr<std::string> input_model_layout;
     LayerVariantAttr<std::string> output_model_layout;
+    LayerVariantAttr<std::vector<size_t>> reshape;
     std::map<std::string, std::string> config;
     size_t nireq = 1u;
 };
@@ -104,6 +105,7 @@ struct ONNXRTParams {
     };
     // NB: std::monostate stands for the default MLAS Execution provider
     using EP = std::variant<std::monostate, OpenVINO>;
+    std::optional<int> opt_level;
     EP ep;
 };
 

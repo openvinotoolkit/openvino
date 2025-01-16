@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,6 +134,7 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
+    LoRA
 };
 
 enum class Algorithm {
@@ -164,7 +165,9 @@ enum class Algorithm {
     EltwiseSubtract,
     EltwiseDivide,
     EltwiseFloor,
+    EltwiseCeiling,
     EltwiseFloorMod,
+    EltwiseNegative,
     EltwiseMod,
     EltwiseMaximum,
     EltwiseMinimum,
@@ -210,6 +213,12 @@ enum class Algorithm {
     EltwiseBitwiseXor,
     EltwiseBitwiseLeftShift,
     EltwiseBitwiseRightShift,
+
+    // FullyConnected algorithms
+    FullyConnectedCommon,
+    FullyConnectedCompressed,
+    FullyConnectedQuantized,
+    FullyConnectedQuantizedLegacy,
 
     // FakeQuantize algorithms
     FQCommon,

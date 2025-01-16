@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,22 +18,22 @@ class TRANSFORMATIONS_API ConvertBitwiseXorToLogicalXor;
 
 class ov::pass::ConvertBitwiseAndToLogicalAnd : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBitwiseAndToLogicalAnd", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseAndToLogicalAnd");
     ConvertBitwiseAndToLogicalAnd();
 };
 class ov::pass::ConvertBitwiseNotToLogicalNot : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBitwiseNotToLogicalNot", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseNotToLogicalNot");
     ConvertBitwiseNotToLogicalNot();
 };
 class ov::pass::ConvertBitwiseOrToLogicalOr : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBitwiseOrToLogicalOr", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseOrToLogicalOr");
     ConvertBitwiseOrToLogicalOr();
 };
 class ov::pass::ConvertBitwiseXorToLogicalXor : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBitwiseXorToLogicalXor", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseXorToLogicalXor");
     ConvertBitwiseXorToLogicalXor();
 };
 /**
@@ -43,7 +43,7 @@ public:
  */
 class ConvertBitwiseToLogical : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertBitwiseToLogical", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertBitwiseToLogical");
     ConvertBitwiseToLogical() {
         add_matcher<ov::pass::ConvertBitwiseAndToLogicalAnd>();
         add_matcher<ov::pass::ConvertBitwiseNotToLogicalNot>();

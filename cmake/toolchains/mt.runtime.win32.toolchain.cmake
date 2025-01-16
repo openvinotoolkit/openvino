@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -27,6 +27,11 @@ if(use_static_runtime)
         foreach(build_type "" "_DEBUG" "_MINSIZEREL" "_RELEASE" "_RELWITHDEBINFO")
             set(flag_var "CMAKE_${lang}_FLAGS${build_type}_INIT")
             string(REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+            if (build_type STREQUAL "_DEBUG")
+                set(${flag_var} "/MTd")
+            else()
+                set(${flag_var} "/MT")
+            endif()
         endforeach()
     endforeach()
 endif()

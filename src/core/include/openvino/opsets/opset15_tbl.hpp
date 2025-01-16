@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ _OPENVINO_OP_REG(Sqrt, ov::op::v0)
 _OPENVINO_OP_REG(SpaceToDepth, ov::op::v0)
 _OPENVINO_OP_REG(Split, ov::op::v1)
 _OPENVINO_OP_REG(SquaredDifference, ov::op::v0)
-_OPENVINO_OP_REG(Squeeze, ov::op::v0)
+_OPENVINO_OP_REG(Squeeze, ov::op::v15)
 _OPENVINO_OP_REG(StridedSlice, ov::op::v1)
 _OPENVINO_OP_REG(Subtract, ov::op::v1)
 _OPENVINO_OP_REG(Tan, ov::op::v0)

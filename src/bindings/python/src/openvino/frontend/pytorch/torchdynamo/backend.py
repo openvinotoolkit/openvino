@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -18,7 +18,7 @@ from torch.fx.experimental.proxy_tensor import make_fx
 from torch._decomp import decomposition_table, get_decompositions
 
 from openvino.frontend import FrontEndManager
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo import decompositions
 from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list, get_inf_decomposition_list
@@ -27,7 +27,7 @@ from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cache
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions, _get_aot_autograd
 
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -49,6 +49,9 @@ logger.setLevel(logging.WARNING)
 
 openvino_options = {}
 
+# Disable regional compilation which was enabled by default from Torch 2.5.0
+if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
+    torch._dynamo.config.inline_inbuilt_nn_modules=False
 
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
@@ -59,15 +62,8 @@ def openvino(subgraph, example_inputs, options=None):
         return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
-
-try:
-    from packaging import version
-
-    if version.parse(torch.__version__) < version.parse("2.5.0"):
-        register_backend(compiler_fn=openvino, name="openvino")
-except ImportError:
-    logger.warning("The 'packaging' module is required but not installed")
-
+if "openvino" not in torch.compiler.list_backends():
+    register_backend(compiler_fn=openvino, name="openvino")
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:

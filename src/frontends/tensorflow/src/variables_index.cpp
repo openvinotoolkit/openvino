@@ -128,7 +128,7 @@ void VariablesIndex::read_bundle_header() {
     auto item = m_variables_index.find("");
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
-    ::tensorflow::BundleHeaderProto bundleHeader;
+    ::tensorflow::BundleHeaderProto bundleHeader{};
     FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "Bundle Header: Cannot parse Bundle Header");
     FRONT_END_GENERAL_CHECK(bundleHeader.version().producer() == 1, "Bundle Header: Unsupported producer version");
@@ -147,7 +147,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
         return;
     }
 
-    ::tensorflow::BundleEntryProto entry;
+    ::tensorflow::BundleEntryProto entry{};
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
                             "CMO: Cannot parse Bundle Entry");
 

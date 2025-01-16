@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_r
 template <class T>
 bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
-        if (std::dynamic_pointer_cast<T>(op)) {
+        if (ov::as_type_ptr<T>(op)) {
             return true;
         }
     }
@@ -54,7 +54,7 @@ bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
 
 inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::v0::Convert>(op)) {
+        if (ov::as_type_ptr<ov::op::v0::Convert>(op)) {
             if (ov::is_decompression(op))
                 return true;
         }
@@ -64,18 +64,10 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
 
 OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
 inline std::string create_ie_output_name(const Output<const Node>& output) {
-    std::string out_name;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (!tensor_name.empty()) {
-        out_name = std::move(tensor_name);
-    } else {
-        const auto& prev_layer = output.get_node_shared_ptr();
-        out_name = prev_layer->get_friendly_name();
-        if (prev_layer->get_output_size() != 1) {
-            out_name += "." + std::to_string(output.get_index());
-        }
+    const auto& prev_layer = output.get_node_shared_ptr();
+    auto out_name = prev_layer->get_friendly_name();
+    if (prev_layer->get_output_size() != 1) {
+        out_name += "." + std::to_string(output.get_index());
     }
     return out_name;
 }
@@ -133,7 +125,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant) {
         return false;
     }
@@ -167,7 +159,7 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
         return false;
     }
 
-    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
     if (!constant) {
         return false;
     }

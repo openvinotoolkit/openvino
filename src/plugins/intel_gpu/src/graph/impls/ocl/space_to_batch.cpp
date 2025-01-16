@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::space_to_batch_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<space_to_batch_impl>(*this);
+        return make_deep_copy<space_to_batch_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {

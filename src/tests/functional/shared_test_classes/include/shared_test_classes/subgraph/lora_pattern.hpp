@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@ public:
 
 protected:
     void run_test_empty_tensors();
+    void run_test_random_tensors();
 
 protected:
     static constexpr auto t4_name = "lora/MatMul.B";
@@ -37,7 +38,7 @@ public:
     void SetUp() override;
 
 protected:
-    static constexpr size_t num_channels = 320ul;
+    static constexpr size_t num_channels = 64ul;
 };
 
 } // namespace test

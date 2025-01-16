@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace intel_npu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
-    RemoteContextImpl(std::shared_ptr<const NPUBackends> backends, const Config& config);
+    RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config);
 
     /**
      * @brief Returns name of a device on which underlying object is allocated.

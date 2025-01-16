@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,7 +121,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 
 private:
     int _zero_point_mask;
-    dnnl::memory::data_type _wzp_data_type;
+    dnnl::memory::data_type _wzp_data_type = dnnl::memory::data_type::undef;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {

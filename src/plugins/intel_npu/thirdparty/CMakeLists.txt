@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,11 +6,10 @@
 # zeroApi
 #
 
-if(ENABLE_ZEROAPI_BACKEND)
+if(ENABLE_NPU_PLUGIN_ENGINE)
     add_library(level-zero-ext INTERFACE)
     set_property(TARGET level-zero-ext APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero-ext/>)
     add_library(LevelZero::NPUExt ALIAS level-zero-ext)
-    install(TARGETS level-zero-ext EXPORT "${PROJECT_NAME}Targets")
 endif()
 
 #

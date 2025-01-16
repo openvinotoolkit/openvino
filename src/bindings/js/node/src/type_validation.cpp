@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/type_validation.hpp"
@@ -86,6 +86,11 @@ const char* get_attr_type<Napi::Object>() {
 }
 
 template <>
+const char* get_attr_type<Napi::Boolean>() {
+    return NapiArg::get_type_name(napi_boolean);
+}
+
+template <>
 const char* get_attr_type<Napi::Buffer<uint8_t>>() {
     return BindingTypename::BUFFER;
 }
@@ -113,6 +118,11 @@ bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value
 template <>
 bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value) {
     return napi_object == value.Type();
+}
+
+template <>
+bool validate_value<Napi::Boolean>(const Napi::Env& env, const Napi::Value& value) {
+    return napi_boolean == value.Type();
 }
 
 template <>

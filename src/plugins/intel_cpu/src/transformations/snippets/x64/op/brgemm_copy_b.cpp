@@ -91,24 +91,34 @@ void BrgemmCopyB::validate_and_infer_types() {
 }
 
 void BrgemmCopyB::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::i8),
+    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::f16, element::i8),
                     "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
 }
 
 std::shared_ptr<ov::Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmRepack_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
-                                         get_input_port_descriptor(0),
-                                         get_output_port_descriptor(0),
-                                         with_compensations(m_type) ? get_output_port_descriptor(1) : PortDescriptor{},
-                                         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
+    return std::make_shared<BrgemmCopyB>(
+        new_args.at(0),
+        m_src_type,
+        m_type,
+        get_input_port_descriptor(0),
+        get_output_port_descriptor(0),
+        with_compensations(m_type) ? get_output_port_descriptor(1) : PortDescriptor{},
+        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
 
 size_t BrgemmCopyB::get_offset_compensations() const {
     OPENVINO_ASSERT(with_compensations(m_type) && get_output_size() == 2,
                     "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
     return get_output_offset(1);
+}
+
+bool BrgemmCopyB::is_transposed(const std::vector<size_t>& layout) {
+    const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
+    OPENVINO_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),
+                    "supports only N dim placed as last or pre last dimension");
+    return is_transposed;
 }
 
 BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
@@ -118,11 +128,12 @@ BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     m_num_outs = brg_copyb->get_output_size();
 }
 
-ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
+ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(
+    const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     const auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

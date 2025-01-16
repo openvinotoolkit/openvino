@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,10 +33,10 @@ namespace {
             return "INT8";
         }
         for (auto & node : model->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(node)) {
+            if (ov::as_type_ptr<ov::op::v1::Convolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+                ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+                ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node)) {
                 auto layer_type = node->input(1).get_element_type().get_type_name();
                 if (layer_type == "f32")
                     return "FP32";
@@ -75,8 +75,9 @@ namespace {
 namespace ov {
 namespace auto_plugin {
 
-std::mutex Plugin::m_mtx;
-std::map<unsigned int, std::list<std::string>> Plugin::m_priority_map;
+std::shared_ptr<std::mutex> Plugin::m_mtx = std::make_shared<std::mutex>();
+std::shared_ptr<std::map<unsigned int, std::list<std::string>>> Plugin::m_priority_map =
+    std::make_shared<std::map<unsigned int, std::list<std::string>>>();
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
@@ -95,6 +96,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
+}
+
+bool Plugin::is_meta_device(const std::string& priorities) const {
+    std::vector<std::string> candidate_devices = m_plugin_config.parse_priorities_devices(priorities);
+    for (const auto& device : candidate_devices) {
+        if (device.find("AUTO") == 0 || device.find("MULTI") == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& priorities,
@@ -129,17 +140,13 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
         if (get_device_name() == "MULTI") {
             auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto is_set_affinity = properties.find(ov::affinity.name()) != properties.end();
-            OPENVINO_SUPPRESS_DEPRECATED_END
             auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!is_set_perfhint && !is_set_affinity && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
+            if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
                 // setting tput as the default performance mode if
                 // 1. no hints setting for MULTI plugin
-                // 2. no affinity setting for MULTI plugin
-                // 3. no inference_num_threads setting for MULTI plugin
-                // 4. no ov::device::properties(secondary properties) setting for target device
-                // 5. no ov::num_streams setting for target device
+                // 2. no inference_num_threads setting for MULTI plugin
+                // 3. no ov::device::properties(secondary properties) setting for target device
+                // 4. no ov::num_streams setting for target device
                 device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
             }
         }
@@ -368,11 +375,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     std::unordered_map<std::string, ov::Any> multi_model_config;
     std::vector<DeviceInformation> meta_devices;
     auto priorities = load_config.get_property(ov::device::priorities);
-     if (priorities.empty() && !work_mode_auto)
+    if (priorities.empty() && !work_mode_auto)
         OPENVINO_THROW("KEY_MULTI_DEVICE_PRIORITIES key is not set for ", get_device_name());
-    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
-        OPENVINO_THROW("The device candidate list should not include the meta plugin for ", get_device_name());
-    }
+    if (is_meta_device(priorities))
+        OPENVINO_THROW("The meta device should not in the device candidate list: ", priorities);
     // check the configure and check if need to set PerfCounters configure to device
     // and set filter configure
     auto auto_s_context = std::make_shared<ScheduleContext>();
@@ -440,9 +446,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
+    auto_s_context->m_mtx = m_mtx;
+    auto_s_context->m_priority_map = m_priority_map;
     std::shared_ptr<ov::ICompiledModel> impl;
-    std::shared_ptr<Schedule> scheduler = is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>()) :
-                                std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
+    std::shared_ptr<Schedule> scheduler =
+        is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>())
+                      : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
     scheduler->launch(auto_s_context);
     ov::SoPtr<ov::IRemoteContext> device_context;
     try {
@@ -591,19 +600,25 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     DeviceInformation last_device = valid_devices.back();
     {
         // begin to filter devices
-        std::lock_guard<std::mutex> lck(m_mtx);
-        for (auto && kvp : m_priority_map) {
-            if (kvp.first >= priority) {
-                continue;
+        if (m_mtx && m_priority_map) {
+            std::lock_guard<std::mutex> lck(*m_mtx);
+            for (auto&& kvp : *m_priority_map) {
+                if (kvp.first >= priority) {
+                    continue;
+                }
+                auto& filter_devices = kvp.second;
+                auto sd = std::remove_if(valid_devices.begin(),
+                                         valid_devices.end(),
+                                         [&filter_devices](const DeviceInformation& device) {
+                                             auto iter = std::find_if(filter_devices.begin(),
+                                                                      filter_devices.end(),
+                                                                      [&device](std::string uniqueName) {
+                                                                          return (uniqueName == device.unique_name);
+                                                                      });
+                                             return iter != filter_devices.end() ? true : false;
+                                         });
+                valid_devices.erase(sd, valid_devices.end());
             }
-            auto& filter_devices = kvp.second;
-            auto sd = std::remove_if(valid_devices.begin(), valid_devices.end(), [&filter_devices](const DeviceInformation& device) {
-                    auto iter = std::find_if(filter_devices.begin(), filter_devices.end(), [&device](std::string uniqueName) {
-                            return (uniqueName == device.unique_name);
-                            });
-                    return iter != filter_devices.end() ? true : false;
-                    });
-            valid_devices.erase(sd, valid_devices.end());
         }
     }
 
@@ -621,24 +636,26 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     return *ptr_select_device;
 }
 
-void Plugin::unregister_priority(const unsigned int& priority,
-        const std::string& device_name) {
-    std::lock_guard<std::mutex> lck(m_mtx);
-    auto& priority_devices = m_priority_map[priority];
-    for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
-        if (*iter == device_name) {
-            priority_devices.erase(iter);
-            break;
+void Plugin::unregister_priority(const unsigned int& priority, const std::string& device_name) {
+    if (m_mtx && m_priority_map) {
+        std::lock_guard<std::mutex> lck(*m_mtx);
+        auto& priority_devices = (*m_priority_map)[priority];
+        for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
+            if (*iter == device_name) {
+                priority_devices.erase(iter);
+                break;
+            }
+            iter++;
         }
-        iter++;
     }
 }
 
-void Plugin::register_priority(const unsigned int& priority,
-        const std::string& device_name) {
-    std::lock_guard<std::mutex> lck(m_mtx);
-    auto& priority_devices = m_priority_map[priority];
-    priority_devices.push_back(device_name);
+void Plugin::register_priority(const unsigned int& priority, const std::string& device_name) {
+    if (m_mtx && m_priority_map) {
+        std::lock_guard<std::mutex> lck(*m_mtx);
+        auto& priority_devices = (*m_priority_map)[priority];
+        priority_devices.push_back(device_name);
+    }
 }
 
 std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
@@ -819,8 +836,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
 
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
-        if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
-            std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
+        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
+            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }

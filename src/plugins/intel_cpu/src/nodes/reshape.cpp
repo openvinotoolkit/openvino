@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,8 @@ namespace node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
-            !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
-                !std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        if (!ov::as_type_ptr<const ov::opset1::Reshape>(op) && !ov::as_type_ptr<const ov::opset1::Squeeze>(op) &&
+            !ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -31,8 +30,8 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, ReshapeShapeInferFactory(op)) {
+Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -47,13 +46,13 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
             }
         };
 
-        if (std::dynamic_pointer_cast<const ov::opset1::Reshape>(op)) {
+        if (ov::as_type_ptr<const ov::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1)
                 OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
             checkSecondInput(op, "Squeeze");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
             OPENVINO_THROW("Unsupported operation type via reshape node");
@@ -66,7 +65,7 @@ bool Reshape::needShapeInfer() const {
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
     }
-    const int32_t *sndInput = mem.getDataAs<const int32_t>();
+    const int32_t* sndInput = mem.getDataAs<const int32_t>();
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i]) {
             for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
@@ -113,7 +112,8 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         config.inConfs[i].inPlace(0 == i && canBeInPlace ? 0 : -1);
         config.inConfs[i].constant(false);
-        config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
+        config.inConfs[i].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace(canBeInPlace ? 0 : -1);
@@ -142,8 +142,7 @@ bool Reshape::isExecutable() const {
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
-        if (config.inConfs[0].inPlace() >= 0 ||
-            config.outConfs[0].inPlace() >= 0) {
+        if (config.inConfs[0].inPlace() >= 0 || config.outConfs[0].inPlace() >= 0) {
             inPlaceEnabled = true;
         }
     }
@@ -154,6 +153,6 @@ bool Reshape::created() const {
     return getType() == Type::Reshape;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

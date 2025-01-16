@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 
 namespace intel_npu {
 
-ZeroHostTensor::ZeroHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                               std::shared_ptr<ZeroInitStructsHolder> init_structs,
+ZeroHostTensor::ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& context,
+                               const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                const ov::element::Type element_type,
                                const ov::Shape& shape,
                                const Config& config)

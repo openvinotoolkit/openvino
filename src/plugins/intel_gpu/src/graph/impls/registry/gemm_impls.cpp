@@ -19,7 +19,10 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<gemm>
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::GemmImplementationManager, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(gemm, shape_types::static_shape)
-        OV_GPU_GET_INSTANCE_OCL(gemm, shape_types::dynamic_shape)
+        OV_GPU_GET_INSTANCE_OCL(gemm, shape_types::dynamic_shape,
+            [](const program_node& node) {
+                return !node.can_use(impl_types::onednn);
+        })
     };
 
     return impls;

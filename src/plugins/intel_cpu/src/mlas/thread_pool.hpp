@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+
 #include "mlas.h"
 
 namespace ov {
@@ -17,6 +18,7 @@ public:
     explicit OVMlasThreadPool(const size_t& threadNum) : threadNum(threadNum) {}
     size_t DegreeOfParallelism() override;
     void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) override;
+
 public:
     // the actual threads used for sgemm
     size_t threadNum = 0;

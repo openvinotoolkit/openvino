@@ -153,13 +153,13 @@ and the system automatically downloads the two models
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.bin: …
+    action-recognition-0001-decoder.bin:   0%|          | 0.00/14.4M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.bin: …
+    action-recognition-0001-encoder.bin:   0%|          | 0.00/40.6M [00:00<?, ?B/s]
 
 
 Load your labels
@@ -192,7 +192,7 @@ also provides the text file embedded into this notebook.
 
 .. parsed-literal::
 
-    data/kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
+    kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -683,16 +683,11 @@ multi-camera systems).
     run_action_recognition(source=source, use_popup=False, **additional_options)
 
 
+
+.. image:: action-recognition-webcam-with-output_files/action-recognition-webcam-with-output_22_0.png
+
+
 .. parsed-literal::
 
-    Cannot open  https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4
-
-
-.. parsed-literal::
-
-    [ WARN:0@6.113] global cap.cpp:164 open VIDEOIO(CV_IMAGES): raised OpenCV exception:
-    
-    OpenCV(4.10.0) /io/opencv/modules/videoio/src/cap_images.cpp:244: error: (-5:Bad argument) CAP_IMAGES: error, expected '0?[1-9][du]' pattern, got: https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4 in function 'icvExtractPattern'
-    
-    
+    Source ended
 

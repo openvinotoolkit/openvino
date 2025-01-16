@@ -18,7 +18,7 @@ namespace pass {
  */
 class EltwiseToEltwiseTPP: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EltwiseToEltwiseTPP", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EltwiseToEltwiseTPP");
     EltwiseToEltwiseTPP();
 };
 

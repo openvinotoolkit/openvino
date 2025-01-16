@@ -1,13 +1,5 @@
 const { addon: ov } = require('openvino-node');
-
-const fs = require('node:fs/promises');
-const { cv } = require('opencv-wasm');
-const {
-  setShape,
-  getImageData,
-  getImageBuffer,
-  arrayToImageData,
-} = require('../helpers.js');
+const Image = require('../image.js');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 5)
@@ -38,24 +30,15 @@ async function main(modelPath, imagePath, deviceName) {
 
   //----------------- Step 3. Set up input -------------------------------------
   // Read input image
-  const imgData = await getImageData(imagePath);
-
-  // Use opencv-wasm to preprocess image.
-  const originalImage = cv.matFromImageData(imgData);
-  const image = new cv.Mat();
-  // The MobileNet model expects images in RGB format.
-  cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
-
-  const tensorData = new Uint8Array(image.data);
-  const shape = [1, image.rows, image.cols, 3];
-  const inputTensor = new ov.Tensor(ov.element.u8, shape, tensorData);
+  const img = await Image.load(imagePath);
+  const inputTensor = img.toTensor();
 
   //----------------- Step 4. Apply preprocessing ------------------------------
   const _ppp = new ov.preprocess.PrePostProcessor(model);
   _ppp.input().preprocess().resize(ov.preprocess.resizeAlgorithm.RESIZE_LINEAR);
 
   _ppp.input().tensor()
-    .setShape(shape)
+    .setShape(inputTensor.getShape())
     .setElementType(ov.element.u8)
     .setLayout('NHWC');
 
@@ -70,48 +53,51 @@ async function main(modelPath, imagePath, deviceName) {
   //---------------- Step 6. Create infer request and do inference synchronously
   console.log('Starting inference in synchronous mode');
   const inferRequest = compiledModel.createInferRequest();
-  inferRequest.setInputTensor(inputTensor);
-  inferRequest.infer();
+  const outputs = inferRequest.infer([inputTensor]);
 
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
-  const resultInfer = inferRequest.getTensor(outputLayer);
-  const predictions = Array.from(resultInfer.data);
-  const [height, width] = [originalImage.rows, originalImage.cols];
+  const output = outputs[outputLayer];
+  const outputData = output.data;
+  const resultLayer = [];
+  const colormap = [
+    [68, 1, 84, 255],
+    [48, 103, 141, 255],
+    [53, 183, 120, 255],
+    [199, 216, 52, 255],
+  ];
+  const size = outputData.length/4;
 
-  const detections = setShape(predictions, [100, 7]);
-  const color = [255, 0, 0, 255];
-  const THROUGHPUT = 0.9;
+  for (let i = 0; i < size; i++) {
+    const valueAt = (i, number) => outputData[i + number*size];
+    const currentValues = {
+      bg: valueAt(i, 0),
+      c: valueAt(i, 1),
+      h: valueAt(i, 2),
+      w: valueAt(i, 3),
+    };
+    const values = Object.values(currentValues);
+    const maxIndex = values.indexOf(Math.max(...values));
 
-  detections.forEach(detection => {
-    const [classId, confidence, xmin, ymin, xmax, ymax] = detection.slice(1);
+    resultLayer.push(maxIndex);
+  }
 
-    if (confidence < THROUGHPUT) return;
+  const pixels = [];
+  resultLayer.forEach(i => pixels.push(...colormap[i]));
 
-    console.log(`Found: classId = ${classId}, `
-      + `confidence = ${confidence.toFixed(2)}, `
-      + `coords = (${xmin}, ${ymin}), (${xmax}, ${ymax})`,
-    );
-
-    // Draw a bounding box on a output image
-    cv.rectangle(originalImage,
-      new cv.Point(xmin*width, ymin*height),
-      new cv.Point(xmax*width, ymax*height),
-      color,
-      2,
-    );
-  });
-
-  const resultImgData = arrayToImageData(originalImage.data, width, height);
+  const alpha = 0.6;
   const filename = 'out.jpg';
+  const [, , H, W] = output.getShape();
 
-  await fs.writeFile(`./${filename}`, getImageBuffer(resultImgData));
+  const segmentsImg = Image.fromArray(pixels, W, H);
+  const resizedSegments = segmentsImg.resize(img.width, img.height);
+  const mergedImg = Image.overlay(img, resizedSegments, alpha);
 
   try {
-    await fs.readFile(filename);
-    console.log('Image out.jpg was created!');
+    await mergedImg.save(filename);
+    console.log(`Image '${filename}' was created.`);
   } catch(err) {
-    console.log(`Image ${filename} was not created. Check your permissions.`);
+    console.log(`Image '${filename}' was not created. Check your permissions.`);
   }
 
   console.log('\nThis sample is an API example, for any performance '

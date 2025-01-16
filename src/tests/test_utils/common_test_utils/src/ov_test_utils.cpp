@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ namespace pass {
 
 class CopyTensorNamesToRefModel : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("CopyTensorNamesToRefModel");
     CopyTensorNamesToRefModel(const std::shared_ptr<ov::Model>& ref_model) : m_ref_model(ref_model) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         const auto& orig_results = f->get_results();
@@ -88,6 +89,7 @@ void TransformationTestsF::TearDown() {
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
+
     auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -155,7 +157,7 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
 bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& model) {
     const auto& ops = model->get_ops();
     for (const auto& node : ops) {
-        const auto& ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(node);
+        const auto& ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(node);
         if (ti) {
             return true;
         }

@@ -59,7 +59,7 @@ Imports
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q opencv-python "matplotlib>=3.4"
+    %pip install -q opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
@@ -104,27 +104,35 @@ the person in each frame of the video.
 
 .. code:: ipython3
 
+    from pathlib import Path
+    
     # directory where model will be downloaded
     base_model_dir = "model"
     
     # model name as named in Open Model Zoo
     model_name = "person-detection-0202"
     precision = "FP16"
-    model_path = f"model/intel/{model_name}/{precision}/{model_name}.xml"
-    download_command = f"omz_downloader " f"--name {model_name} " f"--precision {precision} " f"--output_dir {base_model_dir} " f"--cache_dir {base_model_dir}"
-    ! $download_command
+    model_path = Path("model") / f"{model_name}.xml"
+    
+    base_model_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1"
+    
+    if not Path(model_path).exists():
+        utils.download_file(f"{base_model_url}/{model_name}/{precision}/{model_name}.xml", filename=model_path.name, directory=model_path.parent)
+        utils.download_file(
+            f"{base_model_url}/{model_name}/{precision}/{model_name}.bin", filename=model_path.name.replace(".xml", ".bin"), directory=model_path.parent
+        )
+
 
 
 .. parsed-literal::
 
-    ################|| Downloading person-detection-0202 ||################
-    
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
-    
-    
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
-    
-    
+    person-detection-0202.xml:   0%|          | 0.00/249k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    person-detection-0202.bin:   0%|          | 0.00/3.47M [00:00<?, ?B/s]
 
 
 Select inference device
@@ -228,7 +236,17 @@ Get the test video
 
 .. code:: ipython3
 
-    video_path = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4"
+    video_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4"
+    video_path = Path("data/test_video.mp4")
+    if not video_path.exists():
+        utils.download_file(video_url, video_path.name, video_path.parent)
+
+
+
+.. parsed-literal::
+
+    test_video.mp4:   0%|          | 0.00/1.55M [00:00<?, ?B/s]
+
 
 How to improve the throughput of video processing
 -------------------------------------------------
@@ -348,7 +366,7 @@ Test performance in Sync Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 63.79 fps
+    average throuput in sync mode: 66.25 fps
 
 
 Async Mode
@@ -487,7 +505,7 @@ Test the performance in Async Mode
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 106.83 fps
+    average throuput in async mode: 107.22 fps
 
 
 Compare the performance
@@ -630,5 +648,5 @@ Test the performance with ``AsyncInferQueue``
 
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 145.36 fps
+    average throughput in async mode with async infer queue: 145.66 fps
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertDepthToSpace;
 
 class ov::pass::ConvertDepthToSpace : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDepthToSpace", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertDepthToSpace");
     ConvertDepthToSpace();
 };

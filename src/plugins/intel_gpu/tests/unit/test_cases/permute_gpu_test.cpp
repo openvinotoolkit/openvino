@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2167,6 +2167,76 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
         54.f,  64.f,  74.f,  84.f,  94.f,  55.f,  65.f,  75.f,  85.f,  95.f,
         56.f,  66.f,  76.f,  86.f,  96.f,  57.f,  67.f,  77.f,  87.f,  97.f,
         58.f,  68.f,  78.f,  88.f,  98.f,  59.f,  69.f,  79.f,  89.f,  99.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < array_size; i++) {
+        ASSERT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(permute_f_y_axes_fallback, b_fs_yx_fsv16) {
+    constexpr size_t array_size = 128;
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input_layout_static = layout{ov::PartialShape{1, 8, 16, 1}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_static);
+
+    std::vector<float> input_data;
+    input_data.reserve(array_size);
+    for (size_t i = 0; i < array_size; ++i)
+        input_data.push_back(static_cast<float>(i));
+
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 8, 16, 1, 1 } });
+
+    std::vector<float> weights_data;
+    weights_data.reserve(array_size);
+    for (size_t i = 0; i < array_size; ++i)
+      weights_data.push_back(static_cast<float>(1.0));
+
+    set_values(weights, weights_data);
+    set_values(input, input_data);
+
+    auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"conv", impl_desc_onednn}};
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_static));
+    topology.add(permute("permute", input_info("input"), { 0, 2, 1, 3 }));
+    topology.add(data("weights", weights));
+    topology.add(convolution("conv", input_info("permute"), "weights", "", 1, {1,1}, {1,1}, {0,0}, {0,0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[] = {
+        120.f, 120.f, 120.f, 120.f, 120.f, 120.f, 120.f, 120.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        376.f, 376.f, 376.f, 376.f, 376.f, 376.f, 376.f, 376.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        632.f, 632.f, 632.f, 632.f, 632.f, 632.f, 632.f, 632.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        888.f, 888.f, 888.f, 888.f, 888.f, 888.f, 888.f, 888.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1144.f, 1144.f, 1144.f, 1144.f, 1144.f, 1144.f, 1144.f, 1144.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1400.f, 1400.f, 1400.f, 1400.f, 1400.f, 1400.f, 1400.f, 1400.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1656.f, 1656.f, 1656.f, 1656.f, 1656.f, 1656.f, 1656.f, 1656.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+        1912.f, 1912.f, 1912.f, 1912.f, 1912.f, 1912.f, 1912.f, 1912.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
     };
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());

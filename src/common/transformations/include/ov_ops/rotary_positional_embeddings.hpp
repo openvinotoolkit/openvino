@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,14 @@ public:
     struct Config {
         size_t slice_start = 0;  // slice inner-most dimensions of input
         size_t slice_stop = 0;
-        bool input_trans0213 = false;  // transpose input dim 1&2
-        bool is_interleaved = false;   // interleaved mode, implies trans0213 happens after RoPE
-        size_t rotary_ndims = 0;       // dimensions to be embedded (d in the description)
-        bool is_chatglm = false;       // chatglm is special which overrides other setting
-        bool support_2d_rope = false;  // 2d rope mode, Support 2 dimentional rope which is independant of batch and
-                                       // each head. change input order to [batch, head_cnt, 4608] to support 2d rope
-        bool is_qwen = false;          // Qwen is special which overrides other setting
+        bool input_trans0213 = false;   // transpose input dim 1&2
+        bool output_trans0213 = false;  // implies trans0213 happens after RoPE
+        bool is_interleaved = false;    // coordinates are interleaved
+        size_t rotary_ndims = 0;        // dimensions to be embedded (d in the description)
+        bool is_chatglm = false;        // chatglm is special which overrides other setting
+        bool support_2d_rope = false;   // 2d rope mode, Support 2 dimentional rope which is independant of batch and
+                                        // each head. change input order to [batch, head_cnt, 4608] to support 2d rope
+        bool is_qwen = false;           // Qwen is special which overrides other setting
         size_t head_cnt = 0;
         size_t head_size = 0;
         int gather_position_arg_id =

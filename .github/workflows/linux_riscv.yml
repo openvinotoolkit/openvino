@@ -29,6 +29,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -64,6 +65,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -103,6 +105,7 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
 
@@ -136,7 +139,6 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
           popd
 
@@ -213,13 +215,13 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install
 
       - name: Build OpenVINO C++ samples
         run: |

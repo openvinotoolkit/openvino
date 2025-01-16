@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace op {
 
 class FullyConnectedCompressed : public FullyConnected {
 public:
-    OPENVINO_OP("FullyConnectedCompressed", "gpu_opset");
+    OPENVINO_OP("FullyConnectedCompressed", "gpu_opset", FullyConnected);
 
     FullyConnectedCompressed() = default;
 
@@ -22,6 +22,7 @@ public:
                              const ov::Output<Node> &w_decompression_scale,
                              const ov::Output<Node> &w_decompression_zero_point,
                              const ov::Output<Node> &a_decompression_scale,
+                             const ov::Output<Node> &a_decompression_zero_point,
                              const ov::element::Type output_type = ov::element::undefined);
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,11 @@ struct data_type_traits {
     static bool is_i8_u8(data_types data_type) {
         auto et = ov::element::Type(data_type);
         return et.is_quantized() && et.bitwidth() == 8;
+    }
+
+    static bool is_i4_u4(data_types data_type) {
+        auto et = ov::element::Type(data_type);
+        return et.bitwidth() == 4;
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
@@ -452,6 +457,21 @@ private:
 
 inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
     return os << p.to_string();
+}
+
+inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>& layouts) {
+    std::stringstream ss;
+
+    ss << "[";
+    for (size_t i = 0; i < layouts.size(); i++) {
+        ss << layouts[i].to_short_string();
+
+        if (i + 1 != layouts.size())
+            ss << ", ";
+    }
+    ss << "]";
+
+    return os << ss.str();
 }
 
 using optional_data_type = optional_value<data_types>;

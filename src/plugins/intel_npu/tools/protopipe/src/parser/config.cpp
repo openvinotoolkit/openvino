@@ -345,6 +345,10 @@ struct convert<OpenVINOParams> {
             params.output_model_layout = node["oml"].as<LayerVariantAttr<std::string>>();
         }
 
+        if (node["reshape"]) {
+            params.reshape = node["reshape"].as<LayerVariantAttr<std::vector<size_t>>> ();
+        }
+
         if (node["config"]) {
             params.config = node["config"].as<std::map<std::string, std::string>>();
         }
@@ -403,6 +407,9 @@ struct convert<ONNXRTParams> {
         }
         if (node["ep"]) {
             params.ep = node["ep"].as<ONNXRTParams::EP>();
+        }
+        if (node["opt_level"]) {
+            params.opt_level = node["opt_level"].as<int>();
         }
         return true;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ void regclass_graph_op_Constant(py::module m) {
                      return Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory);
                  }),
                  py::arg("tensor"),
-                 py::arg("shared_memory") = false);
+                 py::arg("shared_memory") = true);
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<char>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<ov::float16>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<float>&>());
@@ -120,6 +120,22 @@ void regclass_graph_op_Constant(py::module m) {
             throw std::runtime_error("Unsupported data type!");
         }
     });
+
+    constant.def("get_tensor_view",
+                 &ov::op::v0::Constant::get_tensor_view,
+                 R"(
+                    Get view on constant data as tensor.
+
+                    :rtype: openvino.Tensor
+                )");
+
+    constant.def("get_strides",
+                 &ov::op::v0::Constant::get_strides,
+                 R"(
+                    Constant's strides in bytes.
+
+                    :rtype: openvino.Strides
+                )");
 
     // TODO: Remove in future and re-use `get_data`
     // Provide buffer access
@@ -235,6 +251,22 @@ void regclass_graph_op_Constant(py::module m) {
 
             :rtype: numpy.array
         )");
+
+    constant.def_property_readonly("tensor_view",
+                                   &ov::op::v0::Constant::get_tensor_view,
+                                   R"(
+                                    Get view on constant data as tensor.
+
+                                    :rtype: openvino.Tensor
+                                )");
+
+    constant.def_property_readonly("strides",
+                                   &ov::op::v0::Constant::get_strides,
+                                   R"(
+                                    Constant's strides in bytes.
+
+                                    :rtype: openvino.Strides
+                                )");
 
     constant.def("__repr__", [](const ov::op::v0::Constant& self) {
         std::stringstream shapes_ss;

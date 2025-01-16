@@ -60,14 +60,32 @@ of this library to resolve them.
         warnings.warn(
             "Building the custmom fairseq package may take a long time and may require additional privileges in the system. We recommend using Python versions 3.8, 3.9 or 3.10 for this model."
         )
-        %pip install git+https://github.com/aleksandr-mokrov/fairseq.git
+        %pip install git+https://github.com/aleksandr-mokrov/fairseq.git --extra-index-url https://download.pytorch.org/whl/cpu
     else:
-        %pip install "fairseq==0.12.2"
+        %pip install "fairseq==0.12.2" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
+    import requests
+    
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w", encoding="utf-8").write(r.text)
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+    
+    
     %pip install -q "openvino>=2023.2.0"
-    !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
+    clone_repo("https://github.com/svc-develop-team/so-vits-svc", revision="4.1-Stable", add_to_sys_path=False)
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" praat-parselmouth
 
 Download pretrained models and configs. We use a recommended encoder
@@ -80,15 +98,8 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
 
 .. code:: ipython3
 
-    # Fetch `notebook_utils` module
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    
-    open("notebook_utils.py", "w", encoding="utf-8").write(r.text)
     from notebook_utils import download_file, device_widget
+    
     
     # ContentVec
     download_file(

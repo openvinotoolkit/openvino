@@ -3,6 +3,7 @@
 //
 
 #include "ocl_stream.hpp"
+#include "CL/cl.h"
 #include "intel_gpu/runtime/stream.hpp"
 #include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
@@ -124,7 +125,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     switch (scalar.t) {
                         case scalar_t::UINT8:
                             status = kernel.setArg(i, scalar.v.u8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << scalar.v.u8 << "\n";
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << static_cast<int>(scalar.v.u8) << "\n";
                             break;
                         case scalar_t::UINT16:
                             status = kernel.setArg(i, scalar.v.u16);
@@ -140,7 +141,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                             break;
                         case scalar_t::INT8:
                             status = kernel.setArg(i, scalar.v.s8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << scalar.v.s8 << "\n";
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << static_cast<int>(scalar.v.s8) << "\n";
                             break;
                         case scalar_t::INT16:
                             status = kernel.setArg(i, scalar.v.s16);
@@ -343,6 +344,8 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
 }
 
 event::ptr ocl_stream::group_events(std::vector<event::ptr> const& deps) {
+    if (deps.size() == 1)
+        return deps[0];
     return std::make_shared<ocl_events>(deps);
 }
 
@@ -387,31 +390,35 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
         return;
 
     bool needs_barrier = false;
-    std::vector<cl::Event> clevents;
+    std::vector<cl_event> clevents;
     for (auto& ev : events) {
+        if (!ev)
+            continue;
+
         if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
             if (ocl_base_ev->get().get() != nullptr) {
-                clevents.push_back(ocl_base_ev->get());
+                clevents.push_back(ocl_base_ev->get().get());
             } else {
                 needs_barrier = true;
             }
         }
     }
 
+    cl::Event barrier_ev;
     if (needs_barrier) {
         try {
-            cl::Event barrier_ev;
             _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
-            clevents.push_back(barrier_ev);
+            clevents.push_back(barrier_ev.get());
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
     }
 
-    try {
-        cl::WaitForEvents(clevents);
-    } catch (cl::Error const& err) {
-        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    if (!clevents.empty()) {
+        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), &clevents[0]);
+        if (err != CL_SUCCESS) {
+            OPENVINO_THROW("[GPU] clWaitForEvents failed with ", err, " code");
+        }
     }
 }
 

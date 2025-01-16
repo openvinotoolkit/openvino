@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 #include <random>
 #include <string>
 
-#include "openvino/core/parallel.hpp"
 #include "node.h"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {

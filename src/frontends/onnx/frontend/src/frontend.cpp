@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <google/protobuf/port_def.inc>
+#ifndef PROTOBUF_VERSION
+#    include <google/protobuf/runtime_version.h>
+#endif
 #if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
 #    define OV_PROTOBUF_ABSL_IS_USED
 #endif

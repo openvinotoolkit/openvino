@@ -152,14 +152,8 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "segment_anything" "gradio>=4.13" "openvino>=2023.1.0" "nncf>=2.7.0" "torch>=2.1" "torchvision>=0.16" Pillow opencv-python tqdm  --extra-index-url https://download.pytorch.org/whl/cpu
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------

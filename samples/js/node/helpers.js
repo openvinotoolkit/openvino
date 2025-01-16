@@ -1,16 +1,7 @@
 const path = require('node:path');
-const { cv } = require('opencv-wasm');
 const { createWriteStream } = require('node:fs');
 const { mkdir, stat } = require('node:fs/promises');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-
-const {
-  Image,
-  ImageData,
-  loadImage,
-  createCanvas,
-  createImageData,
-} = require('canvas');
 
 module.exports = {
   exp,
@@ -23,96 +14,29 @@ module.exports = {
   setShape,
   transform,
   downloadFile,
-  displayImage,
-  getImageData,
   extractValues,
-  getImageBuffer,
-  arrayToImageData,
-  displayArrayAsImage,
   matrixMultiplication,
 };
 
-function arrayToImageData(array, width, height) {
-  return createImageData(new Uint8ClampedArray(array), width, height);
-}
+function transform(arr, { width, height }, order) {
+  // Calculate the number of pixels and the size of each channel
+  const numPixels = width * height;
+  const channels = [[], [], []];
 
-function getImageBuffer(imageOrImageData) {
-  const canvas = createCanvas(imageOrImageData.width, imageOrImageData.height);
-  const ctx = canvas.getContext('2d');
-
-  if (imageOrImageData instanceof Image)
-    ctx.drawImage(imageOrImageData, 0, 0);
-  else if (imageOrImageData instanceof ImageData)
-    ctx.putImageData(imageOrImageData, 0, 0);
-  else
-    throw Error(`Passed parameters has type '${typeof imageOrImageData}'. `
-      + 'It is\'t supported.');
-
-  return canvas.toBuffer('image/jpeg');
-}
-
-function displayImage(imageOrImageData, display) {
-  const buffer = getImageBuffer(imageOrImageData);
-
-  display.image(buffer);
-}
-
-function displayArrayAsImage(arr, width, height, display) {
-  const alpha = 255;
-  const componentsPerPixel = arr.length / (width*height);
-
-  try {
-    switch (componentsPerPixel) {
-    case 1:
-      arr = arr.reduce((acc, val) => {
-        acc.push(val, val, val, alpha);
-
-        return acc;
-      }, []);
-      break;
-
-    case 3:
-      arr = arr.reduce((acc, val, index) => {
-        if (index && index%3 === 0) acc.push(alpha);
-
-        acc.push(val);
-
-        return acc;
-      }, []);
-      break;
-    }
-  } catch(e) {
-    console.log(e);
+  // Separate RGB channels
+  for (let i = 0; i < numPixels; i++) {
+    channels[0].push(arr[i * 3]);     // Red channel
+    channels[1].push(arr[i * 3 + 1]); // Green channel
+    channels[2].push(arr[i * 3 + 2]); // Blue channel
   }
 
-  const imageData = arrayToImageData(arr, width, height);
+  // Reorder channels based on the 'order' array
+  const reorderedChannels = order.map(num => channels[num]);
 
-  displayImage(imageData, display);
-}
+  // Flatten reordered channels into a single array
+  const result = reorderedChannels.flat();
 
-async function getImageData(path) {
-  const image = await loadImage(path);
-  const { width, height } = image;
-
-  const canvas = await createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-
-  ctx.drawImage(image, 0, 0);
-
-  return ctx.getImageData(0, 0, width, height);
-}
-
-function transform(arr, { width, height }, order) {
-  const img = new cv.Mat(height, width, cv.CV_8UC3);
-
-  img.data.set(arr, 0, arr.length);
-
-  const channels = new cv.MatVector();
-  cv.split(img, channels);
-
-  const val = order.map(num => [...channels.get(num).data]);
-
-  return [].concat(...val);
+  return result;
 }
 
 async function downloadFile(url, filename, destination) {

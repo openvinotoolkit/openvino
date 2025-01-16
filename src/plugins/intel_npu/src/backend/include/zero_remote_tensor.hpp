@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,15 +9,15 @@
 #include <string>
 
 #include "intel_npu/common/remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "zero_init.hpp"
 
 namespace intel_npu {
 
-class ZeroRemoteTensor : public RemoteTensor {
+class ZeroRemoteTensor final : public RemoteTensor {
 public:
-    ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
-                     std::shared_ptr<ZeroInitStructsHolder> init_structs,
+    ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
+                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                      const ov::element::Type& element_type,
                      const ov::Shape& shape,
                      const Config& config,
@@ -47,5 +47,9 @@ private:
 
     bool _external_memory_support = false;
 };
+
+inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
+    return std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor) != nullptr;
+}
 
 }  // namespace intel_npu

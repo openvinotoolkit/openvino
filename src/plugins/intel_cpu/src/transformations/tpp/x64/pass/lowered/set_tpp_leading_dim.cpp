@@ -16,13 +16,7 @@ namespace tpp {
 namespace pass {
 namespace {
 using ExpressionPort = snippets::lowered::ExpressionPort;
-bool is_planar_layout(const std::vector<size_t>& layout) {
-    for (size_t i = 0; i < layout.size(); i++) {
-        if (layout[i] != i)
-            return false;
-    }
-    return true;
-}
+using LoopPort = snippets::lowered::LoopPort;
 // Note: Buffer is directly connected to the port if it remains in the same loops with the port's expression
 //  Directly connected Buffers store data densely, so strides are defined by subternsor dims
 //  Indirectly connected Buffers (with loops between the expr and Buffer) store data according
@@ -30,8 +24,8 @@ bool is_planar_layout(const std::vector<size_t>& layout) {
 bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::lowered::LoopManagerPtr& loop_mngr) {
     auto accepted_loops = [&loop_mngr, &port](const std::vector<size_t>& orig, const std::vector<size_t>& connect) {
         size_t connect_idx = 0;
-        auto pred = [&port](const snippets::lowered::LoopPort& loop_port ) {
-            return *loop_port.expr_port == port;
+        auto pred = [&port](const LoopPort& loop_port ) {
+            return *loop_port.get_expr_port() == port;
         };
         for (const auto orig_loop : orig) {
             if (connect_idx < connect.size() && orig_loop == connect[connect_idx]) {
@@ -46,7 +40,7 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
                                                            loop_info->get_input_ports() :
                                                            loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
-            if (found == border_points.end() || found->is_incremented)
+            if (found == border_points.end() || found->is_incremented())
                 return false;
         }
         return true;
@@ -81,12 +75,12 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
             subtensor[idx] = shape[shape.size() - i];
         }
     }
-    OPENVINO_ASSERT(!full_dim_substituted || is_planar_layout(layout),
+    OPENVINO_ASSERT(!full_dim_substituted || ov::snippets::utils::is_planar_layout(layout),
                     "Only planar layouts are supported for FULL_DIM substitution");
 
     if (has_directly_connected_buffer(port, loop_mngr)) {
         shape = port_desc->get_subtensor();
-        OPENVINO_ASSERT(is_planar_layout(layout), "Only planar layouts are supported for Buffers");
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layout), "Only planar layouts are supported for Buffers");
         const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());
         if (rank_diff > 0)
             layout.erase(layout.end() - rank_diff, layout.end());

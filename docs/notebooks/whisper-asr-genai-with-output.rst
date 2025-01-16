@@ -75,11 +75,16 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "transformers>=4.35" "torch>=2.3" "torchvision>=0.18.1" "onnx>=1.16.1" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-    %pip install -q --pre -U "openvino" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    import platform
+    
+    
+    %pip install -q "torch>=2.3" "torchvision>=0.18.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
     %pip install -q datasets  "gradio>=4.0" "soundfile>=0.12" "librosa" "python-ffmpeg<=1.0.16"
-    %pip install -q "nncf>=2.13.0" "jiwer"
+    %pip install -q "nncf>=2.14.0" "jiwer" "typing_extensions>=4.9"
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0"
 
 .. code:: ipython3
 
@@ -91,6 +96,12 @@ Prerequisites
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
         open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
 Load PyTorch model
 ------------------
@@ -266,7 +277,7 @@ Let’s check how to work the ``transcribe`` task.
 
 .. parsed-literal::
 
-    /home/labuser/work/notebook/genai_whisper/lib/python3.10/site-packages/transformers/models/whisper/generation_whisper.py:496: FutureWarning: The input name `inputs` is deprecated. Please make sure to use `input_features` instead.
+    /home/labuser/work/notebook/whisper_new/lib/python3.10/site-packages/transformers/models/whisper/generation_whisper.py:496: FutureWarning: The input name `inputs` is deprecated. Please make sure to use `input_features` instead.
       warnings.warn(
     
 
@@ -349,8 +360,8 @@ be found in the `paper <https://cdn.openai.com/papers/whisper.pdf>`__.
     Result:  The blog is our tool that is prefilled to encourage collaboration and develop the learning of the students and to attract a normal school class.
     
 
-Download and convert model to OpenVINO IR via Optimum Intel CLI
----------------------------------------------------------------
+Convert model to OpenVINO IR via Optimum Intel CLI
+--------------------------------------------------
 
 
 
@@ -381,20 +392,13 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 
     import logging
     import nncf
-    import os
-    from IPython.display import display, Markdown
+    from cmd_helper import optimum_cli
     
     nncf.set_log_level(logging.ERROR)
     
     model_path = Path(model_id.value.split("/")[1])
-    export_command = f"optimum-cli export openvino --model {model_id.value} --library transformers --task automatic-speech-recognition-with-past --framework pt {str(model_path)}"
-    
-    display(Markdown("**Export command:**"))
-    display(Markdown(f"`{export_command}`"))
-    
-    exit_code = os.system(export_command)
-    if exit_code != 0:
-        raise Exception("Failed to load and convert model!")
+    optimum_cli(model_id.value, model_path)
+    print(f"✅ {model_id.value} model converted and can be found in {model_path}")
 
 Run inference OpenVINO model with WhisperPipeline
 -------------------------------------------------
@@ -427,9 +431,9 @@ and default ``generation configuration``.
 
 .. code:: ipython3
 
-    import openvino_genai
+    import openvino_genai as ov_genai
     
-    ov_pipe = openvino_genai.WhisperPipeline(str(model_path), device=device.value)
+    ov_pipe = ov_genai.WhisperPipeline(str(model_path), device=device.value)
 
 Let’s run the ``transcribe`` task. We just call ``generate`` for that
 and put array as input.
@@ -604,9 +608,9 @@ Compare performance PyTorch vs OpenVINO
 
 .. parsed-literal::
 
-    Mean torch openai/whisper-tiny generation time: 0.624s
-    Mean openvino openai/whisper-tiny generation time: 0.344s
-    Performance openai/whisper-tiny openvino speedup: 1.814
+    Mean torch openai/whisper-tiny generation time: 0.564s
+    Mean openvino openai/whisper-tiny generation time: 0.311s
+    Performance openai/whisper-tiny openvino speedup: 1.815
     
 
 Quantization
@@ -661,6 +665,8 @@ Please select below whether you would like to run Whisper quantization.
     )
     open("skip_kernel_extension.py", "w").write(r.text)
     
+    ov_quantized_pipe = None
+    
     %load_ext skip_kernel_extension
 
 Let’s load converted OpenVINO model format using Optimum-Intel to easily
@@ -693,6 +699,8 @@ interface for ``automatic-speech-recognition``.
 
 .. code:: ipython3
 
+    %%skip not $to_quantize.value
+    
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
     
     ov_model = OVModelForSpeechSeq2Seq.from_pretrained(str(model_path), device=device.value)
@@ -823,7 +831,7 @@ negligible.
             shutil.copy(model_path / "merges.txt", quantized_model_path / "merges.txt")
             shutil.copy(model_path / "added_tokens.json", quantized_model_path / "added_tokens.json")
         
-        quantized_ov_pipe = openvino_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
+        quantized_ov_pipe = ov_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
         return quantized_ov_pipe
     
     
@@ -934,7 +942,7 @@ for Word Error Rate.
 
 .. parsed-literal::
 
-    Whole pipeline performance speedup: 1.499
+    Whole pipeline performance speedup: 1.350
     Whisper transcription word accuracy. Original model: 82.88%. Quantized model: 84.13%.
     Accuracy drop: -1.25%.
     
@@ -960,7 +968,7 @@ upload button) or record using your microphone.
     
     pipe = ov_quantized_pipe if to_quantize.value else ov_pipe
     
-    gr_pipeline = GradioPipeline(pipe, multilingual=(not model_id.value.endswith(".en")), quantized=to_quantize.value)
+    gr_pipeline = GradioPipeline(pipe, model_id.value, quantized=to_quantize.value)
     
     demo = make_demo(gr_pipeline)
     

@@ -70,6 +70,8 @@ Prerequisites
 .. code:: ipython3
 
     import os
+    from pathlib import Path
+    import requests
 
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
@@ -84,6 +86,17 @@ Prerequisites
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
     "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git"
+
+    utility_files = ["notebook_utils.py", "cmd_helper.py"]
+
+    for utility in utility_files:
+        local_path = Path(utility)
+        if not local_path.exists():
+            r = requests.get(
+                url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
+            )
+        with local_path.open("w") as f:
+            f.write(r.text)
 
 Create a Function calling agent
 -------------------------------
@@ -179,12 +192,13 @@ folder.
 .. code:: ipython3
 
     from pathlib import Path
+    from cmd_helper import optimum_cli
 
     model_id = "Qwen/Qwen2-7B-Instruct"
     model_path = "Qwen2-7B-Instruct-ov"
 
     if not Path(model_path).exists():
-        !optimum-cli export openvino --model {model_id} --task text-generation-with-past --trust-remote-code --weight-format int4 --ratio 0.72 {model_path}
+        optimum_cli(model_id, model_path, additional_args={"task": "text-generation-with-past", "trust-remote-code": "", "weight-format": "int4", "ratio": "0.72"})
 
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -193,23 +207,9 @@ Select inference device for LLM
 
 .. code:: ipython3
 
-    import openvino as ov
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
 
-    core = ov.Core()
-
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-
-    device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
-
-    device
+    device = device_widget("CPU", ["NPU"])
 
 
 
@@ -397,7 +397,7 @@ For example, to register your own image generation tool:
 In this notebook, we will create 3 tools as examples:
 
 - **image_generation**: AI painting (image generation) service, input text
- description, and return the image URL drawn based on text information.
+  description, and return the image URL drawn based on text information.
 - **get_current_weather**: Get the current weather in a given city name.
 - **wikipedia**: A wrapper around Wikipedia. Useful for when you need to
   answer general questions about people, places, companies, facts,

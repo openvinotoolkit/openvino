@@ -122,7 +122,7 @@ Initial Implementation with Transformers and Pytorch
 
     # Install requirements
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu transformers "numpy<2" "torch>=2.1" "gradio>=4.19"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu transformers "numpy<2" "torch>=2.1" "gradio>=4.19" "matplotlib>=3.4"
 
 .. code:: ipython3
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,17 +9,18 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
 #include "dnnl_types.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
@@ -37,7 +38,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
     const ov::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
 
     widths = attrs.widths;
@@ -79,10 +80,9 @@ void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc(
-            {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
-            {{LayoutType::ncsp, ov::element::f32}},
-            impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
+                         impl_desc_type::ref_any);
 }
 
 void PriorBoxClustered::createPrimitive() {
@@ -157,6 +157,6 @@ bool PriorBoxClustered::created() const {
     return getType() == Type::PriorBoxClustered;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,7 @@
 #include <string>
 
 #include "backends.hpp"
-#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -54,8 +52,6 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
-
     std::shared_ptr<NPUBackends> _backends;
 
     std::map<std::string, std::string> _config;
@@ -65,10 +61,14 @@ private:
     std::unique_ptr<Metrics> _metrics;
 
     // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
-    std::vector<ov::PropertyName> _supportedProperties;
+    mutable std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>>
+        _properties;
+    mutable std::vector<ov::PropertyName> _supportedProperties;
 
     static std::atomic<int> _compiledModelLoadCounter;
+
+    void reset_compiler_dependent_properties() const;
+    void reset_supported_properties() const;
 };
 
 }  // namespace intel_npu

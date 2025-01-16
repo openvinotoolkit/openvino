@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,6 @@ struct condition_impl : typed_primitive_impl<condition> {
             events[0]->wait();
 
         auto& stream = instance.get_network().get_stream();
-        auto ev = stream.create_user_event(false);
         set_node_params(instance.get_node());
 
         auto pred = condition_inst::get_pred_from_memory(instance.pred_memory_ptr(), stream);

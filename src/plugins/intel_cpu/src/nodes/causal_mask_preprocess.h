@@ -32,7 +32,7 @@ public:
 private:
     struct Executor {
         virtual void execute(dnnl::stream strm,
-                             intel_cpu::Node * pnode,
+                             intel_cpu::Node* pnode,
                              const intel_cpu::CausalMaskPreprocessNode::Config& config) = 0;
         virtual ~Executor() = default;
     };
