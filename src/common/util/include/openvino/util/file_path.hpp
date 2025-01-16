@@ -8,6 +8,7 @@
 
 #include "openvino/util/filesystem.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
+//#include "openvino/util/util.hpp"
 
 namespace ov {
 namespace util {
@@ -53,13 +54,13 @@ using Path = std::experimental::filesystem::path;
 #endif
 
 #if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
-auto WPath = [](const std::wstring& wpath) {
-    return ov::util::Path{ov::util::wstring_to_string(wpath)};
-};
+inline ov::util::Path WPath(const std::wstring& wpath) {
+    return {ov::util::wstring_to_string(wpath)};
+}
 #else
-auto WPath = [](const std::wstring& wpath) {
-    return ov::util::Path{wpath};
-};
+inline ov::util::Path WPath(const std::wstring& wpath) {
+    return {wpath};
+}
 #endif
 
 }  // namespace util
