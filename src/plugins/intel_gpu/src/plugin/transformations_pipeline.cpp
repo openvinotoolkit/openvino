@@ -339,13 +339,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 
-        // fuse following ops into GroupNormalization:
-        // group_norm_gamma * (instance_norm_gamma * MVN(x) + instance_norm_beta) + group_norm_beta
-        // note that instance norm related parameters are optional:
-        // - instance_norm_gamma is assumed to be filled with ones if not present in the graph
-        // - instance_norm_beta is assumed to be filled with zeros if not present in the graph
-        manager.register_pass<ov::pass::GroupNormalizationFusion>();
-
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
             ov::enable_constant_folding(node);
@@ -414,6 +407,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
+        // fuse following ops into GroupNormalization:
+        // group_norm_gamma * (instance_norm_gamma * MVN(x) + instance_norm_beta) + group_norm_beta
+        // note that instance norm related parameters are optional:
+        // - instance_norm_gamma is assumed to be filled with ones if not present in the graph
+        // - instance_norm_beta is assumed to be filled with zeros if not present in the graph
+        manager.register_pass<ov::pass::GroupNormalizationFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
         // Run these broadcast optimizations earlier to ensure that those are executed before NopElimination/ConstantFolding
