@@ -9,7 +9,7 @@ OpenVINO™ Test Drive
 
 
 
-OpenVINO™ Test Drive is a cross-platform graphic user interface application for running and
+OpenVINO™ Test Drive is a cross-platform **graphic user interface** application for running and
 testing AI models, both generative and vision based.
 It can run directly on your computer or on edge devices using
 `OpenVINO™ Runtime <https://github.com/openvinotoolkit/openvino>`__.
@@ -24,7 +24,6 @@ Use OpenVINO™ Test Drive to:
 * **Transcribe speech from video**, using Whisper models, including generation
   of timestamps (coming soon);
 * **Run inference of models** trained by Intel® Geti™ and **visualize the results**.
-
 
 
 Installation (Windows)
@@ -51,12 +50,22 @@ Inference of models from Hugging Face
 
 1. Find a model on `Hugging Face <https://huggingface.co/>`__ and import it.
 
+   .. image:: ../../assets/images/TestDrive_llm_import.gif
+      :align: center
+      :alt: how to import a model to test drive
+
 2. Chat with LLMs via the `Playground` tab.
+
+   .. image:: ../../assets/images/TestDrive_llm_model_chat.gif
+      :align: center
+      :alt: chatting with llm models in test drive
 
 3. Use the `Performance metrics` tab to get model performance metrics on your
    computer or an edge device.
 
-
+   .. image:: ../../assets/images/TestDrive_llm_metrics.gif
+      :align: center
+      :alt: verifying llm performance in test drive
 
 Inference of models trained with Intel® Geti™
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -64,6 +73,10 @@ Inference of models trained with Intel® Geti™
 1. Download the deployment code for a model in the OpenVINO IR format trained
    by Intel® Geti™ (refer to the `Intel® Geti™ documentation <https://docs.geti.intel.com>`__
    for more details).
+
+   .. image:: ../../assets/images/TestDrive_geti_download.gif
+      :align: center
+      :alt: verifying llm performance in test drive
 
 2. Import the deployment code into OpenVINO™ Test Drive, using the *Import model* and then
    *Local disk* buttons.
