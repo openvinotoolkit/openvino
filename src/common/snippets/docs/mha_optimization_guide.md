@@ -129,7 +129,7 @@ The heuristics for determining the optimal block sizes can be found in [BrgemmCP
 
 ### Blocking Order
 
-The lowered pass [BrgemmBlocking](../../../plugins/intel_cpu/src/transformations/snippets/x64/pass/lowered/brgemm_blocking.cpp) performs blocking loops creation on LinearIR.
+The lowered pass [BrgemmBlocking](../../../common/snippets/src/lowered/pass/brgemm_blocking.cpp) performs blocking loops creation on LinearIR.
 Currently, the order of blocking loops is following (from outer to inner): `M->N->K`.
 
 ## MHA Performance Tuning Recommendations

@@ -22,7 +22,7 @@ namespace pass {
 class UpdateMemoryAccessCounts : public pass::RangedPass {
 public:
     UpdateMemoryAccessCounts(size_t count);
-    OPENVINO_RTTI("UpdateMemoryAccessCounts", "RangedPass")
+    OPENVINO_RTTI("UpdateMemoryAccessCounts", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
 
@@ -39,7 +39,7 @@ private:
 class SetFillOffset : public pass::RangedPass {
 public:
     SetFillOffset(size_t offset);
-    OPENVINO_RTTI("SetFillOffset", "RangedPass")
+    OPENVINO_RTTI("SetFillOffset", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
 
@@ -55,7 +55,7 @@ private:
 class SetLoopIncrementOne : public snippets::lowered::pass::RangedPass {
 public:
     SetLoopIncrementOne() = default;
-    OPENVINO_RTTI("SetLoopIncrementOne", "RangedPass")
+    OPENVINO_RTTI("SetLoopIncrementOne", "", RangedPass);
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;

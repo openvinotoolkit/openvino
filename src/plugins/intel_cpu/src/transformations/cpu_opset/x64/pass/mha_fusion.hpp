@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,25 +30,25 @@ protected:
 
 class MHAFloatFusion : public MHAFusionBase {
 public:
-    OPENVINO_RTTI("MHAFloatFusion", "0");
+    OPENVINO_RTTI("MHAFloatFusion", "0", MHAFusionBase);
     MHAFloatFusion();
 };
 
 class MHAFloatFusion2 : public MHAFusionBase {
 public:
-    OPENVINO_RTTI("MHAFloatFusion2", "0");
+    OPENVINO_RTTI("MHAFloatFusion2", "0", MHAFusionBase);
     MHAFloatFusion2();
 };
 
 class MHAQuantFusion : public MHAFusionBase {
 public:
-    OPENVINO_RTTI("MHAQuantFusion", "0");
+    OPENVINO_RTTI("MHAQuantFusion", "0", MHAFusionBase);
     MHAQuantFusion();
 };
 
 class MHAQuantFusion2 : public MHAFusionBase {
 public:
-    OPENVINO_RTTI("MHAQuantFusion2", "0");
+    OPENVINO_RTTI("MHAQuantFusion2", "0", MHAFusionBase);
     MHAQuantFusion2();
 };
 

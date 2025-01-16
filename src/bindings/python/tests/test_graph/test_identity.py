@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from openvino.runtime.opset15 import parameter
-from openvino.runtime.opset16 import identity
+from openvino.opset15 import parameter
+from openvino.opset16 import identity
 from openvino import PartialShape, Type
 
 

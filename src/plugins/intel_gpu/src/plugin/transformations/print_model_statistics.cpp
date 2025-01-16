@@ -22,7 +22,7 @@ size_t collect_stats(const std::shared_ptr<ov::Model>& m, std::map<DiscreteTypeI
 
         ops_stat[tinfo]++;
 
-        if (auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
+        if (auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& subgraph : subgraph_op->get_functions()) {
                 total += collect_stats(subgraph, ops_stat);
             }
