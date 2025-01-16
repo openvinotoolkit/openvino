@@ -571,8 +571,10 @@ TEST_F(FileUtilTest, FileSizeNonExistentFileTest) {
 }
 
 TEST_F(FileUtilTest, EmptyFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("test_file_0.txt"s), 0);
+#ifdef OPENVINO_CPP_VER_AT_LEAST_20
     EXPECT_EQ(ov::util::file_size(u8"test_file_0.txt"), 0);
+#endif
+    EXPECT_EQ(ov::util::file_size("test_file_0.txt"s), 0);
     EXPECT_EQ(ov::util::file_size(u"test_file_0.txt"), 0);
     EXPECT_EQ(ov::util::file_size(U"test_file_0.txt"), 0);
     EXPECT_EQ(ov::util::file_size(L"test_file_0.txt"), 0);
@@ -598,8 +600,10 @@ TEST_F(FileUtilTest, LargeFileSizeTest) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_F(FileUtilTest, u8FileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_u8_.txt"s), 21);
+#    ifdef OPENVINO_CPP_VER_AT_LEAST_20
     EXPECT_EQ(ov::util::file_size(u8"这是_u8_.txt"), 21);
+#    endif
+    EXPECT_EQ(ov::util::file_size("这是_u8_.txt"s), 21);
     EXPECT_EQ(ov::util::file_size(u"这是_u8_.txt"), 21);
     EXPECT_EQ(ov::util::file_size(U"这是_u8_.txt"), 21);
     EXPECT_EQ(ov::util::file_size(L"这是_u8_.txt"), 21);
