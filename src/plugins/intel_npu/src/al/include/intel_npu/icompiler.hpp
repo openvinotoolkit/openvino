@@ -12,6 +12,11 @@
 
 namespace intel_npu {
 
+#ifndef ICOMPILER_MAKE_VERSION
+/// @brief Generates npu compiler (generic 'oneAPI') API version number
+#    define ICOMPILER_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // ICOMPILER_MAKE_VERSION
+
 /**
  * @struct NetworkDescription
  * @brief The object returned by the compiler

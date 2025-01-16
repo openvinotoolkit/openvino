@@ -344,6 +344,115 @@ TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
     }
 }
 
+using RandomTensorOverZeroTensorRunTests = InferRequestRunTests;
+
+TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input_zero_tensor = inference_request.get_input_tensor(0);
+    auto* input_zero_data = input_zero_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_zero_data[i] = 5.f;
+    }
+
+    inference_request.infer();  // Adds '1' to each element
+
+    auto output_tensor = inference_request.get_output_tensor(0);
+    auto* output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data[i] << " for index " << i;
+    }
+
+    float* buffer = new float[shape_size];
+    ov::Tensor tensor{element::f32, shape, buffer};
+    auto* input_data = tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 9.f;
+    }
+
+    inference_request.set_input_tensor(tensor);
+    inference_request.infer();  // Adds '1' to each element
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+    }
+
+    delete[] buffer;
+}
+
+TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request0, inference_request1;
+    inference_request0 = compiled_model.create_infer_request();
+    inference_request1 = compiled_model.create_infer_request();
+
+    auto input_zero_tensor = inference_request0.get_input_tensor(0);
+    auto* input_zero_data = input_zero_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_zero_data[i] = 5.f;
+    }
+
+    inference_request0.infer();  // Adds '1' to each element
+
+    auto output_tensor0 = inference_request0.get_output_tensor(0);
+    auto* output_data0 = output_tensor0.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+    }
+
+    inference_request1.set_input_tensor(output_tensor0);
+    inference_request1.infer();  // Adds '1' to each element
+
+    auto output_tensor1 = inference_request1.get_output_tensor(0);
+    auto* output_data1 = output_tensor1.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data1[i], 7.f, 1e-5) << "Expected=7, actual=" << output_data1[i] << " for index " << i;
+    }
+
+    float* buffer = new float[shape_size];
+    ov::Tensor tensor{element::f32, shape, buffer};
+    auto* input_data = tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 9.f;
+    }
+
+    inference_request1.set_input_tensor(tensor);
+    inference_request1.infer();  // Adds '1' to each element
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data1[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data1[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+    }
+
+    delete[] buffer;
+}
+
 using BatchingRunTests = InferRequestRunTests;
 
 TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {

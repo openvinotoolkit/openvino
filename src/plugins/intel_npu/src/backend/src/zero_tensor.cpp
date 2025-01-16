@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,6 +143,13 @@ bool ZeroTensor::memory_address_changed() {
 
 void ZeroTensor::reset_memory_flag() {
     _reset_tensor_memory = false;
+}
+
+bool ZeroTensor::tensor_was_shared_with_user() {
+    return _tensor_shared_with_user;
+}
+void ZeroTensor::set_tensor_shared_with_user() {
+    _tensor_shared_with_user = true;
 }
 
 ZeroTensor::~ZeroTensor() {

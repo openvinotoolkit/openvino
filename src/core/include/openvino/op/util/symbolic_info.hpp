@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <openvino/core/descriptor/tensor.hpp>
-
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/core/visibility.hpp"

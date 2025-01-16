@@ -357,4 +357,26 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
     }
 };
 
+//
+// NPU_COMPILER_DYNAMIC_QUANTIZATION
+//
+
+struct COMPILER_DYNAMIC_QUANTIZATION final : OptionBase<COMPILER_DYNAMIC_QUANTIZATION, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::compiler_dynamic_quantization.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
 }  // namespace intel_npu

@@ -336,4 +336,5 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
     wrap_property_RW(m_intel_npu, ov::intel_npu::bypass_umd_caching, "bypass_umd_caching");
     wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
 }
