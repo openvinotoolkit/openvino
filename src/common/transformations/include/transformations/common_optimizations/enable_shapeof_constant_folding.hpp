@@ -17,7 +17,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API EnableShapeOfConstantFolding : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EnableShapeOfConstantFolding");
+    OPENVINO_RTTI("EnableShapeOfConstantFolding", "0");
     explicit EnableShapeOfConstantFolding(bool check_shape = true);
 };
 

@@ -3,7 +3,6 @@
 //
 
 #include "eltwise.hpp"
-
 #include "utils.hpp"
 
 namespace ov {
@@ -15,8 +14,9 @@ namespace node {
  * according to the NUMPY broadcast rule. This implementation is more lightweight than the ngraph one.
  *
  */
-Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result EltwiseShapeInfer::infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     size_t max_rank = 0;
     size_t max_rank_idx = 0;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
@@ -42,15 +42,14 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                 if (output_shape[offset + j] == 1) {
                     output_shape[offset + j] = input_shape[j];
                 } else {
-                    if (input_shape[j] != 1)
-                        OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
+                    if (input_shape[j] != 1) OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
                 }
             }
         }
     }
-    return {{std::move(output_shape)}, ShapeInferStatus::success};
+    return { { std::move(output_shape) }, ShapeInferStatus::success };
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+} // namespace node
+} // namespace intel_cpu
+} // namespace ov

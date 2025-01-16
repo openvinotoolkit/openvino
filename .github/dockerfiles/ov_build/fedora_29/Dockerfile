@@ -3,11 +3,7 @@ FROM ${REGISTRY}/library/fedora:29
 
 USER root
 
-# dnf configuration
-RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
-    echo "retries=10" >> /etc/dnf/dnf.conf
-
-RUN dnf update -y && dnf install -y \
+RUN yum update -y && yum install -y \
     git \
     curl \
     python3 \

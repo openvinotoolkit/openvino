@@ -167,7 +167,6 @@ enum class Algorithm {
     EltwiseFloor,
     EltwiseCeiling,
     EltwiseFloorMod,
-    EltwiseNegative,
     EltwiseMod,
     EltwiseMaximum,
     EltwiseMinimum,
@@ -213,12 +212,6 @@ enum class Algorithm {
     EltwiseBitwiseXor,
     EltwiseBitwiseLeftShift,
     EltwiseBitwiseRightShift,
-
-    // FullyConnected algorithms
-    FullyConnectedCommon,
-    FullyConnectedCompressed,
-    FullyConnectedQuantized,
-    FullyConnectedQuantizedLegacy,
 
     // FakeQuantize algorithms
     FQCommon,

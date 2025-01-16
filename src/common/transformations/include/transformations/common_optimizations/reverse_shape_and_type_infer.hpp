@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API ReverseShapeAndTypeInfer;
  */
 class ov::pass::ReverseShapeAndTypeInfer : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ReverseShapeAndTypeInfer");
+    OPENVINO_RTTI("ReverseShapeAndTypeInfer", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
 private:

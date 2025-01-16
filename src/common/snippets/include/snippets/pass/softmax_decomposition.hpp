@@ -17,7 +17,7 @@ namespace pass {
  */
 class SoftmaxDecomposition: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::SoftmaxDecomposition");
+    OPENVINO_RTTI("SoftmaxDecomposition", "0");
     SoftmaxDecomposition();
 };
 

@@ -3,20 +3,10 @@ FROM ${REGISTRY}/library/fedora:33
 
 USER root
 
-# dnf configuration
-RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
-    echo "retries=10" >> /etc/dnf/dnf.conf
-
-RUN dnf update -y && dnf install -y \
+RUN yum update -y && yum install -y \
     git \
     curl \
-    python3 \
-    findutils \
-    ocl-icd \
-    ocl-icd-devel \
-    # parallel gzip
-    pigz \
-    xz
+    python3
 
 # Install Node
 ENV NODE_VERSION=21.7.3

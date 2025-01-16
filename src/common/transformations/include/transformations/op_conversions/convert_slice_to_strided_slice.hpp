@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API SliceToStridedSlice;
  */
 class ov::pass::SliceToStridedSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SliceToStridedSlice");
+    OPENVINO_RTTI("SliceToStridedSlice", "0");
     SliceToStridedSlice(bool use_shapes);
 };

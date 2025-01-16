@@ -12,6 +12,7 @@ namespace intel_cpu {
 struct MatMulAttrs {
     bool transposeA;
     bool transposeB;
+    std::vector<float> dequantizationScales;
 };
 
 using MatMulConfig = executor::Config<MatMulAttrs>;

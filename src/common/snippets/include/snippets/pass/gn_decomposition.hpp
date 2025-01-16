@@ -17,7 +17,7 @@ namespace pass {
  */
 class GNDecomposition: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::GNDecomposition");
+    OPENVINO_RTTI("GNDecomposition", "0");
     GNDecomposition();
 };
 

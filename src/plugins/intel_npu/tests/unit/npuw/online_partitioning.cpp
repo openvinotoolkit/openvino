@@ -664,9 +664,6 @@ TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_SmallModel) {
 }
 
 TEST(OnlinePartitioningTest, Partitioning_Compiler_Compute_RepeatedModel) {
-    // Disabling it for now, please enable it after fixing it
-    GTEST_SKIP() << "Skipping failing test";
-
     ModelGenerator mg;
     auto model = mg.get_model_with_repeated_blocks();
 

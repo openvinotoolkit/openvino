@@ -16,9 +16,11 @@ Each OpenVINO component is projected with using DOTADIW (Do One Thing And Do It 
 ```mermaid
 flowchart TB
     subgraph tools [Tools]
-        ovc{{OpenVINO model converter}}
+        mo{{Model Optimizer}}
+        pot{{PoT}}
     
-        style ovc fill:#6c9f7f
+        style mo fill:#6c9f7f
+        style pot fill:#6c9f7f
     end
     subgraph tutorials [Tutorials]
         samples[Samples]

@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "range.h"
-
 #include <string>
-
-#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "openvino/core/parallel.hpp"
+#include "range.h"
 #include "utils/general_utils.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,9 +15,7 @@ namespace node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
-                    ov::op::v0::Range::get_type_info_static(),
-                    ov::op::v4::Range::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v0::Range::get_type_info_static(), ov::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only opset1 and opset4 Range operation is supported";
             return false;
         }
@@ -66,13 +62,13 @@ void Range::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outDataConf;
 
     if (!(getOriginalInputPrecisionAtPort(RANGE_START) == ov::element::i32 &&
-          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::i32 &&
-          getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::i32 &&
-          getOriginalOutputPrecisionAtPort(0) == ov::element::i32) &&
+            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::i32 &&
+            getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::i32 &&
+            getOriginalOutputPrecisionAtPort(0)     == ov::element::i32) &&
         !(getOriginalInputPrecisionAtPort(RANGE_START) == ov::element::f32 &&
-          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::f32 &&
-          getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::f32 &&
-          getOriginalOutputPrecisionAtPort(0) == ov::element::f32)) {
+            getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::f32 &&
+            getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::f32 &&
+            getOriginalOutputPrecisionAtPort(0) == ov::element::f32)) {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i)
             inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
@@ -96,14 +92,14 @@ void Range::executeDynamicImpl(dnnl::stream strm) {
 void Range::execute(dnnl::stream strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
-    case ov::element::f32:
-        retcode = rangeKernel<float>();
-        break;
-    case ov::element::i32:
-        retcode = rangeKernel<int32_t>();
-        break;
-    default:
-        OPENVINO_THROW("Incorrect output precision. Only FP32 and I32 are supported!");
+        case ov::element::f32:
+            retcode = rangeKernel<float>();
+            break;
+        case ov::element::i32:
+            retcode = rangeKernel<int32_t>();
+            break;
+        default:
+            OPENVINO_THROW("Incorrect output precision. Only FP32 and I32 are supported!");
     }
     if (retcode == PARAMETER_MISMATCH) {
         std::string errorMsg = "Range indexes exceeds data tensor dimension";
@@ -112,7 +108,7 @@ void Range::execute(dnnl::stream strm) {
 }
 
 template <typename data_t>
-size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) const {
+size_t Range::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) const {
     data_t start = 0, limit = 0, delta = 0;
     if (startPtr == nullptr)
         startPtr = &start;
@@ -139,7 +135,7 @@ Range::StatusCode Range::rangeKernel() {
     data_t start = 0, delta = 0;
     size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     if (isDynamicNode()) {
-        VectorDims newOutputShape{work_amount_dst};
+        VectorDims newOutputShape {work_amount_dst};
         redefineOutputMemory({newOutputShape});
     }
     data_t* dst_data = getDstDataAtPortAs<data_t>(0);
@@ -158,6 +154,6 @@ bool Range::created() const {
     return getType() == Type::Range;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

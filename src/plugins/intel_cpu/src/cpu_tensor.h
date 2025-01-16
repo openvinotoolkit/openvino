@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "cpu_memory.h"
 #include "openvino/runtime/itensor.hpp"
+#include "cpu_memory.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -29,9 +29,7 @@ public:
 
     void* data(const element::Type& type = {}) const override;
 
-    MemoryPtr get_memory() {
-        return m_memptr;
-    }
+    MemoryPtr get_memory() {return m_memptr;}
 
 private:
     void update_strides() const;
@@ -46,5 +44,5 @@ private:
 
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace intel_cpu
+}   // namespace ov

@@ -12,7 +12,7 @@ namespace intel_gpu {
 
 class ConvertAvgPoolingToReduce : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertAvgPoolingToReduce");
+    OPENVINO_RTTI("ConvertAvgPoolingToReduce", "0");
     ConvertAvgPoolingToReduce();
 };
 

@@ -7,11 +7,14 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "primitive_inst.h"
 
-#include "sdpa/pa_sdpa_kernel_opt.h"
-
 namespace cldnn {
 
-using PagedAttentionStage = kernel_selector::PagedAttentionStage;
+enum PagedAttentionStage {
+    GENERATE = 0,
+    PREFILL = 1,
+    MIXED = 2,
+    UNKNOWN = 3
+};
 
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 
@@ -58,9 +61,6 @@ public:
     memory::ptr block_indices_memory_ptr() const { return input_memory_ptr(7); }
     memory::ptr block_indices_begins_memory_ptr() const { return input_memory_ptr(8); }
     memory::ptr alibi_memory_ptr() const { return input_memory_ptr(11); }
-    memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(13); }
-    memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(14); }
-    memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(15); }
 
     std::shared_ptr<network> prefill_network;
 

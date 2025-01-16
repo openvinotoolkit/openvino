@@ -64,13 +64,7 @@ public:
         }
         void release() {
             if (auto pool = regPool.lock()) {
-                try {
-                    pool->return_to_pool(reg);
-                } catch (...) {
-                    // This function is called by destructor and should not throw. Well formed Reg object won't cause
-                    // any exception throw from return_to_pool, while on badly formed object the destructor is most
-                    // likely called during exception stack unwind.
-                }
+                pool->return_to_pool(reg);
                 regPool.reset();
             }
         }
@@ -96,10 +90,8 @@ public:
         RegistersPool::WeakPtr regPool;
     };
 
-    static thread_local bool is_created;
-
     virtual ~RegistersPool() {
-        is_created = false;
+        check_unique_and_update(false);
     }
 
     template <ov::reference::jit::cpu_isa_t isa>
@@ -186,7 +178,7 @@ private:
         }
     }
 
-    void check_unique_and_update();
+    void check_unique_and_update(bool isCtor = true);
 
     PhysicalSet m_general_set;
     PhysicalSet m_simd_set;

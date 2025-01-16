@@ -12,7 +12,7 @@ namespace intel_gpu {
 
 class ConvertShapeOf1To3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertShapeOf1To3");
+    OPENVINO_RTTI("ConvertShapeOf1To3", "0");
     ConvertShapeOf1To3();
 };
 

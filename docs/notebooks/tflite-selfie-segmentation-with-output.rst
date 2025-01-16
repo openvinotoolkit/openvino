@@ -82,8 +82,14 @@ Install required dependencies
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "openvino>=2023.1.0" "opencv-python" "tqdm"
-    %pip install -q "matplotlib>=3.4"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -95,15 +101,21 @@ Install required dependencies
 .. code:: ipython3
 
     import requests
-    from pathlib import Path
     
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
     
-    if not Path("notebook_utils.py").exists():
-        r = requests.get(
-            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-        )
-    
-        open("notebook_utils.py", "w").write(r.text)
+    open("notebook_utils.py", "w").write(r.text)
+
+
+
+
+.. parsed-literal::
+
+    24692
+
+
 
 Download pretrained model and test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -112,6 +124,7 @@ Download pretrained model and test image
 
 .. code:: ipython3
 
+    from pathlib import Path
     from notebook_utils import download_file, device_widget
     
     tflite_model_path = Path("selfie_multiclass_256x256.tflite")
@@ -130,7 +143,7 @@ Download pretrained model and test image
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
 
 
 
@@ -265,9 +278,7 @@ Additionally, the input image is represented as an RGB image in UINT8
     
     # Read input image and convert it to RGB
     test_image_url = "https://user-images.githubusercontent.com/29454499/251036317-551a2399-303e-4a4a-a7d6-d7ce973e05c5.png"
-    image_name = "example-img.png"
-    
-    img = load_image(image_name, test_image_url)
+    img = load_image(test_image_url)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
     
@@ -449,7 +460,6 @@ The following code runs model inference on a video:
         skip_first_frames: int = 0,
         model: ov.Model = ov_model,
         device: str = "CPU",
-        video_width: int = None,  # if not set the original size is used
     ):
         """
         Function for running background blurring inference on video
@@ -481,11 +491,9 @@ The following code runs model inference on a video:
                 if frame is None:
                     print("Source ended")
                     break
-    
-                if video_width:
-                    # If the frame is larger than video_width, reduce size to improve the performance.
-                    # If more, increase size for better demo expirience.
-                    scale = video_width / max(frame.shape)
+                # If the frame is larger than full HD, reduce size to improve the performance.
+                scale = 1280 / max(frame.shape)
+                if scale < 1:
                     frame = cv2.resize(
                         src=frame,
                         dsize=None,
@@ -493,7 +501,6 @@ The following code runs model inference on a video:
                         fy=scale,
                         interpolation=cv2.INTER_AREA,
                     )
-    
                 # Get the results.
                 input_image, pad_info = resize_and_pad(frame, 256, 256)
                 normalized_img = np.expand_dims(input_image.astype(np.float32) / 255, 0)
@@ -574,26 +581,12 @@ set \ ``use_popup=True``.
 
 .. code:: ipython3
 
-    from notebook_utils import download_file
-    
-    
     WEBCAM_INFERENCE = False
     
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        VIDEO_SOURCE = "CEO-Pat-Gelsinger-on-Leading-Intel.mp4"
-        download_file(
-            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4",
-            VIDEO_SOURCE,
-        )
-
-
-
-.. parsed-literal::
-
-    CEO-Pat-Gelsinger-on-Leading-Intel.mp4:   0%|          | 0.00/1.55M [00:00<?, ?B/s]
-
+        VIDEO_SOURCE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4"
 
 Select device for inference:
 
@@ -614,11 +607,7 @@ Run:
 
 .. code:: ipython3
 
-    run_background_blurring(
-        source=VIDEO_SOURCE,
-        device=device.value,
-        # video_width=1280
-    )
+    run_background_blurring(source=VIDEO_SOURCE, device=device.value)
 
 
 

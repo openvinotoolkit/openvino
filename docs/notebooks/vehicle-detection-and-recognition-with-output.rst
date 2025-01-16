@@ -60,9 +60,14 @@ Import the required modules.
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
     
-    %pip install -q "matplotlib>=3.4"
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -152,25 +157,25 @@ model is already downloaded, this step is skipped.
 
 .. parsed-literal::
 
-    vehicle-detection-0200.xml:   0%|          | 0.00/181k [00:00<?, ?B/s]
+    model/vehicle-detection-0200.xml:   0%|          | 0.00/181k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vehicle-detection-0200.bin:   0%|          | 0.00/6.93M [00:00<?, ?B/s]
+    model/vehicle-detection-0200.bin:   0%|          | 0.00/6.93M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vehicle-attributes-recognition-barrier-0039.xml:   0%|          | 0.00/33.7k [00:00<?, ?B/s]
+    model/vehicle-attributes-recognition-barrier-0039.xml:   0%|          | 0.00/33.7k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vehicle-attributes-recognition-barrier-0039.bin:   0%|          | 0.00/2.39M [00:00<?, ?B/s]
+    model/vehicle-attributes-recognition-barrier-0039.bin:   0%|          | 0.00/2.39M [00:00<?, ?B/s]
 
 
 Load Models
@@ -287,6 +292,8 @@ channel with ``expand_dims`` function.
         filename=filename,
         directory=directory,
         show_progress=False,
+        silent=True,
+        timeout=30,
     )
     assert Path(image_file).exists()
     

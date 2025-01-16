@@ -68,9 +68,16 @@ OutputVector translate_index(const NodeContext& context) {
 };
 
 OutputVector translate_index_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 2, context.get_input_size());
     auto x = context.get_input(0);
-    auto list_elems = get_list_as_outputs(context.get_input(1));
+    std::deque<Output<Node>> list_elems;
+    for (size_t i = 1; i < context.get_input_size(); i++) {
+        Output<Node> index;
+        if (!context.input_is_none(i)) {
+            index = context.get_input(static_cast<int>(i));
+        }
+        list_elems.push_back(index);
+    }
     ov::pass::NodeRegistry rg;
     auto rank = x.get_partial_shape().rank();
     if (rank.is_dynamic()) {
@@ -79,13 +86,7 @@ OutputVector translate_index_fx(const NodeContext& context) {
     // index transformation supports only tensors with static rank
     PYTORCH_OP_CONVERSION_CHECK(rank.is_static(), "Dynamic rank for aten::index input is not supported.");
 
-    OutputVector ids;
-    for (size_t i = 0; i < list_elems.size(); ++i) {
-        if (!is_none_node(list_elems[i]))
-            ids.push_back(list_elems[i]);
-        else
-            ids.push_back(Output<Node>());
-    }
+    OutputVector ids{list_elems.begin(), list_elems.end()};
     ov::Output<ov::Node> res;
     bool use_input_as_output = true;
     index_tensor_on_list(rg, x, ids, rank, res, use_input_as_output);

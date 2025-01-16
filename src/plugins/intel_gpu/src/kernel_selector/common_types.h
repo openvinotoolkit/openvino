@@ -42,7 +42,7 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_SEQ_CELL,
+    LSTM_ELT,
     BORDER,
     TILE,
     SELECT,
@@ -101,9 +101,7 @@ enum class KernelType {
     RMS,
     SWIGLU,
     ROPE,
-    DYNAMIC_QUANTIZE,
-    SEARCH_SORTED,
-    STFT
+    DYNAMIC_QUANTIZE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

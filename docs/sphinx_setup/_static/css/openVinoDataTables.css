@@ -6,7 +6,8 @@ div.dt-buttons>.dt-button, div.dt-buttons>div.dt-button-split .dt-button {
 }
 
 div.dt-container .dt-paging .dt-paging-button:hover {
-    border: 1px solid #aaa !important;
+    color: white !important;
+    border: 1px solid #aaa;
     background:none !important;
     background-color: var(--bttn-act-bg-hover) !important
 }
@@ -189,9 +190,10 @@ div.dt-container .dt-paging .dt-paging-button {
 
 div.dt-container .dt-paging .dt-paging-button.current, div.dt-container .dt-paging .dt-paging-button.current:hover {
     background: none !important;
-    background-color: var(--bttn-sec-border-color) !important;
+    background-color: var(--bttn-act-bg-active) !important;
     border-color: var(--bttn-act-bg-active) !important;
     border-radius: 0px !important;
+    color: white !important;
     border: 1px !important
 }
 table.dataTable thead>tr>th.dt-orderable-asc span.dt-column-order:before, table.dataTable thead>tr>th.dt-orderable-asc span.dt-column-order:after, table.dataTable thead>tr>th.dt-orderable-desc span.dt-column-order:before, table.dataTable thead>tr>th.dt-orderable-desc span.dt-column-order:after, table.dataTable thead>tr>th.dt-ordering-asc span.dt-column-order:before, table.dataTable thead>tr>th.dt-ordering-asc span.dt-column-order:after, table.dataTable thead>tr>th.dt-ordering-desc span.dt-column-order:before, table.dataTable thead>tr>th.dt-ordering-desc span.dt-column-order:after, table.dataTable thead>tr>td.dt-orderable-asc span.dt-column-order:before, table.dataTable thead>tr>td.dt-orderable-asc span.dt-column-order:after, table.dataTable thead>tr>td.dt-orderable-desc span.dt-column-order:before, table.dataTable thead>tr>td.dt-orderable-desc span.dt-column-order:after, table.dataTable thead>tr>td.dt-ordering-asc span.dt-column-order:before, table.dataTable thead>tr>td.dt-ordering-asc span.dt-column-order:after, table.dataTable thead>tr>td.dt-ordering-desc span.dt-column-order:before, table.dataTable thead>tr>td.dt-ordering-desc span.dt-column-order:after {

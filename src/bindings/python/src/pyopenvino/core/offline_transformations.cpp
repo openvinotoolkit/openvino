@@ -23,7 +23,6 @@
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -35,8 +34,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_transformations",
-        [](py::object& ie_api_model, bool cf, bool smart_reshape) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape) {
             ov::pass::Manager manager;
             if (smart_reshape)
                 manager.register_pass<ov::pass::SmartReshape>();
@@ -50,8 +48,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_moc_legacy_transformations",
-        [](py::object& ie_api_model, const std::vector<std::string>& params_with_custom_types) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model, const std::vector<std::string>& params_with_custom_types) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MOCLegacyTransformations>(params_with_custom_types);
             manager.run_passes(model);
@@ -61,8 +58,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_low_latency_transformation",
-        [](py::object& ie_api_model, bool use_const_initializer = true) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model, bool use_const_initializer = true) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::LowLatency2>(use_const_initializer);
             manager.run_passes(model);
@@ -72,8 +68,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_pruning_transformation",
-        [](py::object& ie_api_model) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::Pruning>();
             manager.run_passes(model);
@@ -82,8 +77,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_make_stateful_transformation",
-        [](py::object& ie_api_model, const std::map<std::string, std::string>& param_res_names) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model, const std::map<std::string, std::string>& param_res_names) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MakeStateful>(param_res_names);
             manager.run_passes(model);
@@ -93,8 +87,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_make_stateful_transformation",
-        [](py::object& ie_api_model, const ov::pass::MakeStateful::ParamResPairs& pairs_to_replace) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model, const ov::pass::MakeStateful::ParamResPairs& pairs_to_replace) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::MakeStateful>(pairs_to_replace);
             manager.run_passes(model);
@@ -104,8 +97,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "compress_model_transformation",
-        [](py::object& ie_api_model) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model) {
             bool postponed = false;
             return ov::pass::compress_model_to_f16(model, postponed);
         },
@@ -113,8 +105,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "compress_quantize_weights_transformation",
-        [](py::object& ie_api_model) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::CompressQuantizeWeights>();
             manager.run_passes(model);
@@ -123,8 +114,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "convert_sequence_to_tensor_iterator_transformation",
-        [](py::object ie_api_model) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
             manager.run_passes(model);
@@ -133,8 +123,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "apply_fused_names_cleanup",
-        [](py::object ie_api_model) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::FusedNamesCleanup>();
             manager.run_passes(model);
@@ -143,8 +132,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "paged_attention_transformation",
-        [](py::object& ie_api_model, bool use_block_indices_inputs, bool use_score_outputs) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model, bool use_block_indices_inputs, bool use_score_outputs) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::SDPAToPagedAttention>(use_block_indices_inputs, use_score_outputs);
             manager.run_passes(model);
@@ -155,8 +143,7 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "stateful_to_stateless_transformation",
-        [](py::object& ie_api_model) {
-            const auto model = Common::utils::convert_to_model(ie_api_model);
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::StatefulToStateless>();
             manager.run_passes(model);

@@ -30,6 +30,6 @@ class TRANSFORMATIONS_API EliminateLoopInputsOutputs;
 
 class ov::pass::EliminateLoopInputsOutputs : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EliminateLoopInputsOutputs");
+    OPENVINO_RTTI("EliminateLoopInputsOutputs", "0");
     EliminateLoopInputsOutputs();
 };

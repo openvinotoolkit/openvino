@@ -116,7 +116,10 @@ Install requirements
     %pip install -q -U "numpy==1.*"
     %pip install -q scipy
     
-    %pip install -q "matplotlib>=3.4"
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 Imports
 ~~~~~~~

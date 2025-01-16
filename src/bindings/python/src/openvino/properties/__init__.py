@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Enums
+from openvino._pyopenvino.properties import Affinity
 from openvino._pyopenvino.properties import CacheMode
 from openvino._pyopenvino.properties import WorkloadType
 

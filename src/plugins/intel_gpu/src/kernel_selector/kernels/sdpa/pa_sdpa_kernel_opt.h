@@ -9,17 +9,11 @@
 
 namespace kernel_selector {
 
-enum PagedAttentionStage {
-    GENERATE = 0,
-    PREFILL = 1,
-    MIXED = 2,
-    UNKNOWN = 3
-};
-
 struct pa_sdpa_params : base_params {
     pa_sdpa_params() : base_params(KernelType::PA_SDPA) {}
 
-    PagedAttentionStage stage = PagedAttentionStage::UNKNOWN;
+    bool multi_tokens_mode = false;
+    size_t max_context_len = 0;
     sdpa_configuration conf;
 };
 

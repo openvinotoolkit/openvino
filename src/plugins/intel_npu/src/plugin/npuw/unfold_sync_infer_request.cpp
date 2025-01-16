@@ -73,9 +73,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
             continue;  // Optimized out
         }
-        if (comp_model_desc.replaced_by) {
-            unpack_closure(i, m_subrequests[i]);
-        }
+        unpack_closure(i, m_subrequests[i]);
         LOG_VERB("Done");
     }
 }

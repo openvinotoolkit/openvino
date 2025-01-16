@@ -37,8 +37,7 @@ class PropagateToInput;
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("low_precision::PropagateToInput");
-    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = {ov::element::u8, ov::element::i8}) {
+    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = { ov::element::u8, ov::element::i8 }) {
         ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {

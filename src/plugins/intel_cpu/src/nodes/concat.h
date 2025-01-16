@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "graph_context.h"
 #include "node.h"
+#include "graph_context.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,9 +22,7 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     bool created() const override;
     void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override {
-        execute(strm);
-    }
+    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
     ov::element::Type getRuntimePrecision() const override;
@@ -44,9 +42,9 @@ private:
     void execNspcSpecCase();
     void exec1DCase();
     std::vector<VectorDims> inputStrides;
-    std::vector<size_t> nelemToCopy;  // byte moved in each iter
+    std::vector<size_t> nelemToCopy; // byte moved in each iter
     size_t nelemTotal = 0;
-    std::vector<size_t> dstOffset;  // dst offset for each input
+    std::vector<size_t> dstOffset; // dst offset for each input
     std::vector<const uint8_t*> srcPtrs;
     bool hasOuterLoop = false;
     ov::element::Type inputPrecision = ov::element::f32;
@@ -56,6 +54,6 @@ private:
     dnnl::primitive prim;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

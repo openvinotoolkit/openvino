@@ -37,6 +37,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSUnaryBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("TSUnaryBackward");
+    OPENVINO_RTTI("TSUnaryBackwardMultiConsumers", "0");
     TSUnaryBackward();
 };

@@ -32,7 +32,7 @@ namespace intel_gpu {
 
 class KVCacheCompression : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("KVCacheCompression");
+    OPENVINO_RTTI("KVCacheCompression", "0");
     KVCacheCompression(ov::element::Type compression_dt);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

@@ -44,6 +44,6 @@ class TRANSFORMATIONS_API FakeQuantizeDecomposition;
 
 class ov::pass::FakeQuantizeDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FakeQuantizeDecomposition");
+    OPENVINO_RTTI("FakeQuantizeDecomposition", "0");
     FakeQuantizeDecomposition();
 };

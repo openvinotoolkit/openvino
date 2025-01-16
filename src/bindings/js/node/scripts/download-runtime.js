@@ -17,7 +17,7 @@ async function main() {
 
   await BinaryManager.prepareBinary(
     join(__dirname, '..'),
-    packageJson.binary.version || packageJson.version,
+    packageJson.version,
     packageJson.binary,
     { force, ignoreIfExists, proxy },
   );

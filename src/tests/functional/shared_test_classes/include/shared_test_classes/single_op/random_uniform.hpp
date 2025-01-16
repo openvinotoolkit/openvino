@@ -10,7 +10,6 @@
 #include <memory>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace test {
@@ -25,7 +24,6 @@ using RandomUniformParamsTuple = typename std::tuple<
     RandomUniformTypeSpecificParams,    // Parameters which depends on output type
     int64_t,                            // Global seed
     int64_t,                            // Operation seed
-    ov::op::PhiloxAlignment,            // Alignment of generator
     ov::test::TargetDevice              // Device name
 >;
 

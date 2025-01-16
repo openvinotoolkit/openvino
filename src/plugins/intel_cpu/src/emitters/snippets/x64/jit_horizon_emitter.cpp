@@ -4,6 +4,7 @@
 
 #include "jit_horizon_emitter.hpp"
 
+
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -11,8 +12,7 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                          const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
@@ -24,7 +24,8 @@ jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator* h,
     }
 }
 
-void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in,
+                                    const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -37,12 +38,9 @@ void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::ve
 }
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_horizon_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+            Xbyak::Xmm, isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     Vmm src_vmm = Vmm(in[0]);
     Vmm dst_vmm = Vmm(out[0]);
@@ -69,19 +67,19 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
     perform_op<Xbyak::Xmm>(dst_vmm, dst_vmm, aux_vmm);
 }
 
-template <typename Vmm>
-void jit_horizon_emitter::perform_op(const Vmm& vmm1, const Vmm& vmm2, const Vmm& vmm3) const {
+template<typename Vmm>
+void jit_horizon_emitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm3) const {
     switch (m_op_type) {
-    case OpType::max:
-        h->uni_vmaxps(vmm1, vmm2, vmm3);
-        break;
-    case OpType::sum:
-        h->uni_vaddps(vmm1, vmm2, vmm3);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported horizontal operation.");
+        case OpType::max:
+            h->uni_vmaxps(vmm1, vmm2, vmm3);
+            break;
+        case OpType::sum:
+            h->uni_vaddps(vmm1, vmm2, vmm3);
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unsupported horizontal operation.");
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace intel_cpu
+}   // namespace ov

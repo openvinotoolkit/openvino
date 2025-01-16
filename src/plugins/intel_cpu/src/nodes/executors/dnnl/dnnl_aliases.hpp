@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <dnnl.hpp>
 #include <unordered_map>
+#include <dnnl.hpp>
 
 namespace ov {
 namespace intel_cpu {

@@ -179,7 +179,7 @@ Additional Information
 * Binary distribution:
 
   * Download from `OpenVINO storage <https://storage.openvinotoolkit.org/repositories/openvino/packages/>`__
-  * `pypi.org <https://pypi.org/project/openvino/>`__
+  * `pypi.org <https://pypi.org/project/openvino-dev/>`__
   * `DockerHub* <https://hub.docker.com/u/openvino>`__
 
 

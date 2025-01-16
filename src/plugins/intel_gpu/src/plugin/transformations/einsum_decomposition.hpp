@@ -16,7 +16,6 @@ namespace intel_gpu {
  */
 class EinsumDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EinsumDecomposition");
     EinsumDecomposition();
 };
 

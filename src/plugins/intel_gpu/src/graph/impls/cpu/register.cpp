@@ -31,7 +31,6 @@ void register_implementations() {
     REGISTER_CPU(tile);
     REGISTER_CPU(select);
     REGISTER_CPU(reduce);
-    REGISTER_CPU(fake_convert);
 }
 
 }  // namespace cpu

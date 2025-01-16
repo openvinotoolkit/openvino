@@ -102,23 +102,23 @@ ov::Tensor get_compensation(std::shared_ptr<ov::Node> w, std::shared_ptr<ov::Nod
 
 class ConvolutionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvolutionMatcher");
+    OPENVINO_RTTI("ConvolutionMatcher", "0");
     ConvolutionMatcher();
 };
 
 class AsymmetricConvolutionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("AsymmetricConvolutionMatcher");
+    OPENVINO_RTTI("AsymmetricConvolutionMatcher", "0");
     AsymmetricConvolutionMatcher();
 };
 
 AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
     auto input_m = any_input(type_matches_any({ov::element::u8, ov::element::i8}));
-    auto azp_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1) && type_matches_any({ov::element::u8, ov::element::i8}));
+    auto azp_const_m = wrap_type<ov::op::v0::Constant>(all_of({consumers_count(1), type_matches_any({ov::element::u8, ov::element::i8})}));
     auto azp_subtract_m = wrap_type<ov::op::v1::Subtract>({input_m, azp_const_m});
 
     auto weights_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u8, ov::element::i8}));
-    auto wzp_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1) && type_matches_any({ov::element::u8, ov::element::i8}));
+    auto wzp_const_m = wrap_type<ov::op::v0::Constant>(all_of({consumers_count(1), type_matches_any({ov::element::u8, ov::element::i8})}));
     auto wzp_subtract_m = wrap_type<ov::op::v1::Subtract>({weights_m, wzp_const_m});
 
     auto conv_activations_m = std::make_shared<Or>(OutputVector{input_m, azp_subtract_m});

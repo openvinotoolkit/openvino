@@ -32,6 +32,6 @@ class TRANSFORMATIONS_API SpaceToBatchFusion;
 
 class ov::pass::SpaceToBatchFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SpaceToBatchFusion");
+    OPENVINO_RTTI("SpaceToBatchFusion", "0");
     SpaceToBatchFusion();
 };

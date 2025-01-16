@@ -38,7 +38,6 @@ install(DIRECTORY ${OpenVINOConverter_SOURCE_DIR}/openvino
 #
 # Tests
 #
-
 if(ENABLE_TESTS)
     install(DIRECTORY unit_tests
             DESTINATION tests/ovc

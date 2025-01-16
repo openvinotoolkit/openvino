@@ -4,6 +4,8 @@
 
 #include "driver_compiler_adapter.hpp"
 
+#include <ze_graph_ext.h>
+
 #include <regex>
 #include <string_view>
 
@@ -19,6 +21,7 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 
@@ -538,21 +541,13 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
-    // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
-    {
+    // NPU_DEFER_WEIGHTS_LOAD is not supported in versions < 6.2 - need to remove it
+    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 2)) {
         std::ostringstream batchstr;
         batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
-        logger.info("NPU_DEFER_WEIGHTS_LOAD property is needed at runtime only. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    // NPU_RUN_INFERENCES_SEQUENTIALLY is needed at runtime only
-    {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
-                 << "\\S+" << VALUE_DELIMITER;
-        logger.info("NPU_RUN_INFERENCES_SEQUENTIALLY property is needed at runtime only. Removing from parameters");
+        logger.warning(
+            "NPU_DEFER_WEIGHTS_LOAD property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 

@@ -11,7 +11,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
-#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -192,7 +191,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_end: 1D tensor of type T_INT.
             :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
-            :type value: scalar tensor of type T.
+            :type value: scalar tensor of type T. 
             :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
@@ -220,7 +219,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_end: 1D tensor of type T_INT.
             :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
-            :type value: scalar tensor of type T.
+            :type value: scalar tensor of type T. 
             :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
@@ -309,8 +308,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         },
         py::arg("layout"),
         R"(
-            Set layout for input tensor info
-
+            Set layout for input tensor info 
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
@@ -424,8 +422,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         },
         py::arg("layout"),
         R"(
-            Set layout for output tensor info
-
+            Set layout for output tensor info 
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
@@ -478,8 +475,7 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         },
         py::arg("layout"),
         R"(
-            Set layout for output model info
-
+            Set layout for output model info 
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
@@ -554,14 +550,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         "PrePostProcessor");
     proc.doc() = "openvino.runtime.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init([](const py::object& ie_api_model) {
-                 const auto model = Common::utils::convert_to_model(ie_api_model);
-                 return std::make_shared<ov::preprocess::PrePostProcessor>(model);
-             }),
-             py::arg("model"),
-             R"(
-             It creates PrePostProcessor.
-    )");
+    proc.def(py::init<const std::shared_ptr<ov::Model>&>(), py::arg("model"));
 
     proc.def("input", [](ov::preprocess::PrePostProcessor& self) {
         return &self.input();
@@ -599,15 +588,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         },
         py::arg("output_index"));
 
-    proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
-        std::shared_ptr<ov::Model> model;
-        {
-            py::gil_scoped_release release;
-            model = self.build();
-        }
-        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
-        return model_class(py::cast(model));
-    });
+    proc.def("build", &ov::preprocess::PrePostProcessor::build, py::call_guard<py::gil_scoped_release>());
 
     proc.def("__str__", [](const ov::preprocess::PrePostProcessor& self) -> std::string {
         std::stringstream ss;

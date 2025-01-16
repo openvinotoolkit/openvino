@@ -25,6 +25,6 @@ constexpr auto float16_min_normalized = float16::from_bits(0x0400);
  */
 class ov::pass::MarkSugraphsToKeepInMixedPrecision : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("MarkSugraphsToKeepInMixedPrecision");
+    OPENVINO_RTTI("MarkSugraphsToKeepInMixedPrecision", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

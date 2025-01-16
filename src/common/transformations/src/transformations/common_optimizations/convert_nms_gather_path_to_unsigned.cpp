@@ -31,7 +31,7 @@ namespace ov {
 namespace pass {
 class InitNMSPath : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("InitNMSPath");
+    OPENVINO_RTTI("InitNMSPath", "0");
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
         auto nms_pattern = pattern::wrap_type<ov::op::v1::NonMaxSuppression,
@@ -51,7 +51,7 @@ public:
 };
 class PropagateNMSPath : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PropagateNMSPath");
+    OPENVINO_RTTI("PropagateNMSPath", "0");
     PropagateNMSPath() {
         MATCHER_SCOPE(PropagateNMSPath);
         auto node_pattern = pattern::wrap_type<ov::op::v0::Squeeze,
@@ -119,7 +119,7 @@ public:
 };
 class UpdateConvertGather : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("UpdateConvertGather");
+    OPENVINO_RTTI("UpdateConvertGather", "0");
     UpdateConvertGather() {
         MATCHER_SCOPE(UpdateConvertGather);
         auto node_pattern = pattern::wrap_type<op::util::GatherBase>();

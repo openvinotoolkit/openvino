@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ReshapePRelu;
 
 class ov::pass::ReshapePRelu : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ReshapePRelu");
+    OPENVINO_RTTI("ReshapePRelu", "0");
     ReshapePRelu();
 };

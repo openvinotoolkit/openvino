@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API ChangePlaceholderTypes;
  */
 class ChangePlaceholderTypes : public ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ChangePlaceholderTypes");
+    OPENVINO_RTTI("ChangePlaceholderTypes", "0");
     explicit ChangePlaceholderTypes(const std::vector<std::string>& params_with_custom_types)
         : m_params_with_custom_types(params_with_custom_types) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;

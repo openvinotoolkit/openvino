@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API SelectWithOneValueCondition;
 
 class ov::pass::SelectWithOneValueCondition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SelectWithOneValueCondition");
+    OPENVINO_RTTI("SelectWithOneValueCondition", "0");
     SelectWithOneValueCondition();
 };

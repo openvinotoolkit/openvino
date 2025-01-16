@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API FlushFP32SubnormalsToZero;
  */
 class ov::pass::FlushFP32SubnormalsToZero : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FlushFP32SubnormalsToZero");
+    OPENVINO_RTTI("FlushFP32SubnormalsToZero", "0");
     FlushFP32SubnormalsToZero();
 };

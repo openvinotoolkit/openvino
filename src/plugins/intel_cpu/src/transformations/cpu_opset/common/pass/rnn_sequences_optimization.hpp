@@ -11,27 +11,27 @@ namespace intel_cpu {
 
 class OptimizeGRUSequenceTransposes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("OptimizeGRUSequenceTransposes");
+    OPENVINO_RTTI("OptimizeGRUSequenceTransposes", "0");
     OptimizeGRUSequenceTransposes();
 };
 
 class OptimizeLSTMSequenceTransposes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("OptimizeLSTMSequenceTransposes");
+    OPENVINO_RTTI("OptimizeLSTMSequenceTransposes", "0");
     OptimizeLSTMSequenceTransposes();
 };
 
 class OptimizeRNNSequenceTransposes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("OptimizeRNNSequenceTransposes");
+    OPENVINO_RTTI("OptimizeRNNSequenceTransposes", "0");
     OptimizeRNNSequenceTransposes();
 };
 
 class OptimizeSequenceTransposes : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("OptimizeSequenceTransposes");
+    OPENVINO_RTTI("OptimizeSequenceTransposes", "0");
     OptimizeSequenceTransposes();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace intel_cpu
+}   // namespace ov

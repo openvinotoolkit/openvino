@@ -15,7 +15,7 @@ namespace intel_gpu {
 // detect this case and decompose Reduce by dimension to avoid poor performance.
 class DecomposeReduceForScalarOutput : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DecomposeReduceForScalarOutput");
+    OPENVINO_RTTI("DecomposeReduceForScalarOutput", "0");
     DecomposeReduceForScalarOutput();
 };
 

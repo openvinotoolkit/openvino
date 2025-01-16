@@ -345,27 +345,8 @@
             }
         }
     },
-    "ACModeBitwise": {
-        "repoName": "ACModeBitwise",
-        "patchedFile": "tests_res/fbv_ac_mode_bitwise.cpp",
-        "testCfg": {
-            "appCmd" : "{appCmd}",
-            "appPath": "{appPath}",
-            "gitPath" : "{gitPath}",
-            "buildPath" : "{buildPath}",
-            "verboseOutput": false,
-            "runConfig" : {
-                "commitList" : {
-                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
-                },
-                "mode" : "ac",
-                "traversal" : "firstFailedVersion",
-                "threshold": "80%"
-            }
-        }
-    },
     "ACMode": {
-        "repoName": "ACMode",
+        "repoName": "BmBinarySearchUnstable",
         "patchedFile": "tests_res/fbv_ac_mode.cpp",
         "testCfg": {
             "appCmd" : "{appCmd}",
@@ -378,7 +359,7 @@
                     "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
                 },
                 "mode" : "ac",
-                "traversal" : "allBreaks",
+                "traversal" : "firstFailedVersion",
                 "threshold": "80%"
             }
         }

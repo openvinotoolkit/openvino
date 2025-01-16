@@ -30,7 +30,7 @@ namespace intel_gpu {
  */
 class MoveFCReshapeToWeights: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MoveFCReshapeToWeights");
+    OPENVINO_RTTI("MoveFCReshapeToWeights", "0");
     MoveFCReshapeToWeights();
 };
 

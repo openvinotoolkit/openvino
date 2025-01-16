@@ -31,17 +31,13 @@ public:
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
         initDims();
 
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
-            return dim == 0;
-        });
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     explicit Shape(const VectorDims& shape) {
         dims = minDims = maxDims = shape;
         type = ShapeType::Static;
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
-            return dim == 0;
-        });
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     Shape(const VectorDims& minDims, const VectorDims& maxDims) {
@@ -53,17 +49,13 @@ public:
 
         initDims();
 
-        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) {
-                return dim == Shape::UNDEFINED_DIM;
-            })) {
+        if (std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == Shape::UNDEFINED_DIM; } ))  {
             type = ShapeType::Dynamic;
         } else {
             type = ShapeType::Static;
         }
 
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
-            return dim == 0;
-        });
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     Shape(const std::initializer_list<Dim>& shape) {
@@ -77,9 +69,7 @@ public:
 
         initDims();
 
-        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
-            return dim == 0;
-        });
+        hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     /**
@@ -191,21 +181,21 @@ public:
 
     std::string toString() const;
 
-    bool operator==(const Shape& rhs) const {
+    bool operator == (const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
     }
 
-    bool operator!=(const Shape& rhs) const {
+    bool operator != (const Shape& rhs) const {
         return !(*this == rhs);
     }
 
     bool hasDefinedUpperBounds() const {
-        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim) {
-            return dim != UNDEFINED_DIM;
-        });
+        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim){ return dim != UNDEFINED_DIM; });
     }
 
-    enum : Dim { UNDEFINED_DIM = std::numeric_limits<Dim>::max() };
+    enum : Dim {
+        UNDEFINED_DIM = std::numeric_limits<Dim>::max()
+    };
 
 private:
     void initDims() {
@@ -215,7 +205,10 @@ private:
         }
     }
 
-    enum class ShapeType { Static, Dynamic } type{ShapeType::Static};
+    enum class ShapeType {
+        Static,
+        Dynamic
+    } type {ShapeType::Static};
 
     bool hasZeroDimensions = false;
 
@@ -236,5 +229,5 @@ private:
 
 Shape mergeShapes(const Shape& lhs, const Shape& rhs);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace intel_cpu
+}   // namespace ov

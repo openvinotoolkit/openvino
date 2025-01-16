@@ -17,7 +17,7 @@ namespace pass {
  */
 class TransposeDecomposition: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TransposeDecomposition");
+    OPENVINO_RTTI("TransposeDecomposition", "0");
     TransposeDecomposition();
 
     static bool is_supported_transpose(const Output<Node>& transpose_out);

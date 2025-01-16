@@ -30,6 +30,6 @@ class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
  */
 class ov::pass::low_precision::PullReshapeThroughDequantization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("low_precision::PullReshapeThroughDequantization");
+    OPENVINO_RTTI("PullReshapeThroughDequantization", "0");
     PullReshapeThroughDequantization(const std::vector<ov::element::Type>& inputPrecisions = {});
 };

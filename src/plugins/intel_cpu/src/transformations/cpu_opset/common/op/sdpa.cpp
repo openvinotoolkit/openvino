@@ -8,8 +8,7 @@
 
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::ScaledDotProductAttentionWithKVCache::ScaledDotProductAttentionWithKVCache(const OutputVector& args,
-                                                                                          const Config& cfg)
+ov::intel_cpu::ScaledDotProductAttentionWithKVCache::ScaledDotProductAttentionWithKVCache(const OutputVector& args, const Config& cfg)
     : Op(args),
       m_config(cfg) {
     constructor_validate_and_infer_types();

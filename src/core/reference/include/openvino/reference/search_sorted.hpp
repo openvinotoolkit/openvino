@@ -32,7 +32,6 @@ void search_sorted(const T* sorted,
     }
 
     const size_t size = shape_size(values_shape);
-    const size_t sorted_inner_dim = sorted_shape.back();
 
     auto func = [&](size_t i) {
         auto it = values_transform.begin();
@@ -45,12 +44,15 @@ void search_sorted(const T* sorted,
         Coordinate sorted_coord_begin = values_coord;
         sorted_coord_begin.back() = 0;
 
-        const auto sorted_index_begin = coordinate_index(sorted_coord_begin, sorted_shape);
-        const T* sorted_begin_ptr = sorted + sorted_index_begin;
-        const T* sorted_end_ptr = sorted_begin_ptr + sorted_inner_dim;
-        const T* idx_ptr = compare_func(sorted_begin_ptr, sorted_end_ptr, value);
+        Coordinate sorted_coord_last = values_coord;
+        sorted_coord_last.back() = sorted_shape.back();
 
-        const ptrdiff_t sorted_index = idx_ptr - sorted_begin_ptr;
+        const auto sorted_index_begin = coordinate_index(sorted_coord_begin, sorted_shape);
+        const auto sorted_index_last = coordinate_index(sorted_coord_last, sorted_shape);
+
+        const T* idx_ptr = compare_func(sorted + sorted_index_begin, sorted + sorted_index_last, value);
+
+        const ptrdiff_t sorted_index = (idx_ptr - sorted) - sorted_index_begin;
 
         out[values_index] = static_cast<TOut>(sorted_index);
     };

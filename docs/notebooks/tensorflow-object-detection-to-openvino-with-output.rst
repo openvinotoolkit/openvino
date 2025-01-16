@@ -70,9 +70,14 @@ Install required packages:
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
     
-    %pip install -q "matplotlib>=3.4"
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
@@ -106,7 +111,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    24624
+    24692
 
 
 
@@ -177,14 +182,14 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    faster_rcnn_resnet50_v1_640x640.tar.gz:   0%|          | 0.00/101M [00:00<?, ?B/s]
+    od-model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz:   0%|          | 0.00/101M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/od-model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/od-model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -354,11 +359,16 @@ Load and save an image:
     )
 
 
+.. parsed-literal::
+
+    'data/coco_bike.jpg' already exists.
+
+
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -386,7 +396,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f42e26f1820>
+    <matplotlib.image.AxesImage at 0x7fb8b8322100>
 
 
 
@@ -678,10 +688,16 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 
 
+.. parsed-literal::
+
+    data/coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
+
+
+
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 

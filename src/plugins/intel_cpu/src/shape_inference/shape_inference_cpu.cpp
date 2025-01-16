@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference_ngraph.hpp"
 
-#include "shape_inference/shape_inference.hpp"
-
-namespace ov {
-namespace intel_cpu {
-NgraphShapeInferFactory::NgraphShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+using namespace ov::intel_cpu;
 
 ShapeInferPtr NgraphShapeInferFactory::makeShapeInfer() const {
-    return make_shape_inference(m_op);
+    return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
 }
 
 const ov::CoordinateDiff ShapeInferEmptyPads::m_emptyVec = {};
-
-}  // namespace intel_cpu
-}  // namespace ov

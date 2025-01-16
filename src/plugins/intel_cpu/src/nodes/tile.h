@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <string>
-
 #include "common/tile_broadcast_utils.h"
+
+#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -43,6 +43,6 @@ private:
     std::string errorPrefix;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

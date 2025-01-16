@@ -9,7 +9,12 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class RNNSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::RNNSequence> {};
+class RNNSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::RNNSequence> {
+protected:
+    void SetUp() override {
+        this->output_shapes = ShapeVector(1);
+    }
+};
 
 TEST_F(RNNSequenceV5StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;

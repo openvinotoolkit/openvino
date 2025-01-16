@@ -23,11 +23,11 @@ using namespace ov;
 namespace shape_infer_tests {
 
 struct eltwise_test_params {
-    cldnn::layout input1_layout;
-    cldnn::layout input2_layout;
+    layout input1_layout;
+    layout input2_layout;
     eltwise_mode mode;
     AutoBroadcastSpec auto_broadcast_spec;
-    cldnn::layout expected_layout;
+    layout expected_layout;
     std::vector<tensor> stride;
 };
 

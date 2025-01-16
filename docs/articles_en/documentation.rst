@@ -13,6 +13,7 @@ Documentation
 
    API Reference <api/api_reference>
    OpenVINO IR format and Operation Sets <documentation/openvino-ir-format>
+   Legacy Features <documentation/legacy-features>
    Tool Ecosystem <documentation/openvino-ecosystem>
    OpenVINO Extensibility <documentation/openvino-extensibility>
    OpenVINO™ Security <documentation/openvino-security>

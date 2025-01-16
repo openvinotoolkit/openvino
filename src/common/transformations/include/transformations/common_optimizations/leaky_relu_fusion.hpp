@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API LeakyReluFusion;
 
 class ov::pass::LeakyReluFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("LeakyReluFusion");
+    OPENVINO_RTTI("LeakyReluFusion", "0");
     LeakyReluFusion();
 };

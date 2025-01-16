@@ -31,6 +31,6 @@ class TRANSFORMATIONS_API RNNCellDecomposition;
 
 class ov::pass::RNNCellDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RNNCellDecomposition");
+    OPENVINO_RTTI("RNNCellDecomposition", "0");
     RNNCellDecomposition();
 };

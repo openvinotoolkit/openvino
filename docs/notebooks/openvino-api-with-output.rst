@@ -188,20 +188,20 @@ notebooks.
 
 .. parsed-literal::
 
-    classification.xml:   0%|          | 0.00/179k [00:00<?, ?B/s]
+    model/classification.xml:   0%|          | 0.00/179k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    classification.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
+    model/classification.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -243,14 +243,14 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    segmentation.onnx:   0%|          | 0.00/4.41M [00:00<?, ?B/s]
+    model/segmentation.onnx:   0%|          | 0.00/4.41M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -297,20 +297,20 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    inference.pdmodel:   0%|          | 0.00/1.03M [00:00<?, ?B/s]
+    model/inference.pdmodel:   0%|          | 0.00/1.03M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    inference.pdiparams:   0%|          | 0.00/21.0M [00:00<?, ?B/s]
+    model/inference.pdiparams:   0%|          | 0.00/21.0M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
 
 
 
@@ -347,14 +347,14 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    classification.pb:   0%|          | 0.00/9.88M [00:00<?, ?B/s]
+    model/classification.pb:   0%|          | 0.00/9.88M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
 
 
 
@@ -407,7 +407,7 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
 .. parsed-literal::
 
-    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.4)
+    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.3)
 
 
 .. code:: ipython3
@@ -487,11 +487,17 @@ Information about the inputs and outputs of the model are in
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 
+.. parsed-literal::
+
+    'model/classification.xml' already exists.
+    'model/classification.bin' already exists.
+
+
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -687,11 +693,17 @@ produced data as values.
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 
+.. parsed-literal::
+
+    'model/classification.xml' already exists.
+    'model/classification.bin' already exists.
+
+
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -727,7 +739,7 @@ the input layout of the network.
 
 .. parsed-literal::
 
-    coco_hollywood.jpg:   0%|          | 0.00/485k [00:00<?, ?B/s]
+    data/coco_hollywood.jpg:   0%|          | 0.00/485k [00:00<?, ?B/s]
 
 
 
@@ -867,20 +879,20 @@ input shape.
 
 .. parsed-literal::
 
-    segmentation.xml:   0%|          | 0.00/1.38M [00:00<?, ?B/s]
+    model/segmentation.xml:   0%|          | 0.00/1.38M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    segmentation.bin:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
+    model/segmentation.bin:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -1022,11 +1034,17 @@ the cache.
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 
+.. parsed-literal::
+
+    'model/classification.xml' already exists.
+    'model/classification.bin' already exists.
+
+
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1056,7 +1074,7 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the AUTO device took 0.13 seconds.
+    Loading the network to the AUTO device took 0.15 seconds.
 
 
 After running the previous cell, we know the model exists in the cache

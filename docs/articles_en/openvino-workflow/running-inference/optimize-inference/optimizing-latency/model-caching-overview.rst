@@ -139,7 +139,7 @@ To check in advance if a particular device supports model caching, your applicat
 Set "cache_encryption_callbacks" config option to enable cache encryption
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-If model caching is enabled in the CPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Currently, this property can be set only in ``compile_model``.
+If model caching is enabled, the model topology can be encrypted when saving to the cache and decrypted when loading from the cache. This property can currently be set only in ``compile_model``.
 
 .. tab-set::
 
@@ -156,25 +156,7 @@ If model caching is enabled in the CPU Plugin, the model topology can be encrypt
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part4]
-
-If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
-         :language: py
-         :fragment: [ov:caching:part5]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
-         :language: cpp
-         :fragment: [ov:caching:part5]
 
 .. important::
 
-   Currently, this property is supported only by the CPU and GPU plugins. For other HW plugins, setting this property will not encrypt/decrypt the model topology in cache and will not affect performance.
+   Currently, this property is supported only by the CPU plugin. For other HW plugins, setting this property will not encrypt/decrypt the model topology in cache and will not affect performance. 

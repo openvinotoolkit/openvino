@@ -17,6 +17,6 @@ class TRANSFORMATIONS_API ConvertGP9ToGPIEInternal;
 
 class ov::pass::ConvertGP9ToGPIEInternal : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertGP9ToGPIEInternal");
+    OPENVINO_RTTI("ConvertGP9ToGPIEInternal", "0");
     ConvertGP9ToGPIEInternal();
 };

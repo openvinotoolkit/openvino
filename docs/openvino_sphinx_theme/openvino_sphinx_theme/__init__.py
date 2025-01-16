@@ -7,7 +7,7 @@ import jinja2
 from docutils.parsers import rst
 from pathlib import Path
 from sphinx.util import logging
-from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox, DataTable
+from .directives.code import DoxygenSnippet, Scrollbox, Nodescrollbox, visit_scrollbox, depart_scrollbox
 
 SPHINX_LOGGER = logging.getLogger(__name__)
 
@@ -99,7 +99,6 @@ def setup(app):
     app.add_html_theme('openvino_sphinx_theme', theme_path)
     rst.directives.register_directive('doxygensnippet', DoxygenSnippet)
     rst.directives.register_directive('scrollbox', Scrollbox)
-    rst.directives.register_directive('data-table', DataTable)
     app.add_node(
         Nodescrollbox,
         html=(visit_scrollbox, depart_scrollbox),

@@ -10,7 +10,6 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/sqrt.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -67,6 +66,8 @@ OutputVector translate_stft(const NodeContext& context) {
     if (!context.input_is_none(5)) {
         normalized = context.const_input<bool>(5);
     }
+    PYTORCH_OP_CONVERSION_CHECK(!normalized,
+                                "aten::stft conversion is currently supported with normalized=False only.");
 
     bool onesided = true;
     if (!context.input_is_none(6)) {
@@ -84,15 +85,7 @@ OutputVector translate_stft(const NodeContext& context) {
     // Perform STFT
     constexpr bool transpose_frames = true;
     auto stft = context.mark_node(std::make_shared<v15::STFT>(input, window, n_fft, hop_length, transpose_frames));
-
-    if (normalized) {
-        const auto nfft_convert = context.mark_node(std::make_shared<v1::ConvertLike>(n_fft, stft));
-        const auto divisor = context.mark_node(std::make_shared<v0::Sqrt>(nfft_convert));
-        const auto norm_stft = context.mark_node(std::make_shared<v1::Divide>(stft, divisor));
-        return {norm_stft};
-    } else {
-        return {stft};
-    }
+    return {stft};
 };
 }  // namespace op
 }  // namespace pytorch

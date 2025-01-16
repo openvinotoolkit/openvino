@@ -19,7 +19,6 @@ namespace pass {
  */
 class TransformConvertToConvertTruncation: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TransformConvertToConvertTruncation");
     TransformConvertToConvertTruncation();
 };
 

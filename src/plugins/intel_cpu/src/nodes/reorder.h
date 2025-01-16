@@ -15,10 +15,7 @@ namespace node {
 class Reorder : public Node {
 public:
     Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
-    Reorder(const MemoryDesc& input,
-            const MemoryDesc& output,
-            const std::string& name,
-            const GraphContext::CPtr context);
+    Reorder(const MemoryDesc& input, const MemoryDesc& output, const std::string& name, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -34,7 +31,7 @@ public:
 
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    void setSrcPermutation(const std::vector<int>& src_perm) {
+    void setSrcPermutation(const std::vector<int> & src_perm) {
         this->src_permutation = src_perm;
     }
 
@@ -50,16 +47,12 @@ public:
         return false;
     }
 
-    const MemoryDesc& getInput() {
-        return *input;
-    }
-    const MemoryDesc& getOutput() {
-        return *output;
-    }
+    const MemoryDesc& getInput() { return *input; }
+    const MemoryDesc& getOutput() { return *output; }
 
-    static std::string getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc);
+    static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
-    static void reorderData(const IMemory& input, const IMemory& output, MultiCachePtr cache = nullptr);
+    static void reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache = nullptr);
 
 private:
     dnnl::reorder::primitive prim;
@@ -83,6 +76,6 @@ private:
     TransposeExecutorPtr transposeExecutor;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API BroadcastConstRangeReplacement;
 
 class ov::pass::BroadcastConstRangeReplacement : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("BroadcastConstRangeReplacement");
+    OPENVINO_RTTI("BroadcastConstRangeReplacement", "0");
     BroadcastConstRangeReplacement();
 };

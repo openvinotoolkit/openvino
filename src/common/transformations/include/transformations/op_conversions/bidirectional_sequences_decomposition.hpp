@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 
 class ov::pass::BidirectionalLSTMSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("BidirectionalLSTMSequenceDecomposition");
+    OPENVINO_RTTI("BidirectionalLSTMSequenceDecomposition", "0");
     BidirectionalLSTMSequenceDecomposition();
 };
 
@@ -43,7 +43,7 @@ public:
 
 class ov::pass::BidirectionalGRUSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("BidirectionalGRUSequenceDecomposition");
+    OPENVINO_RTTI("BidirectionalGRUSequenceDecomposition", "0");
     BidirectionalGRUSequenceDecomposition();
 };
 
@@ -55,7 +55,7 @@ public:
 
 class ov::pass::BidirectionalRNNSequenceDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("BidirectionalRNNSequenceDecomposition");
+    OPENVINO_RTTI("BidirectionalRNNSequenceDecomposition", "0");
     BidirectionalRNNSequenceDecomposition();
 };
 
@@ -67,7 +67,7 @@ public:
 
 class ov::pass::BidirectionalSequenceDecomposition : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("BidirectionalSequenceDecomposition");
+    OPENVINO_RTTI("BidirectionalSequenceDecomposition", "0");
     BidirectionalSequenceDecomposition() {
         add_matcher<ov::pass::BidirectionalLSTMSequenceDecomposition>();
         add_matcher<ov::pass::BidirectionalGRUSequenceDecomposition>();

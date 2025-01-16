@@ -49,7 +49,6 @@ namespace pass {
 
 class FakeQuantizeDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::FakeQuantizeDecomposition");
     FakeQuantizeDecomposition();
 
     static bool getScalesAndShifts(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq_node,
@@ -80,8 +79,6 @@ public:
  */
 class CommonFakeQuantizeDecomposition: public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("snippets::pass::CommonFakeQuantizeDecomposition");
-
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     static bool is_supported_fq(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq);

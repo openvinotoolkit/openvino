@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API LSTMCellFusionWithSplitWeights;
  */
 class ov::pass::LSTMCellFusionWithJointWeights : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("LSTMCellFusionWithJointWeights");
+    OPENVINO_RTTI("LSTMCellFusionWithJointWeights", "0");
     LSTMCellFusionWithJointWeights();
 };
 
@@ -35,7 +35,7 @@ public:
  */
 class ov::pass::LSTMCellFusionWithSplitWeights : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("LSTMCellFusionWithSplitWeights");
+    OPENVINO_RTTI("LSTMCellFusionWithSplitWeights", "0");
     LSTMCellFusionWithSplitWeights();
 };
 
@@ -45,7 +45,7 @@ public:
  */
 class ov::pass::LSTMCellFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("LSTMCellFusion");
+    OPENVINO_RTTI("LSTMCellFusion", "0");
     LSTMCellFusion() {
         add_matcher<ov::pass::LSTMCellFusionWithJointWeights>();
         add_matcher<ov::pass::LSTMCellFusionWithSplitWeights>();

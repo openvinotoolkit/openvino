@@ -21,7 +21,7 @@ namespace pass {
  */
 class AnalyzeBroadcastableInputs : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("snippets::pass::AnalyzeBroadcastableInputs");
+    OPENVINO_RTTI("AnalyzeBroadcastableInputs");
     // [Index of Parameter -> Index of broadcastable dimension from end]
     using BroadcastableInputsMap = std::map<size_t, size_t>;
     AnalyzeBroadcastableInputs(BroadcastableInputsMap& map);

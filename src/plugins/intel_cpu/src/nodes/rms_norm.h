@@ -23,7 +23,7 @@ public:
         return false;
     }
     void executeDynamicImpl(dnnl::stream strm) override {
-        execute(std::move(strm));
+        execute(strm);
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;

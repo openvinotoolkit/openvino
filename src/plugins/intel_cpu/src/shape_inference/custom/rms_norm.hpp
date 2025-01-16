@@ -13,7 +13,7 @@ namespace node {
 
 class RMSNormShapeInferFactory : public ShapeInferFactory {
 public:
-    RMSNormShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    RMSNormShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

@@ -22,7 +22,6 @@ class InitMatMulMask;
 
 class ov::pass::init_masks::InitConvMask : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("init_masks::InitConvMask");
     InitConvMask() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -60,7 +59,6 @@ public:
 
 class ov::pass::init_masks::InitMatMulMask : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("init_masks::InitMatMulMask");
     InitMatMulMask() {
         auto a = pattern::any_input();
         auto b = pattern::any_input();

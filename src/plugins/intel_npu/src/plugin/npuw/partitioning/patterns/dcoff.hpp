@@ -54,9 +54,6 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m);
 namespace SymmNoZP {
 
 class DCOFFPassBase : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmNoZP::DCOFFPassBase");
-
 protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
@@ -97,9 +94,6 @@ public:
 namespace SymmZP {  // TODO: Not sure if it is actually Symm..
 
 class DCOFFPassBase : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassBase");
-
 protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
@@ -135,26 +129,21 @@ public:
 
 class DCOFFPassReshape2 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassReshape2");
     DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class DCOFFPassReshape3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassReshape3");
     DCOFFPassReshape3(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class DCOFFPassReshape4 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::DCOFFPassReshape4");
     DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 
 class CWAI1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::CWAI1");
-
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
@@ -163,8 +152,6 @@ public:
 
 class CWAI2 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::CWAI2");
-
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
@@ -173,8 +160,6 @@ public:
 
 class CWAI3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::SymmZP::CWAI3");
-
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
@@ -186,7 +171,6 @@ public:
 namespace AsymmZP {
 class DCOFFPassReshape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::AsymmZP::DCOFFPassReshape");
     DCOFFPassReshape(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
 };
 

@@ -6,8 +6,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <openvino/core/type/element_type.hpp>
 #include <vector>
+#include <openvino/core/type/element_type.hpp>
 
 namespace ov {
 namespace Extensions {

@@ -24,23 +24,17 @@ public:
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
-        const ov::PartialShape& inputShape1,
-        const ov::PartialShape& inputShape2,
+        const ov::PartialShape inputShape1,
+        const ov::PartialShape inputShape2,
         const bool transpose1,
-        const bool transpose2,
-        const bool signedWeights,
-        const bool bias,
-        const bool perChannelWeightsDequantization,
-        const bool relu,
-        const bool fq);
+        const bool transpose2);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape1,
         const FakeQuantizeOnData& fqOnData1,
         const ov::Shape& inputShape2,
-        const FakeQuantizeOnData& fqOnData2,
-        const bool requantization = false);
+        const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type netPrecision,
                                                   const ov::PartialShape& inputShape1,

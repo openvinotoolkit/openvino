@@ -17,7 +17,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API PushConstantToSubgraph : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("PushConstantToSubgraph");
+    OPENVINO_RTTI("PushConstantToSubgraph", "0");
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 

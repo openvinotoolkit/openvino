@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API EliminateDuplicateTIInputs;
 
 class ov::pass::EliminateDuplicateTIInputs : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EliminateDuplicateTIInputs");
+    OPENVINO_RTTI("EliminateDuplicateTIInputs", "0");
     EliminateDuplicateTIInputs();
 };

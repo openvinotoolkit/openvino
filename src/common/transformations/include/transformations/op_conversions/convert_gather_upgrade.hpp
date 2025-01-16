@@ -23,7 +23,7 @@ class TRANSFORMATIONS_API ConvertGather7ToGather8;
  */
 class ov::pass::ConvertGather1ToGather7 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertGather1ToGather7");
+    OPENVINO_RTTI("ConvertGather1ToGather7", "0");
     ConvertGather1ToGather7();
 };
 
@@ -33,6 +33,6 @@ public:
  */
 class ov::pass::ConvertGather7ToGather8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertGather7ToGather8");
+    OPENVINO_RTTI("ConvertGather7ToGather8", "0");
     ConvertGather7ToGather8();
 };

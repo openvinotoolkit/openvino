@@ -15,7 +15,7 @@ namespace intel_gpu {
  */
 class OptimizeSubsequentReshapes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("OptimizeSubsequentReshapes");
+    OPENVINO_RTTI("OptimizeSubsequentReshapes", "0");
     OptimizeSubsequentReshapes();
 };
 

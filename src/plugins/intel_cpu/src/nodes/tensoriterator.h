@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <graph.h>
 #include <node.h>
-
-#include <common/memory_desc_wrapper.hpp>
-#include <memory>
+#include <graph.h>
 #include <string>
+#include <memory>
 #include <vector>
+#include <common/memory_desc_wrapper.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -38,12 +37,12 @@ class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
     virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
-
 protected:
     dnnl::primitive reorder;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
 };
+
 
 /**
  * Functor interface to perform check of data tensor (captured in constructor)
@@ -54,10 +53,10 @@ class PortChecker {
 public:
     virtual ~PortChecker() = default;
     virtual int getStatus() = 0;
-
 protected:
     dnnl::memory mem_holder;
 };
+
 
 /**
  * Class for storing intermediate output buffer state for dynamism when we don't know
@@ -65,12 +64,12 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(const MemoryPtr& from_, const std::vector<MemoryPtr>& to_, const PortMap& map_rule_);
+    DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr> &to_, const PortMap &map_rule_);
 
     void execute(const dnnl::engine& eng, const int iter);
     void transfer(const Node* node);
 
-    void reset(int max_iter_count_);  // reset local
+    void reset(int max_iter_count_);   // reset local
 
 private:
     void init(const dnnl::engine& eng);
@@ -81,12 +80,7 @@ private:
     void move_buffer(const MemoryPtr& new_buffer);
     void move_data();
 
-    static void copy(const uint8_t* src,
-                     uint8_t* dst,
-                     const size_t src_stride,
-                     const size_t dst_stride,
-                     const size_t count,
-                     const size_t len);
+    static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
 
     /* variable states */
     size_t len = 1lu;
@@ -94,9 +88,9 @@ private:
 
     ptrdiff_t chunk_stride_in_byte = 0;
     ptrdiff_t chunk_offset_in_byte = 0;
-    size_t chunk_unit_in_byte = 0lu;  // the amount of bytes copied per each count per each execution (iteration)
-    int num_execs = 0lu;              // number of executions happened
-    int max_iter_count = -1;          // estimated maximum iter count
+    size_t chunk_unit_in_byte = 0lu;   // the amount of bytes copied per each count per each execution (iteration)
+    int num_execs = 0lu;      // number of executions happened
+    int max_iter_count = -1;   // estimated maximum iter count
 
     /* invariable states */
     MemoryPtr from;
@@ -117,16 +111,12 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(dnnl::stream strm) override;
-    bool isExecutable() const override {
-        return true;
-    }
+    bool isExecutable() const override { return true; }
 
 protected:
     //  needShapeInfer() should return false
     //  because we cannot resolve the output dimensions before the inference is completed
-    bool needShapeInfer() const override {
-        return false;
-    };
+    bool needShapeInfer() const override { return false; };
 
     bool needPrepareParams() const override;
     void prepareParams() override;
@@ -166,23 +156,24 @@ private:
             return seed;
         }
     };
-    std::unordered_map<std::pair<int, int>, std::shared_ptr<PortMapHelper>, PortMapHasher>
-        first_mappers;  /// < Applied once before loop
+    std::unordered_map<std::pair<int, int>, std::shared_ptr<PortMapHelper>, PortMapHasher> first_mappers;  /// < Applied once before loop
 
-    std::vector<std::shared_ptr<PortMapHelper>> last_mappers,  /// < Applied once after loop
-        before_mappers,                                        /// < Applied before each iteration
-        after_mappers,                                         /// < Applied after each iteration
-        back_mappers;                                          /// < Applied before each iteration for dynamic shapes
+    std::vector<std::shared_ptr<PortMapHelper>>
+        last_mappers,    /// < Applied once after loop
+        before_mappers,  /// < Applied before each iteration
+        after_mappers,   /// < Applied after each iteration
+        back_mappers;    /// < Applied before each iteration for dynamic shapes
 
-    std::shared_ptr<PortChecker> trip_count_check,  /// < Perform check of trip count value. value >= -1
-        initial_cond_check,   /// < Perform check of initial continue condition value. value [0, 1]
-        continue_cond_check;  /// < Perform check of continue condition value of body. value [0, 1]
+    std::shared_ptr<PortChecker>
+        trip_count_check,      /// < Perform check of trip count value. value >= -1
+        initial_cond_check,    /// < Perform check of initial continue condition value. value [0, 1]
+        continue_cond_check;   /// < Perform check of continue condition value of body. value [0, 1]
 
     std::vector<std::shared_ptr<DynamicBuffer>> buffers;
 
-    std::vector<PortMap> inputPortMap;   //!< Input ports map
+    std::vector<PortMap> inputPortMap;  //!< Input ports map
     std::vector<PortMap> outputPortMap;  //!< Output ports map
-    std::vector<PortMap> backEdges;      //!< Back edges map
+    std::vector<PortMap> backEdges;  //!< Back edges map
 
     std::vector<int> loopBodyCurrentIterationIdx;
     int loopBodyConditionOutputIdx = -1;
@@ -195,6 +186,6 @@ private:
     const std::shared_ptr<ov::Node> ngraphOp;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

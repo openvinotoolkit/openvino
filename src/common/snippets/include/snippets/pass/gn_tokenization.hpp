@@ -18,7 +18,7 @@ namespace pass {
  */
 class TokenizeGNSnippets : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeGNSnippets");
+    OPENVINO_RTTI("TokenizeGNSnippets", "0");
     TokenizeGNSnippets();
 };
 

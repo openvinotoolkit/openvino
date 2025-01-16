@@ -15,7 +15,7 @@ namespace cldnn {
 struct resample : public primitive_base<resample> {
     CLDNN_DECLARE_PRIMITIVE(resample)
 
-    resample() : primitive_base("", {}), scales_port(0) {}
+    resample() : primitive_base("", {}) {}
 
     using InterpolateOp = ov::op::util::InterpolateBase;
 

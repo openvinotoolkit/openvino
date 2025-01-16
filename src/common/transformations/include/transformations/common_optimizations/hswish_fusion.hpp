@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API HSwishFusionWithClamp;
  */
 class ov::pass::HSwishFusionWithReluDiv : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithReluDiv");
+    OPENVINO_RTTI("HSwishFusionWithReluDiv", "0");
     HSwishFusionWithReluDiv();
 };
 
@@ -38,7 +38,7 @@ public:
  */
 class ov::pass::HSwishFusionWithReluMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithReluMul");
+    OPENVINO_RTTI("HSwishFusionWithReluMul", "0");
     HSwishFusionWithReluMul();
 };
 
@@ -48,7 +48,7 @@ public:
  */
 class ov::pass::HSwishFusionWithHSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithHSigmoid");
+    OPENVINO_RTTI("HSwishFusionWithHSigmoid", "0");
     HSwishFusionWithHSigmoid();
 };
 
@@ -58,7 +58,7 @@ public:
  */
 class ov::pass::HSwishFusionWithClamp : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("HSwishFusionWithClamp");
+    OPENVINO_RTTI("HSwishFusionWithClamp", "0");
     HSwishFusionWithClamp();
 };
 
@@ -68,7 +68,7 @@ public:
  */
 class ov::pass::HSwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("HSwishFusion");
+    OPENVINO_RTTI("HSwishFusion", "0");
     HSwishFusion() {
         add_matcher<ov::pass::HSwishFusionWithReluDiv>();
         add_matcher<ov::pass::HSwishFusionWithReluMul>();

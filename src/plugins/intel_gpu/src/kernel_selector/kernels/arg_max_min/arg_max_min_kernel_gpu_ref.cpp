@@ -10,7 +10,6 @@ ParamsKey ArgMaxMinKernelGPURef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
-    k.EnableInputDataType(Datatype::UINT8);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);

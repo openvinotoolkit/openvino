@@ -51,12 +51,9 @@ class TestTimmConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
-        shape = list(cfg.input_size)
-        self.example = (torch.randn([2] + shape),)
-        self.inputs = (torch.randn([3] + shape),)
-        if getattr(self, "mode", None) == "export":
-            batch = torch.export.Dim("batch", min=1, max=3)
-            self.export_kwargs = {"dynamic_shapes": {"x": {0: batch}}}
+        shape = [1] + list(cfg.input_size)
+        self.example = (torch.randn(shape),)
+        self.inputs = (torch.randn(shape),)
         return m
 
     def infer_fw_model(self, model_obj, inputs):

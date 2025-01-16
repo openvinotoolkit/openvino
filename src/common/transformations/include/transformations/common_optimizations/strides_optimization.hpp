@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API StridesOptimization;
  */
 class ov::pass::ConvStridesPropagation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvStridesPropagation");
+    OPENVINO_RTTI("ConvStridesPropagation", "0");
     ConvStridesPropagation();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::SupportedNodesStridesPropagation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SupportedNodesStridesPropagation");
+    OPENVINO_RTTI("SupportedNodesStridesPropagation", "0");
     SupportedNodesStridesPropagation();
 };
 
@@ -51,7 +51,7 @@ public:
  */
 class ov::pass::UnsupportedNodesStridesPropagation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("UnsupportedNodesStridesPropagation");
+    OPENVINO_RTTI("UnsupportedNodesStridesPropagation", "0");
     UnsupportedNodesStridesPropagation();
 };
 

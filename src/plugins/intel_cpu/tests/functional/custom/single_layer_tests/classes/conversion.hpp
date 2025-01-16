@@ -13,12 +13,9 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-enum SpecialValue { none, nan, inf, overflow };
-
 using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
                                              ov::element::Type,  // input precision
                                              ov::element::Type,  // output precision
-                                             SpecialValue,       // Specail value
                                              CPUSpecificParams>;
 
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
@@ -28,12 +25,9 @@ public:
     static bool isInOutPrecisionSupported(ov::element::Type inPrc, ov::element::Type outPrc);
 protected:
     void SetUp() override;
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     virtual void validate_out_prc() const;
 
     ov::element::Type inPrc, outPrc;
-private:
-    ov::test::SpecialValue special_value;
 };
 
 class ConvertToBooleanCPULayerTest : public ConvertCPULayerTest {

@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertGELU;
 
 class ov::pass::ConvertGELU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertGELU");
+    OPENVINO_RTTI("ConvertGELU", "0");
     ConvertGELU();
 };

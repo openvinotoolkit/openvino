@@ -36,7 +36,6 @@ enum DataLayout {
     bfxy,                   // 3D+batch
     byfx,
     bxfy,
-    ybfx,
     b_fs_yx_fsv2,
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
@@ -256,7 +255,6 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::fb:
         case DataLayout::bfyx:
         case DataLayout::yxfb:
-        case DataLayout::ybfx:
         case DataLayout::byxf:
         case DataLayout::byfx:
         case DataLayout::bxfy:

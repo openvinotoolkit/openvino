@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertConvertPromoteTypes;
 /// element type.
 class ov::pass::ConvertConvertPromoteTypes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertConvertPromoteTypes");
+    OPENVINO_RTTI("ConvertConvertPromoteTypes", "0");
     ConvertConvertPromoteTypes();
 };

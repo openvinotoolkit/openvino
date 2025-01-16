@@ -19,7 +19,6 @@
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
@@ -53,9 +52,7 @@ OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_rsqrt);
-OP_CONVERTER(translate_select_n);
 OP_CONVERTER(translate_slice);
-OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_transpose);
 
@@ -94,10 +91,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"transpose", op::translate_transpose},
             {"rsqrt", op::translate_rsqrt},
             {"reshape", op::translate_reshape},
-            {"select_n", op::translate_select_n},
-            {"logistic", op::translate_1to1_match_1_input<v0::Sigmoid>},
             {"slice", op::translate_slice},
-            {"square", op::translate_square},
             {"sqrt", op::translate_1to1_match_1_input<v0::Sqrt>},
             {"squeeze", op::translate_squeeze},
             {"stop_gradient", op::skip_node},

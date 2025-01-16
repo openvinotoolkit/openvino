@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API NopBroadcast;
  */
 class ov::pass::NopBroadcast : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("NopBroadcast");
+    OPENVINO_RTTI("NopBroadcast", "0");
     NopBroadcast();
 };

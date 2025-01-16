@@ -1,4 +1,5 @@
 3D-segmentation-point-clouds
+amused-lightweight-text-to-image
 async-api
 auto-device
 clip-language-saliency-map
@@ -7,6 +8,7 @@ cross-lingual-books-alignment
 depth-anything
 depth-anything-v2
 detectron2-to-openvino
+distilbert-sequence-classification
 explainable-ai-1-basic
 explainable-ai-2-deep-dive
 explainable-ai-3-map-interpretation
@@ -22,7 +24,6 @@ knowledge-graphs-conve
 language-quantize-bert
 magika-content-type-recognition
 mobileclip-video-search
-modelscope-to-openvino
 music-generation
 named-entity-recognition
 nano-llava-multimodal-chatbot

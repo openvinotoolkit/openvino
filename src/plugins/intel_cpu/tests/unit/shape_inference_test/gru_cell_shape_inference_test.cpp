@@ -9,7 +9,12 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class GRUCellV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::GRUCell> {};
+class GRUCellV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::GRUCell> {
+protected:
+    void SetUp() override {
+        this->output_shapes = ShapeVector(1);
+    }
+};
 
 TEST_F(GRUCellV3StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;

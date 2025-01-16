@@ -65,7 +65,6 @@ static ov::Shape broadcast_shape_to_rank(ov::Shape shape_to_broadcast, int64_t d
 
 class ov::pass::mask_propagation::MatMul : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::MatMul");
     MatMul() {
         auto a = pattern::any_input(pattern::has_static_shape());
         auto b = pattern::any_input(pattern::has_static_shape());
@@ -202,7 +201,6 @@ public:
 
 class ov::pass::mask_propagation::Convolution : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Convolution");
     Convolution() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input(pattern::has_static_shape());
@@ -282,7 +280,6 @@ public:
 
 class ov::pass::mask_propagation::GroupConvolution : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::GroupConvolution");
     GroupConvolution() {
         auto input = pattern::any_input(pattern::has_static_dim(1));
         auto weights = pattern::any_input(pattern::has_static_shape());
@@ -369,7 +366,6 @@ public:
 
 class ov::pass::mask_propagation::GroupConvolutionReshape : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::GroupConvolutionReshape");
     GroupConvolutionReshape() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto shape = pattern::any_input();
@@ -460,7 +456,6 @@ public:
 
 class ov::pass::mask_propagation::Elementwise : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Elementwise");
     Elementwise() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -651,7 +646,6 @@ private:
 
 class ov::pass::mask_propagation::FakeQuantize : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::FakeQuantize");
     FakeQuantize() {
         auto input = pattern::any_input(pattern::has_static_shape());
         auto input_low = pattern::any_input(pattern::has_static_shape());
@@ -764,7 +758,6 @@ public:
 
 class ov::pass::mask_propagation::Concat : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Concat");
     Concat() {
         auto concat = pattern::wrap_type<opset10::Concat>(pattern::has_static_shape());
 
@@ -871,7 +864,6 @@ public:
 
 class ov::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::PassThrough");
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
                                            opset10::Clamp,
@@ -914,7 +906,6 @@ public:
 
 class ov::pass::mask_propagation::Reduce : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Reduce");
     Reduce() {
         auto inputs = pattern::any_input();
         auto weights = pattern::wrap_type<opset10::Constant>();
@@ -1126,7 +1117,6 @@ static std::vector<DimsAttr> collect_dims_attrs(const std::vector<dims_vec> dims
 
 class ov::pass::mask_propagation::Reshape : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Reshape");
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
         auto weights = pattern::any_input();
@@ -1383,7 +1373,6 @@ public:
 
 class ov::pass::mask_propagation::Transpose : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Transpose");
     Transpose() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
@@ -1491,7 +1480,6 @@ static ov::Mask::Ptr create_connect_split_output_mask(ov::Mask::Ptr input_mask,
 
 class ov::pass::mask_propagation::VariadicSplit : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::VariadicSplit");
     VariadicSplit() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
         auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
@@ -1559,7 +1547,6 @@ public:
 
 class ov::pass::mask_propagation::Split : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::Split");
     Split() {
         auto input_pattern = pattern::any_input(pattern::has_static_rank());
         auto axis_pattern = pattern::wrap_type<ov::opset10::Constant>();
@@ -1610,7 +1597,6 @@ public:
 
 class ov::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::StopPropagation");
     StopPropagation() {
         auto any_node = pattern::any_input();
 
@@ -1668,7 +1654,6 @@ public:
 
 class ov::pass::mask_propagation::SkipPropagation : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("mask_propagation::SkipPropagation");
     SkipPropagation() {
         // Skip mask propagation for ShapeOf operation to prevent this opearation to be
         // processed as stop op.

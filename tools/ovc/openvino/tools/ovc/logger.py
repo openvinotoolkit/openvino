@@ -62,10 +62,7 @@ class TagFilter(log.Filter):
         return True  # if regex wasn't set print all logs
 
 
-def init_logger(lvl: str, verbose: bool, python_api_used: bool):
-    if verbose and python_api_used:
-        # We need to not override logger in case of verbose=True to allow user set a log level
-        return
+def init_logger(lvl: str, verbose: bool):
     global handler_num
     log_exp = os.environ.get('MO_LOG_PATTERN')
     if not verbose:

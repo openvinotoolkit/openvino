@@ -7,9 +7,6 @@
 #include <cstddef>
 
 namespace ov {
-#ifdef OPENVINO_CPP_17_VER
-using optional = std::optional;
-#else
 
 /**
  * @brief Store optional object of type T (basic version of std::optional).
@@ -135,5 +132,4 @@ private:
     bool m_has_value = false;
     Storage<T> m_opt{};
 };
-#endif
 }  // namespace ov

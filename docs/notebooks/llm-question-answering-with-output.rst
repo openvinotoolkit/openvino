@@ -581,9 +581,9 @@ generation is finished, we will write class-iterator based on
 
 .. code:: ipython3
 
-    import openvino_genai as ov_genai
+    from openvino_genai import LLMPipeline
     
-    pipe = ov_genai.LLMPipeline(model_dir.as_posix(), device.value)
+    pipe = LLMPipeline(model_dir.as_posix(), device.value)
     print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=150))
 
 
@@ -675,6 +675,7 @@ Setup imports
     from time import perf_counter
     from typing import List
     import numpy as np
+    from openvino_genai import StreamerBase
     from queue import Queue
     import re
 
@@ -694,7 +695,7 @@ when it is needed. It will help estimate performance.
     detokinizer_dir = Path(model_dir, "openvino_detokenizer.xml")
     
     
-    class TextIteratorStreamer(ov_genai.StreamerBase):
+    class TextIteratorStreamer(StreamerBase):
         def __init__(self, tokenizer):
             super().__init__()
             self.tokenizer = tokenizer

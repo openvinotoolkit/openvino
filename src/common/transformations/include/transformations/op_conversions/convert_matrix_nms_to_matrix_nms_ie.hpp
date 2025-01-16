@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertMatrixNmsToMatrixNmsIE;
 
 class ov::pass::ConvertMatrixNmsToMatrixNmsIE : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertMatrixNmsToMatrixNmsIE");
+    OPENVINO_RTTI("ConvertMatrixNmsToMatrixNmsIE", "0");
     ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type = true);
 };

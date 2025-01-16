@@ -949,8 +949,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
             return input.get_node()->output(0);
         }
     }
-    m_results.emplace_back(std::make_shared<ov::op::v0::Result>(port, true));
-    auto& result = m_results.back();
+    auto result = std::make_shared<ov::op::v0::Result>(port);
+    m_results.push_back(result);
     if (m_shared_rt_info->get_use_topological_cache()) {
         if (cache_valid()) {
             // Full update of topological cache is not needed, 'result' can be just inserted to the end

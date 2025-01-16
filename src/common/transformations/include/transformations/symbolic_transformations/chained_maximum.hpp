@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ChainedMaximumOptimization;
  */
 class ov::pass::ChainedMaximumOptimization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ChainedMaximumOptimization");
+    OPENVINO_RTTI("ChainedMaximumOptimization", "0");
     ChainedMaximumOptimization();
 };

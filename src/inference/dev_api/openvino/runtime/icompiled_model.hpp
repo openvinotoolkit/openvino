@@ -136,11 +136,11 @@ public:
 
     /**
      * @brief Release intermediate memory
-     *
+     * 
      */
     virtual void release_memory();
 
-    virtual ~ICompiledModel();
+    virtual ~ICompiledModel() = default;
 
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;

@@ -333,6 +333,13 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
         res.push_back({ov::compilation_num_threads(1)});
     }
 
+    if (props.empty() || std::find(props.begin(), props.end(), ov::affinity.name()) != props.end()) {
+        ov::Affinity affinities[] = {ov::Affinity::NONE , ov::Affinity::CORE, ov::Affinity::NUMA, ov::Affinity::HYBRID_AWARE};
+        for (auto &affinity : affinities) {
+            res.push_back({ov::affinity(affinity)});
+        }
+    }
+
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
         res.push_back({ov::hint::enable_hyper_threading(true)});
         res.push_back({ov::hint::enable_hyper_threading(false)});
@@ -382,6 +389,10 @@ OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
     if (props.empty() || std::find(props.begin(), props.end(), ov::inference_num_threads.name()) != props.end()) {
         res.push_back({{ov::inference_num_threads.name(), -1}});
         res.push_back({{ov::compilation_num_threads.name(), -1}});
+    }
+
+    if (props.empty() || std::find(props.begin(), props.end(), ov::affinity.name()) != props.end()) {
+        res.push_back({{ov::affinity.name(), -5}});
     }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {

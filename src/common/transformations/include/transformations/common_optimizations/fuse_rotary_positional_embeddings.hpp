@@ -12,7 +12,6 @@ namespace pass {
 
 class TRANSFORMATIONS_API RoPEFusion;
 class TRANSFORMATIONS_API RoPEFusionGPTNEOX;
-class TRANSFORMATIONS_API RoPEFusionFlux;
 class TRANSFORMATIONS_API RoPEFusionGPTJ;
 class TRANSFORMATIONS_API RoPEFusionChatGLM;
 class TRANSFORMATIONS_API RoPEFusionQwen;
@@ -26,55 +25,49 @@ class TRANSFORMATIONS_API RoPEShareCosSin;
 
 class ov::pass::RoPEFusionGPTNEOX : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTNEOX");
+    OPENVINO_RTTI("RoPEFusionGPTNEOX", "0");
     RoPEFusionGPTNEOX();
-};
-
-class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionFlux");
-    RoPEFusionFlux();
 };
 
 class ov::pass::RoPEFusionGPTJ : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTJ");
+    OPENVINO_RTTI("RoPEFusionGPTJ", "0");
     RoPEFusionGPTJ();
 };
 
 class ov::pass::RoPEFusionChatGLM : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionChatGLM");
+    OPENVINO_RTTI("RoPEFusionChatGLM", "0");
     RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope = false);
 };
 
 class ov::pass::RoPEFusionQwen : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionQwen");
+    OPENVINO_RTTI("RoPEFusionQwen", "0");
     RoPEFusionQwen(int split_output_id);
 };
 
 class ov::pass::RoPEFusionIOSlicing : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionIOSlicing");
+    OPENVINO_RTTI("RoPEFusionIOSlicing", "0");
     RoPEFusionIOSlicing();
 };
 
 class ov::pass::RoPEFusionPreprocess : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionPreprocess");
+    OPENVINO_RTTI("RoPEFusionPreprocess", "0");
     RoPEFusionPreprocess();
 };
 
 class ov::pass::RoPEFusionCosSinPreprocess : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionCosSinPreprocess");
+    OPENVINO_RTTI("RoPEFusionCosSinPreprocess", "0");
     RoPEFusionCosSinPreprocess();
 };
 
 class ov::pass::RoPEShareCosSin : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEShareCosSin");
+    OPENVINO_RTTI("RoPEShareCosSin", "0");
     RoPEShareCosSin();
 
 private:
@@ -90,9 +83,8 @@ private:
  */
 class ov::pass::RoPEFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("RoPEFusion");
+    OPENVINO_RTTI("RoPEFusion", "0");
     RoPEFusion(bool support_2d_rope = false) {
-        add_matcher<ov::pass::RoPEFusionFlux>();
         add_matcher<ov::pass::RoPEFusionGPTNEOX>();
         add_matcher<ov::pass::RoPEFusionGPTJ>();
         // optional heads & tails are fused in separate matcher pass,

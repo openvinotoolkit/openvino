@@ -62,7 +62,6 @@ public:
                                     const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
-    virtual ~AssertFailure();
 
 protected:
     explicit AssertFailure(const std::string& what_arg) : ov::Exception(what_arg) {}
@@ -72,7 +71,6 @@ protected:
 class OPENVINO_API NotImplemented : public AssertFailure {
 public:
     [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
-    virtual ~NotImplemented();
 
     static const std::string default_msg;
 

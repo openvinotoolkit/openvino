@@ -5,7 +5,6 @@
 #pragma once
 
 #include <node.h>
-
 #include <openvino/op/constant.hpp>
 
 namespace ov {
@@ -43,9 +42,13 @@ public:
 
     Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context);
 
-    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, InputConfig config);
+    Input(const std::shared_ptr<ov::Node>& op,
+          const GraphContext::CPtr context,
+          InputConfig config);
 
-    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, OutputConfig config);
+    Input(const std::shared_ptr<ov::Node>& op,
+          const GraphContext::CPtr context,
+          OutputConfig config);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -63,12 +66,8 @@ public:
         return false;
     }
 
-    bool needShapeInfer() const override {
-        return false;
-    }
-    bool needPrepareParams() const override {
-        return false;
-    }
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
 
 private:
     void cloneBlobIfRequired();
@@ -76,7 +75,7 @@ private:
     void initSupportedPdFromMemDesc();
 
 private:
-    std::shared_ptr<ov::op::v0::Constant> m_constOp;
+    std::shared_ptr<ov::op::v0::Constant> constOp;
     MemoryCPtr memoryPtr;
     bool isMeanImage = false;
     MemoryDescPtr extMemDesc = nullptr;
@@ -84,6 +83,6 @@ private:
     bool m_isInPlace = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

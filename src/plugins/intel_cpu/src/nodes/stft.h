@@ -7,7 +7,6 @@
 #include <string>
 
 #include "node.h"
-#include "rdft.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,7 +21,6 @@ public:
     bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool needPrepareParams() const override;
-    void createPrimitive() override;
 
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -37,8 +35,6 @@ private:
     /// STFT params
     bool m_transpose_frames = false;
 
-    // RDFT executor
-    std::shared_ptr<RDFTExecutor> rdft_executor = nullptr;
     bool m_is_frame_size_const = false;
     bool m_is_frame_step_const = false;
 

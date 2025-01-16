@@ -80,24 +80,24 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 
 class ov::pass::MultiplyConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MultiplyConvolutionFusion");
+    OPENVINO_RTTI("MultiplyConvolutionFusion", "0");
     MultiplyConvolutionFusion();
 };
 
 class ov::pass::MultiplyGroupConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MultiplyGroupConvolutionFusion");
+    OPENVINO_RTTI("MultiplyGroupConvolutionFusion", "0");
     MultiplyGroupConvolutionFusion();
 };
 
 class ov::pass::MultiplyConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MultiplyConvolutionBackpropDataFusion");
+    OPENVINO_RTTI("MultiplyConvolutionBackpropDataFusion", "0");
     MultiplyConvolutionBackpropDataFusion();
 };
 
 class ov::pass::MultiplyGroupConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MultiplyGroupConvolutionBackpropDataFusion");
+    OPENVINO_RTTI("MultiplyGroupConvolutionBackpropDataFusion", "0");
     MultiplyGroupConvolutionBackpropDataFusion();
 };

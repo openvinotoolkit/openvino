@@ -6,95 +6,102 @@
 
 namespace ov {
 namespace intel_cpu {
-GemmKernel::GemmKernel(size_t M, size_t N, size_t K, bool b_transposed, ov::element::Type inType)
+    GemmKernel::GemmKernel(size_t M,
+                           size_t N,
+                           size_t K,
+                           bool b_transposed,
+                           ov::element::Type inType)
     : M(M),
       N(N),
       K(K),
       b_transposed(b_transposed) {
-    if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16))
-        THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
+        if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16))
+            THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
 
-    if (inType == ov::element::f32) {
-        format = arm_compute::Format::F32;
-    } else if (inType == ov::element::f16) {
-        format = arm_compute::Format::F16;
-    } else if (inType == ov::element::bf16) {
-        format = arm_compute::Format::BFLOAT16;
+        if (inType == ov::element::f32) {
+            format = arm_compute::Format::F32;
+        } else if (inType == ov::element::f16) {
+            format = arm_compute::Format::F16;
+        } else if (inType == ov::element::bf16) {
+            format = arm_compute::Format::BFLOAT16;
+        }
+
+
+        aclGemmKernel = std::make_unique<arm_compute::NEGEMM>();
     }
 
-    aclGemmKernel = std::make_unique<arm_compute::NEGEMM>();
-}
-
-arm_compute::Status GemmKernel::executeGemm(void* a,
-                                            void* b,
-                                            arm_compute::TensorInfo& dstInfo,
-                                            arm_compute::Tensor& dstTensor,
-                                            arm_compute::Strides aStrides,
-                                            arm_compute::Strides bStrides,
-                                            void* c,
-                                            float alpha,
-                                            float beta,
-                                            arm_compute::Strides* outStrides,
-                                            void* out) {
-    aInfo.init(shapeCast({M, N}),
-               format,
-               aStrides,
-               size_t(0),
-               (size_t)(M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
-
-    arm_compute::TensorShape bShape;
-    if (b_transposed)
-        bShape = shapeCast({K, N});
-    else
-        bShape = shapeCast({N, K});
-
-    bInfo.init(bShape,
-               format,
-               bStrides,
-               size_t(0),
-               (size_t)(K * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
-
-    aTensor.allocator()->init(aInfo);
-    bTensor.allocator()->init(bInfo);
-
-    if (c != nullptr) {
-        cInfo.init(shapeCast({M, K}), format);
-        cTensor.allocator()->init(cInfo);
-    }
-
-    if (outStrides != nullptr)
-        dstInfo.init(
-            shapeCast({M, K}),
+    arm_compute::Status GemmKernel::executeGemm(void *a,
+                                                void *b,
+                                                arm_compute::TensorInfo& dstInfo,
+                                                arm_compute::Tensor& dstTensor,
+                                                arm_compute::Strides aStrides,
+                                                arm_compute::Strides bStrides,
+                                                void *c,
+                                                float alpha,
+                                                float beta,
+                                                arm_compute::Strides* outStrides,
+                                                void* out) {
+        aInfo.init(
+            shapeCast({M, N}),
             format,
-            *outStrides,
+            aStrides,
             size_t(0),
-            (size_t)(M * K * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
-    else
-        dstInfo.init(shapeCast({M, K}), format);
+            (size_t)(M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
-    dstTensor.allocator()->init(dstInfo);
+        arm_compute::TensorShape bShape;
+        if (b_transposed)
+            bShape = shapeCast({K, N});
+        else
+            bShape = shapeCast({N, K});
 
-    aTensor.allocator()->import_memory(reinterpret_cast<void*>(a));
-    bTensor.allocator()->import_memory(reinterpret_cast<void*>(b));
-    cTensor.allocator()->import_memory(reinterpret_cast<void*>(c));
+        bInfo.init(
+                bShape,
+                format,
+                bStrides,
+                size_t(0),
+                (size_t)(K * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
-    if (out == nullptr)
-        dstTensor.allocator()->allocate();
-    else
-        dstTensor.allocator()->import_memory(out);
+        aTensor.allocator()->init(aInfo);
+        bTensor.allocator()->init(bInfo);
 
-    if (b_transposed)
-        aclGemmInfo.set_pretranspose_B(true);
+        if (c != nullptr) {
+            cInfo.init(shapeCast({M, K}), format);
+            cTensor.allocator()->init(cInfo);
+        }
 
-    auto status = aclGemmKernel->validate(&aInfo, &bInfo, &cInfo, &dstInfo, 1.0, 0.0, aclGemmInfo);
+        if (outStrides != nullptr)
+            dstInfo.init(
+                    shapeCast({M, K}),
+                    format,
+                    *outStrides,
+                    size_t(0),
+                    (size_t)(M * K * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
+        else
+            dstInfo.init(shapeCast({M, K}), format);
 
-    if (c == nullptr)
-        aclGemmKernel->configure(&aTensor, &bTensor, nullptr, &dstTensor, alpha, beta, aclGemmInfo);
-    else
-        aclGemmKernel->configure(&aTensor, &bTensor, &cTensor, &dstTensor, alpha, beta, aclGemmInfo);
-    aclGemmKernel->run();
+        dstTensor.allocator()->init(dstInfo);
 
-    return status;
-}
-}  // namespace intel_cpu
-}  // namespace ov
+        aTensor.allocator()->import_memory(reinterpret_cast<void *>(a));
+        bTensor.allocator()->import_memory(reinterpret_cast<void *>(b));
+        cTensor.allocator()->import_memory(reinterpret_cast<void *>(c));
+
+        if (out == nullptr)
+            dstTensor.allocator()->allocate();
+        else
+            dstTensor.allocator()->import_memory(out);
+
+        if (b_transposed)
+            aclGemmInfo.set_pretranspose_B(true);
+
+        auto status = aclGemmKernel->validate(&aInfo, &bInfo, &cInfo, &dstInfo, 1.0, 0.0, aclGemmInfo);
+
+        if (c == nullptr)
+            aclGemmKernel->configure(&aTensor, &bTensor, nullptr, &dstTensor, alpha, beta, aclGemmInfo);
+        else
+            aclGemmKernel->configure(&aTensor, &bTensor, &cTensor, &dstTensor, alpha, beta, aclGemmInfo);
+        aclGemmKernel->run();
+
+        return status;
+    }
+} // namespace intel_cpu
+} // namespace ov

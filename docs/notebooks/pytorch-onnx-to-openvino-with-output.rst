@@ -197,18 +197,12 @@ have not downloaded the model before.
 
 .. parsed-literal::
 
-    lraspp_mobilenet_v3_large.pt:   0%|          | 0.00/12.5M [00:00<?, ?B/s]
+    model/lraspp_mobilenet_v3_large.pt:   0%|          | 0.00/12.5M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
     Loaded PyTorch LRASPP MobileNetV3 model
-
-
-.. parsed-literal::
-
-    /tmp/ipykernel_2234490/47468665.py:10: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      state_dict = torch.load(weights_path, map_location="cpu")
 
 
 ONNX Model Conversion
@@ -334,7 +328,7 @@ Images need to be normalized before propagating through the network.
 
 .. parsed-literal::
 
-    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 Load the OpenVINO IR Network and Run Inference on the ONNX model
@@ -563,9 +557,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.040 seconds per image, FPS: 25.15
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.72
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.73
+    PyTorch model on CPU: 0.042 seconds per image, FPS: 23.97
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.95
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 36.18
 
 
 **Show Device Information**

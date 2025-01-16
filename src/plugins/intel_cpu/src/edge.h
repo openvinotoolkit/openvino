@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
-
 #include "cpu_shape.h"
-#include "internal_properties.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
+
+#include <memory>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -24,31 +23,28 @@ using EdgeWeakPtr = std::weak_ptr<Edge>;
 
 class Edge {
 public:
-    Edge(const std::shared_ptr<Node>& parent, const std::shared_ptr<Node>& child, int pr_port = 0, int ch_port = 0);
+    Edge(const std::shared_ptr<Node>& parent,
+         const std::shared_ptr<Node>& child,
+         int pr_port = 0, int ch_port = 0);
 
-    enum class Status { Uninitialized, NeedAllocation, NotAllocated, Allocated, Validated };
+    enum class Status {
+        Uninitialized,
+        NeedAllocation,
+        NotAllocated,
+        Allocated,
+        Validated
+    };
 
-    enum class ReorderStatus { Regular = 0, Optimized = 1, No = 2 };
+    enum class ReorderStatus {
+        Regular = 0,
+        Optimized = 1,
+        No = 2
+    };
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
 
     inline Status getStatus() const noexcept {
         return status;
-    }
-
-    static std::string statusToString(Status status) {
-#define CASE(_status)     \
-    case Status::_status: \
-        return #_status;
-        switch (status) {
-            CASE(Uninitialized);
-            CASE(NeedAllocation);
-            CASE(NotAllocated);
-            CASE(Allocated);
-            CASE(Validated);
-        }
-#undef CASE
-        return "Unexpected";
     }
 
     void changeStatus(Status state);
@@ -75,9 +71,7 @@ public:
     int getInputNum() const;
     int getOutputNum() const;
 
-    void setChildPort(const size_t port) {
-        child_port = port;
-    }
+    void setChildPort(const size_t port) { child_port = port; }
 
     void sharedMemFrom(const EdgePtr& edge);
     EdgePtr getSharedEdge() const;
@@ -87,7 +81,7 @@ public:
         return getDesc().hasDefinedMaxSize();
     }
 
-    std::string hash() const;
+    std::string name() const;
 
 private:
     std::weak_ptr<Node> parent;
@@ -116,7 +110,6 @@ private:
     friend class Graph;
 };
 
-std::ostream& operator<<(std::ostream& os, const Edge& edge);
+}   // namespace intel_cpu
+}   // namespace ov
 
-}  // namespace intel_cpu
-}  // namespace ov

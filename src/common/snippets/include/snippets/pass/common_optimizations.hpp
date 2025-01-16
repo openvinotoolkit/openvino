@@ -19,7 +19,7 @@ class CommonOptimizations : public ov::pass::MatcherPass {
     friend class SplitDimensionM;
 
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::CommonOptimizations");
+    OPENVINO_RTTI("CommonOptimizations", "0");
     CommonOptimizations(const SnippetsTokenization::Config& config);
 };
 

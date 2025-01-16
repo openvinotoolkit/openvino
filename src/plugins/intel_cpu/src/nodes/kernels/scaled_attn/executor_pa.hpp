@@ -6,9 +6,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <openvino/core/type/element_type.hpp>
 #include <vector>
-
+#include <openvino/core/type/element_type.hpp>
 #include "cpu_memory.h"
 #include "executor_pa_common.hpp"
 
@@ -17,11 +16,7 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
-                                                         ov::element::Type key_cache_type,
-                                                         ov::element::Type value_cache_type,
-                                                         size_t key_group_size,
-                                                         size_t value_group_size);
+std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type, ov::element::Type kvcache_type);
 
 }  // namespace XARCH
 }  // namespace Cpu

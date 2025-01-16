@@ -8,7 +8,7 @@
 #include <memory>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-class FullyConnectedShapes {
+class MatMulShapes {
 public:
     ov::PartialShape inputA;
     ov::PartialShape inputB;
@@ -16,23 +16,11 @@ public:
     bool transposeB;
 };
 
-class FullyConnectedParams {
-public:
-    bool activation;
-    bool perChannelWeights;
-    bool fq;
-    bool bias;
-    std::string originalLayersNames;
-};
-
 typedef std::tuple<
     ov::element::Type,
-    FullyConnectedShapes,
+    MatMulShapes,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    ov::element::Type,
-    FullyConnectedParams,
-    std::string> FullyConnectedTransformationParams;
+    ov::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;
 
 namespace LayerTestsDefinitions {
 

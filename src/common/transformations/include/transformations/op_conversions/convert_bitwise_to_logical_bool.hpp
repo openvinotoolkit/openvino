@@ -18,22 +18,22 @@ class TRANSFORMATIONS_API ConvertBitwiseXorToLogicalXor;
 
 class ov::pass::ConvertBitwiseAndToLogicalAnd : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseAndToLogicalAnd");
+    OPENVINO_RTTI("ConvertBitwiseAndToLogicalAnd", "0");
     ConvertBitwiseAndToLogicalAnd();
 };
 class ov::pass::ConvertBitwiseNotToLogicalNot : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseNotToLogicalNot");
+    OPENVINO_RTTI("ConvertBitwiseNotToLogicalNot", "0");
     ConvertBitwiseNotToLogicalNot();
 };
 class ov::pass::ConvertBitwiseOrToLogicalOr : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseOrToLogicalOr");
+    OPENVINO_RTTI("ConvertBitwiseOrToLogicalOr", "0");
     ConvertBitwiseOrToLogicalOr();
 };
 class ov::pass::ConvertBitwiseXorToLogicalXor : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertBitwiseXorToLogicalXor");
+    OPENVINO_RTTI("ConvertBitwiseXorToLogicalXor", "0");
     ConvertBitwiseXorToLogicalXor();
 };
 /**
@@ -43,7 +43,7 @@ public:
  */
 class ConvertBitwiseToLogical : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("ConvertBitwiseToLogical");
+    OPENVINO_RTTI("ConvertBitwiseToLogical", "0");
     ConvertBitwiseToLogical() {
         add_matcher<ov::pass::ConvertBitwiseAndToLogicalAnd>();
         add_matcher<ov::pass::ConvertBitwiseNotToLogicalNot>();

@@ -14,7 +14,7 @@ namespace pass {
  */
 class OPENVINO_API StatefulToStateless : public ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("StatefulToStateless");
+    OPENVINO_RTTI("StatefulToStateless");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

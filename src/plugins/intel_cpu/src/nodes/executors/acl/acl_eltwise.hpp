@@ -5,8 +5,8 @@
 #pragma once
 
 #include "../eltwise.hpp"
-#include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "acl_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,12 +23,11 @@ public:
 
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void* post_ops_data_) override;
+              const void *post_ops_data_) override;
 
     impl_desc_type getImplType() const override {
         return implType;
     }
-
 private:
     EltwiseAttrs aclEltwiseAttrs{};
     impl_desc_type implType = impl_desc_type::acl;
@@ -47,5 +46,5 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace intel_cpu
+}   // namespace ov

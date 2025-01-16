@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 class ov::pass::EliminateUnsqueezeGather : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EliminateUnsqueezeGather");
+    OPENVINO_RTTI("EliminateUnsqueezeGather", "0");
     EliminateUnsqueezeGather();
 };
 
@@ -38,6 +38,6 @@ public:
 
 class ov::pass::EliminateGatherUnsqueeze : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("EliminateGatherUnsqueeze");
+    OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();
 };

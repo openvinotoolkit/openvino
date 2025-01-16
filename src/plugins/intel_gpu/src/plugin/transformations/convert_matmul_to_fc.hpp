@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class ConvertMatMulToFullyConnected: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertMatMulToFullyConnected");
+    OPENVINO_RTTI("ConvertMatMulToFullyConnected", "0");
     ConvertMatMulToFullyConnected();
 };
 

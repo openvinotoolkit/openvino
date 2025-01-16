@@ -391,9 +391,9 @@ LLMPipeline.
 
 .. code:: ipython3
 
-    import openvino_genai as ov_genai
+    from openvino_genai import LLMPipeline
     
-    pipe = ov_genai.LLMPipeline(model_dir.as_posix(), device.value)
+    pipe = LLMPipeline(model_dir.as_posix(), device.value)
     
     
     def run_structure_extraction(text: str, schema: str) -> str:

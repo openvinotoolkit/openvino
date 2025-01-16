@@ -12,9 +12,9 @@ namespace pass {
 // This pass inserts explicit Convert on Extension operation outputs for hard-coded list of precisions.
 // Supported cases: I64/U64 -> I32.
 
-class InsertConvertAfterExtension : public ov::pass::MatcherPass {
+class InsertConvertAfterExtension: public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("InsertConvertAfterExtension");
+    OPENVINO_RTTI("InsertConvertAfterExtension", "0");
     InsertConvertAfterExtension(bool convert_output_precision = true);
 };
 

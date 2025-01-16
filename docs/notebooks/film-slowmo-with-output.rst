@@ -79,6 +79,7 @@ Prerequisites
 
 .. code:: ipython3
 
+    import platform
     import os
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
@@ -91,7 +92,10 @@ Prerequisites
     
     %pip install -q tensorflow_hub tf_keras numpy "opencv-python" tqdm "gradio>=4.19" Pillow "openvino>=2023.2.0"
     
-    %pip install -q "matplotlib>=3.4"
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 .. code:: ipython3
 

@@ -36,12 +36,12 @@ class TRANSFORMATIONS_API Proposal4Scales;
 
 class ov::pass::Proposal1Scales : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("Proposal1Scales");
+    OPENVINO_RTTI("Proposal1Scales", "0");
     Proposal1Scales();
 };
 
 class ov::pass::Proposal4Scales : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("Proposal4Scales");
+    OPENVINO_RTTI("Proposal4Scales", "0");
     Proposal4Scales();
 };

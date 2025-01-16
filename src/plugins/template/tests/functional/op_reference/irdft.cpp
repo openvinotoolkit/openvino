@@ -29,8 +29,8 @@ struct IRDFTParams {
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(m_input_shape, input_type, input_value);
-        m_expected_value = CreateTensor(m_expected_shape, expected_type, expected_value);
+        m_input_value = CreateTensor(input_type, input_value);
+        m_expected_value = CreateTensor(expected_type, expected_value);
         m_axes = axes;
         m_signal = signal;
     }
@@ -48,7 +48,8 @@ struct IRDFTParams {
 class ReferenceIRDFTLayerTest : public testing::TestWithParam<IRDFTParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         if (params.m_signal != NULL) {
             function = CreateFunctionWithSignal(params);
         } else {
@@ -57,12 +58,10 @@ public:
 
         inputData = {params.m_input_value};
         refOutData = {params.m_expected_value};
-
-        abs_threshold = 1e-6f;
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<IRDFTParams>& obj) {
-        const auto& param = obj.param;
+        const auto param = obj.param;
         std::ostringstream result;
 
         result << "input_shape1=" << param.m_input_shape << "; ";
@@ -75,14 +74,14 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const IRDFTParams& p) {
+    static std::shared_ptr<Model> CreateFunction(IRDFTParams& p) {
         auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
         auto irdft = std::make_shared<op::v9::IRDFT>(in, p.m_axes);
 
         return std::make_shared<ov::Model>(irdft, ParameterVector{in});
     }
 
-    static std::shared_ptr<Model> CreateFunctionWithSignal(const IRDFTParams& p) {
+    static std::shared_ptr<Model> CreateFunctionWithSignal(IRDFTParams& p) {
         auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
         auto irdft = std::make_shared<op::v9::IRDFT>(in, p.m_axes, p.m_signal);
 

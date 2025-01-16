@@ -85,11 +85,7 @@ def convert_model(
             list of paths, objects derived from BaseExtension class or lists of
             objects.
         :param verbose:
-            Print detailed information about conversion. The detailed information is logged via standard logging library.
-            The log level can be changed by setting the log level using logging library.
-            Example:
-                import logging
-                logging.getLogger().setLevel(logging.DEBUG)
+            Print detailed information about conversion.
         :param share_weights:
             Reuse weights allocated in the original model. If input model is in file,
             then mmap is used to allocate weights directly from file. If input model is

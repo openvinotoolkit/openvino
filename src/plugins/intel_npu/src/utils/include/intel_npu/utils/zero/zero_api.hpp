@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <loader/ze_loader.h>
 #include <ze_api.h>
 
 #include <memory>
@@ -58,14 +57,12 @@ namespace intel_npu {
     symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
-    symbol_statement(zeMemGetAllocProperties)                 \
-    symbol_statement(zelLoaderGetVersions)
+    symbol_statement(zeMemGetAllocProperties)
 
 //unsupported symbols with older ze_loader versions
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
-    symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
-    symbol_statement(zeInitDrivers)
+    symbol_statement(zeCommandListUpdateMutableCommandsExp)
 // clang-format on
 
 class ZeroApi {

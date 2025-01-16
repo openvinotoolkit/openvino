@@ -25,7 +25,7 @@ class TRANSFORMATIONS_API PullReshapeThroughReduce;
  */
 class ov::pass::PullUnsqueezeThroughReduce : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PullUnsqueezeThroughReduce");
+    OPENVINO_RTTI("PullUnsqueezeThroughReduce", "0");
     PullUnsqueezeThroughReduce();
 };
 
@@ -37,7 +37,7 @@ public:
  */
 class ov::pass::PullReshapeThroughReduce : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PullReshapeThroughReduce");
+    OPENVINO_RTTI("PullReshapeThroughReduce", "0");
     PullReshapeThroughReduce();
 };
 
@@ -49,7 +49,7 @@ public:
  */
 class ov::pass::PullThroughReduce : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("PullThroughReduce");
+    OPENVINO_RTTI("PullThroughReduce", "0");
     PullThroughReduce() {
         add_matcher<ov::pass::PullUnsqueezeThroughReduce>();
         add_matcher<ov::pass::PullReshapeThroughReduce>();

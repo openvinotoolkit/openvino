@@ -3,7 +3,6 @@
 //
 
 #include <node.h>
-
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -15,14 +14,14 @@ using Result = IShapeInfer::Result;
 class TransposeDynShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeDynShapeInfer() = default;
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         OPENVINO_THROW("TODO: Support parameterized Order input for dynamic shapes.");
     }
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
-
 private:
 };
 
@@ -30,8 +29,9 @@ class TransposeShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec);
 
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
@@ -53,6 +53,7 @@ private:
     const std::shared_ptr<ov::Node> m_op;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+} // namespace node
+} // namespace intel_cpu
+} // namespace ov
+

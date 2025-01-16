@@ -12,7 +12,8 @@ namespace ov {
 namespace intel_cpu {
 
 struct DnnlShapeAgnosticData {
-    DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs) : primAttrs(std::move(primAttrs)) {}
+    DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs)
+        : primAttrs(std::move(primAttrs)) {}
 
     DnnlPrimitiveAttrs primAttrs;
 };

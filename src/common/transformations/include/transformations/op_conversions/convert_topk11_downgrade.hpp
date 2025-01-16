@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertTopK11ToTopK3 : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertTopK11ToTopK3");
+    OPENVINO_RTTI("ConvertTopK11ToTopK3", "0");
     ConvertTopK11ToTopK3();
 };
 

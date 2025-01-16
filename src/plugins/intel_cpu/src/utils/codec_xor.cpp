@@ -3,7 +3,6 @@
 //
 
 #include "utils/codec_xor.hpp"
-
 #include "openvino/core/parallel.hpp"
 
 namespace ov {
@@ -30,5 +29,5 @@ std::string codec_xor_str(const std::string& source_str) {
     return new_str;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov.
+}   // namespace intel_cpu
+}   // namespace ov.

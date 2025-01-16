@@ -4,6 +4,8 @@
 
 #include "plugin_compiler_adapter.hpp"
 
+#include <ze_graph_ext.h>
+
 #include <memory>
 #include <string>
 
@@ -17,6 +19,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_graph.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {

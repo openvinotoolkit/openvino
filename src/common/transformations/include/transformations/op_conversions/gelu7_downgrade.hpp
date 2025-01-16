@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API Gelu7Downgrade;
  */
 class ov::pass::Gelu7Downgrade : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("Gelu7Downgrade");
+    OPENVINO_RTTI("Gelu7Downgrade", "0");
     Gelu7Downgrade();
 };

@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ConvertDetectionOutput8ToDetectionOutput1;
  */
 class ov::pass::ConvertDetectionOutput8ToDetectionOutput1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertDetectionOutput8ToDetectionOutput1");
+    OPENVINO_RTTI("ConvertDetectionOutput8ToDetectionOutput1", "0");
     ConvertDetectionOutput8ToDetectionOutput1();
 };

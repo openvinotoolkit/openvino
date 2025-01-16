@@ -72,6 +72,6 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
  */
 class ov::pass::ConvToBinaryConv : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvToBinaryConv");
+    OPENVINO_RTTI("ConvToBinaryConv", "0");
     ConvToBinaryConv();
 };

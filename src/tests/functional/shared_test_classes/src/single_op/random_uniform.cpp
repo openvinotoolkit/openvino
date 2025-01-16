@@ -13,9 +13,8 @@ std::string RandomUniformLayerTest::getTestCaseName(const testing::TestParamInfo
     ov::Shape input_shape;
     int64_t global_seed;
     int64_t op_seed;
-    ov::op::PhiloxAlignment alignment;
     std::string target_device;
-    std::tie(input_shape, random_uniform_params, global_seed, op_seed, alignment, target_device) = obj.param;
+    std::tie(input_shape, random_uniform_params, global_seed, op_seed, target_device) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -24,7 +23,6 @@ std::string RandomUniformLayerTest::getTestCaseName(const testing::TestParamInfo
     result << "min_val=" << random_uniform_params.min_value << "_";
     result << "max_val=" << random_uniform_params.max_value << "_";
     result << "modelType=" << random_uniform_params.model_type.to_string() << "_";
-    result << "alignment=" << alignment << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }
@@ -34,8 +32,7 @@ void RandomUniformLayerTest::SetUp() {
     ov::Shape input_shape;
     int64_t global_seed;
     int64_t op_seed;
-    ov::op::PhiloxAlignment alignment;
-    std::tie(input_shape, random_uniform_params, global_seed, op_seed, alignment, targetDevice) = this->GetParam();
+    std::tie(input_shape, random_uniform_params, global_seed, op_seed, targetDevice) = this->GetParam();
     auto model_type = random_uniform_params.model_type;
 
     // Use Parameter as input with desired model_type to properly configure execution configuration
@@ -73,8 +70,7 @@ void RandomUniformLayerTest::SetUp() {
                                                                       max_value,
                                                                       model_type,
                                                                       global_seed,
-                                                                      op_seed,
-                                                                      alignment);
+                                                                      op_seed);
 
     function = std::make_shared<ov::Model>(random_uniform->outputs(), ov::ParameterVector{input}, "random_uniform");
 }

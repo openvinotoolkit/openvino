@@ -76,12 +76,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    tensorflow 2.12.0 requires keras<2.13,>=2.12.0, but you have keras 2.13.1 which is incompatible.
     tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
-    tensorflow 2.12.0 requires tensorboard<2.13,>=2.12, but you have tensorboard 2.13.0 which is incompatible.
-    tensorflow 2.12.0 requires tensorflow-estimator<2.13,>=2.12.0, but you have tensorflow-estimator 2.13.0 which is incompatible.
-    tensorflow-cpu 2.13.1 requires numpy<=1.24.3,>=1.22, but you have numpy 1.24.4 which is incompatible.
-    tensorflow-cpu 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -214,7 +209,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    ch_PP-OCRv3_det_infer.tar:   0%|          | 0.00/3.65M [00:00<?, ?B/s]
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-no…
 
 
 .. parsed-literal::
@@ -260,7 +255,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    ch_PP-OCRv3_rec_infer.tar:   0%|          | 0.00/11.4M [00:00<?, ?B/s]
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-no…
 
 
 .. parsed-literal::
@@ -489,13 +484,13 @@ video file. See the list of procedures below:
 
 .. parsed-literal::
 
-    simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
+    fonts/simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
+    fonts/ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
 
 
 .. code:: ipython3

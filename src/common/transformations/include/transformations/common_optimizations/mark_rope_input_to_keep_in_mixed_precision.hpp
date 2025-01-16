@@ -27,7 +27,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API MarkRopeInputsToKeepInMixedPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MarkRopeInputsToKeepInMixedPrecision");
+    OPENVINO_RTTI("MarkRopeInputsToKeepInMixedPrecision", "0");
     MarkRopeInputsToKeepInMixedPrecision();
 
 private:

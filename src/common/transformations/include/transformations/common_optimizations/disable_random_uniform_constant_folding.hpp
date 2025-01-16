@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API DisableRandomUniformConstantFolding;
  */
 class ov::pass::DisableRandomUniformConstantFolding : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DisableRandomUniformConstantFolding");
+    OPENVINO_RTTI("DisableRandomUniformConstantFolding", "0");
     DisableRandomUniformConstantFolding();
 };

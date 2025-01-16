@@ -18,7 +18,6 @@
 #include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/reshape.hpp"
-#include "op/reorder.hpp"
 #include "op/nop.hpp"
 #include "op/scalar.hpp"
 #include "op/powerstatic.hpp"

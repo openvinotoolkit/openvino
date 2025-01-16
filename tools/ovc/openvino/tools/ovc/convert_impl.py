@@ -243,6 +243,8 @@ def check_model_object(argv):
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
+    init_logger('ERROR', argv.verbose)
+
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
 
@@ -323,7 +325,7 @@ def normalize_inputs(argv: argparse.Namespace):
     argv.placeholder_data_types - dictionary where key is node name, value is node np.type,
     or list of np.types if node names were not set.
 
-    :param argv: OVC arguments
+    :param argv: MO arguments
     """
     # Parse input to list of InputCutInfo
     inputs = input_to_input_cut_info(argv.input)
@@ -431,11 +433,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
-    verbose = False
-    if "verbose" in args and args["verbose"] or "--verbose" in sys.argv:
-        verbose = True
-
-    init_logger('ERROR', verbose, python_api_used)
+    init_logger('ERROR', False)
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:
@@ -514,7 +512,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             if paddle_runtime_converter:
                 paddle_runtime_converter.destroy()
 
-        # add OVC meta data to model
+        # add MO meta data to model
         ov_model.set_rt_info(get_rt_version(), "Runtime_version")
         for key, value in non_default_params.items():
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])

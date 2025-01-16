@@ -66,7 +66,10 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 
 
 #if (TILE_SIZE == DEFAULT_TILE_SIZE)
-    // write index
+    // read
+    INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
+
+    // write
     const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
 
     if (F_NO_REMAINDER_CONDITION
@@ -76,25 +79,13 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
     ) {
         #ifdef X_REMAINDER_SIZE
             if (X_REMAINDER_CONDITION) {
-                // read
-                INPUTVTYPE read_data;
-                for (int j = 0; j < X_REMAINDER_SIZE; ++j) {
-                     read_data[j] = AS_INPUT0_TYPE(_sub_group_block_read((const __global uint*)(input) + input_idx_tile + j * DEFAULT_STRIDE));
-                }
-                // write
                 for (int i = 0 ; i < X_REMAINDER_SIZE; i++) {
                     output[output_idx + i] = TO_OUTPUT_TYPE(read_data[i]);
                 }
             } else {
-                // read
-                INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
-                // write
                 VSTORE(TO_OUTPUTVTYPE(read_data), 0, output + output_idx);
             }
         #else
-            // read
-            INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_tile));
-            // write
             VSTORE(TO_OUTPUTVTYPE(read_data), 0, output + output_idx);
         #endif
     }

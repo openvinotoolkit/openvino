@@ -66,6 +66,8 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
+    import platform
+    
     # Install openvino package
     %pip install -q "openvino>=2024.2.0" opencv-python tqdm
     
@@ -74,7 +76,10 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     %pip install -q -U "numpy==1.*"
     %pip install -q scipy
     
-    %pip install -q "matplotlib>=3.4"
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 Imports
 -------

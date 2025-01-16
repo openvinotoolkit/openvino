@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <assert.h>
-
-#include <memory>
-#include <mutex>
 #include <string>
 #include <vector>
-
+#include <mutex>
+#include <memory>
+#include <assert.h>
 #include "cpu_memory.h"
 
 namespace ov {

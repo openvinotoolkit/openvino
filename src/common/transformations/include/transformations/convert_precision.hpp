@@ -79,7 +79,7 @@ using type_to_fuse_map =
 
 class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ConvertPrecision");
+    OPENVINO_RTTI("ConvertPrecision", "0");
     ConvertPrecision(ov::element::Type_t from,
                      ov::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {},

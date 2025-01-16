@@ -17,6 +17,6 @@ class TRANSFORMATIONS_API ConvertSliceScatter;
 
 class ov::pass::ConvertSliceScatter : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertSliceScatter");
+    OPENVINO_RTTI("ConvertSliceScatter", "0");
     ConvertSliceScatter();
 };

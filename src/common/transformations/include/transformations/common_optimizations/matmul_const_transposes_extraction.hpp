@@ -18,7 +18,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API MatMulConstTransposesExtraction : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MatMulConstTransposesExtraction");
+    OPENVINO_RTTI("MatMulConstTransposesExtraction", "0");
     MatMulConstTransposesExtraction();
 };
 

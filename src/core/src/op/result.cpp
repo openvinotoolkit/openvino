@@ -9,8 +9,6 @@
 #include <typeinfo>
 
 #include "itt.hpp"
-#include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/op/util/op_types.hpp"
 
 namespace ov {
 namespace op {
@@ -20,19 +18,14 @@ Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
-Result::Result(const Output<Node>& arg, bool use_input_names) : Result(arg) {
-    if (use_input_names && !util::is_parameter(arg.get_node())) {
-        // On create use inputs names which will be used as model output names (except Paramater, model's inputs names).
-        get_output_tensor(0).add_names(get_input_tensor(0).get_names());
-    }
-}
-
 void Result::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
-    // Result shares input tensor but can have specific properties which are added/removed to input.
-    descriptor::set_shared_tensor(get_output_descriptor(0), get_input_descriptor(0));
+    // Result doesn't change change in/out tensors
+    auto& output = get_output_descriptor(0);
+    auto& input = get_input_descriptor(0);
+    output.set_tensor_ptr(input.get_tensor_ptr());
 }
 
 std::shared_ptr<Node> Result::clone_with_new_inputs(const OutputVector& new_args) const {

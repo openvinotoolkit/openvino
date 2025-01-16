@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "decompose_rms_norm.hpp"
-
 #include "itt.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -19,8 +18,8 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto node =
-            std::dynamic_pointer_cast<ov::op::internal::RMS>(pattern_to_output.at(pattern_node).get_node_shared_ptr());
+        auto node = std::dynamic_pointer_cast<ov::op::internal::RMS>(
+            pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
         if (node == nullptr || transformation_callback(node)) {
             return false;
@@ -49,5 +48,5 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
     register_matcher(m, callback);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace intel_cpu
+}   // namespace ov

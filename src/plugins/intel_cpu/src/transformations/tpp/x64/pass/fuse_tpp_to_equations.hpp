@@ -18,7 +18,7 @@ namespace pass {
  */
 class FuseTPPToEquations: public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("FuseTPPToEquations");
+    OPENVINO_RTTI("FuseTPPToEquations", "0");
     FuseTPPToEquations() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 private:

@@ -31,6 +31,6 @@ class TRANSFORMATIONS_API NormalizeL2Fusion;
  */
 class ov::pass::NormalizeL2Fusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("NormalizeL2Fusion");
+    OPENVINO_RTTI("NormalizeL2Fusion", "0");
     NormalizeL2Fusion();
 };

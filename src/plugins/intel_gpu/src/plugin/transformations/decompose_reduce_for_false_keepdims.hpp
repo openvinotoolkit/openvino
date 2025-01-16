@@ -17,8 +17,6 @@ namespace intel_gpu {
  */
 class DecomposeReduceForFalseKeepDims : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DecomposeReduceForFalseKeepDims");
-
     // Decompose reduce if keep_dims is false and it reduces batch and spatial axes
     DecomposeReduceForFalseKeepDims();
 

@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class ConvertConvolutionToInternal : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ConvertConvolutionToInternal");
+    OPENVINO_RTTI("ConvertConvolutionToInternal", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

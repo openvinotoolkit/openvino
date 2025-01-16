@@ -116,7 +116,7 @@ const std::shared_ptr<Node> propagate_through_ops =
  */
 class PropagateUpMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PropagateUpMarkToKeepInMixedPrecision");
+    OPENVINO_RTTI("PropagateUpMarkToKeepInMixedPrecision", "0");
     PropagateUpMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateUpMarkToKeepInMixedPrecision);
 
@@ -159,7 +159,7 @@ public:
  */
 class PropagateDownMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PropagateDownMarkToKeepInMixedPrecision");
+    OPENVINO_RTTI("PropagateDownMarkToKeepInMixedPrecision", "0");
     PropagateDownMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(PropagateDownMarkToKeepInMixedPrecision);
 
@@ -197,7 +197,7 @@ public:
 
 class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("InitMarkReduceOpPath");
+    OPENVINO_RTTI("InitMarkReduceOpPath", "0");
     InitMarkReduceOpPath() {
         MATCHER_SCOPE(InitMarkReduceOpPath);
 
@@ -217,7 +217,7 @@ public:
 
 class PropagateMarkUpReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PropagateMarkUpReduceOpPath");
+    OPENVINO_RTTI("PropagateMarkUpReduceOpPath", "0");
     PropagateMarkUpReduceOpPath() {
         MATCHER_SCOPE(PropagateMarkUpReduceOpPath);
 
@@ -244,8 +244,8 @@ public:
 
 class MarkExp : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MarkExp");
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
+    OPENVINO_RTTI("MarkExp", "0");
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
         auto exp_pattern = pattern::wrap_type<ov::op::v0::Exp>();
@@ -288,7 +288,7 @@ public:
  */
 class MarkDivWithEps : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("MarkDivWithEps");
+    OPENVINO_RTTI("MarkDivWithEps", "0");
     MarkDivWithEps() {
         MATCHER_SCOPE(MarkDivWithEps);
 
@@ -367,7 +367,7 @@ public:
 
 class PropagateDownDisableSensitivityForQuantized : public pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
+    OPENVINO_RTTI("DisableMarkingForQuantizedNodes", "0");
     PropagateDownDisableSensitivityForQuantized() {
         MATCHER_SCOPE(PropagateDownDisableSensitivityForQuantized);
 

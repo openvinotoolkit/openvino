@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API TSFuse;
  */
 class ov::pass::transpose_sinking::TSFuse : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("TSFuse");
+    OPENVINO_RTTI("TSFuse", "0");
     TSFuse();
 };

@@ -32,7 +32,12 @@ protected:
 private:
     using VectorIdxs = std::vector<int32_t>;
 
-    enum PadMode { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
+    enum PadMode {
+        CONSTANT = 0,
+        EDGE = 1,
+        REFLECT = 2,
+        SYMMETRIC = 3
+    };
 
     struct PadAttrs {
         PadMode padMode = CONSTANT;
@@ -55,13 +60,10 @@ private:
 
     private:
         void padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
-        template <typename T>
-        void padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
+        template<typename T> void padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         void padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         void padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
-        void padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
-                                   const MemoryPtr& dstMemPtr,
-                                   const bool isSymmetric = false);
+        void padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric = false);
         void paramsInitialization(const PadAttrs& attrs,
                                   const std::vector<MemoryCPtr>& srcMemory,
                                   const std::vector<MemoryCPtr>& dstMemory);
@@ -75,7 +77,7 @@ private:
             MemoryPtr dstMemPtr;
         };
 
-        template <typename T>
+        template<typename T>
         struct PadConstantEmitter {
             void operator()(PadContext& ctx) {
                 ctx.executor->padConstantCommon<T>(ctx.srcMemPtr, ctx.dstMemPtr);
@@ -124,6 +126,6 @@ private:
     bool shapeHasDataDependency = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

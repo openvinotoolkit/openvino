@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "grn.h"
-
 #include <string>
 
-#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/core/parallel.hpp"
+#include "grn.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,7 +26,7 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 }
 
 GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -98,12 +97,11 @@ void GRN::execute(dnnl::stream strm) {
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;
         for (int c = 0; c < C; c++) {
-            variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);
+            variance += std::pow(src_data[b*C*H*W + c*H*W + h*W + w], 2);
         }
         variance = std::pow(variance + bias, 0.5f);
         for (int c = 0; c < C; c++) {
-            dst_data[b * C * H * W + c * H * W + h * W + w] =
-                src_data[b * C * H * W + c * H * W + h * W + w] / static_cast<float>(variance);
+            dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] / static_cast<float>(variance);
         }
     });
 }
@@ -112,6 +110,6 @@ bool GRN::created() const {
     return getType() == Type::GRN;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

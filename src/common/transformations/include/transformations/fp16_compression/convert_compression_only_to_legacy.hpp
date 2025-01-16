@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertCompressedOnlyToLegacy;
  */
 class ov::pass::ConvertCompressedOnlyToLegacy : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ConvertCompressedOnlyToLegacy");
+    OPENVINO_RTTI("ConvertCompressedOnlyToLegacy", "0");
     bool run_on_model(const std::shared_ptr<Model>& f) override;
 };
