@@ -301,6 +301,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         }
 
         // Merge scalar multiply layers into one when all scalar constants have the same value.
+        //
+        //          FusedFC                     FusedFC
+        //             |                           |
+        //       VariadicSplit      ==>         new_Mul  (to be fused with FusedFC)
+        //      /      |      \                    |
+        //    Mul     Mul     Mul            VariadicSplit
+        //     |       |       |             |     |     |
         const auto is_scalar_const = [](const ov::Output<ov::Node>& output) -> bool {
             if (!ov::is_type<ov::op::v0::Constant>(output.get_node()))
                 return false;
@@ -355,11 +362,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
 
         if (const_value > 0.f) {
             auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_fc, const_node);
+            new_mul->set_friendly_name(new_fc->get_friendly_name() + "_mul");
+            ov::NodeVector fused_mul_nodes;
             output_split->input(0).replace_source_output(new_mul);
             for (auto& output : output_split->outputs()) {
                 auto target_node = output.get_target_inputs().begin()->get_node();
+                fused_mul_nodes.push_back(target_node->shared_from_this());
                 ov::replace_output_update_name(target_node->output(0), output);
             }
+            ov::copy_runtime_info(fused_mul_nodes, new_mul);
         }
 
         GPU_DEBUG_TRACE_DETAIL << "Created a new fused FC " << new_fc_name << std::endl;
