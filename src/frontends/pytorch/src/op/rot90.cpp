@@ -52,8 +52,9 @@ OutputVector translate_rot90(const NodeContext& context) {
     auto dim1_node = std::make_shared<v0::Unsqueeze>(split->output(1), axis_0);
     auto indices = std::make_shared<v0::Concat>(OutputVector{dim0_node, dim1_node}, 0);
     auto updates = std::make_shared<v0::Concat>(OutputVector{dim1_node, dim0_node}, 0);
+    auto expanded_range = std::make_shared<v0::Unsqueeze>(range, axis_0);
 
-    Output<Node> scatter = std::make_shared<v3::ScatterElementsUpdate>(range, indices, updates, axis_0);
+    Output<Node> scatter = std::make_shared<v3::ScatterElementsUpdate>(expanded_range, indices, updates, axis_0);
 
     k = k % 4;
     Output<Node> rotated;
