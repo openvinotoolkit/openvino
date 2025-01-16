@@ -71,7 +71,7 @@ public:
 
 #ifdef CPU_DEBUG_CAPS
     Statistics dumpStatistics() const;
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS
 
 protected:
     mutable std::mutex guard;
@@ -92,7 +92,7 @@ public:
 
 #ifdef CPU_DEBUG_CAPS
     std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS
 
 private:
     std::map<int, WeightsSharing::Ptr> _cache_map;

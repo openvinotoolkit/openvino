@@ -116,6 +116,6 @@ std::vector<std::pair<int, WeightsSharing::Statistics>> SocketsWeights::dumpStat
 
     return retVal;
 }
-#endif // CPU_DEBUG_CAPS
+#endif  // CPU_DEBUG_CAPS
 }  // namespace intel_cpu
 }  // namespace ov
