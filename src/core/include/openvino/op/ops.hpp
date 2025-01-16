@@ -168,6 +168,8 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/null.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
