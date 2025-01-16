@@ -203,7 +203,7 @@ def test_partial_shape():
         PartialShape([range(10)])
     assert (
         "Incorrect type <class 'range'> for dimension. Expected types are: "
-        "int, str, openvino.runtime.Dimension, list/tuple with lower "
+        "int, str, openvino.Dimension, list/tuple with lower "
         "and upper values for dynamic dimension." in str(e.value)
     )
 

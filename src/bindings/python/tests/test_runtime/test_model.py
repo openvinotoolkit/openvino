@@ -507,14 +507,14 @@ def test_reshape_with_python_types():
         model.reshape({model.input().node: shape10})
     assert (
         "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, "
-        "expected keys as openvino.runtime.Output, int or str." in str(e.value)
+        "expected keys as openvino.Output, int or str." in str(e.value)
     )
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
 
@@ -593,7 +593,7 @@ def test_reshape_with_python_types_for_variable():
         model.reshape({0: shape10}, {var_id: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
 
@@ -812,7 +812,7 @@ def test_copy_failed():
     model = generate_add_model()
     with pytest.raises(TypeError) as e:
         copy(model)
-    assert "Cannot copy 'openvino.runtime.Model'. Please, use deepcopy instead." in str(e.value)
+    assert "Cannot copy 'openvino.Model'. Please, use deepcopy instead." in str(e.value)
 
 
 def test_model_attr_not_found():

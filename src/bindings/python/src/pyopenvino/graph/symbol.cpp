@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 void regclass_graph_Symbol(py::module m) {
     py::class_<ov::Symbol, std::shared_ptr<ov::Symbol>> symbol(m, "Symbol");
-    symbol.doc() = "openvino.runtime.Symbol wraps ov::Symbol";
+    symbol.doc() = "openvino.Symbol wraps ov::Symbol";
 
     symbol.def(py::init([]() {
         return std::make_shared<ov::Symbol>();

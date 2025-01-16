@@ -60,7 +60,7 @@ void regclass_graph_op_Constant(py::module m) {
     py::class_<ov::op::v0::Constant, std::shared_ptr<ov::op::v0::Constant>, ov::Node> constant(m,
                                                                                                "Constant",
                                                                                                py::buffer_protocol());
-    constant.doc() = "openvino.runtime.op.Constant wraps ov::op::v0::Constant";
+    constant.doc() = "openvino.op.Constant wraps ov::op::v0::Constant";
     // Numpy-based constructor
     constant.def(py::init([](py::array& array, bool shared_memory) {
                      return Common::object_from_data<ov::op::v0::Constant>(array, shared_memory);
