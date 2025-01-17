@@ -56,6 +56,7 @@
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -468,6 +469,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
+    pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
