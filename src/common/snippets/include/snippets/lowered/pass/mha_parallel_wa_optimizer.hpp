@@ -29,11 +29,14 @@ public:
     bool run(const lowered::LinearIR& linear_ir) override;
     bool applicable() const override { return !m_loops_to_split.empty(); }
 
-private:
-    static std::unordered_set<lowered::ExpressionPtr> find_applicable_brgemms(const lowered::LinearIRCPtr& linear_ir);
+    static std::unordered_set<lowered::ExpressionPtr> find_applicable_brgemms(
+        const lowered::LinearIRCPtr& linear_ir,
+        bool check_dynamic_wa);
     static std::unordered_set<size_t> find_unsqueezed_params(
         const lowered::LinearIRCPtr& linear_ir,
         const std::unordered_set<lowered::ExpressionPtr>& brgemms);
+
+private:
     static std::vector<lowered::ExpandedLoopInfoPtr> find_loops_to_split(
         const lowered::LinearIRCPtr& linear_ir,
         const std::unordered_set<size_t>& unsqueezed_params);
