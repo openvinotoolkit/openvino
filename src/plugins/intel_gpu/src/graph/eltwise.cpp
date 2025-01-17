@@ -410,7 +410,11 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
             auto base_pshape = input0_pshape;
             if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
                 base_pshape.size() < input_pshape.size()) {
-                base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
+                if (use_new_shape_infer) {
+                    base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
+                } else {
+                    base_pshape.insert(base_pshape.end(), input_pshape.size() - base_pshape.size(), 1);
+                }
             }
 
             for (size_t d = 0; d < base_pshape.size(); ++d) {
