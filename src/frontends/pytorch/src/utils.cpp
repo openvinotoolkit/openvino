@@ -7,6 +7,7 @@
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -40,15 +41,24 @@ namespace pytorch {
 
 using namespace ov::op;
 
-void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs, bool allow_complex) {
     auto num_inputs = context.get_input_size();
     FRONT_END_OP_CONVERSION_CHECK(num_inputs >= min_inputs,
                                   "Got less inputs ",
                                   num_inputs,
                                   " than expected ",
                                   min_inputs);
+    if (!allow_complex) {
+        // verify that no input is complex
+        for (int i = 0; i < static_cast<int>(std::min(num_inputs, max_inputs)); ++i) {
+            auto input = context.get_input(i);
+            auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+            PYTORCH_OP_CONVERSION_CHECK(!complex_type_mark, "The operation doesn't allow complex type.");
+        }
+    }
+    // Check that additional inputs are all None, otherwise raise exception
     for (auto i = max_inputs; i < num_inputs; i++) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected: ", i + 1);
     }
 }
 
@@ -834,6 +844,16 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     new_output = gather->output(0);
     use_input_as_output = false;
     return true;
+}
+
+Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& complex_input) {
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(complex_input, element::i32));
+
+    auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
+    auto stop = v0::Constant::create(element::i32, Shape{1}, {-1});
+    auto step = v0::Constant::create(element::i32, Shape{1}, {1});
+    // Removing last dim from shape
+    return context.mark_node(std::make_shared<v8::Slice>(input_shape, zero, stop, step, zero));
 }
 
 }  // namespace pytorch

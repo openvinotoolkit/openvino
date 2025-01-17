@@ -67,7 +67,7 @@ static void initFCAttrs(const FCAttrs& attrs,
 ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
                                                      const PostOps& postOps,
                                                      const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr context) {
+                                                     const ExecutorContext::CPtr& context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
     packedWeights = acl_fc_executor::prepareWeightMemory(memory,
                                                          context,

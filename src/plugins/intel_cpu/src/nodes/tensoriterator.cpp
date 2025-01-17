@@ -5,6 +5,7 @@
 #include "tensoriterator.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/blocked_desc_creator.h"
@@ -54,7 +55,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     return config;
 }
 
-static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, MemoryDescPtr new_desc) {
+static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
     for (size_t j = 0; j < to_mems.size(); j++) {
         to_mems[j]->redefineDesc(new_desc);
@@ -77,7 +78,7 @@ static void nullifyUndefinedDims(VectorDims& dims) {
 
 class PortIteratorHelper : public PortMapHelper {
 public:
-    PortIteratorHelper(MultiCachePtr cache,
+    PortIteratorHelper(const MultiCachePtr& cache,
                        const MemoryPtr& from,
                        const MemoryPtr& to,
                        bool sliced_src,
@@ -127,7 +128,7 @@ public:
             getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
-    void execute(dnnl::stream strm, int iter) override {
+    void execute(const dnnl::stream& strm, int iter) override {
         OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
 
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
@@ -149,14 +150,14 @@ private:
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(MultiCachePtr cache, const MemoryPtr& from, const MemoryPtr& to) {
+    BackEdgePortHelper(const MultiCachePtr& cache, const MemoryPtr& from, const MemoryPtr& to) {
         mem_holder_src = from->getPrimitive();
         mem_holder_dst = to->getPrimitive();
         reorder =
             getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
-    void execute(dnnl::stream strm, int iter = -1) override {
+    void execute(const dnnl::stream& strm, int iter = -1) override {
         if (iter != 0) {
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
@@ -172,7 +173,7 @@ public:
         mem_holder_dst = to->getPrimitive();
     }
 
-    void execute(dnnl::stream strm, int n_iter) override {
+    void execute(const dnnl::stream& strm, int n_iter) override {
         auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {
@@ -228,12 +229,11 @@ private:
     int value;
 };
 
-DynamicBuffer::DynamicBuffer(const MemoryPtr& from_, const std::vector<MemoryPtr>& to_, const PortMap& map_rule_)
-    : from(from_),
-      to(to_),
-      map_rule(map_rule_) {
-    elem_size = DnnlExtensionUtils::sizeOfDataType(from->getDataType());
-}
+DynamicBuffer::DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const PortMap& map_rule_)
+    : from(std::move(from_)),
+      to(std::move(to_)),
+      map_rule(map_rule_),
+      elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())) {}
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     if (from->getStaticDims()[map_rule.axis] != static_cast<size_t>(std::abs(map_rule.stride)))
@@ -423,7 +423,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()),
       ngraphOp(op) {
     std::string errorMessage;
@@ -621,7 +621,7 @@ void TensorIterator::prepareParamsImpl(const bool compileStage) {
     }
 }
 
-void TensorIterator::execute(dnnl::stream strm) {
+void TensorIterator::execute(const dnnl::stream& strm) {
     // Special case, the subgraph is dynamic while the node has all static shapes
     if (runAsDynamic()) {
         restoreSubgraphInputByBackEdges();
@@ -657,7 +657,7 @@ void TensorIterator::execute(dnnl::stream strm) {
         mapper->execute(strm);
 }
 
-void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
+void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& eng = getEngine();
     sub_graph.ResetInferCount();
 
@@ -823,7 +823,7 @@ void TensorIterator::reshapeSubgraphInput() {
     }
 }
 
-void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
+void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
     for (auto map_rule : outputPortMap) {
         if (map_rule.axis == -1) {
             auto to_mems = getToMemories(this, map_rule.from);
@@ -845,7 +845,7 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
         }
     }
 
-    for (auto buffer : buffers) {
+    for (const auto& buffer : buffers) {
         buffer->transfer(this);
     }
 }
