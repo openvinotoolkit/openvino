@@ -547,11 +547,9 @@ int main(int argc, char* argv[]) {
 
         bool isDynamicNetwork = false;
         auto areNetworkInputsDynamic = [](const benchmark_app::InputsInfo& input_info) {
-            return std::any_of(input_info.begin(),
-                               input_info.end(),
-                               [](const auto& info) {
-                                   return info.second.partialShape.is_dynamic();
-                               });
+            return std::any_of(input_info.begin(), input_info.end(), [](const auto& info) {
+                return info.second.partialShape.is_dynamic();
+            });
         };
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
