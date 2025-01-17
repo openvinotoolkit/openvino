@@ -19,7 +19,7 @@ public:
         std::string type;
     };
 
-    CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg);
+    CausalMaskPreprocessNode(const OutputVector& args, Config cfg);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
