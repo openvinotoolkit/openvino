@@ -307,6 +307,7 @@ jobs:
         with:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.zip
+            ${{ env.BUILD_DIR }}/openvino_js_package.zip
             ${{ env.BUILD_DIR }}/openvino_tests.zip
             ${{ env.MANIFEST_PATH }}
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}

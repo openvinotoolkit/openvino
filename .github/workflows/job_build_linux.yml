@@ -329,6 +329,7 @@ jobs:
         with:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
             ${{ env.BUILD_DIR }}/deb
