@@ -29,7 +29,7 @@ struct MVNAttrs {
 
 class MVNExecutor {
 public:
-    MVNExecutor(const ExecutorContext::CPtr context);
+    MVNExecutor(ExecutorContext::CPtr context);
     virtual bool init(const MVNAttrs& mvnAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

@@ -47,7 +47,7 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
                  const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
@@ -99,7 +99,7 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
     }
 };
 
-CausalMaskPreprocess::CausalMaskPreprocess(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CausalMaskPreprocess::CausalMaskPreprocess(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -158,7 +158,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void CausalMaskPreprocess::execute(dnnl::stream strm) {
+void CausalMaskPreprocess::execute(const dnnl::stream& strm) {
     m_executor->execute(strm, this, m_config);
 }
 
