@@ -35,7 +35,7 @@ bool GatherND::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -109,26 +109,24 @@ void GatherND::prepareParams() {
 }
 
 GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
-    : sliceRank(attrs.sliceRank),
-      dataSize(attrs.dataSize) {
-    batchSize = std::accumulate(attrs.srcDims.begin(),
+    : batchSize(std::accumulate(attrs.srcDims.begin(),
                                 attrs.srcDims.begin() + attrs.batchDims,
                                 size_t(1),
-                                std::multiplies<size_t>());
-    dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims,
+                                std::multiplies<size_t>())),
+      dataSize(attrs.dataSize),
+      sliceRank(attrs.sliceRank),
+      dataLength(std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims,
                                  attrs.srcDims.end(),
                                  size_t(1),
-                                 std::multiplies<size_t>());
-    cycles = attrs.dstElementCount / (dataLength * batchSize);
-    workAmount = batchSize * cycles;
-
-    srcBatchStride = std::accumulate(attrs.srcDims.begin() + attrs.batchDims,
+                                 std::multiplies<size_t>())),
+      cycles(attrs.dstElementCount / (dataLength * batchSize)),
+      workAmount(batchSize * cycles),
+      srcBatchStride(std::accumulate(attrs.srcDims.begin() + attrs.batchDims,
                                      attrs.srcDims.end(),
                                      size_t(1),
-                                     std::multiplies<size_t>());
-    idxBatchStride = cycles * sliceRank;
-    dstBatchStride = cycles * dataLength;
-
+                                     std::multiplies<size_t>())),
+      idxBatchStride(cycles * sliceRank),
+      dstBatchStride(cycles * dataLength) {
     srcShifts.resize(attrs.sliceRank, 0);
     for (size_t i = 0; i < attrs.sliceRank; i++)
         srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
@@ -141,7 +139,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
     }
 }
 
-void GatherND::execute(dnnl::stream strm) {
+void GatherND::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_ERROR("has not compiled executor.");
 
@@ -246,7 +244,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
     });
 }
 
-void GatherND::executeDynamicImpl(dnnl::stream strm) {
+void GatherND::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

@@ -50,7 +50,7 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -189,11 +189,11 @@ bool Broadcast::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void Broadcast::executeDynamicImpl(dnnl::stream strm) {
+void Broadcast::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Broadcast::execute(dnnl::stream strm) {
+void Broadcast::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
         optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0));
     } else {
@@ -201,7 +201,7 @@ void Broadcast::execute(dnnl::stream strm) {
     }
 }
 
-void Broadcast::plainExecute(dnnl::stream strm) {
+void Broadcast::plainExecute(const dnnl::stream& strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getShape().getRank();

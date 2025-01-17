@@ -28,7 +28,7 @@ bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -98,8 +98,8 @@ void ReverseSequence::prepareParams() {
     execPtr = std::make_shared<ReverseSequenceExecutor>(dataDims, seqLengthsDims, dstDims, batch_axis, seq_axis);
 }
 
-void ReverseSequence::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void ReverseSequence::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 }
 
 ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDims& dataDims,
@@ -169,7 +169,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     });
 }
 
-void ReverseSequence::execute(dnnl::stream strm) {
+void ReverseSequence::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_CPU_NODE_ERR("has no compiled executor");
 

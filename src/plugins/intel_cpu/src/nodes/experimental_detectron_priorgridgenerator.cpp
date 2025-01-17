@@ -28,7 +28,7 @@ bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::sh
 }
 
 ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(const std::shared_ptr<ov::Node>& op,
-                                                                                 const GraphContext::CPtr context)
+                                                                                 const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -57,7 +57,7 @@ void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors(
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronPriorGridGenerator::execute(dnnl::stream strm) {
+void ExperimentalDetectronPriorGridGenerator::execute(const dnnl::stream& strm) {
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 

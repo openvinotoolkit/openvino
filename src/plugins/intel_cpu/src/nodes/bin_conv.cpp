@@ -936,7 +936,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -1358,7 +1358,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
     });
 }
 
-void BinaryConvolution::execute(dnnl::stream strm) {
+void BinaryConvolution::execute(const dnnl::stream& strm) {
     auto srcMemory = getSrcMemoryAtPort(0);
     auto weightsMemory = getSrcMemoryAtPort(1);
     auto dstMemory = getDstMemoryAtPort(0);

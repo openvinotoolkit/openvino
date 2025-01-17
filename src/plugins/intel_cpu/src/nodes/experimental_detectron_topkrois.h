@@ -12,11 +12,11 @@ namespace node {
 
 class ExperimentalDetectronTopKROIs : public Node {
 public:
-    ExperimentalDetectronTopKROIs(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    ExperimentalDetectronTopKROIs(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool needShapeInfer() const override {
@@ -25,7 +25,7 @@ public:
     bool needPrepareParams() const override {
         return false;
     };
-    void executeDynamicImpl(dnnl::stream strm) override {
+    void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     };
 

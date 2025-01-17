@@ -12,13 +12,13 @@ namespace node {
 
 class Bucketize : public Node {
 public:
-    Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
-    void executeDynamicImpl(dnnl::stream strm) override {
+    void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
 

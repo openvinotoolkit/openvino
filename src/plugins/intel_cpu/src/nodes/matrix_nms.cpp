@@ -47,7 +47,7 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -305,7 +305,7 @@ bool MatrixNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
-void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
+void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -313,7 +313,7 @@ void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MatrixNms::execute(dnnl::stream strm) {
+void MatrixNms::execute(const dnnl::stream& strm) {
     const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
     const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
@@ -444,9 +444,9 @@ void MatrixNms::execute(dnnl::stream strm) {
 }
 
 void MatrixNms::checkPrecision(const ov::element::Type prec,
-                               const std::vector<ov::element::Type> precList,
-                               const std::string name,
-                               const std::string type) {
+                               const std::vector<ov::element::Type>& precList,
+                               const std::string& name,
+                               const std::string& type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
 }

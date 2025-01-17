@@ -4,6 +4,7 @@
 
 #include "strided_slice.h"
 
+#include <cmath>
 #include <string>
 
 #include "common/cpu_memcpy.h"
@@ -33,7 +34,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, StridedSliceShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -192,6 +193,7 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
 
         auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {
             std::vector<int> temp;
+            temp.reserve(attrs.ellipsisPos1);
             for (int i = 0; i < attrs.ellipsisPos1; i++)
                 temp.push_back(data[i]);
             for (size_t i = attrs.ellipsisPos1; i < ellipsisPos2 + 1; i++)
@@ -340,14 +342,14 @@ bool StridedSlice::needShapeInfer() const {
     return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
-void StridedSlice::execute(dnnl::stream strm) {
+void StridedSlice::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_CPU_NODE_ERR("doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
 }
 
-void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
+void StridedSlice::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -363,7 +365,6 @@ StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const Strid
     dimsNormalization();
     dimsGluing();
     indicesCalculation();
-    m_threads_num = parallel_get_max_threads();
 }
 
 void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(
@@ -382,7 +383,7 @@ void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(
 
     if (isBlockedLayout) {
         params.attrs.begin[1] = params.attrs.begin[1] / blk;
-        params.attrs.end[1] = ceil(params.attrs.end[1] / static_cast<float>(blk));
+        params.attrs.end[1] = std::ceil(params.attrs.end[1] / static_cast<float>(blk));
         params.attrs.begin.push_back(0);
         params.attrs.end.push_back(0);
         params.attrs.stride.push_back(1);
@@ -573,7 +574,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                 strideTemp.push_back(params.attrs.stride[axis]);
                 newSrcDims.push_back(params.srcBlockedDims[srcIdx]);
                 newDstDims.push_back(
-                    ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
+                    std::ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
 
                 srcIdx++;
             }

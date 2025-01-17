@@ -36,7 +36,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -51,7 +51,7 @@ Convert::Convert(const Shape& shape,
                  const ov::element::Type& inPrc,
                  const ov::element::Type& outPrc,
                  const std::string& nodeName,
-                 const GraphContext::CPtr context)
+                 const GraphContext::CPtr& context)
     : Node("Convert", {shape}, {shape}, {inPrc}, {outPrc}, nodeName, context) {
     convertParams.origPrc = outPrc;
 
@@ -169,11 +169,11 @@ void Convert::prepareParams() {
     selectedPD->setImplementationType(execPtr->implType());
 }
 
-void Convert::executeDynamicImpl(dnnl::stream strm) {
+void Convert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Convert::execute(dnnl::stream strm) {
+void Convert::execute(const dnnl::stream& strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 

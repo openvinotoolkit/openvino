@@ -39,11 +39,9 @@ struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, publi
 
     explicit jit_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp)
         : jit_uni_mul_add_softmax_kernel(jcp),
-          jit_generator(jit_name()) {
-        exp_emitter = std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f);
-
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
-    }
+          jit_generator(jit_name()),
+          vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)),
+          exp_emitter(std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f)) {}
     virtual ~jit_mul_add_softmax_kernel() {}
 
     void create_ker() override {
@@ -384,9 +382,8 @@ struct jit_convert_reorder_kernel : public jit_uni_convert_reorder_kernel, publi
 
     explicit jit_convert_reorder_kernel(const jit_convert_reorder_compile_params& jcp)
         : jit_uni_convert_reorder_kernel(jcp),
-          jit_generator(jit_name()) {
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
-    }
+          jit_generator(jit_name()),
+          vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)) {}
     virtual ~jit_convert_reorder_kernel() {}
 
     void create_ker() override {
@@ -801,7 +798,7 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -1542,7 +1539,7 @@ void MHA::mhaImpl() {
     });
 }
 
-void MHA::execute(dnnl::stream strm) {
+void MHA::execute(const dnnl::stream& strm) {
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {
@@ -1554,7 +1551,7 @@ void MHA::execute(dnnl::stream strm) {
     }
 }
 
-void MHA::executeDynamicImpl(dnnl::stream strm) {
+void MHA::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

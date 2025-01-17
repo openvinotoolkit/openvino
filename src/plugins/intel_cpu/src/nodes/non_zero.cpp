@@ -31,7 +31,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -119,11 +119,11 @@ struct NonZero::NonZeroExecute {
     }
 };
 
-void NonZero::executeDynamicImpl(dnnl::stream strm) {
+void NonZero::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonZero::execute(dnnl::stream strm) {
+void NonZero::execute(const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this};
     OV_SWITCH(intel_cpu,
