@@ -5,7 +5,7 @@
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
+
 
 #include <vector>
 
@@ -52,7 +52,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_rotated_blocks;
     }
 
-    optional_value<float> scale_val{};
+    std::optional<float> scale_val{};
     size_t head_size = 0;
     size_t heads_num = 0;
     size_t kv_heads_num = 0;

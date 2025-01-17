@@ -54,7 +54,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         OPENVINO_ASSERT(ov::shape_size(scale_const->get_output_shape(0)) == 1);
         prim.scale_val = scale_const->cast_vector<float>()[0];
     } else {
-        prim.scale_val = cldnn::optional_value<float>();
+        prim.scale_val = std::optional<float>();
     }
 
     std::shared_ptr<ov::op::v0::Constant> alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));

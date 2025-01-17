@@ -48,7 +48,7 @@ template<> struct AccumulatorType<::sycl::half, int8_t> {
 
 template<typename AType, typename WType, typename ZPType, typename ScaleType, typename DType>
 ::sycl::event run_fc_int4_woq(::sycl::queue& queue, bool enqueue_barrier, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
-                              size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, optional_value<float> dzp_s) {
+                              size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, std::optional<float> dzp_s) {
     if (enqueue_barrier) {
         queue.submit([=](::sycl::handler& cgh) {
             cgh.ext_oneapi_barrier();
@@ -91,7 +91,7 @@ template<typename AType, typename WType, typename ZPType, typename ScaleType, ty
 
 template<typename AType, typename WType, typename ZPType, typename ScaleType, typename DType>
 ::sycl::event run_fc_int8_woq(::sycl::queue& queue, bool enqueue_barrier, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
-                     size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, optional_value<float> dzp_s) {
+                     size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, std::optional<float> dzp_s) {
     if (enqueue_barrier) {
         queue.submit([=](::sycl::handler& cgh) {
             cgh.ext_oneapi_barrier();
