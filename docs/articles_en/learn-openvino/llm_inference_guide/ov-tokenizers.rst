@@ -317,9 +317,7 @@ You can find more information and code snippets in the `OpenVINO Tokenizers Note
       # prepare input for new inference
       model_input["input_ids"] = output_token
       model_input["attention_mask"] = np.hstack((model_input["attention_mask"].data, [[1]]))
-      model_input["position_ids"] = np.hstack(
-         (model_input["position_ids"].data, [[model_input["position_ids"].data.shape[-1]]])
-      )
+      model_input["position_ids"] = np.array([[model_input["position_ids"][0, -1] + 1]])
 
 4. Detokenize Output
 +++++++++++++++++++++++++++++
