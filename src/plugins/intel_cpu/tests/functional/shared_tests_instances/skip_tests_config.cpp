@@ -185,8 +185,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)",
         // Issue: 129025
         R"(.*smoke_CpuExecNetworkCheck.*StreamsHasHigherPriorityThanLatencyHint.*)",
-        // Issue: 119648
-        R"(.*smoke_LPT/InterpolateTransformation.*)",
         // Issue: 129931
         R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})",
         // TODO: 141068

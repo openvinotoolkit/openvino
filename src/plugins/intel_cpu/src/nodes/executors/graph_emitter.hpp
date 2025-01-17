@@ -5,6 +5,7 @@
 #pragma once
 
 #include <functional>
+#include <utility>
 
 #include "graph.h"
 #include "node.h"
@@ -26,13 +27,13 @@ public:
                  const Attrs& attrs,
                  const PostOps& postOps,
                  const MemoryArgs& memory,
-                 const ExecutorContext::CPtr context,
+                 ExecutorContext::CPtr context,
                  const std::string& name,
                  ensureAttrsStrategy ensureAttrs = {})
         : descs(descs),
           attrs(attrs),
           postOps(postOps),
-          context(context),
+          context(std::move(context)),
           name(name),
           ensureAttrs(std::move(ensureAttrs)) {
         OPENVINO_THROW("Graph emitter is not implemented yet!");
@@ -41,7 +42,7 @@ public:
     GraphEmitter& createGraph(const MemoryDescArgs& descs,
                               const Attrs& attrs,
                               const PostOps& postOps,
-                              const ExecutorContext::CPtr context) {
+                              const ExecutorContext::CPtr& context) {
         OPENVINO_THROW("Not implemented yet!");
         return *this;
     }

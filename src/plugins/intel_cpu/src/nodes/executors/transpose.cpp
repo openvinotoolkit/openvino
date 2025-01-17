@@ -4,6 +4,7 @@
 
 #include "transpose.hpp"
 
+#include <utility>
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
@@ -11,7 +12,7 @@
 namespace ov {
 namespace intel_cpu {
 
-TransposeExecutor::TransposeExecutor(const ExecutorContext::CPtr context) : context(context) {}
+TransposeExecutor::TransposeExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
 jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& params) {
     jit_permute_config_params jcp = {};

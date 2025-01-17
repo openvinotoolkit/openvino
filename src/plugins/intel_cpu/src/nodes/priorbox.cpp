@@ -43,7 +43,7 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -73,7 +73,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         }
 
         for (float _aspect_ratio : aspect_ratio) {
-            if (fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
+            if (std::fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
                 exist = true;
                 break;
             }
@@ -142,7 +142,7 @@ void PriorBox::createPrimitive() {
     }
 }
 
-void PriorBox::execute(dnnl::stream strm) {
+void PriorBox::execute(const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];

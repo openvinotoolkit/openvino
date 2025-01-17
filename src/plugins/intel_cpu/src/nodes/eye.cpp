@@ -4,6 +4,7 @@
 
 #include "eye.h"
 
+#include <utility>
 #include <utils/bfloat16.hpp>
 
 #include "openvino/core/parallel.hpp"
@@ -33,7 +34,7 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 namespace {
 class EyeShapeInferFactory : public ShapeInferFactory {
 public:
-    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override {
         return (m_op->get_input_size() == 4) ? make_shape_inference(m_op)
                                              : make_shape_inference(m_op, PortMask(Eye::ROWS_NUM, Eye::COLS_NUM));
@@ -44,7 +45,7 @@ private:
 };
 }  // namespace
 
-Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, EyeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -53,15 +54,15 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     outType = op->get_output_element_type(0);
     withBatchShape = (op->get_input_size() == 4);
     if (!one_of(outType, ov::element::f32, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8)) {
-        THROW_ERROR(errorPrefix, "doesn't support demanded output precision");
+        THROW_CPU_NODE_ERR("doesn't support demanded output precision");
     }
 }
 
 void Eye::getSupportedDescriptors() {
     if (!one_of(getParentEdges().size(), 3u, 4u))
-        THROW_ERROR(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        THROW_ERROR(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
 }
 
 template <typename T>
@@ -71,7 +72,7 @@ struct Eye::EyeExecute {
     }
 };
 
-void Eye::execute(dnnl::stream strm) {
+void Eye::execute(const dnnl::stream& strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu,
               EyeExecute,
@@ -106,7 +107,7 @@ void Eye::executeSpecified() {
     const int64_t shift = getDiagIndex();
     auto outPtr = getDstMemoryAtPort(0);
     if (!outPtr || !outPtr->isDefined())
-        THROW_ERROR(errorPrefix, "Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
     T* dst = outPtr->getDataAs<T>();
 
     const size_t batchVolume = getBatchVolume(getBatchShape());

@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_set>
+#include <utility>
 
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -132,11 +133,11 @@ public:
     DnnlMemBlockHandle(const DnnlMemBlockHandle&) = delete;
     DnnlMemBlockHandle& operator=(const DnnlMemBlockHandle&) = delete;
 
-    DnnlMemBlockHandle(DnnlMemBlockHandle&& source) {
+    DnnlMemBlockHandle(DnnlMemBlockHandle&& source) noexcept {
         std::swap(m_pMemBlock, source.m_pMemBlock);
         std::swap(m_pMem, source.m_pMem);
     }
-    DnnlMemBlockHandle& operator=(DnnlMemBlockHandle&& rhs) {
+    DnnlMemBlockHandle& operator=(DnnlMemBlockHandle&& rhs) noexcept {
         std::swap(m_pMemBlock, rhs.m_pMemBlock);
         std::swap(m_pMem, rhs.m_pMem);
         return *this;
@@ -239,8 +240,8 @@ public:
     using MemBlockPtr = std::shared_ptr<StaticMemoryBlock>;
 
 public:
-    StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
-    StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    StaticMemory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     StaticMemory(const StaticMemory&) = delete;
     StaticMemory& operator=(const StaticMemory&) = delete;
@@ -280,10 +281,10 @@ private:
 
 class Memory : public IMemory {
 public:
-    Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
-    Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryBlockPtr block);
-    Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryBlockPtr block);
+    Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block);
+    Memory(dnnl::engine eng, const MemoryDesc& desc, MemoryBlockPtr block);
 
     Memory(const Memory&) = delete;
     Memory& operator=(const Memory&) = delete;
@@ -386,18 +387,18 @@ public:
 
     using StringMemoryBlockPtr = std::shared_ptr<StringMemoryBlock>;
 
-    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data = nullptr);
+    StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* data = nullptr);
 
-    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const void* data = nullptr)
-        : StringMemory(engine, desc.clone(), data) {}
+    StringMemory(dnnl::engine engine, const MemoryDesc& desc, const void* data = nullptr)
+        : StringMemory(std::move(engine), desc.clone(), data) {}
 
-    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryBlockPtr& block)
-        : m_engine(engine),
-          m_mem_desc(desc),
-          m_memoryBlock(block) {}
+    StringMemory(dnnl::engine engine, MemoryDescPtr desc, StringMemoryBlockPtr block)
+        : m_engine(std::move(engine)),
+          m_mem_desc(std::move(desc)),
+          m_memoryBlock(std::move(block)) {}
 
-    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryBlockPtr& block)
-        : StringMemory(engine, desc.clone(), block) {}
+    StringMemory(dnnl::engine engine, const MemoryDesc& desc, StringMemoryBlockPtr block)
+        : StringMemory(std::move(engine), desc.clone(), std::move(block)) {}
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;
@@ -444,8 +445,8 @@ using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
 bool mbind_move(void* data, size_t size, int numaNodeID);
-bool mbind_move(const MemoryCPtr mem, int numaNodeID);
-bool mbind_move(const dnnl::memory mem, int numaNodeID);
+bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
+bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 
 MemoryPtr split_horizontal(const dnnl::engine& eng,
                            const MemoryPtr& src,

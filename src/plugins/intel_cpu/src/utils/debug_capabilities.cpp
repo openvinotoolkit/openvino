@@ -33,7 +33,7 @@ namespace ov {
 namespace intel_cpu {
 
 namespace {
-size_t replace_all(std::string& inout, std::string what, std::string with) {
+size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
     std::size_t count{};
     for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
          pos += with.length(), ++count) {

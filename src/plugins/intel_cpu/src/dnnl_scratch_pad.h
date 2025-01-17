@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "utils/general_utils.h"
@@ -18,7 +19,7 @@ class DnnlScratchPad {
     dnnl::engine eng;
 
 public:
-    DnnlScratchPad(const dnnl::engine& eng, int numa_node = -1) : eng(eng) {
+    DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
         auto baseMemoryBlock = make_unique<MemoryBlockWithReuse>(numa_node);
         baseBlockPtr = baseMemoryBlock.get();
         blockPtr = std::make_shared<DnnlMemoryBlock>(std::move(baseMemoryBlock));

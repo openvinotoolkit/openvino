@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "async_infer_request.h"
+#include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "infer_request.h"
 #include "itt.h"
@@ -52,34 +53,34 @@ CompiledModel::~CompiledModel() {
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const Config& cfg,
+                             Config cfg,
                              const bool loaded_from_cache,
-                             const std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                             std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
-      m_cfg{cfg},
+      m_cfg{std::move(cfg)},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache),
-      m_sub_memory_manager(sub_memory_manager) {
+      m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
-    IStreamsExecutor::Config executor_confg;
-    if (cfg.exclusiveAsyncRequests) {
+    IStreamsExecutor::Config executor_config;
+    if (m_cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        executor_confg = m_cfg.numSubStreams > 0 ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
-                                                                            1,
-                                                                            1,
-                                                                            ov::hint::SchedulingCoreType::ANY_CORE,
-                                                                            false,
-                                                                            true}
-                                                 : m_cfg.streamExecutorConfig;
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
+        executor_config = m_cfg.numSubStreams > 0 ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
+                                                                             1,
+                                                                             1,
+                                                                             ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                             false,
+                                                                             true}
+                                                  : m_cfg.streamExecutorConfig;
+        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_config);
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -93,11 +94,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, executor_confg.get_streams());
+    int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (executor_confg.get_streams() != 0) {
+    if (executor_config.get_streams() != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -204,7 +205,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                             get_callback_executor());
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
-        for (auto model : m_sub_compiled_models) {
+        requests.reserve(m_sub_compiled_models.size());
+        for (const auto& model : m_sub_compiled_models) {
             requests.push_back(model->create_infer_request());
         }
         async_infer_request->setSubInferRequest(requests);
@@ -256,6 +258,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::execution_mode.name()),
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::hint::enable_cpu_pinning.name()),
+            RO_property(ov::hint::enable_cpu_reservation.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
@@ -301,6 +304,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
+    } else if (name == ov::hint::enable_cpu_reservation.name()) {
+        const bool use_reserve = config.enableCpuReservation;
+        return decltype(ov::hint::enable_cpu_reservation)::value_type(use_reserve);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
