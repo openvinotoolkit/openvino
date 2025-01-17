@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -346,8 +346,6 @@ private:
     std::vector<int32_t> lastSizes;
 
     VectorDims lastOutputDims;
-
-    std::string errorPrefix;
 
     bool canUseAclExecutor = false;
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;

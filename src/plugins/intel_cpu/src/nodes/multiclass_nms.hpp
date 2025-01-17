@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,8 +65,6 @@ private:
     bool m_normalized = true;
 
     bool m_outStaticShape = false;
-
-    std::string m_errorPrefix;
 
     std::vector<std::vector<size_t>> m_numFiltBox;  // number of rois after nms for each class in each image
     std::vector<size_t> m_numBoxOffset;

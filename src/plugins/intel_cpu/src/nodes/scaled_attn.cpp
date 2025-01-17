@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1082,11 +1082,11 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
                                         : cpuConfig.valueCacheGroupSize;
     m_key_quant_param.precision = valueCachePrecision;
 
-    if (const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
+    if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
-    } else if (const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
+    } else if (const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op)) {
         m_config.config = node->get_config();
-    } else if (const auto node = std::dynamic_pointer_cast<const SDPAWithTransposeReshape>(op)) {
+    } else if (const auto node = ov::as_type_ptr<const SDPAWithTransposeReshape>(op)) {
         m_config.config = node->get_config();
     }
 }
@@ -1247,9 +1247,9 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                      std::string& errorMessage) noexcept {
     try {
-        auto sdpaWithTransposeReshapeOp = std::dynamic_pointer_cast<const SDPAWithTransposeReshape>(op);
-        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op) && !sdpaWithTransposeReshapeOp) {
+        auto sdpaWithTransposeReshapeOp = ov::as_type_ptr<const SDPAWithTransposeReshape>(op);
+        if (!ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op) &&
+            !ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op) && !sdpaWithTransposeReshapeOp) {
             errorMessage = "Only ScaledDotProductAttention, ScaledDotProductAttentionWithKVCache or "
                            "SDPAWithTransposeReshape operation are supported";
             return false;
@@ -1270,7 +1270,7 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
         }
 
         int orgSDPAInput = static_cast<int>(op->get_input_size());
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
+        const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op);
         if (node) {
             if (node->get_config().fuse_concat) {
                 orgSDPAInput -= 3;

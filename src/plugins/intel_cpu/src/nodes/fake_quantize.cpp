@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -961,7 +961,7 @@ private:
 #endif
 bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
+        const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(op);
         if (!fq) {
             errorMessage = "Only opset1 FakeQuantize operation is supported";
             return false;
@@ -979,7 +979,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             }
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (!std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+            if (!ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
                 errorMessage = "Has non const 'range' input on " + std::to_string(i) + " port";
                 return false;
             }
@@ -1061,17 +1061,16 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
-        const auto fq = std::dynamic_pointer_cast<const ov::opset1::FakeQuantize>(op);
+        const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(op);
 
-        errorPrefix = "FakeQuantize node with name '" + getName() + "' ";
         levels = fq->get_levels();
         if (levels <= 1)
-            OPENVINO_THROW(errorPrefix, "supports 'levels' attribute greater than or equal to 2");
+            THROW_CPU_NODE_ERR("supports 'levels' attribute greater than or equal to 2");
 
         if (inputShapes.size() != 5)
-            OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", inputShapes.size());
+            THROW_CPU_NODE_ERR("has incorrect number of input edges: ", inputShapes.size());
         if (outputShapes.size() != 1)
-            OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", outputShapes.size());
+            THROW_CPU_NODE_ERR("has incorrect number of output edges: ", outputShapes.size());
 
         auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
@@ -1126,23 +1125,19 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
         if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
-            OPENVINO_THROW(errorPrefix, "has different quantization axis size on 'data' and 'range' inputs");
+            THROW_CPU_NODE_ERR("has different quantization axis size on 'data' and 'range' inputs");
         }
 
-        const auto inputLowNode =
-            std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode =
-            std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode =
-            std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode =
-            std::dynamic_pointer_cast<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;
@@ -1415,25 +1410,25 @@ void FakeQuantize::init() {
 
 void FakeQuantize::getSupportedDescriptors() {
     if (getParentEdges().size() != 5)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != getOutputShapeAtPort(0).getRank()) {
-        OPENVINO_THROW(errorPrefix, "has different ranks for input and output tensors");
+        THROW_CPU_NODE_ERR("has different ranks for input and output tensors");
     }
 
     if (isBinarization()) {
         if (getInputShapeAtPort(0).getRank() != 4ul) {
-            OPENVINO_THROW(errorPrefix, "doesn't support input/output rank != 4");
+            THROW_CPU_NODE_ERR("doesn't support input/output rank != 4");
         }
     }
 
     if (getAxis() != 1) {
         if (isBinarization())
-            OPENVINO_THROW(errorPrefix, "doesn't support non per-tensor binarization for axis: ", getAxis());
+            THROW_CPU_NODE_ERR("doesn't support non per-tensor binarization for axis: ", getAxis());
         if (getAxis() != 0)
-            OPENVINO_THROW(errorPrefix, "doesn't support non per-tensor quantization for axis: ", getAxis());
+            THROW_CPU_NODE_ERR("doesn't support non per-tensor quantization for axis: ", getAxis());
     }
 }
 

@@ -15,7 +15,7 @@ namespace op {
 
 class IndirectSDPA : public ov::intel_gpu::op::SDPA {
 public:
-    OPENVINO_OP("IndirectSDPA", "gpu_opset");
+    OPENVINO_OP("IndirectSDPA", "gpu_opset", ov::intel_gpu::op::SDPA);
 
     IndirectSDPA() = default;
 

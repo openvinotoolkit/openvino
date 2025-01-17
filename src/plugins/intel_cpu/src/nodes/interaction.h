@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,6 @@ private:
     size_t inputSizes = 0;
     size_t outputFeaturesLen = 0;
     size_t interactFeatureSize = 0;
-    std::string errorPrefix;
     MemoryPtr inputMemPtr;
     MemoryPtr flatMemPtr;
     MemoryPtr outputMemPtr;

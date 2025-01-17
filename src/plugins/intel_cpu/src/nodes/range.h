@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,6 @@ private:
     static const size_t RANGE_START = 0;
     static const size_t RANGE_LIMIT = 1;
     static const size_t RANGE_DELTA = 2;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

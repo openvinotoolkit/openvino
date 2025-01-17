@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,8 +43,6 @@ private:
 
     const int OUTPUT_ROIS{0};
     int max_rois_num_;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

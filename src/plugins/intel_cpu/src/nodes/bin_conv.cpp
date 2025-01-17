@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -921,7 +921,7 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Nod
             return false;
         }
 
-        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
+        const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
         if (!binConv) {
             errorMessage = "Only opset1 BinaryConvolution operation is supported";
             return false;
@@ -940,8 +940,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
-        const auto binConv = std::dynamic_pointer_cast<const ov::opset1::BinaryConvolution>(op);
+        const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
         for (size_t i = 0; i < binConv->get_strides().size(); i++) {
@@ -980,21 +979,21 @@ void BinaryConvolution::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
 
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 }
 

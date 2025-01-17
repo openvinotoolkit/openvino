@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,8 +137,6 @@ private:
     // In ov::PartialShape with rank 0 (scalars) is converted to ov::intel_cpu::Shape with rank 1.
     // Add flag set in constructor for workaround for ScatterNDUpdates
     bool isUpdateScalar = false;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

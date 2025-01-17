@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,8 +63,6 @@ private:
     float do_softmax;
     std::vector<int64_t> mask;
     ov::element::Type input_prec, output_prec;
-
-    std::string errorPrefix;
 
     int block_size;
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;

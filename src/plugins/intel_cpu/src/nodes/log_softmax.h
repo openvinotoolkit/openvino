@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,6 @@ private:
     size_t reducedAxisStride = 1;
     size_t axisStep = 1;
     bool isLastDim = false;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

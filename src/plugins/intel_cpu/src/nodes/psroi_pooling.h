@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,6 @@ private:
     bool noTrans;
     int partSize = 1;
     float transStd = 1.f;
-
-    std::string errorPrefix;
 
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,

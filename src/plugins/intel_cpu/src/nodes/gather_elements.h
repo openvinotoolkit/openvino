@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,6 @@ private:
     int strideAxDst_ = 0;
     int dstAxDim_ = 0;
     int strideAx1Diff_ = 0;
-    std::string errorPrefix_;
 
     template <typename dataType>
     void directExecution();

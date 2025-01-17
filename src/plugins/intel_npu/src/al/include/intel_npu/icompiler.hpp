@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,11 @@
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
+
+#ifndef ICOMPILER_MAKE_VERSION
+/// @brief Generates npu compiler (generic 'oneAPI') API version number
+#    define ICOMPILER_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // ICOMPILER_MAKE_VERSION
 
 /**
  * @struct NetworkDescription

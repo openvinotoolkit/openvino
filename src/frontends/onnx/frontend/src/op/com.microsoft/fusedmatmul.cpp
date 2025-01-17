@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cmath"
@@ -36,11 +36,11 @@ ov::OutputVector fusedmatmul(const ov::frontend::onnx::Node& node) {
     auto A = inputs[0];  // required
     auto B = inputs[1];  // required
 
-    const auto alpha = node.get_attribute_value<float>("alpha");                // required
-    const auto transA = node.get_attribute_value<int64_t>("transA");            // required
-    const auto transB = node.get_attribute_value<int64_t>("transB");            // required
-    const auto transBatchA = node.get_attribute_value<int64_t>("transBatchA");  // required
-    const auto transBatchB = node.get_attribute_value<int64_t>("transBatchB");  // required
+    const auto alpha = node.get_attribute_value<float>("alpha", 1.f);
+    const auto transA = node.get_attribute_value<int64_t>("transA", 0);
+    const auto transB = node.get_attribute_value<int64_t>("transB", 0);
+    const auto transBatchA = node.get_attribute_value<int64_t>("transBatchA", 0);
+    const auto transBatchB = node.get_attribute_value<int64_t>("transBatchB", 0);
 
     CHECK_VALID_NODE(node,
                      A.get_element_type() == ov::element::f16 || A.get_element_type() == ov::element::f32 ||
@@ -53,19 +53,21 @@ ov::OutputVector fusedmatmul(const ov::frontend::onnx::Node& node) {
                      "Unsupported input B type, accepted FP16, FP32, FP64, BFP16 got: ",
                      B.get_element_type());
 
-    const auto rankA = A.get_shape().size();
-    const auto rankB = B.get_shape().size();
+    const auto rankA = A.get_partial_shape().rank();
+    const auto rankB = B.get_partial_shape().rank();
 
-    if (transBatchA) {
+    if (transBatchA && rankA.is_static()) {
+        auto rank = rankA.get_length();
         A = std::make_shared<v1::Transpose>(
             A,
-            std::make_shared<v0::Constant>(element::i64, Shape{rankA}, get_transpose_axes(rankA)));
+            std::make_shared<v0::Constant>(element::i64, Shape{static_cast<size_t>(rank)}, get_transpose_axes(rank)));
     }
 
-    if (transBatchB) {
+    if (transBatchB && rankB.is_static()) {
+        auto rank = rankB.get_length();
         B = std::make_shared<v1::Transpose>(
             B,
-            std::make_shared<v0::Constant>(element::i64, Shape{rankB}, get_transpose_axes(rankB)));
+            std::make_shared<v0::Constant>(element::i64, Shape{static_cast<size_t>(rank)}, get_transpose_axes(rank)));
     }
 
     auto matmul_result = std::make_shared<v0::MatMul>(A, B, transA, transB);

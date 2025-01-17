@@ -60,6 +60,7 @@ public:
     virtual size_t get_inputs_count() const = 0;
     virtual size_t get_aux_vecs_count() const;
     virtual size_t get_aux_gprs_count() const;
+    emitter_in_out_map get_in_out_type() const;
 
     /**
      * @brief Returns supported precisions.

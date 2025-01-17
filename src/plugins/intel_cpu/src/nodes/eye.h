@@ -43,7 +43,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::string errorPrefix = "";
     ov::element::Type outType = ov::element::Type_t::undefined;
     template <typename inputType>
     void executeSpecified();
@@ -52,7 +51,7 @@ private:
     inline const size_t getRowNum() const {
         auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
         if (rowMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain row_count data");
+            THROW_CPU_NODE_ERR("doesn't contain row_count data");
         const int* rowPtr = rowMem->getDataAs<const int>();
 
         return rowPtr[0];
@@ -60,7 +59,7 @@ private:
     inline const size_t getColNum() const {
         auto colMem = getSrcMemoryAtPort(COLS_NUM);
         if (colMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain col_count data");
+            THROW_CPU_NODE_ERR("doesn't contain col_count data");
         const int* colPtr = colMem->getDataAs<const int>();
 
         return colPtr[0];
@@ -68,7 +67,7 @@ private:
     inline const int getDiagIndex() const {
         auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
         if (diagIndMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain diag_index data");
+            THROW_CPU_NODE_ERR("doesn't contain diag_index data");
         const int* diagIndexPtr = diagIndMem->getDataAs<const int>();
 
         return diagIndexPtr[0];

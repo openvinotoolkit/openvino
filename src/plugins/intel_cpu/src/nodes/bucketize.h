@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,6 @@ private:
     ov::element::Type input_precision;
     ov::element::Type boundaries_precision;
     ov::element::Type output_precision;
-    std::string errorPrefix;
 };
 
 }  // namespace node

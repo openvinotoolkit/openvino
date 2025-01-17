@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,8 +48,6 @@ private:
     int32_t axis = -1;
 
     ov::element::Type output_precision;
-
-    std::string errorPrefix;
 
     static const size_t INDICES_ID = 0;
     static const size_t DEPTH_ID = 1;

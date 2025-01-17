@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,8 +168,7 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
 }
 
 FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, FCShapeInferFactory(op)),
-      errorPrefix("FullyConnected node with name '" + getName() + "'") {
+    : Node(op, context, FCShapeInferFactory(op)) {
     std::string errorMessage;
     initTensorParallelConfig(context);
     if (!isSupportedOperation(op, errorMessage))

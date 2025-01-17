@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,6 @@ private:
     bool withBiases;
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights);
-
-    std::string errorPrefix;
 
     /* whether to transpose input */
     std::array<bool, 2> transposeIn;

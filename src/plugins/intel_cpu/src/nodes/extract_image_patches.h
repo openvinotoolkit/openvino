@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,8 +62,6 @@ private:
     std::vector<size_t> _rates;
     static const std::set<size_t> _supported_precisions_sizes;
     ExtImgPatcherPadType _auto_pad;
-
-    std::string errorPrefix;
 
     struct ExtractImagePatchesExecutor {
         ExtractImagePatchesExecutor() = default;

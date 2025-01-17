@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,8 +105,6 @@ private:
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
     bool withBiases = false;
     size_t biasPort;
-
-    std::string errorPrefix;
 
     void createDnnlCompatibleWeights();
     bool weightIsConst = false;

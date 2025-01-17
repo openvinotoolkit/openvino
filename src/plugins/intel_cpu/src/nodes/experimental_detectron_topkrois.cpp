@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace node {
 bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                          std::string& errorMessage) noexcept {
     try {
-        const auto topKROI = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
+        const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
             errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
             return false;
@@ -38,18 +38,17 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "ExperimentalDetectronTopKROIs layer with name '" + op->get_friendly_name() + "'";
-    const auto topKROI = std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
+    const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
     if (topKROI == nullptr)
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),
                        "' is not an instance of ExperimentalDetectronTopKROIs from opset6.");
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     if (getInputShapeAtPort(INPUT_ROIS).getRank() != 2 || getInputShapeAtPort(INPUT_PROBS).getRank() != 1)
-        OPENVINO_THROW(errorPrefix, " has unsupported input shape");
+        THROW_CPU_NODE_ERR("has unsupported input shape");
 
     max_rois_num_ = topKROI->get_max_rois();
 }

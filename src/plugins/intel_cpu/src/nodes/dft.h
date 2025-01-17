@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,6 @@ private:
 
     std::vector<int32_t> axes;
     std::vector<size_t> inputShape;
-    std::string layerErrorPrefix;
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;

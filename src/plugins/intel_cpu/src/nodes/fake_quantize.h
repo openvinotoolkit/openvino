@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -319,8 +319,6 @@ private:
 
     ov::element::Type inputPrecision = ov::element::f32;
     ov::element::Type outputPrecision = ov::element::f32;
-
-    std::string errorPrefix;
 
     BroadcastingPolicy broadcastingPolicy;
 };

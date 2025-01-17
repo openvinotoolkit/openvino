@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,7 +108,6 @@ private:
     static constexpr size_t OFF_ID = 1;
     static constexpr size_t WEI_ID = 2;
     static constexpr size_t MOD_ID = 3;
-    std::string errorPrefix;
     class DefConvExecutor {
     public:
         DefConvExecutor(const DefConvAttr& defConvAttr,

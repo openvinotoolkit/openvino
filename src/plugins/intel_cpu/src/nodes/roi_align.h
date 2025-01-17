@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,8 +81,6 @@ private:
 
     void createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout);
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

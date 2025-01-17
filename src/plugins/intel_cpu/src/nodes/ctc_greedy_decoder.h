@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,6 @@ private:
     const size_t DATA_INDEX = 0lu;
     const size_t SEQUENCE_LENGTH_INDEX = 1lu;
     bool mergeRepeated;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

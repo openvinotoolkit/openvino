@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,6 +122,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
                                                                  streams,
                                                                  1,
                                                                  core_type,
+                                                                 false,
                                                                  enable_cpu_pinning);
 
     return task_executor_config;

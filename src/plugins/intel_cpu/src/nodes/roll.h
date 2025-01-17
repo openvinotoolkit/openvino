@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,8 +47,6 @@ private:
 
     using ExecutorPtr = std::shared_ptr<RollExecutor>;
     ExecutorPtr execPtr = nullptr;
-
-    std::string layerErrorPrefix;
 
     static constexpr std::array<size_t, 3> supportedPrecisionSizes{1, 2, 4};
     static constexpr size_t DATA_INDEX = 0ul;

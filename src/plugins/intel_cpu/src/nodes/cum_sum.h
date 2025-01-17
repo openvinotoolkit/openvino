@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,6 @@ private:
     size_t axis = 0;
 
     ov::element::Type dataPrecision;
-    std::string errorPrefix;
 
     template <typename T>
     struct CumSumExecute {

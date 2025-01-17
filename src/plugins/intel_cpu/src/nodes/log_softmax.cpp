@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace node {
 
 bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
+        const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
             errorMessage = "Only opset5 LogSoftmax operation is supported";
             return false;
@@ -33,15 +33,14 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
-    const auto logSoftMax = std::dynamic_pointer_cast<const ov::opset5::LogSoftmax>(op);
+    const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
     if (logSoftMax == nullptr)
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),
                        "' is not an instance of LogSoftmax from opset5.");
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
     if (dimsSize == 0)
@@ -51,7 +50,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         axis += dimsSize;
 
     if (dimsSize < static_cast<size_t>((size_t)(1) + axis))
-        OPENVINO_THROW(errorPrefix, " has incorrect input parameters dimensions and axis number!");
+        THROW_CPU_NODE_ERR("has incorrect input parameters dimensions and axis number!");
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {

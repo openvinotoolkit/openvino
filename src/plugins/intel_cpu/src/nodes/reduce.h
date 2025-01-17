@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -196,8 +196,6 @@ private:
     static const std::map<const ov::DiscreteTypeInfo,
                           std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>&
     getInitializers();
-
-    std::string errorPrefix;
 
 #if defined(OV_CPU_WITH_ACL)
     ReduceAttrs reduceAttrs;

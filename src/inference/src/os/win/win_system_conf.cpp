@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,11 +50,6 @@ CPU::CPU() {
         if (_socketid_mapping_table.find(socket_id) == _socketid_mapping_table.end()) {
             _socketid_mapping_table.insert({socket_id, socket_id});
         }
-    }
-
-    if (_proc_type_table.size() > 1) {
-        int cur_processor_id = GetCurrentProcessorNumber();
-        sort_table_by_cpu_id(cur_processor_id, _proc_type_table, _cpu_mapping_table);
     }
 
     cpu_debug();

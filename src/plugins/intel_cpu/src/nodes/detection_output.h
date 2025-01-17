@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,8 +130,6 @@ private:
     std::vector<float> bboxSizes;
     std::vector<int> numPriorsActual;
     std::vector<int> confInfoForPrior;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

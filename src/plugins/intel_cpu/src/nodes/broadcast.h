@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,6 @@ private:
 
     std::vector<int32_t> targetShape;
     std::vector<int32_t> axesMapping;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node
