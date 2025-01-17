@@ -32,7 +32,7 @@ public:
     EltwiseExecutorFactory(const EltwiseAttrs& eltwiseAttrs,
                            const std::vector<MemoryDescPtr>& srcDescs,
                            const std::vector<MemoryDescPtr>& dstDescs,
-                           const ExecutorContext::CPtr context)
+                           const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getEltwiseExecutorsList()) {
             if (desc.builder->isSupported(eltwiseAttrs, srcDescs, dstDescs)) {
