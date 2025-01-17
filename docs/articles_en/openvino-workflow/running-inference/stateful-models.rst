@@ -66,7 +66,7 @@ from the application code to OpenVINO and all related internal work is hidden fr
 
 There are three methods of turning an OpenVINO model into a stateful one:
 
-* :doc:`Optimum-Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>` - the most user-friendly option. All necessary optimizations
+* :doc:`Optimum-Intel <../../openvino-workflow-generative/inference-with-optimum-intel>` - the most user-friendly option. All necessary optimizations
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 

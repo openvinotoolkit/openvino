@@ -27,5 +27,5 @@ Additional Resources
 * :doc:`OpenVINO GenAI Installation Guide <../install-openvino/install-openvino-genai>`
 * `OpenVINO GenAI repository <https://github.com/openvinotoolkit/openvino.genai>`__
 * :doc:`OpenVINO Installation Guide <../install-openvino>`
-* :doc:`OpenVINO Tokenizers <../../learn-openvino/llm_inference_guide/ov-tokenizers>`
+* :doc:`OpenVINO Tokenizers <../../openvino-workflow-generative/ov-tokenizers>`
 
