@@ -67,7 +67,7 @@ WeightINT4PackMMReplacer::WeightINT4PackMMReplacer() {
             int32_t shift_val = (k % 8) * 4;
             broadcast_out_ptr[k] = (broadcast_out_ptr[k] >> shift_val) & 15;
         }
-        std::vector<uint64_t> wt_ordered_shape(2);
+        std::vector<size_t> wt_ordered_shape(2);
         wt_ordered_shape[0] = wt_const->get_shape()[0] * 8;
         wt_ordered_shape[1] = wt_const->get_shape()[1] * wt_const->get_shape()[2] * wt_const->get_shape()[3];
         auto wt_const_ordered = std::make_shared<v0::Constant>(wt_const->get_element_type(), Shape(wt_ordered_shape));
