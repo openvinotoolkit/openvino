@@ -50,7 +50,7 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
                                   min_inputs);
     if (!allow_complex) {
         // verify that no input is complex
-        for (size_t i = 0; i < std::min(num_inputs, max_inputs); i++) {
+        for (size_t i = 0; i < std::min(num_inputs, max_inputs); ++i) {
             auto input = context.get_input(static_cast<int>(i));
             auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
             PYTORCH_OP_CONVERSION_CHECK(!complex_type_mark, "The operation doesn't allow complex type.");
