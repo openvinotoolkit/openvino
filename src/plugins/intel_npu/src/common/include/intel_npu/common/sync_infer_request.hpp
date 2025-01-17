@@ -167,6 +167,8 @@ protected:
                                                        const ov::Shape& shape,
                                                        const ov::Allocator& allocator = {}) const;
 
+    virtual void add_state(const IODescriptor& descriptor, const size_t index) const;
+
     bool is_batched_input(size_t idx) const;
 
     ov::SoPtr<ov::ITensor>& get_user_input(size_t index) const;

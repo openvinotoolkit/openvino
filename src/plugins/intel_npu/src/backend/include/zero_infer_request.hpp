@@ -67,10 +67,18 @@ private:
                                                const ov::Shape& shape,
                                                const ov::Allocator& allocator = {}) const override;
 
+    void add_state(const IODescriptor& descriptor, size_t index) const override;
+
+    void update_pipeline_if_memory_changed();
+    void update_states_if_memory_changed();
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
     Logger _logger;
+
+    const std::vector<ArgumentDescriptor>& _executorInputDescriptors;
+    const std::vector<ArgumentDescriptor>& _executorOutputDescriptors;
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.

@@ -13,6 +13,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_memory.hpp"
+#include "zero_variable_state.hpp"
 
 using namespace intel_npu;
 
@@ -101,13 +102,13 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _graph(compiledModel->get_graph()),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
+      _executorInputDescriptors(_graph->get_input_descriptors()),
+      _executorOutputDescriptors(_graph->get_output_descriptors()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
       _profilingPool(_initStructs, _graph, zeroProfiling::POOL_SIZE),
       _profilingQuery(_initStructs, 0) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
-    const std::vector<ArgumentDescriptor>& executorInputDescriptors = _graph->get_input_descriptors();
-    const std::vector<ArgumentDescriptor>& executorOutputDescriptors = _graph->get_output_descriptors();
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
@@ -127,7 +128,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     size_t ioIndex = 0;
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
-        check_level_zero_attributes_match(inputDescriptor, executorInputDescriptors.at(ioIndex));
+        check_level_zero_attributes_match(inputDescriptor, _executorInputDescriptors.at(ioIndex));
 
         if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor)) {
             ++ioIndex;
@@ -142,7 +143,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     ioIndex = 0;
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
-        check_level_zero_attributes_match(outputDescriptor, executorOutputDescriptors.at(ioIndex));
+        check_level_zero_attributes_match(outputDescriptor, _executorOutputDescriptors.at(ioIndex));
 
         if (!(outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor)) {
             ++ioIndex;
@@ -202,6 +203,34 @@ void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - findGroupOrdinal");
     auto groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), _properties);
     _logger.debug("ZeroInferRequest::create_pipeline - init completed");
+
+    // Set new tensors and reset variable state flag if memory updated before creating the pipeline
+    _logger.debug("ZeroInferRequest::create_pipeline - set new tensors and reset variable state flag if memory updated "
+                  "before creating the pipeline");
+    for (const auto& variableState : _variableStates) {
+        auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
+
+        OPENVINO_ASSERT(zeroState != nullptr, "State is not compatible with NPU plugin");
+
+        if (zeroState->tensor_was_updated()) {
+            OPENVINO_ASSERT(zeroState->get_descriptor().relatedDescriptorIndex.has_value(),
+                            "The link between state descriptors is missing, state name: ",
+                            zeroState->get_descriptor().nameFromCompiler);
+
+            get_user_input(zeroState->get_index()) = zeroState->get_state();
+            _userOutputTensors.at(*zeroState->get_descriptor().relatedDescriptorIndex) = zeroState->get_state();
+
+            zeroState->reset_tensor_updated_flag();
+
+            if (zeroState->zero_tensor_should_be_updated()) {
+                zeroState->reset_zero_tensor_updated_flag();
+
+                get_level_zero_input(zeroState->get_index()) = zeroState->get_state()._ptr;
+                _levelZeroOutputTensors.at(*zeroState->get_descriptor().relatedDescriptorIndex) =
+                    zeroState->get_state()._ptr;
+            }
+        }
+    }
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 
@@ -453,6 +482,118 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     return userTensors;
 }
 
+void ZeroInferRequest::update_pipeline_if_memory_changed() {
+    bool closePipeline = false;
+    size_t ioIndex = 0;
+
+    for (const auto& levelZeroTensor : _levelZeroInputTensors) {
+        const auto inputDescriptor = _metadata.inputs.at(ioIndex);
+        auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
+
+        if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
+            is_remote_tensor(levelZeroTensor.at(SINGLE_TENSOR)) || zeroTensor == nullptr) {
+            ++ioIndex;
+            continue;
+        }
+
+        if (zeroTensor->memory_address_changed()) {
+            _logger.debug("Update input graph descriptor with the new tensor");
+            OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
+
+            _pipeline->updateCommandList(_graph->get_input_descriptors().at(ioIndex).idx,
+                                         zeroTensor->data(),
+                                         zeroTensor->get_byte_size());
+            closePipeline = true;
+
+            if (!inputDescriptor.isStateInput) {
+                zeroTensor->reset_memory_flag();
+            }
+        }
+
+        ++ioIndex;
+    }
+
+    ioIndex = 0;
+
+    for (const auto& levelZeroTensor : _levelZeroOutputTensors) {
+        const auto outputDescriptor = _metadata.outputs.at(ioIndex);
+        auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
+
+        if (outputDescriptor.isShapeTensor || is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
+            ++ioIndex;
+            continue;
+        }
+
+        if (zeroTensor->memory_address_changed()) {
+            _logger.debug("Update output graph descriptor with the new tensor");
+            OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
+
+            _pipeline->updateCommandList(_graph->get_output_descriptors().at(ioIndex).idx,
+                                         zeroTensor->data(),
+                                         zeroTensor->get_byte_size());
+            closePipeline = true;
+
+            zeroTensor->reset_memory_flag();
+        }
+
+        ++ioIndex;
+    }
+
+    if (closePipeline) {
+        _pipeline->closeCommandList();
+    }
+}
+
+void ZeroInferRequest::update_states_if_memory_changed() {
+    bool closePipeline = false;
+
+    for (const auto& variableState : _variableStates) {
+        auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
+
+        OPENVINO_ASSERT(zeroState != nullptr, "State is not compatible with NPU plugin");
+
+        if (zeroState->tensor_was_updated()) {
+            OPENVINO_ASSERT(zeroState->get_descriptor().relatedDescriptorIndex.has_value(),
+                            "The link between state descriptors is missing, state name: ",
+                            zeroState->get_descriptor().nameFromCompiler);
+
+            get_user_input(zeroState->get_index()) = zeroState->get_state();
+            _userOutputTensors.at(*zeroState->get_descriptor().relatedDescriptorIndex) = zeroState->get_state();
+
+            zeroState->reset_tensor_updated_flag();
+
+            if (zeroState->zero_tensor_should_be_updated()) {
+                auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(zeroState->get_state()._ptr);
+
+                void* userBuffer = !remoteTensor
+                                       ? zeroState->get_state()->data()
+                                       : extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+
+                _pipeline->updateCommandList(_executorInputDescriptors.at(zeroState->get_index()).idx,
+                                             userBuffer,
+                                             zeroState->get_state()->get_byte_size());
+
+                _pipeline->updateCommandList(
+                    _executorOutputDescriptors.at(*zeroState->get_descriptor().relatedDescriptorIndex).idx,
+                    userBuffer,
+                    zeroState->get_state()->get_byte_size());
+
+                zeroState->reset_zero_tensor_updated_flag();
+
+                get_level_zero_input(zeroState->get_index()) = zeroState->get_state()._ptr;
+                _levelZeroOutputTensors.at(*zeroState->get_descriptor().relatedDescriptorIndex) =
+                    zeroState->get_state()._ptr;
+
+                closePipeline = true;
+            }
+        }
+    }
+
+    if (closePipeline) {
+        _pipeline->closeCommandList();
+    }
+}
+
 void ZeroInferRequest::infer() {
     if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
@@ -476,65 +617,8 @@ void ZeroInferRequest::infer_async() {
             _pipelineIsCreated = true;
         } else {
             if (_initStructs->getMutableCommandListVersion()) {
-                bool closePipeline = false;
-                size_t ioIndex = 0;
-
-                for (const auto& levelZeroTensor : _levelZeroInputTensors) {
-                    const auto inputDescriptor = _metadata.inputs.at(ioIndex);
-                    auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor.at(SINGLE_TENSOR));
-
-                    if (is_batched_input(ioIndex) || inputDescriptor.isShapeTensor ||
-                        is_remote_tensor(levelZeroTensor.at(SINGLE_TENSOR)) || zeroTensor == nullptr) {
-                        ++ioIndex;
-                        continue;
-                    }
-
-                    if (zeroTensor->memory_address_changed()) {
-                        _logger.debug("Update input graph descriptor with the new tensor");
-                        OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
-
-                        _pipeline->updateCommandList(_graph->get_input_descriptors().at(ioIndex).idx,
-                                                     zeroTensor->data(),
-                                                     zeroTensor->get_byte_size());
-                        closePipeline = true;
-
-                        if (!inputDescriptor.isStateInput) {
-                            zeroTensor->reset_memory_flag();
-                        }
-                    }
-
-                    ++ioIndex;
-                }
-
-                ioIndex = 0;
-
-                for (const auto& levelZeroTensor : _levelZeroOutputTensors) {
-                    const auto outputDescriptor = _metadata.outputs.at(ioIndex);
-                    auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensor);
-
-                    if (outputDescriptor.isShapeTensor || is_remote_tensor(levelZeroTensor) || zeroTensor == nullptr) {
-                        ++ioIndex;
-                        continue;
-                    }
-
-                    if (zeroTensor->memory_address_changed()) {
-                        _logger.debug("Update output graph descriptor with the new tensor");
-                        OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
-
-                        _pipeline->updateCommandList(_graph->get_output_descriptors().at(ioIndex).idx,
-                                                     zeroTensor->data(),
-                                                     zeroTensor->get_byte_size());
-                        closePipeline = true;
-
-                        zeroTensor->reset_memory_flag();
-                    }
-
-                    ++ioIndex;
-                }
-
-                if (closePipeline) {
-                    _pipeline->closeCommandList();
-                }
+                update_pipeline_if_memory_changed();
+                update_states_if_memory_changed();
             }
         }
     }
@@ -750,6 +834,11 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::create_tensor(ov::element::Type t
     OPENVINO_ASSERT(allocator, "Allocator mush be provided when creating a zero tensor!");
 
     return std::make_shared<ZeroTensor>(_initStructs, type, shape, allocator);
+}
+
+void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t index) const {
+    _variableStates.push_back(
+        std::make_shared<ZeroVariableState>(_initStructs, descriptor, get_user_input(index), index, _config));
 }
 
 std::vector<uint8_t> ZeroInferRequest::get_raw_profiling_data() const {
