@@ -47,7 +47,7 @@ WeightINT4PackMMReplacer::WeightINT4PackMMReplacer() {
         auto wt_const_flat = std::make_shared<v0::Constant>(wt_const->get_element_type(),
                                                             Shape({shape_size(wt_const->get_shape()), 1}),
                                                             wt_const->get_data_ptr<uint8_t>());
-        std::vector<uint64_t> broadcast_shape_vec(wt_const_flat->get_shape());
+        std::vector<size_t> broadcast_shape_vec(wt_const_flat->get_shape());
         broadcast_shape_vec[1] = 8;
         auto broadcast_shape_const = std::make_shared<v0::Constant>(element::i32, Shape({2}), broadcast_shape_vec);
 
