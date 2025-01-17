@@ -63,12 +63,15 @@ uint8_t f16_to_f8e4m3_bits(const float16 value) {
     constexpr uint16_t f8_m_mask = f8e4m3_m_mask << byte_shift;  // f8 mantissa bits mask (on u16)
     constexpr uint16_t f8_m_hidden_one_mask = 0x0800;            // f8 mantissa hidden one bits mask (on u16)
 
-    constexpr int16_t f8_e_subnormal_min = -9;  // f8 exponent min value for subnormal
-
     constexpr uint16_t round_half = 0x01ff;  // value for half to even round for f8
     constexpr uint16_t round_norm = 0x007f;  // value for normal round for f8
     constexpr uint16_t round_even = 0x0080;  // value for half to even round for f8
     constexpr uint16_t round_odd = 0x0180;   // value for an non-half to even round for f8
+
+    // f8 exponent min value for subnormal
+    // For f8_e less than -10, the hidden 1 is shifted beyond rounding bit.
+    // So the 3 bits in mantissa and rounding bit are all 0, the f8 value is always 0.
+    constexpr int16_t f8_e_subnormal_min = -10;
 
     const uint16_t input = value.to_bits();
     uint8_t f8_bits = static_cast<uint8_t>((input & f16_s_mask) >> byte_shift);
