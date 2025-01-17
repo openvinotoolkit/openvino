@@ -32,11 +32,6 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         return (T.is_real() && (!T.is_quantized()));
     };
 
-    auto has_integral_type = [](const ov::Output<ov::Node>& output) -> bool {
-        const auto& T = output.get_element_type();
-        return (T.is_integral());
-    };
-
     auto has_at_least_2d_shape = [](const ov::Output<ov::Node>& output) -> bool {
         const auto& output_ps = output.get_partial_shape();
         return (output_ps.rank().is_static()) && (output_ps.rank().get_length() >= 2);
@@ -44,13 +39,12 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
     auto input_m = any_input(all_of({has_real_not_quantized_type, has_at_least_2d_shape, has_static_dim(1)}));
 
-    auto pre_mvn_shape_const_m =
-        wrap_type<ov::op::v0::Constant>(all_of({has_integral_type, rank_equals(1), has_static_dim(0)}));
+    auto pre_mvn_shape_const_m = wrap_type<ov::op::v0::Constant>(all_of({rank_equals(1), has_static_dim(0)}));
     auto pre_mvn_reshape_m =
         wrap_type<ov::op::v1::Reshape>({input_m, pre_mvn_shape_const_m},
                                        all_of({has_real_not_quantized_type, rank_equals(3), has_static_dim(1)}));
 
-    auto axes_const_m = wrap_type<ov::op::v0::Constant>(all_of({has_integral_type, rank_equals(1), has_static_dim(0)}));
+    auto axes_const_m = wrap_type<ov::op::v0::Constant>(all_of({rank_equals(1), has_static_dim(0)}));
     auto mvn_m = wrap_type<ov::op::v6::MVN>({pre_mvn_reshape_m, axes_const_m});
 
     auto instance_norm_gamma_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
@@ -63,7 +57,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
     auto instance_norm_opt_gamma_opt_beta_m = std::make_shared<ov::pass::pattern::op::Or>(
         ov::OutputVector{instance_norm_opt_gamma_m, instance_norm_beta_add_m});
 
-    auto post_instance_norm_shape_m = any_input(all_of({has_integral_type, rank_equals(1), has_static_dim(0)}));
+    auto post_instance_norm_shape_m = any_input(all_of({rank_equals(1), has_static_dim(0)}));
     auto post_instance_norm_reshape_m =
         wrap_type<ov::op::v1::Reshape>({instance_norm_opt_gamma_opt_beta_m, post_instance_norm_shape_m},
                                        all_of({has_real_not_quantized_type, has_at_least_2d_shape, has_static_dim(1)}));
