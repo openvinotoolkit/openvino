@@ -1771,7 +1771,7 @@ public:
     EltwiseRefBaseExecutor(const EltwiseData& opData,
                            const VectorDims& outBlkDims,
                            const std::vector<VectorDims>& inpDims)
-        : _opData(std::move(opData)),
+        : _opData(opData),
           _inpDims(inpDims) {
         if (inpDims.empty()) {
             OPENVINO_THROW("Can not make Eltwise executor from empty input dims array");
@@ -2219,7 +2219,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, EltwiseShapeInferFactory()),
       broadcastingPolicy(Undefined) {
     std::string errorMessage;
@@ -2969,7 +2969,7 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
-void Eltwise::execute(dnnl::stream strm) {
+void Eltwise::execute(const dnnl::stream& strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         VectorDims dims_out =
@@ -3003,7 +3003,7 @@ void Eltwise::execute(dnnl::stream strm) {
     }
 }
 
-void Eltwise::executeDynamicImpl(dnnl::stream strm) {
+void Eltwise::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -3065,8 +3065,6 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
                                 const VectorDims& postOpDims,
                                 std::vector<T>& postOpsMem,
                                 const int channelAxis) {
-    const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
-
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
         switch (getOneDnnAlgorithm()) {
         case dnnl::algorithm::eltwise_relu:
@@ -3091,7 +3089,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("Appending Eltwise node with name '", getName(), "' as post operation is not supported");
         }
     } else {
         // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
@@ -3119,7 +3117,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             if (scales.size() == 1) {
                 depthwiseData.resize(channelSize, depthwiseData.back());
             } else if (scales.size() != channelSize) {
-                OPENVINO_THROW(errorPrefix, "failed due to scales data size inconsistency");
+                OPENVINO_THROW("Appending Eltwise node with name '",
+                               getName(),
+                               "' failed due to scales data size inconsistency");
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
             if (shifts.empty()) {
@@ -3128,7 +3128,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             } else if (shifts.size() == 1) {
                 depthwiseData.resize(2 * channelSize, depthwiseData.back());
             } else if (shifts.size() != channelSize) {
-                OPENVINO_THROW(errorPrefix, "failed due to shifts data size inconsistency");
+                OPENVINO_THROW("Appending Eltwise node with name '",
+                               getName(),
+                               "' failed due to shifts data size inconsistency");
             }
             depthwiseDataSize = 2 * channelSize;
 
@@ -3139,7 +3141,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         }
 
         if (depthwiseData.empty())
-            OPENVINO_THROW(errorPrefix, "cannot be performed since buffers are not allocated");
+            THROW_CPU_NODE_ERR("cannot be performed since buffers are not allocated");
 
         std::array<size_t, 2> offsets = {0};
         offsets[1] = offsets[0] + channelSize;
@@ -3160,7 +3162,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             ops.append_depthwise(dnnl::algorithm::depthwise_prelu, offsets);
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("as post operation is not supported");
         }
 
         appendMemory(depthwiseData, depthwiseMemory, postOpsMem);
@@ -3192,8 +3194,6 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                                 bool isLastPostOp,
                                 dnnl::memory::data_type outDataType,
                                 bool allowBinary) {
-    const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
-
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
         switch (getOneDnnAlgorithm()) {
         case dnnl::algorithm::eltwise_relu:
@@ -3221,7 +3221,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("as post operation is not supported");
         }
     } else {
         switch (getAlgorithm()) {
@@ -3248,7 +3248,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("as post operation is not supported");
         }
     }
     return true;
