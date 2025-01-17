@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -480,7 +480,7 @@ TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value)
     CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
 }
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 
 TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolderUsingPath) {
     InputModel::Ptr input_model;

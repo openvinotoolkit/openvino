@@ -72,6 +72,10 @@ void jit_emitter::emit_data() const {
     }
 }
 
+emitter_in_out_map jit_emitter::get_in_out_type() const {
+    return in_out_type_;
+}
+
 std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {};
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
     return batchLenghts;
 }
 
-void Ngram::execute(dnnl::stream strm) {
+void Ngram::execute(const dnnl::stream& strm) {
     auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
@@ -140,7 +140,7 @@ void Ngram::execute(dnnl::stream strm) {
     });
 }
 
-void Ngram::executeDynamicImpl(dnnl::stream strm) {
+void Ngram::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

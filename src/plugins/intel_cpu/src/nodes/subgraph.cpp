@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "subgraph.h"
@@ -44,6 +44,7 @@
 
 #include <algorithm>
 #include <array>
+#include <utility>
 #include <vector>
 
 #include "utils/cpu_utils.hpp"
@@ -67,9 +68,9 @@ namespace {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 struct SubgraphKey {
     SubgraphKey() = default;
-    SubgraphKey(const std::shared_ptr<SubgraphAttrs>& attrs_, const std::vector<VectorDims>& in_shapes_)
-        : attrs(attrs_),
-          in_shapes(in_shapes_) {}
+    SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_, std::vector<VectorDims> in_shapes_)
+        : attrs(std::move(attrs_)),
+          in_shapes(std::move(in_shapes_)) {}
     virtual ~SubgraphKey() = default;
 
     size_t hash() const {
@@ -91,8 +92,8 @@ struct SubgraphKey {
 };
 
 struct SubgraphCodeGeneratorKey {
-    SubgraphCodeGeneratorKey(const std::shared_ptr<SubgraphAttrs>& attrs_, uint8_t mask_)
-        : attrs(attrs_),
+    SubgraphCodeGeneratorKey(std::shared_ptr<SubgraphAttrs> attrs_, uint8_t mask_)
+        : attrs(std::move(attrs_)),
           broadcasting_mask(mask_) {}
 
     size_t hash() const {
@@ -142,15 +143,19 @@ struct SubgraphShapeInferResult {
 
 }  // namespace
 
+static _ov_dnnl_cpu_isa getHostIsa() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return dnnl::impl::cpu::aarch64::asimd;
+#else
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
+                                                                            : dnnl::impl::cpu::x64::avx2;
+#endif
+}
+
 Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, SnippetShapeInferFactory(op)),
+      host_isa(getHostIsa()),
       subgraph_attrs(std::make_shared<SubgraphAttrs>()) {
-#if defined(OPENVINO_ARCH_ARM64)
-    host_isa = dnnl::impl::cpu::aarch64::asimd;
-#else
-    host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
-                                                                                : dnnl::impl::cpu::x64::avx2;
-#endif
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     OPENVINO_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
     subgraph_attrs->snippet = tmp_snippet->clone();
@@ -709,12 +714,12 @@ bool Subgraph::created() const {
     return getType() == Type::Subgraph;
 }
 
-void Subgraph::execute(dnnl::stream strm) {
+void Subgraph::execute(const dnnl::stream& strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 
-void Subgraph::executeDynamicImpl(dnnl::stream strm) {
+void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

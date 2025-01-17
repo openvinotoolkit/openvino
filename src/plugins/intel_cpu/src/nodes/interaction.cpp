@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,14 +181,13 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix = "Interaction node with name '" + getName() + "'";
-    const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
+    const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
@@ -241,7 +240,7 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
     }
 }
 
-void Interaction::execRef(dnnl::stream strm) {
+void Interaction::execRef(const dnnl::stream& strm) {
     using namespace dnnl;
     uint8_t* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
     std::vector<const uint8_t*> inputPtrs(inputSizes);
@@ -279,7 +278,7 @@ void Interaction::execRef(dnnl::stream strm) {
     }
 }
 
-void Interaction::execute(dnnl::stream strm) {
+void Interaction::execute(const dnnl::stream& strm) {
     execRef(strm);
 }
 
@@ -357,7 +356,7 @@ void Interaction::prepareParams() {
 #endif
 }
 
-void Interaction::executeDynamicImpl(dnnl::stream strm) {
+void Interaction::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -367,7 +366,7 @@ bool Interaction::isExecutable() const {
 
 bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
+        const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
         if (!interaction) {
             errorMessage = "Only Interaction operation is supported";
             return false;

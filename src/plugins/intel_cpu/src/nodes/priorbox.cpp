@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ float clip_less(float x, float threshold) {
 
 bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
@@ -43,14 +43,14 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PriorBoxShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBox>(op);
+    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(op);
     const ov::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
     offset = attrs.offset;
     step = attrs.step;
@@ -73,7 +73,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         }
 
         for (float _aspect_ratio : aspect_ratio) {
-            if (fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
+            if (std::fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
                 exist = true;
                 break;
             }
@@ -142,7 +142,7 @@ void PriorBox::createPrimitive() {
     }
 }
 
-void PriorBox::execute(dnnl::stream strm) {
+void PriorBox::execute(const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];

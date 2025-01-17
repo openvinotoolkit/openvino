@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -299,7 +299,7 @@ void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* d
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void SpaceToDepth::execute(dnnl::stream strm) {
+void SpaceToDepth::execute(const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_ERROR("doesn't have a compiled executor.");
     }
@@ -309,7 +309,7 @@ void SpaceToDepth::execute(dnnl::stream strm) {
     execPtr->exec(srcData, dstData, MB);
 }
 
-void SpaceToDepth::executeDynamicImpl(dnnl::stream strm) {
+void SpaceToDepth::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

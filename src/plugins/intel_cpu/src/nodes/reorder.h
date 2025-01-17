@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,15 +14,15 @@ namespace node {
 
 class Reorder : public Node {
 public:
-    Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     Reorder(const MemoryDesc& input,
             const MemoryDesc& output,
             const std::string& name,
-            const GraphContext::CPtr context);
+            const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
@@ -32,7 +32,7 @@ public:
 
     void prepareParams() override;
 
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     void setSrcPermutation(const std::vector<int>& src_perm) {
         this->src_permutation = src_perm;
@@ -59,7 +59,7 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc);
 
-    static void reorderData(const IMemory& input, const IMemory& output, MultiCachePtr cache = nullptr);
+    static void reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache = nullptr);
 
 private:
     dnnl::reorder::primitive prim;
@@ -79,7 +79,7 @@ private:
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
-    void prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc);
+    void prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc);
     TransposeExecutorPtr transposeExecutor;
 };
 

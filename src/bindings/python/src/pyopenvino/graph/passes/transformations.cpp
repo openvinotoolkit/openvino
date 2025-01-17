@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ void regclass_transformations(py::module m) {
 
     py::class_<ov::pass::Serialize, std::shared_ptr<ov::pass::Serialize>, ov::pass::ModelPass, ov::pass::PassBase>
         serialize(m, "Serialize");
-    serialize.doc() = "openvino.runtime.passes.Serialize transformation";
+    serialize.doc() = "openvino.passes.Serialize transformation";
 
     serialize.def(
         py::init([](const py::object& path_to_xml, const py::object& path_to_bin, const py::object& version) {
@@ -62,7 +62,7 @@ void regclass_transformations(py::module m) {
         :type path_to_xml: Union[str, bytes, pathlib.Path]
 
         :param version: Optional serialized IR version.
-        :type version: Union[str, openvino.runtime.passes.Version]
+        :type version: Union[str, openvino.passes.Version]
     )");
 
     serialize.def("__repr__", [](const ov::pass::Serialize& self) {
@@ -74,7 +74,7 @@ void regclass_transformations(py::module m) {
                ov::pass::ModelPass,
                ov::pass::PassBase>
         cf(m, "ConstantFolding");
-    cf.doc() = "openvino.runtime.passes.ConstantFolding transformation";
+    cf.doc() = "openvino.passes.ConstantFolding transformation";
     cf.def(py::init<>());
     cf.def("__repr__", [](const ov::pass::ConstantFolding& self) {
         return Common::get_simple_repr(self);
@@ -85,7 +85,7 @@ void regclass_transformations(py::module m) {
                ov::pass::ModelPass,
                ov::pass::PassBase>
         visualize(m, "VisualizeTree");
-    visualize.doc() = "openvino.runtime.passes.VisualizeTree transformation";
+    visualize.doc() = "openvino.passes.VisualizeTree transformation";
     visualize.def(py::init<const std::string&, ov::pass::VisualizeTree::node_modifiers_t, bool>(),
                   py::arg("file_name"),
                   py::arg("nm") = nullptr,
@@ -108,7 +108,7 @@ void regclass_transformations(py::module m) {
 
     py::class_<ov::pass::MakeStateful, std::shared_ptr<ov::pass::MakeStateful>, ov::pass::ModelPass, ov::pass::PassBase>
         make_stateful(m, "MakeStateful");
-    make_stateful.doc() = "openvino.runtime.passes.MakeStateful transformation";
+    make_stateful.doc() = "openvino.passes.MakeStateful transformation";
     make_stateful.def(
         py::init<const ov::pass::MakeStateful::ParamResPairs&>(),
         py::arg("pairs_to_replace"),
@@ -131,7 +131,7 @@ void regclass_transformations(py::module m) {
 
     py::class_<ov::pass::LowLatency2, std::shared_ptr<ov::pass::LowLatency2>, ov::pass::ModelPass, ov::pass::PassBase>
         low_latency(m, "LowLatency2");
-    low_latency.doc() = "openvino.runtime.passes.LowLatency2 transformation";
+    low_latency.doc() = "openvino.passes.LowLatency2 transformation";
 
     low_latency.def(py::init<bool>(),
                     py::arg("use_const_initializer") = true,
@@ -156,7 +156,7 @@ void regclass_transformations(py::module m) {
                ov::pass::ModelPass,
                ov::pass::PassBase>
         convert(m, "ConvertFP32ToFP16");
-    convert.doc() = "openvino.runtime.passes.ConvertFP32ToFP16 transformation";
+    convert.doc() = "openvino.passes.ConvertFP32ToFP16 transformation";
     convert.def(py::init<>());
     convert.def("__repr__", [](const ov::pass::ConvertFP32ToFP16& self) {
         return Common::get_simple_repr(self);

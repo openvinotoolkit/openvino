@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace node {
 
 class RNN : public Node {
 public:
-    RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     static bool isCell(const std::shared_ptr<const ov::Node>& op);
@@ -27,7 +27,7 @@ public:
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
 
     inline bool hasNativeOrder() const {
         return nativeOrder;
@@ -39,7 +39,7 @@ public:
 
 protected:
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
     void configurePortDataTypes();
@@ -98,10 +98,7 @@ private:
     struct Interval {
         Interval() = default;
 
-        Interval(Dim min, Dim max) {
-            minVal = min;
-            maxVal = max;
-        }
+        Interval(Dim min, Dim max) : minVal(min), maxVal(max) {}
 
         bool isStatic() {
             return minVal == maxVal;

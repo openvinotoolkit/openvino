@@ -23,7 +23,7 @@ namespace pass {
  */
 class InsertBuffers : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertBuffers", "RangedPass")
+    OPENVINO_RTTI("InsertBuffers", "", RangedPass);
     InsertBuffers() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 

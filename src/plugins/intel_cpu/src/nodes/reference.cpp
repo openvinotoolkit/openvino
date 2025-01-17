@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "reference.h"
+
+#include <utility>
 
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference.hpp"
@@ -24,12 +26,10 @@ private:
 
 namespace node {
 
-Reference::Reference(const std::shared_ptr<ov::Node>& op,
-                     const GraphContext::CPtr& context,
-                     const std::string& errorMessage)
+Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, std::string errorMessage)
     : Node(op, context, ReferenceShapeInferFactory(op)),
       ovCoreNode(op),
-      additionalErrorMessage(errorMessage) {
+      additionalErrorMessage(std::move(errorMessage)) {
     if (!op->has_evaluate()) {
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Cannot fallback on ngraph reference implementation. Ngraph::Node::evaluate() is not implemented for op: ",
@@ -63,7 +63,7 @@ void Reference::initSupportedPrimitiveDescriptors() {
 
 void Reference::createPrimitive() {}
 
-void Reference::execute(dnnl::stream strm) {
+void Reference::execute(const dnnl::stream& strm) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
     if (!ovCoreNode->evaluate(outputs, inputs)) {
@@ -71,7 +71,7 @@ void Reference::execute(dnnl::stream strm) {
     }
 }
 
-void Reference::executeDynamicImpl(dnnl::stream strm) {
+void Reference::executeDynamicImpl(const dnnl::stream& strm) {
     auto inputs = prepareInputs();
     ov::TensorVector outputs;
     auto result = Node::shapeInfer();

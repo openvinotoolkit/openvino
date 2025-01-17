@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -303,7 +303,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void DepthToSpace::execute(dnnl::stream strm) {
+void DepthToSpace::execute(const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_ERROR("doesn't have a compiled executor.");
     }
@@ -312,7 +312,7 @@ void DepthToSpace::execute(dnnl::stream strm) {
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB);
 }
 
-void DepthToSpace::executeDynamicImpl(dnnl::stream strm) {
+void DepthToSpace::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

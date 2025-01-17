@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -259,7 +259,10 @@ stack_frame::stack_frame(ov::intel_cpu::jit_kernel& kernel, size_t size, uint32_
     }
 }
 
-stack_frame::stack_frame(stack_frame&& rhs) : _kernel(rhs._kernel), _size(rhs._size), _alignment(rhs._alignment) {
+stack_frame::stack_frame(stack_frame&& rhs) noexcept
+    : _kernel(rhs._kernel),
+      _size(rhs._size),
+      _alignment(rhs._alignment) {
     rhs._size = 0;
     rhs._alignment = 0;
 }
