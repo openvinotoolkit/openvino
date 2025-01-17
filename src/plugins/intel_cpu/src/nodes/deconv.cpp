@@ -191,7 +191,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, DeconvolutionShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))

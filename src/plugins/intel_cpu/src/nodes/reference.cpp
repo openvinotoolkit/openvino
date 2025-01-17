@@ -14,9 +14,7 @@ namespace intel_cpu {
 
 namespace node {
 
-Reference::Reference(const std::shared_ptr<ov::Node>& op,
-                     const GraphContext::CPtr& context,
-                     const std::string& errorMessage)
+Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, std::string errorMessage)
     : Node(op, context, NgraphShapeInferFactory(op)),
       ovCoreNode(op) {
     if (!op->has_evaluate()) {
@@ -62,7 +60,7 @@ void Reference::execute(const dnnl::stream& strm) {
     }
 }
 
-void Reference::executeDynamicImpl(dnnl::stream strm) {
+void Reference::executeDynamicImpl(const dnnl::stream& strm) {
     if (!hasOutputShapeDataDependency) {
         // if there is no data dependency for the output shape, we can execute the operation as is, similar to the
         // static case, since the shapes are already calculated
