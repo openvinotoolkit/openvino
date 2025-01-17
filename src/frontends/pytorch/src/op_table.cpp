@@ -425,6 +425,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::col2im", op::translate_col2im},
         // aten::complex - Supported in limited set of patterns
         {"aten::concat", op::translate_cat},
+        {"aten::concatenate", op::translate_cat},
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
         {"aten::conv_transpose1d", op::translate_conv_transposend},
