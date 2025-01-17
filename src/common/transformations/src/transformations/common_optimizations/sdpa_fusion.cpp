@@ -99,7 +99,7 @@ SDPAFusion::SDPAFusion() {
     auto qk = makePattern<ov::op::v0::MatMul>({q_reshaped_opt_sliced_reshaped, k_opt_transposed_opt_scaled});
 
     auto unsqueeze_axis = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>({qk, unsqueeze_axis});
+    auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
     auto qk_opt_unsqueeze = qk_unsqueeze | qk;
     auto qk_opt_unsqueeze_concat =
         ov::pass::pattern::wrap_type<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
