@@ -15,8 +15,7 @@
 
 #include <sys/types.h>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -322,5 +321,4 @@ void CompiledModel::release_memory() {
     dnnl::set_primitive_cache_capacity(capacity);
 #endif
 }
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

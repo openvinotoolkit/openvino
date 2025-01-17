@@ -6,7 +6,6 @@
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-
 #include <vector>
 
 namespace cldnn {

@@ -54,8 +54,7 @@
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 #define FACTORY_DECLARATION(op_version, op_name) \
     void __register ## _ ## op_name ## _ ## op_version();
@@ -887,8 +886,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     return batch;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)

@@ -7,8 +7,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 enum class PropertyVisibility {
     INTERNAL = 0,
@@ -171,8 +170,7 @@ private:
     bool finalized = false;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 namespace cldnn {
 using ov::intel_gpu::ExecutionConfig;

@@ -13,7 +13,6 @@
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
-
 #include <algorithm>
 #include <string>
 #include <vector>

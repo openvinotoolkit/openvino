@@ -16,8 +16,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     using namespace ov::pass::pattern;
@@ -108,5 +107,4 @@ MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

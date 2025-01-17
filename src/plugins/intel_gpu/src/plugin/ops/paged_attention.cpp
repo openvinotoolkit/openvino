@@ -18,8 +18,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
     validate_inputs_count(op, {13, 16});
@@ -77,5 +76,4 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
 REGISTER_FACTORY_IMPL(internal, PagedAttentionExtension)
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -7,7 +7,6 @@
 #include "ocl_common.hpp"
 #include "ocl_base_event.hpp"
 
-
 #include <vector>
 #include <memory>
 #include <list>
