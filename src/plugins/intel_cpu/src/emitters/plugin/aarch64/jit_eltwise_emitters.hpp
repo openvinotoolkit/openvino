@@ -613,7 +613,7 @@ public:
     jit_less_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                      const ov::element::Type exec_prc = ov::element::f32);
-    
+
     jit_less_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                      const std::shared_ptr<ov::Node>& n);

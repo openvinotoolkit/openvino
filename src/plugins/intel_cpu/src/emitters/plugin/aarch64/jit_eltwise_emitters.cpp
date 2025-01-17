@@ -1392,16 +1392,15 @@ size_t jit_less_emitter::get_aux_gprs_count() const {
 
 void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
-    if(host_isa_ == dnnl::impl::cpu::aarch64::asimd){
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
-    } else{
+    } else {
         OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -1419,8 +1418,7 @@ void jit_less_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000, true);
 }
 
-std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
