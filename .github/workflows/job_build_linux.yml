@@ -156,7 +156,9 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
           
           # For rpm build
+          python3 -m pip install rpm-python
           python3 -m pip install rpm
+
 
       #
       # Build
@@ -249,7 +251,6 @@ jobs:
                 -DENABLE_TESTS=OFF \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package --verbose
-          dnf install rpm-python
 
       #
       # Upload build artifacts and logs
