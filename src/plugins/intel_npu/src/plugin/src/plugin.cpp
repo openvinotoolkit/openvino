@@ -686,13 +686,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto localConfig = merge_configs(_globalConfig, localPropertiesMap);
     update_log_level(localPropertiesMap);
 
-    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
+    /* const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         if (compilerType == ov::intel_npu::CompilerType::MLIR) {
             OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
         }
-    }
+    } */
 
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
@@ -856,7 +856,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             }
             _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+            blobPtr = std::make_unique<BlobContainer>(std::move(blob));
         } else {
             blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
         }

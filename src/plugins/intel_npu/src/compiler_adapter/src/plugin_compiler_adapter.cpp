@@ -80,7 +80,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
-    auto blobPtr = std::make_unique<BlobContainerVector>(std::move(networkDesc.compiledNetwork));
+    auto blobPtr = std::make_unique<BlobContainer>(std::move(networkDesc.compiledNetwork));
     _logger.debug("compile end");
 
     ze_graph_handle_t graphHandle = nullptr;
@@ -110,8 +110,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    const auto& blob = blobPtr->get_ownership_blob();
+    const auto& blob = blobPtr->get_blob();
     auto networkMeta = _compiler->parse(blob, config);
+    blobPtr->release_from_memory();
     _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;

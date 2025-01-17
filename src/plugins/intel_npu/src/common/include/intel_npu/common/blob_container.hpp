@@ -13,41 +13,42 @@ namespace intel_npu {
 
 class BlobContainer {
 public:
-    virtual void* get_ptr() = 0;
+    BlobContainer() = default;
 
-    virtual size_t size() const = 0;
+    BlobContainer(std::vector<uint8_t> blob) : _blob(std::move(blob)) {}
 
-    virtual bool release_from_memory() = 0;
+    virtual const void* get_ptr() const {
+        return _blob.data();
+    }
 
-    virtual std::vector<uint8_t> get_ownership_blob() = 0;
+    virtual size_t size() const {
+        return _blob.size();
+    }
+
+    virtual bool release_from_memory() const {
+        if (_shouldDeallocate) {
+            _blob.clear();
+            _blob.shrink_to_fit();
+            return true;
+        }
+        _shouldDeallocate = true;
+        return false;
+    }
+
+    virtual const std::vector<uint8_t>& get_blob() const {
+        // when unerlying blob object was accessed,
+        // prevent deallocation on next `release_from_memory` call
+        _shouldDeallocate = false;
+        return _blob;
+    }
 
     virtual ~BlobContainer() = default;
-};
 
-class BlobContainerVector : public BlobContainer {
-public:
-    BlobContainerVector(std::vector<uint8_t> blob) : _ownershipBlob(std::move(blob)) {}
-
-    void* get_ptr() override {
-        return reinterpret_cast<void*>(_ownershipBlob.data());
-    }
-
-    size_t size() const override {
-        return _ownershipBlob.size();
-    }
-
-    bool release_from_memory() override {
-        _ownershipBlob.clear();
-        _ownershipBlob.shrink_to_fit();
-        return true;
-    }
-
-    std::vector<uint8_t> get_ownership_blob() override {
-        return _ownershipBlob;
-    }
+protected:
+    mutable std::vector<uint8_t> _blob;
 
 private:
-    std::vector<uint8_t> _ownershipBlob;
+    mutable bool _shouldDeallocate = true;
 };
 
 class BlobContainerAlignedBuffer : public BlobContainer {
@@ -55,32 +56,35 @@ public:
     BlobContainerAlignedBuffer(const std::shared_ptr<ov::AlignedBuffer>& blobSO,
                                size_t ovHeaderOffset,
                                uint64_t blobSize)
-        : _blobSize(blobSize),
+        : _size(blobSize),
           _ovHeaderOffset(ovHeaderOffset),
-          _ownershipBlob(blobSO) {}
+          _blobSO(blobSO) {}
 
-    void* get_ptr() override {
-        return _ownershipBlob->get_ptr(_ovHeaderOffset);
+    const void* get_ptr() const override {
+        return _blobSO->get_ptr(_ovHeaderOffset);
     }
 
     size_t size() const override {
-        return _blobSize;
+        return _size;
     }
 
-    bool release_from_memory() override {
+    bool release_from_memory() const override {
+        BlobContainer::release_from_memory();
         return false;
     }
 
-    std::vector<uint8_t> get_ownership_blob() override {
-        std::vector<uint8_t> blob(_blobSize);
-        blob.assign(reinterpret_cast<const uint8_t*>(this->get_ptr()), reinterpret_cast<const uint8_t*>(this->get_ptr()) + this->size());
-        return blob;
+    const std::vector<uint8_t>& get_blob() const override {
+        BlobContainer::release_from_memory();
+        _blob.resize(_size);
+        _blob.assign(reinterpret_cast<const uint8_t*>(this->get_ptr()),
+                     reinterpret_cast<const uint8_t*>(this->get_ptr()) + _size);
+        return _blob;
     }
 
 private:
-    uint64_t _blobSize;
+    uint64_t _size;
     size_t _ovHeaderOffset;
-    std::shared_ptr<ov::AlignedBuffer> _ownershipBlob;
+    std::shared_ptr<ov::AlignedBuffer> _blobSO;
 };
 
 }  // namespace intel_npu
