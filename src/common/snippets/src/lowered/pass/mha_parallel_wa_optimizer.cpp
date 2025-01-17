@@ -24,7 +24,7 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
 
-    const auto brgemms = find_applicable_brgemms(linear_ir, true);
+    const auto brgemms = find_applicable_brgemms(linear_ir);
     if (brgemms.empty())
         return;
 

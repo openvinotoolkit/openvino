@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,20 +32,18 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
 
     const auto& loop_manager = linear_ir_ptr->get_loop_manager();
     std::unordered_set<lowered::UnifiedLoopInfoPtr> affected_loops;
-    std::vector<size_t> prev_loop_idces;
+    size_t prev_loop_id = std::numeric_limits<size_t>::max();
     static const size_t dim_M_idx = 1;
 
     auto add_affected_loop = [&](const lowered::ExpressionPtr& expr) {
         const auto& loop_idces = expr->get_loop_ids();
-        if (loop_idces != prev_loop_idces) {
-            prev_loop_idces = loop_idces;
-            if (prev_loop_idces.empty())
-                return;
+        if (loop_idces.empty() || loop_idces.front() == prev_loop_id)
+            return;
 
-            const auto loop_info = loop_manager->get_loop_info<lowered::UnifiedLoopInfo>(loop_idces.front());
-            if (loop_info->get_dim_idx() == dim_M_idx) {
-                affected_loops.insert(loop_info);
-            }
+        prev_loop_id = loop_idces.front();
+        const auto loop_info = loop_manager->get_loop_info<lowered::UnifiedLoopInfo>(prev_loop_id);
+        if (loop_info->get_dim_idx() == dim_M_idx) {
+            affected_loops.insert(loop_info);
         }
     };
 
