@@ -92,7 +92,7 @@ private:
 #ifdef CPU_DEBUG_CAPS
 class IndividualMemoryBlockWithRelease : public IMemoryBlockObserver {
 public:
-    IndividualMemoryBlockWithRelease(const std::shared_ptr<MemoryBlockWithRelease>& pBlock) : m_pBlock(pBlock) {}
+    IndividualMemoryBlockWithRelease(std::shared_ptr<MemoryBlockWithRelease> pBlock) : m_pBlock(std::move(pBlock)) {}
 
     void* getRawPtr() const noexcept override {
         return m_pBlock->getRawPtr();
