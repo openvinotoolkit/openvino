@@ -896,32 +896,6 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
                                                       is_separate_first2);
     transpose_input(input_nodes, input_subscripts, int_subscript2, input_ind2, subgraph_nodes);
 
-    // step 2. reshape both operands so that separate labels and reduced labels are represented
-    // with just one dimension this is needed by MatMul operation requirement to operands
-    // format. For example, the shape must be in a format [B1, ..., Bm, X1, Y] or [B1, ..., Bm,
-    // Y, X2], where B1, ..., Bm are common dimensions, X1 and X2 are collapsed dimensions
-    // for separate labels and Y is collapsed dimension for reduced labels
-    // this step is not needed for the operand if it satisfies to one of the requirements:
-    // 1. there is just one separate dimension and just one reduced dimension
-    // 2. there is no separate dimension, no common dimensions, and just one reduced dimension
-    bool no_reshape_for_matmul1 =
-        (reduced_labels_inds1.size() == 1 && separate_labels_inds1.size() == 1) ||
-        (reduced_labels_inds1.size() == 1 && common_labels_inds1.size() == 0 && separate_labels_inds1.size() == 0);
-    bool no_reshape_for_matmul2 =
-        (reduced_labels_inds2.size() == 1 && separate_labels_inds2.size() == 1) ||
-        (reduced_labels_inds2.size() == 1 && common_labels_inds2.size() == 0 && separate_labels_inds2.size() == 0);
-    // reshape back after MatMul is not needed if one of two requrements satisfies for both operands:
-    // 1. there is just one separate dimension
-    // 2. there is no separate dimension and no common dimensions present.
-    // If there is no separate dimension and common dimensions present, reshape is needed
-    // because auxiliary separate dimension has been added by Unsqueeze operation
-    // in the purpose for MatMul
-    bool no_reshape_back1 =
-        (separate_labels_inds1.size() == 1) || (common_labels_inds1.size() == 0 && separate_labels_inds1.size() == 0);
-    bool no_reshape_back2 =
-        (separate_labels_inds2.size() == 1) || (common_labels_inds2.size() == 0 && separate_labels_inds2.size() == 0);
-    bool no_reshape_after_matmul = no_reshape_back1 && no_reshape_back2;
-
     auto matmul_operand1 = input_node1;
     auto matmul_operand2 = input_node2;
 
@@ -990,6 +964,34 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
                                       reduced_sub_shape,
                                       is_separate_first2,
                                       subgraph_nodes);
+
+    // step 2. reshape both operands so that separate labels and reduced labels are represented
+    // with just one dimension this is needed by MatMul operation requirement to operands
+    // format. For example, the shape must be in a format [B1, ..., Bm, X1, Y] or [B1, ..., Bm,
+    // Y, X2], where B1, ..., Bm are common dimensions, X1 and X2 are collapsed dimensions
+    // for separate labels and Y is collapsed dimension for reduced labels
+    // this step is not needed for the operand if it satisfies to one of the requirements:
+    // 1. there is just one separate dimension and just one reduced dimension
+    // 2. there is no separate dimension, no common dimensions, and just one reduced dimension
+    const auto common_labels1_size = common_dims_end - common_dims_begin;
+    const auto common_labels2_size = common_dims_end2 - common_dims_begin2;
+    const auto reduced_labels1_size = reduced_dims_end - reduced_dims_begin;
+    const auto reduced_labels2_size = reduced_dims_end2 - reduced_dims_begin2;
+    const auto separate_labels1_size = separate1_dims_end - separate1_dims_begin;
+    const auto separate_labels2_size = separate2_dims_end - separate2_dims_begin;
+    bool no_reshape_for_matmul1 = (reduced_labels1_size == 1 && separate_labels1_size == 1) ||
+                                  (reduced_labels1_size == 1 && common_labels1_size == 0 && separate_labels1_size == 0);
+    bool no_reshape_for_matmul2 = (reduced_labels2_size == 1 && separate_labels2_size == 1) ||
+                                  (reduced_labels2_size == 1 && common_labels2_size == 0 && separate_labels2_size == 0);
+    // reshape back after MatMul is not needed if one of two requirements satisfies for both operands:
+    // 1. there is just one separate dimension
+    // 2. there is no separate dimension and no common dimensions present.
+    // If there is no separate dimension and common dimensions present, reshape is needed
+    // because auxiliary separate dimension has been added by Unsqueeze operation
+    // in the purpose for MatMul
+    bool no_reshape_back1 = (separate_labels1_size == 1) || (common_labels1_size == 0 && separate_labels1_size == 0);
+    bool no_reshape_back2 = (separate_labels2_size == 1) || (common_labels2_size == 0 && separate_labels2_size == 0);
+    bool no_reshape_after_matmul = no_reshape_back1 && no_reshape_back2;
     if (no_reshape_for_matmul1 == false || no_reshape_after_matmul == false) {
         matmul_operand1 = reshape_input_for_matmul(matmul_operand1,
                                                    common_sub_shape,
@@ -1090,6 +1092,46 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         // compute einsum path that is used to contract a pair of operands
         // in more optimal order
         auto einsum_path = compute_einsum_path(einsum_node);
+
+        // fix inputs where ellipsis does not contain any dimensions
+        std::vector<bool> ellipsis_inputs(input_nodes.size(), false);
+        std::vector<bool> no_ellipsis_or_empty_inputs(input_nodes.size(), false);
+        static const std::string ellipsis = "...";
+        for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
+            const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
+            ellipsis_inputs[inp_iter] = (std::find(labels.begin(), labels.end(), "...") != labels.end());
+            if (!ellipsis_inputs[inp_iter] ||
+                (input_nodes[inp_iter].get_partial_shape().rank() == (labels.size() - 1))) {
+                no_ellipsis_or_empty_inputs[inp_iter] = true;
+            }
+        }
+        if (std::none_of(ellipsis_inputs.begin(), ellipsis_inputs.end(), [](bool inp) {
+                return inp;
+            })) {
+            if (output_subscript.find("...") != std::string::npos) {
+                output_subscript.erase(output_subscript.find("..."), 3);
+            }
+        } else if (std::all_of(no_ellipsis_or_empty_inputs.begin(), no_ellipsis_or_empty_inputs.end(), [](bool inp) {
+                       return inp;
+                   })) {
+            for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
+                if (input_subscripts[inp_iter].find("...") != std::string::npos) {
+                    input_subscripts[inp_iter].erase(input_subscripts[inp_iter].find("..."), 3);
+                }
+            }
+            if (output_subscript.find("...") != std::string::npos) {
+                output_subscript.erase(output_subscript.find("..."), 3);
+            }
+        } else {
+            for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
+                if (ellipsis_inputs[inp_iter] && no_ellipsis_or_empty_inputs[inp_iter]) {
+                    auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
+                    auto ellipsis_idx_iter = std::find(labels.begin(), labels.end(), "...");
+                    std::vector<int64_t> ellipsis_idx{std::distance(labels.begin(), ellipsis_idx_iter)};
+                    input_nodes[inp_iter] = unsqueeze_input(input_nodes[inp_iter], ellipsis_idx, subgraph_nodes);
+                }
+            }
+        }
 
         // contract inputs by Einsum until just one is remained
         for (auto const& inds_pair : einsum_path) {

@@ -101,6 +101,10 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
     auto& output_shape = output_shapes[0];
 
     for (auto const& output_label : output_labels) {
+        if (output_label == "..." && label_to_shape.find(output_label) == label_to_shape.end()) {
+            // Output labels may contain ellipsis that does not cover any dimensions.
+            continue;
+        }
         NODE_VALIDATION_CHECK(op,
                               label_to_shape.find(output_label) != label_to_shape.end(),
                               "Label in output subscript of Einsum equation must enter at least "

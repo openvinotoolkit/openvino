@@ -853,9 +853,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
     PartialShape common_sub_shape1 = compute_sub_shape(input_shape1, common_dims_begin, common_dims_end);
     PartialShape common_sub_shape2 = compute_sub_shape(input_shape2, common_dims_begin2, common_dims_end2);
 
-    PartialShape reduced_sub_shape_prod = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end, true);
     PartialShape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
-    Shape reduced_sub_shape_prod2 = compute_sub_shape(input_shape2, reduced_dims_begin2, reduced_dims_end2, true);
     Shape reduced_sub_shape2 = compute_sub_shape(input_shape2, reduced_dims_begin2, reduced_dims_end2);
     Shape separate1_sub_shape = compute_sub_shape(input_shape1, separate1_dims_begin, separate1_dims_end);
     Shape separate2_sub_shape = compute_sub_shape(input_shape2, separate2_dims_begin, separate2_dims_end);
@@ -865,7 +863,7 @@ void contract_two_inputs(ov::TensorVector& inputs,
     // reference::broadcast()
     PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
     PartialShape::broadcast_merge_into(reduced_sub_shape, reduced_sub_shape2, op::AutoBroadcastType::NUMPY);
-    PartialShape::broadcast_merge_into(reduced_sub_shape_prod, reduced_sub_shape_prod2, op::AutoBroadcastType::NUMPY);
+    Shape reduced_sub_shape_prod = {shape_size(reduced_sub_shape.get_shape())};
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
                        input_ind1,
@@ -883,13 +881,13 @@ void contract_two_inputs(ov::TensorVector& inputs,
     ov::Tensor matmul_operand1 = reshape_input_for_matmul<T>(input1,
                                                              common_sub_shape,
                                                              separate1_sub_shape,
-                                                             reduced_sub_shape_prod.get_shape(),
+                                                             reduced_sub_shape_prod,
                                                              is_separate_first1);
 
     ov::Tensor matmul_operand2 = reshape_input_for_matmul<T>(input2,
                                                              common_sub_shape,
                                                              separate2_sub_shape,
-                                                             reduced_sub_shape_prod.get_shape(),
+                                                             reduced_sub_shape_prod,
                                                              is_separate_first2);
 
     // step 3. apply MatMul operation for formatted inputs
@@ -941,6 +939,43 @@ void einsum_impl(const ov::TensorVector& inputs, ov::TensorVector& outputs, cons
     auto einsum_path = compute_einsum_path(num_inputs);
 
     ov::TensorVector int_inputs = inputs;
+    std::vector<bool> ellipsis_inputs(inputs.size(), false);
+    std::vector<bool> no_ellipsis_or_empty_inputs(inputs.size(), false);
+    static const std::string ellipsis = "...";
+    for (size_t inp_iter = 0; inp_iter < inputs.size(); inp_iter++) {
+        const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
+        ellipsis_inputs[inp_iter] = (std::find(labels.begin(), labels.end(), "...") != labels.end());
+        if (!ellipsis_inputs[inp_iter] || (inputs[inp_iter].get_shape().size() == (labels.size() - 1))) {
+            no_ellipsis_or_empty_inputs[inp_iter] = true;
+        }
+    }
+    if (std::none_of(ellipsis_inputs.begin(), ellipsis_inputs.end(), [](bool inp) {
+            return inp;
+        })) {
+        if (output_subscript.find("...") != std::string::npos) {
+            output_subscript.erase(output_subscript.find("..."), 3);
+        }
+    } else if (std::all_of(no_ellipsis_or_empty_inputs.begin(), no_ellipsis_or_empty_inputs.end(), [](bool inp) {
+                   return inp;
+               })) {
+        for (size_t inp_iter = 0; inp_iter < inputs.size(); inp_iter++) {
+            if (input_subscripts[inp_iter].find("...") != std::string::npos) {
+                input_subscripts[inp_iter].erase(input_subscripts[inp_iter].find("..."), 3);
+            }
+        }
+        if (output_subscript.find("...") != std::string::npos) {
+            output_subscript.erase(output_subscript.find("..."), 3);
+        }
+    } else {
+        for (size_t inp_iter = 0; inp_iter < inputs.size(); inp_iter++) {
+            if (ellipsis_inputs[inp_iter] && no_ellipsis_or_empty_inputs[inp_iter]) {
+                auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
+                auto ellipsis_idx_iter = std::find(labels.begin(), labels.end(), "...");
+                std::vector<int64_t> ellipsis_idx{std::distance(labels.begin(), ellipsis_idx_iter)};
+                int_inputs[inp_iter] = unsqueeze_input<T>(inputs[inp_iter], ellipsis_idx);
+            }
+        }
+    }
 
     // contract inputs by Einsum until just one is remained
     for (auto const& inds_pair : einsum_path) {
