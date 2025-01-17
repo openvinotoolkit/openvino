@@ -549,7 +549,7 @@ int main(int argc, char* argv[]) {
         auto areNetworkInputsDynamic = [](const benchmark_app::InputsInfo& input_info) {
             return std::any_of(input_info.begin(),
                                input_info.end(),
-                               [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
+                               [](const auto& info) {
                                    return i.second.partialShape.is_dynamic();
                                });
         };
