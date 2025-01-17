@@ -249,6 +249,7 @@ jobs:
                 -DENABLE_TESTS=OFF \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package --verbose
+          dnf install rpm-python
 
       #
       # Upload build artifacts and logs
