@@ -185,11 +185,12 @@ public:
                 return acc + item.size();
             });
         retVal.optimal_total_size = retVal.total_size;
-        // find max size memory block in m_blocks
-        retVal.max_region_size =
-            std::accumulate(obj.m_blocks.begin(), obj.m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
-                return std::max(acc, item.size());
-            });
+        retVal.max_region_size = std::accumulate(obj.m_blocks.begin(),
+                                                 obj.m_blocks.end(),
+                                                 static_cast<size_t>(0),
+                                                 [](size_t acc, const BlockType& item) {
+                                                     return std::max(acc, item.size());
+                                                 });
         return retVal;
     }
 #endif
@@ -409,7 +410,7 @@ public:
         retVal.total_unique_blocks = obj.m_memoryBlocks.uniqueBlocks().size();
         retVal.total_size = std::accumulate(obj.m_memoryBlocks.uniqueBlocks().begin(),
                                             obj.m_memoryBlocks.uniqueBlocks().end(),
-                                            0,
+                                            static_cast<size_t>(0),
                                             [](size_t acc, const auto& item) {
                                                 return acc + item->size();
                                             });
