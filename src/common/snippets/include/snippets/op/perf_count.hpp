@@ -74,20 +74,25 @@ class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
     PerfCountEnd(const Output<Node>& pc_begin);
-    PerfCountEnd() = default;
-    ~PerfCountEnd() {
-        output_perf_count();
-    }
+    PerfCountEnd();
+    ~PerfCountEnd();
+
     void output_perf_count();
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     void init_pc_begin();
     void set_accumulated_time();
 
+    void dump_brgemm_params_to_csv();
+
 private:
     ov::threading::ThreadLocal<uint64_t> accumulation;
     ov::threading::ThreadLocal<uint32_t> iteration;
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
+
+    static std::string brgemm_csv_path;
+    static std::map<std::string, std::string> m_debug_params_map;
+    static size_t nodes_count;
 };
 
 } // namespace op
