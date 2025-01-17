@@ -357,7 +357,7 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -447,7 +447,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
-void ExtractImagePatches::execute(dnnl::stream strm) {
+void ExtractImagePatches::execute(const dnnl::stream& strm) {
     if (execPtr) {
         auto src = getSrcDataAtPort(0);
         auto dst = getDstDataAtPort(0);
@@ -459,7 +459,7 @@ void ExtractImagePatches::execute(dnnl::stream strm) {
     }
 }
 
-void ExtractImagePatches::executeDynamicImpl(dnnl::stream strm) {
+void ExtractImagePatches::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

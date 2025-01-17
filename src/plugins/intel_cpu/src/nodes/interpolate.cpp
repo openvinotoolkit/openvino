@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
@@ -1848,7 +1849,7 @@ namespace {
  */
 class InterpolateShapeInferFactory : public ShapeInferFactory {
 public:
-    InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override {
         if (auto interp4 = ov::as_type_ptr<ov::opset4::Interpolate>(m_op)) {
             const auto& attr = interp4->get_attrs();
@@ -1872,7 +1873,7 @@ private:
 };
 }  // namespace
 
-Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -2319,7 +2320,7 @@ bool Interpolate::needShapeInfer() const {
     return false;
 }
 
-void Interpolate::executeDynamicImpl(dnnl::stream strm) {
+void Interpolate::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
     const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
@@ -2570,7 +2571,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
     return fullScales;
 }
 
-void Interpolate::execute(dnnl::stream strm) {
+void Interpolate::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
@@ -4055,15 +4056,14 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
     : mode(interpAttrs.mode),
       coordTransMode(interpAttrs.coordTransMode),
       configured_for_layout(interpAttrs.layout),
+      srcDimPad5d(to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd))),
+      dstDim5d(to5Dim(dstDims)),
       inputPrec(interpAttrs.inPrc),
-      outputPrec(interpAttrs.outPrc) {
-    srcDimPad5d = to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd));
-    dstDim5d = to5Dim(dstDims);
-    srcDataSize = interpAttrs.inPrc.size();
-    dstDataSize = interpAttrs.outPrc.size();
-    dataRank = srcDims.size();
-    spatialDimSize = getSpatialDimsNum(dataRank);
-
+      outputPrec(interpAttrs.outPrc),
+      srcDataSize(interpAttrs.inPrc.size()),
+      dstDataSize(interpAttrs.outPrc.size()),
+      dataRank(srcDims.size()),
+      spatialDimSize(getSpatialDimsNum(dataRank)) {
     switch (mode) {
     case InterpolateMode::nearest: {
         buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);

@@ -20,7 +20,7 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func) {
     //      GCC:   void foo() [with T = {type}]
     //      clang: void foo() [T = {type}]
     //      MSVC:  void __cdecl foo<{type}>(void)
-    SAFE_SYMBOL_FINDING(parenthesis, pretty_func.find("("))
+    SAFE_SYMBOL_FINDING(parenthesis, pretty_func.find('('))
     if (pretty_func[parenthesis - 1] == '>') {  // To cover template on MSVC
         parenthesis--;
         size_t counter = 1;
@@ -33,7 +33,7 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func) {
         }
     }
     SAFE_SYMBOL_FINDING(end, pretty_func.substr(0, parenthesis).rfind("::"))
-    SAFE_SYMBOL_FINDING(begin, pretty_func.substr(0, end).rfind(" "))
+    SAFE_SYMBOL_FINDING(begin, pretty_func.substr(0, end).rfind(' '))
     begin++;
 #undef SAFE_SYMBOL_FINDING
     return end > begin ? pretty_func.substr(begin, end - begin) : pretty_func;

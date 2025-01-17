@@ -42,7 +42,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -213,7 +213,7 @@ bool MultiClassNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
-void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
+void MultiClassNms::executeDynamicImpl(const dnnl::stream& strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -221,7 +221,7 @@ void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void MultiClassNms::execute(dnnl::stream strm) {
+void MultiClassNms::execute(const dnnl::stream& strm) {
     const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
     const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
@@ -640,9 +640,9 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
 }
 
 void MultiClassNms::checkPrecision(const ov::element::Type prec,
-                                   const std::vector<ov::element::Type> precList,
-                                   const std::string name,
-                                   const std::string type) {
+                                   const std::vector<ov::element::Type>& precList,
+                                   const std::string& name,
+                                   const std::string& type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
 }

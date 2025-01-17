@@ -26,7 +26,7 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -86,11 +86,11 @@ void GRN::prepareParams() {
         W = static_cast<int>(dataDims[3]);
 }
 
-void GRN::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void GRN::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 }
 
-void GRN::execute(dnnl::stream strm) {
+void GRN::execute(const dnnl::stream& strm) {
     const float* src_data = getSrcDataAtPortAs<const float>(0);
     float* dst_data = getDstDataAtPortAs<float>(0);
 

@@ -30,7 +30,7 @@ bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -96,7 +96,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
 
-void CumSum::execute(dnnl::stream strm) {
+void CumSum::execute(const dnnl::stream& strm) {
     if (inputShapes.size() == numOfInputs)
         axis = getAxis(getParentEdgeAt(AXIS)->getMemory(), getParentEdgeAt(CUM_SUM_DATA)->getMemory());
 
@@ -269,7 +269,7 @@ bool CumSum::needPrepareParams() const {
     return false;
 }
 
-void CumSum::executeDynamicImpl(dnnl::stream strm) {
+void CumSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

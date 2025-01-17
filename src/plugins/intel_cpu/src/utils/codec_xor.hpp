@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <string>
+#include <utility>
 
 namespace ov {
 namespace intel_cpu {
@@ -22,9 +23,9 @@ union CacheDecrypt {
 
     CacheDecrypt() {}
 
-    CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(fn) {}
+    CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(std::move(fn)) {}
 
-    CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(fn) {}
+    CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(std::move(fn)) {}
 
     ~CacheDecrypt() {}
 

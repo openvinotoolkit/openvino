@@ -13,7 +13,7 @@ public:
     using TransposeExecutor::TransposeExecutor;
     static void referenceExecute(const uint8_t* src_data,
                                  uint8_t* dst_data,
-                                 jit_permute_config_params jcp,
+                                 const jit_permute_config_params& jcp,
                                  const int mb);
     bool init(const TransposeParams& transposeParams,
               const std::vector<MemoryDescPtr>& srcDescs,

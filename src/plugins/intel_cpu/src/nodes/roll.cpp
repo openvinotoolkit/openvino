@@ -34,7 +34,7 @@ bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -121,11 +121,11 @@ void Roll::prepareParams() {
     execPtr = std::make_shared<RollExecutor>(dataDims, shiftDims, axesDims, dstDims);
 }
 
-void Roll::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void Roll::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 }
 
-void Roll::execute(dnnl::stream strm) {
+void Roll::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_CPU_NODE_ERR("has no compiled executor");
 

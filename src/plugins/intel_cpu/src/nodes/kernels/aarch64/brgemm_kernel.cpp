@@ -19,6 +19,12 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 namespace ov {
 namespace intel_cpu {
 
+static size_t getVlen() {
+    return mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
+           : mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen
+                              : cpu_isa_traits<sve_128>::vlen;
+}
+
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
                            size_t K,
@@ -29,30 +35,22 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type inType,
                            bool b_accumulate)
     : M(M),
+      M_blk(matmulOptimalM),
+      M_tail(M % M_blk),
       K(K),
+      K_blk(K),
+      K_tail(K % K_blk),
       N(N),
+      N_blk(std::max(N, getVlen() / inType.size())),
+      N_tail(N % N_blk),
       lda(lda),
       ldb(ldb),
       ldc(ldc),
       b_transposed(b_transposed),
+      kBlkStep(4 / inType.size()),
+      packedBSize(rnd_up(K, getVlen() / inType.size()) * rnd_up(N, N_blk) * inType.size()),
       inType(inType) {
-    // blocking M
-    M_blk = matmulOptimalM;
-    M_tail = M % M_blk;
-    kBlkStep = 4 / inType.size();
-    size_t vlen;
-    vlen = mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
-           : mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen
-                              : cpu_isa_traits<sve_128>::vlen;
-    // blocking N
-    N_blk = std::max(N, vlen / inType.size());
-    N_tail = N % N_blk;
-
-    // blocking K
-    K_blk = K;
-    K_tail = K % K_blk;
     // copied K must be round up by vlen / inType.size(), otherwise copy B kernel may access wrong memory
-    packedBSize = rnd_up(K, vlen / inType.size()) * rnd_up(N, N_blk) * inType.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
     for (size_t m = 0; m < 2; m++) {
         for (size_t k = 0; k < 2; k++) {

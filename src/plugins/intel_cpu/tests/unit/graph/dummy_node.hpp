@@ -68,7 +68,7 @@ public:
     };
 
     bool isExecutable() const override {return m_is_executable;}
-    void execute(dnnl::stream strm) override {};
+    void execute(const dnnl::stream& strm) override {};
     bool created() const override {return true;}
 
     bool needPrepareParams() const override {

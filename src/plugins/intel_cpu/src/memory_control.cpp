@@ -5,6 +5,7 @@
 #include "memory_control.hpp"
 
 #include <ov_optional.hpp>
+#include <utility>
 
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
@@ -188,7 +189,7 @@ public:
                 }
             }
         }
-        m_boxes.emplace_back(std::move(box));
+        m_boxes.emplace_back(box);
     }
 
     const MemoryControl::MemoryBlockMap& lastSolution() override {

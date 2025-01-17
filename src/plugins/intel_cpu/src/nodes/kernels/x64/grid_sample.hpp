@@ -72,10 +72,16 @@ public:
     }
     explicit GridSampleKernelBase(const char* name,
                                   const GridSampleKernelConfParams& jcp,
-                                  dnnl::impl::cpu::x64::cpu_isa_t isa)
+                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                  uint64_t vlen)
         : JitKernelBase(name, isa),
           ker_(nullptr),
-          jcp(jcp) {}
+          jcp(jcp),
+          vlen(vlen),
+          dataTypeSize(jcp.inDataPrc.size()),
+          gridTypeSize(jcp.gridPrc.size()),
+          dataElPerVec(vlen / dataTypeSize),
+          gridElPerVec(vlen / gridTypeSize) {}
 
     virtual void create_ker() = 0;
     uint64_t getVecLen() {

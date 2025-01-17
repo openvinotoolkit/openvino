@@ -1056,7 +1056,7 @@ struct FakeQuantKey {
 };
 }  // namespace
 
-FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -1911,11 +1911,11 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 #endif
 }
 
-void FakeQuantize::executeDynamicImpl(dnnl::stream strm) {
+void FakeQuantize::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void FakeQuantize::execute(dnnl::stream strm) {
+void FakeQuantize::execute(const dnnl::stream& strm) {
     if (getSelectedPrimitiveDescriptor()->getImplementationType() != impl_desc_type::ref) {
         execPtr->exec(*this);
     } else {

@@ -152,7 +152,7 @@ void RandomUniform::prepareParams() {
     }
 }
 
-void RandomUniform::execute(dnnl::stream strm) {
+void RandomUniform::execute(const dnnl::stream& strm) {
     if (!m_const_inputs[MIN_VAL]) {
         initEdgeValues(m_min_val, getSrcDataAtPort(MIN_VAL), m_output_prc);
         if (m_const_inputs[MAX_VAL]) {
@@ -177,7 +177,7 @@ void RandomUniform::execute(dnnl::stream strm) {
     }
 }
 
-void RandomUniform::executeDynamicImpl(dnnl::stream strm) {
+void RandomUniform::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -191,7 +191,7 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
     std::string str_type;
 
-    auto add_type = [&](std::string t) {
+    auto add_type = [&](const std::string& t) {
         if (!str_type.empty() && t.c_str()[0] != '_')
             str_type += "_";
         str_type += t;

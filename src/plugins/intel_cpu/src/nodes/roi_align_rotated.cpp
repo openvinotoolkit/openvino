@@ -13,7 +13,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     const auto roiAlign = ov::as_type_ptr<const ov::opset15::ROIAlignRotated>(op);
     pooledH = roiAlign->get_pooled_h();
@@ -48,7 +48,7 @@ bool ROIAlignRotated::needPrepareParams() const {
     return false;
 }
 
-void ROIAlignRotated::executeDynamicImpl(dnnl::stream strm) {
+void ROIAlignRotated::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -83,7 +83,7 @@ void ROIAlignRotated::executeImpl() {
         clockwiseMode);
 }
 
-void ROIAlignRotated::execute(dnnl::stream) {
+void ROIAlignRotated::execute(const dnnl::stream&) {
     const ov::element::Type type = getOriginalInputPrecisionAtPort(0);
     executeImpl<ov::element::f32>();
 

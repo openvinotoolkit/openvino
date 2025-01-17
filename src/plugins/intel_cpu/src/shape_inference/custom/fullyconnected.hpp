@@ -28,7 +28,7 @@ private:
 
 class FCShapeInferFactory : public ShapeInferFactory {
 public:
-    FCShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    FCShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<FCShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length());
     }

@@ -66,7 +66,7 @@ void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
 
 void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
-    for (auto input : m_input_ports_map) {
+    for (const auto& input : m_input_ports_map) {
         if (m_input_external_ptr.find(input.first) != m_input_external_ptr.end()) {
             auto tensor = get_tensor(input.second);
             m_input_external_ptr[input.first] = tensor;
@@ -294,7 +294,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
     if (m_asyncRequest->m_has_sub_infers) {
         auto requests = m_asyncRequest->getSubInferRequest();
         std::vector<ov::SoPtr<ov::IVariableState>> states;
-        for (auto request : requests) {
+        for (const auto& request : requests) {
             auto cur = request->query_state();
             states.insert(states.end(), cur.begin(), cur.end());
         }

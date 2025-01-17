@@ -6,6 +6,8 @@
 
 #    include "jit_segfault_detector_emitter.hpp"
 
+#    include <utility>
+
 #    include "emitters/plugin/x64/utils.hpp"
 
 using namespace dnnl::impl::utils;
@@ -29,7 +31,7 @@ jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl:
       m_target_emitter(target_emitter),
       is_target_use_load_emitter(is_load),
       is_target_use_store_emitter(is_store),
-      m_target_node_name(target_node_name) {}
+      m_target_node_name(std::move(target_node_name)) {}
 
 size_t jit_uni_segfault_detector_emitter::get_inputs_num() const {
     return 1;

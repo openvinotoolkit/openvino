@@ -9,7 +9,9 @@
 
 #pragma once
 
-#include <openvino/cc/pass/itt.hpp>
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/itt.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -16,12 +16,12 @@ namespace node {
 
 class Broadcast : public Node, public TileBroadcastCommon {
 public:
-    Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool isExecutable() const override;
@@ -33,7 +33,7 @@ protected:
     bool needShapeInfer() const override;
 
 private:
-    void plainExecute(dnnl::stream strm);
+    void plainExecute(const dnnl::stream& strm);
 
     enum AutoBroadcastType { NUMPY, EXPLICIT };
     AutoBroadcastType broadcastType = NUMPY;

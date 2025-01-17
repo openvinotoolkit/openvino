@@ -373,6 +373,7 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const
         }
     }();
     std::vector<snippets::Reg> reg_pool;
+    reg_pool.reserve(num_vec_regs);
     for (int i = 0; i < num_vec_regs; i++)
         reg_pool.emplace_back(snippets::RegType::vec, static_cast<size_t>(i));
     return reg_pool;

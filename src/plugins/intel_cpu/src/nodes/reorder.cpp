@@ -32,7 +32,7 @@ bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
 }
 
-Reorder::Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Reorder::Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     THROW_CPU_NODE_ERR("could not create CPU node from Core node.");
 }
@@ -40,7 +40,7 @@ Reorder::Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 Reorder::Reorder(const MemoryDesc& input,
                  const MemoryDesc& output,
                  const std::string& name,
-                 const GraphContext::CPtr context)
+                 const GraphContext::CPtr& context)
     : Node("Reorder",
            {input.getShape()},
            {output.getShape()},
@@ -128,11 +128,11 @@ void Reorder::createPrimitive() {
     }
 }
 
-void Reorder::executeDynamicImpl(dnnl::stream strm) {
+void Reorder::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reorder::prepareReorderAsTranspose(MemoryDescPtr parentDesc, MemoryDescPtr childDesc) {
+void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
     auto getOrderAndBlockedDims = [](const MemoryDesc& lhs,
                                      const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
         const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
@@ -399,7 +399,7 @@ void Reorder::optimizedNspc2Ncsp() {
     });
 }
 
-void Reorder::execute(dnnl::stream strm) {
+void Reorder::execute(const dnnl::stream& strm) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
@@ -449,7 +449,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const IMemory& input, const IMemory& output, MultiCachePtr cache) {
+void Reorder::reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
@@ -510,7 +510,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, MultiCach
                             input.getSize() / input.getDesc().getPrecision().size());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                Memory tmpMem(engine, std::move(tmpDesc), tmpBuff.data());
+                Memory tmpMem(engine, tmpDesc, tmpBuff.data());
 
                 srcMemory = tmpMem.getPrimitive();
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());

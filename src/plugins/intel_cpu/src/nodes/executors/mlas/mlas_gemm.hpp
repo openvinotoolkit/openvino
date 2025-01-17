@@ -18,7 +18,7 @@ public:
     MlasGemmExecutor(const FCAttrs& attrs,
                      const PostOps& postOps,
                      const MemoryArgs& memory,
-                     const ExecutorContext::CPtr context);
+                     const ExecutorContext::CPtr& context);
 
     void execute(const MemoryArgs& memory) override;
 

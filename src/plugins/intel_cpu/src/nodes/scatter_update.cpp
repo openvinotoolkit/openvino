@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
@@ -73,7 +74,7 @@ bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }
 
-ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
       dataSize(0lu),
       indicesSize(0lu),
@@ -312,7 +313,7 @@ bool ScatterUpdate::needPrepareParams() const {
     return false;
 }
 
-void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {
+void ScatterUpdate::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -371,8 +372,8 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
 }
 
 struct TensorIterator {
-    TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis)
-        : m_squashed_shape(squashed_shape),
+    TensorIterator(VectorDims squashed_shape, const int64_t squashed_axis)
+        : m_squashed_shape(std::move(squashed_shape)),
           m_squashed_axis(squashed_axis) {
         OPENVINO_ASSERT(m_squashed_shape[m_squashed_axis] == 1);
     }
@@ -824,7 +825,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr,
               OV_CASE(ov::element::u8, uint8_t));
 }
 
-void ScatterUpdate::execute(dnnl::stream strm) {
+void ScatterUpdate::execute(const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);

@@ -12,18 +12,18 @@ namespace node {
 
 class PriorBox : public Node {
 public:
-    PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
 
-    void executeDynamicImpl(dnnl::stream strm) override {
+    void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
 

@@ -56,7 +56,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
-        if (std::count_if(shape_b.begin(), shape_b.end(), [](ov::Dimension x) {
+        if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) {
                 return x != 1;
             }) > 2) {
             return false;

@@ -31,7 +31,7 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -93,7 +93,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherElements::executeDynamicImpl(dnnl::stream strm) {
+void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -130,7 +130,7 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(dnnl::stream strm) {
+void GatherElements::execute(const dnnl::stream& strm) {
     switch (dataTypeSize_) {
     case sizeof(element_type_traits<ov::element::i32>::value_type):
         return directExecution<element_type_traits<ov::element::i32>::value_type>();

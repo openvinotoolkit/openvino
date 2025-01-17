@@ -28,7 +28,7 @@ bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ov::Node
     return true;
 }
 
-CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -67,7 +67,7 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoder::execute(dnnl::stream strm) {
+void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
     const float* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
     const float* sequenceMask = getSrcDataAtPortAs<const float>(SEQUENCE_LENGTH_INDEX);
     float* outputSequences = getDstDataAtPortAs<float>(0);
@@ -165,7 +165,7 @@ bool CTCGreedyDecoder::created() const {
     return getType() == Type::CTCGreedyDecoder;
 }
 
-void CTCGreedyDecoder::executeDynamicImpl(dnnl::stream strm) {
+void CTCGreedyDecoder::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

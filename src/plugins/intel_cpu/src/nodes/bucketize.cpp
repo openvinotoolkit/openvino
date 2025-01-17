@@ -29,7 +29,7 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -85,7 +85,7 @@ inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
            (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
 }
 
-void Bucketize::execute(dnnl::stream strm) {
+void Bucketize::execute(const dnnl::stream& strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {

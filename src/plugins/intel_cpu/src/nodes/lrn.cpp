@@ -109,7 +109,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -240,7 +240,7 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc, const st
     descs.push_back(desc);
 }
 
-void Lrn::execute(dnnl::stream strm) {
+void Lrn::execute(const dnnl::stream& strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {
@@ -248,7 +248,7 @@ void Lrn::execute(dnnl::stream strm) {
     }
 }
 
-void Lrn::executeDynamicImpl(dnnl::stream strm) {
+void Lrn::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

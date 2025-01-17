@@ -25,7 +25,7 @@ public:
     using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
                                                      const PostOps& postOps,
                                                      const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr context)>;
+                                                     const ExecutorContext::CPtr& context)>;
 
     ExecutorImplementation(const char* name,
                            const ExecutorType type,

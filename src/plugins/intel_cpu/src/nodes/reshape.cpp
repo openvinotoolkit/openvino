@@ -30,7 +30,7 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -38,7 +38,7 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     }
 
     if (isDynamicNode()) {
-        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string opType) {
+        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
                 OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
             }
@@ -120,11 +120,11 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void Reshape::executeDynamicImpl(dnnl::stream strm) {
+void Reshape::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reshape::execute(dnnl::stream strm) {
+void Reshape::execute(const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
 

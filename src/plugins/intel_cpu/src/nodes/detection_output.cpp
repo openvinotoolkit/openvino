@@ -48,7 +48,7 @@ bool DetectionOutput::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -161,11 +161,11 @@ struct ConfidenceComparatorDO {
     const float* confData;
 };
 
-void DetectionOutput::executeDynamicImpl(dnnl::stream strm) {
+void DetectionOutput::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void DetectionOutput::execute(dnnl::stream strm) {
+void DetectionOutput::execute(const dnnl::stream& strm) {
     float* dstData = getDstDataAtPortAs<float>(0);
 
     const float* locData = getSrcDataAtPortAs<const float>(ID_LOC);

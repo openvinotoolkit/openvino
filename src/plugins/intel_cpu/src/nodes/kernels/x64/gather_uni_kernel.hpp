@@ -75,7 +75,12 @@ struct jitGatherKernelBase {
         assert(ker_);
         ker_(args);
     }
-    explicit jitGatherKernelBase(const jGatherConfParams& jcp) : ker_(nullptr), jcp(jcp) {}
+    explicit jitGatherKernelBase(const jGatherConfParams& jcp, uint64_t vlen, uint64_t indicesTypeSize)
+        : ker_(nullptr),
+          jcp(jcp),
+          vlen(vlen),
+          dataElPerVec(vlen / jcp.dataTypeSize),
+          idxElPerVec(vlen / indicesTypeSize) {}
     virtual ~jitGatherKernelBase() {}
 
     virtual void create_ker() = 0;

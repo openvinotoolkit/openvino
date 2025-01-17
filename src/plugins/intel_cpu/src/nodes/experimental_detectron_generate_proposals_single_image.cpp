@@ -304,7 +304,7 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::isSupportedOperation(con
 
 ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const std::shared_ptr<ov::Node>& op,
-    const GraphContext::CPtr context)
+    const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -336,7 +336,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImage::execute(dnnl::stream strm) {
+void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             OPENVINO_THROW("Incorrect number of input or output edges!");

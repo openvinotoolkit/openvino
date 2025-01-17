@@ -4,6 +4,8 @@
 
 #include "serialize.hpp"
 
+#include <utility>
+
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -39,7 +41,7 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
     : m_istream(model_stream),
       m_model_builder(std::move(fn)),
       m_decript_from_string(decript_from_string),
-      m_model_buffer(model_buffer) {
+      m_model_buffer(std::move(model_buffer)) {
     if (m_decript_from_string) {
         m_cache_decrypt.m_decrypt_str = decrypt_fn.m_decrypt_str;
     } else {

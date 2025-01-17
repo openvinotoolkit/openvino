@@ -39,7 +39,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Math::Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()),
       alpha(0.f),
       beta(0.f),
@@ -64,11 +64,11 @@ void Math::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void Math::executeDynamicImpl(dnnl::stream strm) {
+void Math::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Math::execute(dnnl::stream strm) {
+void Math::execute(const dnnl::stream& strm) {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     const float* src_data = getSrcDataAtPortAs<const float>(0);
     float* dst_data = getDstDataAtPortAs<float>(0);
@@ -151,7 +151,7 @@ void Math::execute(dnnl::stream strm) {
         gamma = (gamma == 0.0f) ? 1.0507f : gamma;
         parallel_for(dataSize, [&](size_t i) {
             float x = src_data[i];
-            dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (exp(x) - 1.0f));
+            dst_data[i] = (x > 0.0f) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0f));
         });
         break;
     case Algorithm::MathSign:

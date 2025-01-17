@@ -164,7 +164,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
@@ -706,7 +706,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
     return std::move(result.dims.back());
 }
 
-void Deconvolution::execute(dnnl::stream strm) {
+void Deconvolution::execute(const dnnl::stream& strm) {
     if (useACL) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {

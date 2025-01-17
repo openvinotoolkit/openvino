@@ -4,6 +4,7 @@
 
 #include "eye.h"
 
+#include <utility>
 #include <utils/bfloat16.hpp>
 
 #include "openvino/core/parallel.hpp"
@@ -33,7 +34,7 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 namespace {
 class EyeShapeInferFactory : public ShapeInferFactory {
 public:
-    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override {
         return (m_op->get_input_size() == 4) ? make_shape_inference(m_op)
                                              : make_shape_inference(m_op, PortMask(Eye::ROWS_NUM, Eye::COLS_NUM));
@@ -44,7 +45,7 @@ private:
 };
 }  // namespace
 
-Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, EyeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -71,7 +72,7 @@ struct Eye::EyeExecute {
     }
 };
 
-void Eye::execute(dnnl::stream strm) {
+void Eye::execute(const dnnl::stream& strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu,
               EyeExecute,

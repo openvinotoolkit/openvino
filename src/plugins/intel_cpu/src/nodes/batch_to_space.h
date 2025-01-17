@@ -12,7 +12,7 @@ namespace node {
 
 class BatchToSpace : public Node {
 public:
-    BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
@@ -22,7 +22,7 @@ public:
         return !hasEmptyInputTensors() && !hasEmptyOutputTensors();
     }
 
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool needPrepareParams() const override {
@@ -31,7 +31,7 @@ public:
     bool needShapeInfer() const override {
         return true;
     };
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 

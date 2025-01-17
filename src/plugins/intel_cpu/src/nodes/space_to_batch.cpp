@@ -25,7 +25,7 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -239,11 +239,11 @@ void SpaceToBatch::SpaceToBatchKernel() {
     });
 }
 
-void SpaceToBatch::executeDynamicImpl(dnnl::stream strm) {
+void SpaceToBatch::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void SpaceToBatch::execute(dnnl::stream strm) {
+void SpaceToBatch::execute(const dnnl::stream& strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
     case 1:
         SpaceToBatchKernel<element_type_traits<ov::element::u8>::value_type>();

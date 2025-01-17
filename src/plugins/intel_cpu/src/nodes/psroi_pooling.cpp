@@ -59,7 +59,7 @@ bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -203,8 +203,8 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
     const bool outIsBlk = dstDesc.hasLayoutType(LayoutType::nCsp16c) || dstDesc.hasLayoutType(LayoutType::nCsp8c);
     size_t expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
     size_t expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
-    auto inBlkDims = srcDesc.getBlockDims();
-    auto outBlkDims = dstDesc.getBlockDims();
+    const auto& inBlkDims = srcDesc.getBlockDims();
+    const auto& outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize)
         THROW_CPU_NODE_ERR("has unexpected size of blocking dims in input (given ",
                            inBlkDims.size(),
@@ -601,7 +601,7 @@ struct PSROIPooling::PSROIPoolingExecute {
     }
 };
 
-void PSROIPooling::execute(dnnl::stream strm) {
+void PSROIPooling::execute(const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 

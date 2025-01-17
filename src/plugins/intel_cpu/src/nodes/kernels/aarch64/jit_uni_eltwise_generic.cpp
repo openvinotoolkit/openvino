@@ -4,6 +4,8 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <utility>
+
 namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
@@ -19,15 +21,15 @@ void jit_uni_eltwise_kernel::operator()(const node::jit_eltwise_call_args_ptrs* 
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(const jit_eltwise_params& jep,
-                                                      const std::vector<EltwiseData>& eltwise_data,
-                                                      const std::vector<ov::intel_cpu::Type>& ops_list,
-                                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep),
+jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep,
+                                                      std::vector<EltwiseData> eltwise_data,
+                                                      std::vector<ov::intel_cpu::Type> ops_list,
+                                                      dnnl::post_ops post_ops)
+    : jit_uni_eltwise_kernel(std::move(jep)),
       jit_generator(),
-      eltwise_data_(eltwise_data),
-      ops_list_(ops_list),
-      post_ops_(post_ops) {}
+      eltwise_data_(std::move(eltwise_data)),
+      ops_list_(std::move(ops_list)),
+      post_ops_(std::move(post_ops)) {}
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {

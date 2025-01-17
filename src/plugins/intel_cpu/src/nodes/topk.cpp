@@ -1887,7 +1887,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -2195,11 +2195,11 @@ void TopK::createPrimitive() {
     }
 }
 
-void TopK::executeDynamicImpl(dnnl::stream strm) {
+void TopK::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void TopK::execute(dnnl::stream strm) {
+void TopK::execute(const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto dstIndexesMemPtr = getDstMemoryAtPort(TOPK_INDEX);

@@ -94,12 +94,12 @@ void Composite::createPrimitive() {
     m_graph.Activate(inputMemory, outputMemory);
 }
 
-void Composite::execute(dnnl::stream) {
+void Composite::execute(const dnnl::stream&) {
     m_graph.Infer();
 }
 
-void Composite::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void Composite::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 
     // since the shape inference is not performed for the composite node
     // a memory of the extra child edges, attached to the output ports

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace ov {
 namespace intel_cpu {
 

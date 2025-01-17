@@ -84,11 +84,11 @@ bool Inverse::created() const {
     return getType() == Type::Inverse;
 }
 
-void Inverse::execute(dnnl::stream strm) {
+void Inverse::execute(const dnnl::stream& strm) {
     inverse();
 }
 
-void Inverse::executeDynamicImpl(dnnl::stream strm) {
+void Inverse::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

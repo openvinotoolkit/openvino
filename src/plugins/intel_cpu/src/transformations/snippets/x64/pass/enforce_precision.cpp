@@ -18,7 +18,7 @@ using namespace ov::intel_cpu::pass;
 EnforcePrecision::EnforcePrecision(
     const ov::element::Type source,
     const ov::element::Type target,
-    std::function<std::set<std::vector<ov::element::Type>>(const std::shared_ptr<ov::Node>& op)>
+    const std::function<std::set<std::vector<ov::element::Type>>(const std::shared_ptr<ov::Node>& op)>&
         get_supported_precisions)
     : source(source),
       target(target),

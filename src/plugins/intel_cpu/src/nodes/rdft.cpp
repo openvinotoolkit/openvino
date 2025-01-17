@@ -74,7 +74,7 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape,
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -151,7 +151,7 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void RDFT::execute(dnnl::stream strm) {
+void RDFT::execute(const dnnl::stream& strm) {
     const auto& inputMem = getParentEdgeAt(DATA_INDEX)->getMemory();
     const auto& outputMem = getChildEdgeAt(0)->getMemory();
     const auto& inputShape = inputMem.getStaticDims();
@@ -177,7 +177,7 @@ void RDFT::execute(dnnl::stream strm) {
                       outputStrides);
 }
 
-void RDFT::executeDynamicImpl(dnnl::stream strm) {
+void RDFT::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

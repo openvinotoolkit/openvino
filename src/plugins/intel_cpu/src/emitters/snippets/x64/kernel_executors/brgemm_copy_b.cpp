@@ -22,9 +22,8 @@ BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt,
                                                  bool is_with_comp,
                                                  bool is_transposed_B,
                                                  dnnl_dim_t wei_N_blk)
-    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)) {
-    m_hash = compute_hash();
-}
+    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)),
+      m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
     return !utils::one_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();

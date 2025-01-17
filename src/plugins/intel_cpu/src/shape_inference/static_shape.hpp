@@ -78,10 +78,6 @@ public:
         return m_dims;
     }
 
-    const TDims&& operator*() const&& noexcept {
-        return std::move(m_dims);
-    }
-
     TDims&& operator*() && noexcept {
         return std::move(m_dims);
     }
