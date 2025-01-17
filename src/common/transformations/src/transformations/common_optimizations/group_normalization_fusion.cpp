@@ -77,8 +77,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         const auto& T = input.get_element_type();
 
-        const auto& pre_mvn_reshape_out = pattern_map.at(pre_mvn_reshape_m);
-        const auto& pre_mvn_reshape_out_ps = pre_mvn_reshape_out.get_partial_shape();
+        const auto& pre_mvn_reshape_out_ps = pattern_map.at(pre_mvn_reshape_m).get_partial_shape();
 
         const auto& num_channels = input_ps[1].get_max_length();
         const auto& num_groups = pre_mvn_reshape_out_ps[1].get_max_length();
@@ -93,15 +92,14 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         if (input_ps[0].get_max_length() != pre_mvn_reshape_out_ps[0].get_max_length())
             return false;
 
-        const auto& post_instance_norm_reshape_out = pattern_map.at(post_instance_norm_reshape_m);
-        const auto& post_instance_norm_reshape_out_ps = post_instance_norm_reshape_out.get_partial_shape();
+        const auto& post_instance_norm_reshape_out_ps =
+            pattern_map.at(post_instance_norm_reshape_m).get_partial_shape();
 
         // post instance norm shape has to be same as in pattern input
         if (post_instance_norm_reshape_out_ps != input_ps)
             return false;
 
         const auto& group_norm_gamma = pattern_map.at(group_norm_gamma_m);
-        const auto& group_norm_gamma_ps = group_norm_gamma.get_partial_shape();
 
         // group_norm_gamma has to share the same data type as
         // pattern input
@@ -114,7 +112,6 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             return false;
 
         const auto& group_norm_beta = pattern_map.at(group_norm_beta_m);
-        const auto& group_norm_beta_ps = group_norm_beta.get_partial_shape();
 
         // group_norm_beta has to share the same data type as
         // pattern input
@@ -129,15 +126,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         auto expected_param_shape = ov::PartialShape({num_channels});
 
         std::shared_ptr<ov::Node> group_norm_gamma_1d_m = std::make_shared<ov::op::v0::Squeeze>(group_norm_gamma);
-        const auto& group_norm_gamma_1d_out = group_norm_gamma_1d_m->get_default_output();
-        const auto& group_norm_gamma_1d_out_ps = group_norm_gamma_1d_out.get_partial_shape();
+        const auto& group_norm_gamma_1d_out_ps = group_norm_gamma_1d_m->get_output_partial_shape(0);
 
         if (group_norm_gamma_1d_out_ps != expected_param_shape)
             return false;
 
         std::shared_ptr<ov::Node> group_norm_beta_1d_m = std::make_shared<ov::op::v0::Squeeze>(group_norm_beta);
-        const auto& group_norm_beta_1d_out = group_norm_beta_1d_m->get_default_output();
-        const auto& group_norm_beta_1d_out_ps = group_norm_beta_1d_out.get_partial_shape();
+        const auto& group_norm_beta_1d_out_ps = group_norm_beta_1d_m->get_output_partial_shape(0);
 
         if (group_norm_beta_1d_out_ps != expected_param_shape)
             return false;
@@ -145,7 +140,6 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
         if (pattern_map.count(instance_norm_beta_m) > 0) {
             const auto& instance_norm_beta = pattern_map.at(instance_norm_beta_m);
-            const auto& instance_norm_beta_ps = group_norm_beta.get_partial_shape();
 
             // instance_norm_beta has to share the same data type as
             // pattern input
@@ -170,15 +164,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             for (auto i = 0; i < channels_to_groups_ratio; i++)
                 instance_norm_beta_concat_inputs.push_back(instance_norm_beta_1d_m);
             instance_norm_beta_1d_m = std::make_shared<ov::op::v0::Concat>(instance_norm_beta_concat_inputs, 0);
-            const auto& instance_norm_beta_1d_out = instance_norm_beta_1d_m->get_default_output();
-            const auto& instance_norm_beta_1d_ps = instance_norm_beta_1d_out.get_partial_shape();
+            const auto& instance_norm_beta_1d_ps = instance_norm_beta_1d_m->get_output_partial_shape(0);
             if (instance_norm_beta_1d_ps != expected_param_shape)
                 return false;
         }
 
         if (pattern_map.count(instance_norm_gamma_m) > 0) {
             const auto& instance_norm_gamma = pattern_map.at(instance_norm_gamma_m);
-            const auto& instance_norm_gamma_ps = group_norm_beta.get_partial_shape();
 
             // instance_norm_gamma has to share the same data type as
             // pattern input
@@ -204,8 +196,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             for (auto i = 0; i < channels_to_groups_ratio; i++)
                 instance_norm_gamma_concat_inputs.push_back(instance_norm_gamma_1d_m);
             instance_norm_gamma_1d_m = std::make_shared<ov::op::v0::Concat>(instance_norm_gamma_concat_inputs, 0);
-            const auto& instance_norm_gamma_1d_out = instance_norm_gamma_1d_m->get_default_output();
-            const auto& instance_norm_gamma_1d_ps = instance_norm_gamma_1d_out.get_partial_shape();
+            const auto& instance_norm_gamma_1d_ps = instance_norm_gamma_1d_m->get_output_partial_shape(0);
             if (instance_norm_gamma_1d_ps != expected_param_shape)
                 return false;
 
