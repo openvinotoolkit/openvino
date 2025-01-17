@@ -29,14 +29,20 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const bool isInt8,
                                          const int weiScaleMaskPerChannel,
                                          const MemoryArgs& memory,
-                                         const dnnl::memory::data_type outDataType)
+                                         const dnnl::memory::data_type outDataType,
+                                         const VectorDims& srcDims,
+                                         const VectorDims& weiDims,
+                                         bool weightsNonTransposed)
     : engine(engine),
       postOps(postOps),
       outputDims(outputDims),
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel),
-      outDataType(outDataType) {
+      outDataType(outDataType),
+      srcDims(srcDims),
+      weiDims(weiDims),
+      weightsNonTransposed(weightsNonTransposed) {
     OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
@@ -44,9 +50,8 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
 
     const auto& DQScales = getDeQuantizedScales(memory);
     // generalise dq scales, so extra logic is necessary here.
-    if (isINT8) {
-        wei_scale_values = DQScales.empty() ? std::vector<float>{1.0} : DQScales;
-        wei_scale_mask = wei_scale_values.size() > 1 ? weiScaleMaskPerChannel : 0;
+    if (isINT8 && !DQScales.empty()) {
+        wei_scale_mask = DQScales.size() > 1 ? weiScaleMaskPerChannel : 0;
         dst_scale_val = 1.0;
 
         // set the DQscale into attr weight scale before appending any post-ops.
@@ -631,6 +636,11 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     return dstMem;
 }
 
+// static MemoryPtr loadParams(const MemoryCPtr& paramsPtr,
+//                             bool needTranspose,
+//                                             ov::element::Type dstPrc,
+//                                             const dnnl::engine& engine) {
+
 static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDims& scaleDims) {
     if (scaleDims[0] == 1 && scaleDims[1] == 1)
         return {};
@@ -643,7 +653,7 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
     return {groupK, groupN};
 }
 
-static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
+static int getWeiMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
     const int maskN = 1 << (weiDims.size() - 1);
     const int maskK = 1 << (weiDims.size() - 2);
     int N = weiDims[weiDims.size() - 2];
@@ -657,6 +667,21 @@ static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDim
     return mask;
 }
 
+static int getSrcMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
+    const int maskN = 1 << (weiDims.size() - 1);
+    const int maskK = 1 << (weiDims.size() - 2);
+    int N = weiDims[weiDims.size() - 2];
+    int K = weiDims[weiDims.size() - 1];
+    int mask = 0;
+    if (!groupDims.empty() && groupDims[1] != N)
+        mask += maskN;
+    if (!groupDims.empty() && groupDims[0] != K)
+        mask += maskK;
+
+    return mask;
+}
+
+
 void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr,
                                                     bool needTranspose,
                                                     ov::element::Type dstPrecision,
@@ -666,7 +691,7 @@ void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr
 
     auto scaleMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
     auto groupDims = getGroupDims(weiDims, scaleMem->getStaticDims());
-    auto mask = getMask(weiDims, groupDims);
+    auto mask = getWeiMask(weiDims, groupDims);
 
     attr.set_scales(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scaleMem);
@@ -683,11 +708,79 @@ void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_p
 
     auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
     auto groupDims = getGroupDims(weiDims, zeroPointsMem->getStaticDims());
-    auto mask = getMask(weiDims, groupDims);
+    auto mask = getWeiMask(weiDims, groupDims);
 
     attr.set_zero_points(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
     dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
+}
+
+template <class Function>
+void DnnlPostOpsComposer::appendWeightParams(int type,
+                                             Function&& func,
+                                             const MemoryCPtr& params_ptr,
+                                             ov::element::Type dstPrecision) {
+    if (params_ptr == nullptr)
+        return;
+
+    if (dstPrecision == ov::element::undefined) {
+        dstPrecision = params_ptr->getPrecision();
+    }
+
+    auto paramsMem = prepackDecompressionParams(params_ptr, !weightsNonTransposed, dstPrecision, engine);
+    auto groupDims = getGroupDims(weiDims, paramsMem->getStaticDims());
+    auto mask = getWeiMask(weiDims, groupDims);
+
+    (attr.*func)(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+    cpuArgs[type | DNNL_ARG_WEIGHTS] = paramsMem;
+    dnnlArgs[type | DNNL_ARG_WEIGHTS] = paramsMem->getPrimitive();
+}
+
+template <class Function>
+void DnnlPostOpsComposer::appendSrcParams(int type,
+                                          Function&& func,
+                                          const MemoryCPtr& params_ptr,
+                                          ov::element::Type dstPrecision) {
+    if (params_ptr == nullptr)
+        return;
+
+    if (dstPrecision == ov::element::undefined) {
+        dstPrecision = params_ptr->getPrecision();
+    }
+
+
+    auto scrDesc = params_ptr->getDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = scrDesc->cloneWithNewPrecision(dstPrecision);
+    auto srcMem = std::make_shared<Memory>(engine, scrDesc, params_ptr->getData());
+    auto dstMem = std::make_shared<Memory>(engine, dstDesc);
+    dstMem->load(*srcMem);
+
+    // auto paramsMem = prepackDecompressionParams(params_ptr, !weightsNonTransposed, dstPrecision, engine);
+    auto groupDims = getGroupDims(srcDims, dstMem->getStaticDims());
+    auto mask = getSrcMask(srcDims, groupDims);
+
+    (attr.*func)(DNNL_ARG_SRC, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+    // TODO: handle precision conversion
+    cpuArgs[type | DNNL_ARG_SRC] = dstMem;
+    dnnlArgs[type | DNNL_ARG_SRC] = dstMem->getPrimitive();
+}
+
+void DnnlPostOpsComposer::appendScales(int port, const MemoryCPtr& scales_ptr, ov::element::Type dstPrecision) {
+    if (port == DNNL_ARG_WEIGHTS)
+        appendWeightParams(DNNL_ARG_ATTR_SCALES, &dnnl::primitive_attr::set_scales, scales_ptr, dstPrecision);
+    else if (port == DNNL_ARG_SRC)    
+        appendSrcParams(DNNL_ARG_ATTR_SCALES, &dnnl::primitive_attr::set_scales, scales_ptr, dstPrecision);
+    else 
+        OPENVINO_THROW("not implemented");
+}
+
+void DnnlPostOpsComposer::appendZeroPoints(int port, const MemoryCPtr& zero_points_ptr, ov::element::Type dstPrecision) {
+    if (port == DNNL_ARG_WEIGHTS)
+        appendWeightParams(DNNL_ARG_ATTR_ZERO_POINTS, &dnnl::primitive_attr::set_zero_points, zero_points_ptr, dstPrecision);
+    else if (port == DNNL_ARG_SRC)    
+        appendSrcParams(DNNL_ARG_ATTR_ZERO_POINTS, &dnnl::primitive_attr::set_zero_points, zero_points_ptr, dstPrecision);
+    else 
+        OPENVINO_THROW("not implemented");
 }
 
 void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scales_ptr,

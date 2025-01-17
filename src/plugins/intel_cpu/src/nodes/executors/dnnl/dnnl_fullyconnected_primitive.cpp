@@ -204,11 +204,29 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     return true;
 }
 
+template <typename dimsType>
+static dimsType normalizeToRank(const dimsType& vec, size_t rank) {
+    if (vec.size() == rank || vec.empty())
+        return vec;
+
+    dimsType result;
+    result.reserve(rank);
+
+    for (size_t i = vec.size(); i < rank; ++i) {
+        result.push_back(1);
+    }
+
+    result.insert(result.end(), vec.begin(), vec.end());
+
+    return result;
+}
+
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                                const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                ExecutorContext::CPtr context,
-                                               bool useDynamicQuantization) {
+                                               bool useDynamicQuantization,
+                                               bool useWeightsDecompression) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
@@ -223,21 +241,23 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
     DnnlPostOpsComposer
         dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-        auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
-        if (dstPrc != f8e8m0 || useDynamicQuantization)
-            dstPrc = ov::element::f32;
+    if (useWeightsDecompression) {
+        if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
+            auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
+            if (dstPrc != f8e8m0 || useDynamicQuantization)
+                dstPrc = ov::element::f32;
 
-        dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
-                                                !attrs.weightsNonTransposed,
-                                                dstPrc);
-    }
-
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
-        auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
+            dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
                                                     !attrs.weightsNonTransposed,
                                                     dstPrc);
+        }
+
+        if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+            auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
+            dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
+                                                        !attrs.weightsNonTransposed,
+                                                        dstPrc);
+        }
     }
 
     if (useDynamicQuantization) {
@@ -296,7 +316,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
                 wdt = memory::data_type::u4;
         }
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
-        wdt = memory::data_type::s8;
+        wdt = weightDesc.get_data_type();
     }
 
     const dnnl::memory::desc weightsDesc =
@@ -393,7 +413,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                                               memory,
                                                               !attrs.weightsNonTransposed);
 
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
+    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization, useWeightsDecompression);
 
     if (!cacheWeights)
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);

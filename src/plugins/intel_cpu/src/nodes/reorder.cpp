@@ -517,9 +517,9 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, MultiCach
             }
             if (!reorder) {
                 OPENVINO_THROW("No reorder available for the following tensor descriptors: ",
-                               input.getDesc().serializeFormat(),
+                               input.getDesc().getPrecision(), "|" , input.getDesc().serializeFormat(),
                                " and ",
-                               output.getDesc().serializeFormat());
+                               output.getDesc().getPrecision(), "|" , output.getDesc().serializeFormat());
             }
         }
         if (reorder) {

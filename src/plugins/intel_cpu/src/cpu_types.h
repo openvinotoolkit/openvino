@@ -134,7 +134,8 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
-    LoRA
+    LoRA,
+    DynamicQuantize
 };
 
 enum class Algorithm {
