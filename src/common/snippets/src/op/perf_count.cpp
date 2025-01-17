@@ -3,6 +3,8 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#include <fstream>
+
 #include "snippets/op/perf_count.hpp"
 
 namespace ov {
@@ -62,9 +64,30 @@ void PerfCountBegin::set_start_time() {
 }
 
 //////////////////PerfCountEnd///////////////
-PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin) : PerfCountEndBase({pc_begin}), accumulation(0ul), iteration(0u) {
+
+size_t PerfCountEnd::nodes_count = 0;
+std::map<std::string, std::string> PerfCountEnd::m_debug_params_map;
+std::string PerfCountEnd::brgemm_csv_path;  // NOLINT
+
+PerfCountEnd::PerfCountEnd() : PerfCountEndBase() {
+    ++nodes_count;
+}
+
+PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin)
+    : PerfCountEndBase({pc_begin}),
+      accumulation(0ul),
+      iteration(0u) {
     constructor_validate_and_infer_types();
     init_pc_begin();
+    ++nodes_count;
+}
+
+PerfCountEnd::~PerfCountEnd() {
+    output_perf_count();
+    --nodes_count;
+    if (nodes_count == 0) {
+        dump_brgemm_params_to_csv();
+    }
 }
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -109,6 +132,35 @@ void PerfCountEnd::output_perf_count() {
     std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
     // max avg
     std::cout << "max avg time:" << avg_max << "ns" << std::endl;
+
+    // Dump brgemm debug parameters to csv file
+    if (acc_max != 0 && avg_max != 0 && get_friendly_name().find("_DebugParams") != std::string::npos) {
+        const auto& rt_info = get_rt_info();
+        auto brgemm_params_it = rt_info.find("brgemm_params");
+        if (brgemm_params_it == rt_info.end()) {
+            return;
+        }
+        if (brgemm_csv_path.empty()) {
+            auto brgemm_csv_path_it = rt_info.find("brgemm_params_csv_path");
+            brgemm_csv_path = brgemm_csv_path_it->second.as<std::string>();
+        }
+        m_debug_params_map[get_friendly_name()] =
+            brgemm_params_it->second.as<std::string>() + std::to_string(acc_max) + ',' + std::to_string(avg_max);
+    }
+}
+
+void PerfCountEnd::dump_brgemm_params_to_csv() {
+    if (m_debug_params_map.empty() || brgemm_csv_path.empty()) {
+        return;
+    }
+    std::ofstream csv_file(brgemm_csv_path);
+    OPENVINO_ASSERT(csv_file.is_open(), "Failed to open csv file for brgemm debug parameters.");
+    csv_file << "name,subgraph_name,in_type,out_type,in_shapes,out_shapes,in_layouts,out_layouts,M,N,K,m_block,n_block,k_block,acc_max_time,"
+                "avg_max_time\n";
+    for (const auto& [_, params] : m_debug_params_map) {
+        csv_file << params << '\n';
+    }
+    csv_file.close();
 }
 
 } // namespace op

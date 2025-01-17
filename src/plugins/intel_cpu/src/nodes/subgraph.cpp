@@ -8,6 +8,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/custom/subgraph.hpp"
+#include "snippets/lowered/pass/brgemm_debug_params.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
@@ -540,6 +541,13 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
+                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                    ov::snippets::lowered::pass::BrgemmDebugParams<BrgemmCPU>,
+                                    getName());
+#endif  // SNIPPETS_DEBUG_CAPS
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::InitLoops,
