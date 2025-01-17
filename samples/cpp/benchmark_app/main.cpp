@@ -550,7 +550,7 @@ int main(int argc, char* argv[]) {
             return std::any_of(input_info.begin(),
                                input_info.end(),
                                [](const auto& info) {
-                                   return i.second.partialShape.is_dynamic();
+                                   return info.second.partialShape.is_dynamic();
                                });
         };
 
