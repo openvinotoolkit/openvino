@@ -1483,6 +1483,29 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range_with_delta) {
+    const auto model = convert_model("com.microsoft/range_with_delta.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({0.f});
+    test_case.add_input<float>({10.f});
+    test_case.add_input<float>({1.f});
+    test_case.add_expected_output<float>(Shape{10}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range_without_delta) {
+    const auto model = convert_model("com.microsoft/range_without_delta.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({0.f});
+    test_case.add_input<float>({10.f});
+    test_case.add_expected_output<float>(Shape{10}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x3) {
     const auto model = convert_model("com.microsoft/fusedmatmul_2D.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -1551,6 +1574,52 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
     test_case.add_input<float>(Shape{2}, bias);
     test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
 
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
+    const auto model = convert_model("com.microsoft/q_linear_sigmoid.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.2f};
+    const std::vector<int8_t> y_zero_point{0};
+
+    const std::vector<int8_t> expected_output{0, 0, 2, 4, 4, 4};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearleakyrelu) {
+    const auto model = convert_model("com.microsoft/q_linear_leaky_relu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.2f};
+    const std::vector<int8_t> y_zero_point{0};
+
+    const std::vector<int8_t> expected_output{-2, -1, 0, 12, 25, 37};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
     test_case.run();
 }
 

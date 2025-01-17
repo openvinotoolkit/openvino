@@ -284,7 +284,7 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
     mov(abi_param6, K);
 #endif
 
-    spill.rsp_align();
+    spill.rsp_align(rbx.getIdx());
     call(rbp);
     spill.rsp_restore();
 

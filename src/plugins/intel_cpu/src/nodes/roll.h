@@ -48,8 +48,6 @@ private:
     using ExecutorPtr = std::shared_ptr<RollExecutor>;
     ExecutorPtr execPtr = nullptr;
 
-    std::string layerErrorPrefix;
-
     static constexpr std::array<size_t, 3> supportedPrecisionSizes{1, 2, 4};
     static constexpr size_t DATA_INDEX = 0ul;
     static constexpr size_t SHIFT_INDEX = 1ul;

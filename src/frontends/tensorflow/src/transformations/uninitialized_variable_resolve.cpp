@@ -20,7 +20,7 @@ ov::frontend::tensorflow::pass::UninitializedVariableResolver::UninitializedVari
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
 
-        auto unitialized_hash_table = dynamic_pointer_cast<ov::frontend::tensorflow::HashTable>(m.get_match_root());
+        auto unitialized_hash_table = ov::as_type_ptr<ov::frontend::tensorflow::HashTable>(m.get_match_root());
         if (!unitialized_hash_table) {
             return false;
         }

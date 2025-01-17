@@ -106,8 +106,6 @@ private:
     bool withBiases = false;
     size_t biasPort;
 
-    std::string errorPrefix;
-
     void createDnnlCompatibleWeights();
     bool weightIsConst = false;
     bool asymmetricPaddingAnd1x1 = false;

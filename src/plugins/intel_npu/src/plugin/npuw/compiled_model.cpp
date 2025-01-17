@@ -133,9 +133,18 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+        // Drop CACHE_DIR from the config
+        // If it's present we will be utilizing LLMCompiledModel's import
+        // and not the underlying models and submodels
+        auto config = properties;
+        config.erase(ov::cache_dir.name());
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
+        // CACHE_DIR isn't supported with NPU_USE_NPUW
+        if (properties.count(ov::cache_dir.name())) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with configuration: NPU_USE_NPUW : YES, NPUW_LLM : NO");
+        }
         pre_load_transform(model, properties);
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
     }
@@ -364,7 +373,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt, end_sub_idx)) {
+        if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
@@ -611,6 +620,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Write config
     write(stream, m_cfg);
+    // FIXME: utilize overload instead
+    write(stream, m_non_npuw_props.size());
+    for (const auto& p : m_non_npuw_props) {
+        write(stream, p.first);
+        write_any(stream, p.second);
+    }
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -671,6 +686,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    compiled->m_cfg.parseEnvVars();
+    // FIXME: utilize overload instead
+    std::size_t props_size;
+    read(stream, props_size);
+    for (std::size_t i = 0; i < props_size; ++i) {
+        std::string key;
+        read(stream, key);
+        ov::Any val;
+        read_any(stream, val);
+        compiled->m_non_npuw_props[key] = val;
+    }
+    compiled->implement_properties();
 
     // Deserialize compiled submodels
     std::size_t subm_size = 0;
@@ -996,8 +1023,9 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
     const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
     const std::size_t end_idx = m_compiled_submodels.size();
+    const std::size_t real_idx = m_compiled_submodels[id].replaced_by.value_or(id);
 
-    if (ov::npuw::util::is_set(id, dof_opt, end_idx)) {
+    if (ov::npuw::util::is_set(id, dof_opt, real_idx, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
     }
 }

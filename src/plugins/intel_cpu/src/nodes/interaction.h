@@ -62,7 +62,6 @@ private:
     size_t inputSizes = 0;
     size_t outputFeaturesLen = 0;
     size_t interactFeatureSize = 0;
-    std::string errorPrefix;
     MemoryPtr inputMemPtr;
     MemoryPtr flatMemPtr;
     MemoryPtr outputMemPtr;

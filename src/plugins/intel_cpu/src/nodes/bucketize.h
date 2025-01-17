@@ -43,7 +43,6 @@ private:
     ov::element::Type input_precision;
     ov::element::Type boundaries_precision;
     ov::element::Type output_precision;
-    std::string errorPrefix;
 };
 
 }  // namespace node

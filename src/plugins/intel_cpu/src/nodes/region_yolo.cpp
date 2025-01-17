@@ -265,9 +265,8 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (op->get_input_size() != 1 || op->get_output_size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();

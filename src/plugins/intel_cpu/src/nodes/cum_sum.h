@@ -46,7 +46,6 @@ private:
     size_t axis = 0;
 
     ov::element::Type dataPrecision;
-    std::string errorPrefix;
 
     template <typename T>
     struct CumSumExecute {
