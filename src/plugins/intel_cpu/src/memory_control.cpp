@@ -5,6 +5,7 @@
 #include "memory_control.hpp"
 
 #include <ov_optional.hpp>
+#include <queue>
 #include <utility>
 
 #include "node.h"
