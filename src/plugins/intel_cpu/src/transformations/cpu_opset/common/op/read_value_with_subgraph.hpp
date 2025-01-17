@@ -14,12 +14,13 @@ namespace intel_cpu {
 
 class ReadValueWithSubgraph : public ov::op::util::SubGraphOp, public ov::op::util::VariableExtension {
 public:
-    OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset");
+    OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset", ov::op::util::SubGraphOp);
 
     ReadValueWithSubgraph() = default;
-    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable, std::shared_ptr<ov::Model> body);
     ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
-                          std::shared_ptr<ov::Model> body,
+                          const std::shared_ptr<ov::Model>& body);
+    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
+                          const std::shared_ptr<ov::Model>& body,
                           const OutputVector& args);
 
     std::string get_variable_id() const override;

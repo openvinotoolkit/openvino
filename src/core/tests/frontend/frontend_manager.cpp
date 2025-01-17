@@ -480,7 +480,7 @@ TEST(FrontEndManagerTest, Exception_Safety_Input_Model_set_tensor_partial_value)
     CHECK_EXCEPTION_INPUT_MODEL(input_model->set_tensor_partial_value({}, {}, {}))
 }
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 
 TEST(FrontEndManagerTest, testFEMDestroy_InputModelHolderUsingPath) {
     InputModel::Ptr input_model;

@@ -25,7 +25,7 @@ public:
     PoolingExecutorFactory(const PoolingAttrs& poolingAttrs,
                            const std::vector<MemoryDescPtr>& srcDescs,
                            const std::vector<MemoryDescPtr>& dstDescs,
-                           const ExecutorContext::CPtr context)
+                           const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getPoolingExecutorsList()) {
             if (desc.builder->isSupported(poolingAttrs, srcDescs, dstDescs)) {

@@ -127,6 +127,15 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
+/**
+ * @brief Checks whether the dvice is virtual device
+ *
+ * @param device_name Target device
+ * @return true if target device is virtual device(e.g. AUTO, AUTO:XPU, AUTO:XPU.x, MULTI, MULTI:XPU, MULTI:XPU.x,
+ * HETERO:XPU, HETERO:XPU.x, BATCH:XPU, BATCH:XPU.x)
+ */
+bool is_virtual_device(const std::string& device_name);
+
 class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
 private:
     mutable std::map<std::string, ov::Plugin> plugins;
