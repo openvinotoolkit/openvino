@@ -1365,8 +1365,8 @@ void jit_is_nan_emitter::register_table_entries() {
 
 /// LESS ///
 jit_less_emitter::jit_less_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& node)
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
@@ -1410,7 +1410,7 @@ void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const TReg dst = TReg(out_vec_idxs[0]);
     const TReg aux = TReg(aux_vec_idxs[0]);
 
-    h->fcmlt(dst.s, src1.s, src2.s);
+    h->fcmgt(dst.s, src2.s, src1.s);
     h->ld1r(aux.s, table_val2("one"));
     h->and_(dst.b16, dst.b16, aux.b16);
 }
