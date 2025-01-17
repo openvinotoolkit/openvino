@@ -70,7 +70,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
                 auto block_sizes = format::block_sizes(input_layout.format);
                 if (block_sizes.size() == 1
                     && (input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second == 0)
-                    && block_sizes[0].first != static_cast<size_t>(axes[0])
+                    && (std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)
                     && block_sizes[0].first == 1) {
                     flatten_axis = 1;
                 }

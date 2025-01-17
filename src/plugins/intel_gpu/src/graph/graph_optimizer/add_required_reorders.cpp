@@ -272,7 +272,7 @@ void add_required_reorders::run(program& p) {
                 if (input_layout.is_dynamic() || block_sizes.size() > 1
                     || (block_sizes.size() == 1 &&
                         input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second != 0 &&
-                        (axes.size() == 1 && static_cast<size_t>(axes[0]) != block_sizes[0].first))) {
+                        std::count(axes.begin(), axes.end(), block_sizes[0].first) == 0)) {
                     auto rank = input_pshape.size();
                     input_layout.format = format::get_default_format(rank);
                     auto& dep = usr->as<mvn>().input();
