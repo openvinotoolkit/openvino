@@ -59,6 +59,7 @@ OP_CONVERTER(translate_celu);
 OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
+OP_CONVERTER(translate_complex);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
@@ -86,6 +87,8 @@ OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
+OP_CONVERTER(translate_fft_irfftn);
+OP_CONVERTER(translate_fft_rfftn);
 OP_CONVERTER(translate_fill);
 OP_CONVERTER(translate_fill_diagonal);
 OP_CONVERTER(translate_flatten);
@@ -108,6 +111,7 @@ OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_imag);
 OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
 OP_CONVERTER(translate_index_copy_);
@@ -192,6 +196,7 @@ OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
+OP_CONVERTER(translate_real);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
@@ -246,6 +251,8 @@ OP_CONVERTER(translate_upsample_nearest3d);
 OP_CONVERTER(translate_upsample_trilinear3d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
+OP_CONVERTER(translate_view_as_complex);
+OP_CONVERTER(translate_view_as_real);
 OP_CONVERTER(translate_weight_norm);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
@@ -423,7 +430,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::clip", op::translate_clamp},
         {"aten::clone", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
         {"aten::col2im", op::translate_col2im},
-        // aten::complex - Supported in limited set of patterns
+        {"aten::complex", op::translate_complex},
         {"aten::concat", op::translate_cat},
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
                                               // we assume all tensors are contiguous
@@ -468,8 +475,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
         {"aten::feature_dropout", op::skip_node},
-        // aten::fft_irfftn - Supported in limited set of patterns
-        // aten::fft_rfftn - Supported in limited set of patterns
+        {"aten::fft_irfftn", op::translate_fft_irfftn},
+        {"aten::fft_rfftn", op::translate_fft_rfftn},
         {"aten::fill", op::translate_fill},
         {"aten::fill_diagonal", op::translate_fill_diagonal},
         {"aten::flatten", op::quantizable_op<op::translate_flatten>},
@@ -496,7 +503,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
         {"aten::im2col", op::translate_im2col},
-        // aten::imag - Supported in limited set of patterns
+        {"aten::imag", op::translate_imag},
         // aten::index - Supported in limited set of patterns
         {"aten::index_copy_", op::inplace_op<op::translate_index_copy_>},
         {"aten::index_fill_", op::inplace_op<op::translate_index_fill_>},
@@ -604,7 +611,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
         {"aten::randn_like", op::translate_randn_like},
-        // aten::real - Supported in limited set of patterns
+        {"aten::real", op::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
         {"aten::reciprocal_", op::inplace_op<op::translate_reciprocal>},
         // aten::reflection_pad2d - Supported in limited set of patterns
@@ -696,6 +703,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::quantizable_op<op::translate_reshape>},
         {"aten::view_as", op::translate_reshape_as},
+        {"aten::view_as_complex", op::translate_view_as_complex},
+        {"aten::view_as_real", op::translate_view_as_real},
         {"aten::wait", op::skip_node},
         {"aten::where", op::translate_where},
         {"aten::zero", op::translate_zeros_like},
@@ -979,6 +988,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.var.correction", op::translate_var_fx},
         {"aten.var_mean.correction", op::translate_var_mean_fx},
         {"aten.view.default", op::translate_reshape},
+        {"aten.view_as_complex.default", op::translate_view_as_complex},
+        {"aten.view_as_real.default", op::translate_view_as_real},
         {"aten.where.self", op::translate_where},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.names", op::translate_zeros_fx},
