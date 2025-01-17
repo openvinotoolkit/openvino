@@ -733,7 +733,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
     return std::move(result.dims.back());
 }
 
-void Deconvolution::execute(dnnl::stream strm) {
+void Deconvolution::execute(const dnnl::stream& strm) {
     if (useACL) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {

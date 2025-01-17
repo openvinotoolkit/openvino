@@ -694,7 +694,7 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -864,7 +864,7 @@ struct ROIAlign::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void ROIAlign::execute(dnnl::stream strm) {
+void ROIAlign::execute(const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
@@ -1185,7 +1185,7 @@ bool ROIAlign::needPrepareParams() const {
     return false;
 }
 
-void ROIAlign::executeDynamicImpl(dnnl::stream strm) {
+void ROIAlign::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

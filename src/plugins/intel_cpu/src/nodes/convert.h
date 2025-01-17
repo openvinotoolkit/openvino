@@ -13,18 +13,18 @@ namespace node {
 
 class Convert : public Node {
 public:
-    Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     Convert(const Shape& shape,
             const ov::element::Type& inPrc,
             const ov::element::Type& outPrc,
             const std::string& nodeName,
-            const GraphContext::CPtr context);
+            const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

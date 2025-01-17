@@ -4,6 +4,7 @@
 
 #include "eye.h"
 
+#include <utility>
 #include <utils/bfloat16.hpp>
 
 #include "openvino/core/parallel.hpp"
@@ -57,7 +58,7 @@ struct Eye::EyeExecute {
     }
 };
 
-void Eye::execute(dnnl::stream strm) {
+void Eye::execute(const dnnl::stream& strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
     OV_SWITCH(intel_cpu,
               EyeExecute,

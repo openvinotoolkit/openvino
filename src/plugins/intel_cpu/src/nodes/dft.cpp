@@ -42,7 +42,7 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -245,7 +245,7 @@ void copyDataToOutputWithSignalSize(const float* input,
 
 }  // namespace
 
-void DFT::execute(dnnl::stream strm) {
+void DFT::execute(const dnnl::stream& strm) {
     const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);

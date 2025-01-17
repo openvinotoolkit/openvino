@@ -67,7 +67,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = makePattern<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
-        auto check_one = [](Output<Node> output) -> bool {
+        auto check_one = [](const Output<Node>& output) -> bool {
             auto node = ov::as_type_ptr<opset1::Constant>(output.get_node_shared_ptr());
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {

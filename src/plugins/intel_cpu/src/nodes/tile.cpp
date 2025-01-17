@@ -33,7 +33,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -148,11 +148,11 @@ bool Tile::needShapeInfer() const {
     return false;
 }
 
-void Tile::executeDynamicImpl(dnnl::stream strm) {
+void Tile::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Tile::execute(dnnl::stream strm) {
+void Tile::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
         optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0));
     } else {
@@ -160,7 +160,7 @@ void Tile::execute(dnnl::stream strm) {
     }
 }
 
-void Tile::plainExecute(dnnl::stream strm) {
+void Tile::plainExecute(const dnnl::stream& strm) {
     if (noTiling) {
         return;
     }

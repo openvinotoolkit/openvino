@@ -1959,7 +1959,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -2362,11 +2362,11 @@ void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel
     jit_mode = jit_mode && kernel;
 }
 
-void Reduce::executeDynamicImpl(dnnl::stream strm) {
+void Reduce::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reduce::execute(dnnl::stream strm) {
+void Reduce::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 

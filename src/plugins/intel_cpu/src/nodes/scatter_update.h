@@ -76,18 +76,18 @@ public:
 
 class ScatterUpdate : public Node {
 public:
-    ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
 
     bool needPrepareParams() const override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;

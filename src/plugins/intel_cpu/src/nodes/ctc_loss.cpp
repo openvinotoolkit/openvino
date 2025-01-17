@@ -26,7 +26,7 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -55,11 +55,11 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
+void CTCLoss::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void CTCLoss::execute(dnnl::stream strm) {
+void CTCLoss::execute(const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
     const float* logits = getSrcDataAtPortAs<const float>(0);

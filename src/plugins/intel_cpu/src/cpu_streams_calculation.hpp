@@ -48,8 +48,8 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_threads,
     const int input_infer_requests,
     const int model_prefer_threads,
-    const std::string input_perf_hint,
-    const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
+    const std::string& input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy>& hint_llm_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);
 
 /**
@@ -75,7 +75,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(const int num_streams,
-                             const std::vector<std::vector<int>> proc_type_table,
+                             const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config);
 

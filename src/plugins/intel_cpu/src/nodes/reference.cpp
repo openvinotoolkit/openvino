@@ -4,6 +4,8 @@
 
 #include "reference.h"
 
+#include <utility>
+
 #include "common/cpu_memcpy.h"
 #include "shape_inference/shape_inference.hpp"
 
@@ -52,7 +54,7 @@ void Reference::createPrimitive() {
     hasOutputShapeDataDependency = isDynamicNode() && outputShapeDataDependency();
 }
 
-void Reference::execute(dnnl::stream strm) {
+void Reference::execute(const dnnl::stream& strm) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
     if (!ovCoreNode->evaluate(outputs, inputs)) {
