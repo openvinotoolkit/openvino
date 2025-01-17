@@ -110,12 +110,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    std::vector<uint8_t> network(blobPtr->size());
-    network.assign(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()),
-                   reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()) + blobPtr->size());
-    auto networkMeta = _compiler->parse(network, config);
-    network.clear();
-    network.shrink_to_fit();
+    const auto& blob = blobPtr->get_ownership_blob();
+    auto networkMeta = _compiler->parse(blob, config);
     _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;

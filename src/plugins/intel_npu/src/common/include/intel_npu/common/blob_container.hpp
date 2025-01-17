@@ -19,6 +19,8 @@ public:
 
     virtual bool release_from_memory() = 0;
 
+    virtual std::vector<uint8_t> get_ownership_blob() = 0;
+
     virtual ~BlobContainer() = default;
 };
 
@@ -38,6 +40,10 @@ public:
         _ownershipBlob.clear();
         _ownershipBlob.shrink_to_fit();
         return true;
+    }
+
+    std::vector<uint8_t> get_ownership_blob() override {
+        return _ownershipBlob;
     }
 
 private:
@@ -63,6 +69,12 @@ public:
 
     bool release_from_memory() override {
         return false;
+    }
+
+    std::vector<uint8_t> get_ownership_blob() override {
+        std::vector<uint8_t> blob(_blobSize);
+        blob.assign(reinterpret_cast<const uint8_t*>(this->get_ptr()), reinterpret_cast<const uint8_t*>(this->get_ptr()) + this->size());
+        return blob;
     }
 
 private:
