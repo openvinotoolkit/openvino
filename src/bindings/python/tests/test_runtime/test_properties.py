@@ -452,6 +452,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_DEFER_WEIGHTS_LOAD",
             ((True, True),),
         ),
+        (
+            intel_npu.compiler_dynamic_quantization,
+            "NPU_COMPILER_DYNAMIC_QUANTIZATION",
+            ((True, True),),
+        ),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):

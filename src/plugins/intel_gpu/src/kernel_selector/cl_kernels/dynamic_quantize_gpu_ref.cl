@@ -104,12 +104,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
 
 #if ASYMMETRIC_QUANTIZATION
     // If the range of input data is zero, it is adjusted to the minimum value(0.001).
-     half diff_value = max_val == min_val ? (grp_max) : (max_val - min_val);
+    ACCUMULATOR_TYPE diff_value = max_val == min_val ? (grp_max) : (max_val - min_val);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
 #   if UNSIGNED_OUTPUT
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp);
 #   else // !UNSIGNED_OUTPUT
-    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp) - CHAR_MAX;
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp) + CHAR_MIN;
 #   endif
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
@@ -161,6 +161,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
 #elif ASYMMETRIC_QUANTIZATION
-    output_zp[scale_idx] = convert_uchar_rte(zp);
+    #if OUTPUT2_IS_FP
+        output_zp[scale_idx] = zp;
+    #elif UNSIGNED_OUTPUT
+        output_zp[scale_idx] = convert_uchar_rte(zp);
+    #else
+        output_zp[scale_idx] = convert_char_rte(zp);
+    #endif
 #endif
 }
