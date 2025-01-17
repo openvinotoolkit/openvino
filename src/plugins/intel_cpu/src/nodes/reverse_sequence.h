@@ -53,7 +53,6 @@ private:
     int batch_axis;
 
     ov::element::Type lengthsPrecision;
-    std::string errorPrefix;
 };
 
 }  // namespace node

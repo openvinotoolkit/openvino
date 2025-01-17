@@ -116,7 +116,6 @@ MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     : Node(op, context, MMShapeInferFactory(op)),
       withBiases(false) {
     std::string errorMessage;
-    errorPrefix = "MatMul node with name '" + getName() + "'";
 
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -269,9 +268,9 @@ dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) 
 
 void MatMul::getSupportedDescriptors() {
     if (getParentEdges().size() != getOriginalInputsNumber())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges for layer ", getName());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges for layer ", getName());
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges for layer ", getName());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges for layer ", getName());
 
     withBiases = getOriginalInputsNumber() == 3;
 
@@ -317,7 +316,7 @@ void MatMul::getSupportedDescriptors() {
     auto outputShape = getOutputShapeAtPort(0);
 
     if (inputShape0.getRank() != inputShape1.getRank() || inputShape0.getRank() != outputShape.getRank())
-        OPENVINO_THROW(errorPrefix, " has invalid dims count");
+        THROW_CPU_NODE_ERR("has invalid dims count");
 
     const int nDims = inputShape0.getRank();
     const auto xAxis = nDims - 1;
@@ -334,12 +333,12 @@ void MatMul::getSupportedDescriptors() {
     // coverity[copy_paste_error]
     if (!dimsEqualWeak(inDims0[xAxis0], inDims1[yAxis1]) || !dimsEqualWeak(inDims0[yAxis0], outDims[yAxis]) ||
         !dimsEqualWeak(inDims1[xAxis1], outDims[xAxis]))
-        OPENVINO_THROW(errorPrefix, " has incorrect spatial input and output dimensions");
+        THROW_CPU_NODE_ERR("has incorrect spatial input and output dimensions");
 
     for (int dim_idx = nDims - 3; dim_idx >= 0; dim_idx--) {
         if ((!dimsEqualWeak(inDims0[dim_idx], outDims[dim_idx]) && !dimsEqualWeak(inDims0[dim_idx], 1)) ||
             (!dimsEqualWeak(inDims1[dim_idx], outDims[dim_idx]) && !dimsEqualWeak(inDims1[dim_idx], 1))) {
-            OPENVINO_THROW(errorPrefix, " has incorrect input batch dimensions");
+            THROW_CPU_NODE_ERR("has incorrect input batch dimensions");
         }
     }
 
@@ -565,9 +564,9 @@ void MatMul::prepareParams() {
     auto src0MemPtr = getSrcMemoryAtPort(0);
     auto src1MemPtr = getSrcMemoryAtPort(1);
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
+        THROW_CPU_NODE_ERR("has undefined destination memory");
     if (!src0MemPtr || !src0MemPtr->isDefined() || !src1MemPtr || !src1MemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+        THROW_CPU_NODE_ERR("has undefined input memory");
 
     // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
     // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
@@ -585,7 +584,7 @@ void MatMul::prepareParams() {
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        OPENVINO_THROW(errorPrefix, " did not set preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
 
     DnnlMemoryDescPtr src0TransposedDesc;
     DnnlMemoryDescPtr src1TransposedDesc;
@@ -617,7 +616,7 @@ void MatMul::prepareParams() {
     if (withBiases) {
         auto biasMemory = getSrcMemoryAtPort(2);
         if (!biasMemory || !biasMemory->isDefined())
-            OPENVINO_THROW(errorPrefix, " has undefined bias memory");
+            THROW_CPU_NODE_ERR("has undefined bias memory");
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 
@@ -692,7 +691,7 @@ void MatMul::execute(dnnl::stream strm) {
         // this is a degenerate case, fill output with zeroes
         getDstMemoryAtPort(0)->nullify();
     } else {
-        OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
+        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
     }
 }
 

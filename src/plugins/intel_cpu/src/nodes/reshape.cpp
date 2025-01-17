@@ -37,8 +37,6 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
-
     if (isDynamicNode()) {
         auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {

@@ -40,7 +40,6 @@ public:
 
 private:
     int threadsCount = 1;
-    std::string errorPrefix;
     template <typename inputType>
     void executeSpecified();
     template <typename T>

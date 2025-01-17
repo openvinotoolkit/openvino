@@ -320,8 +320,6 @@ private:
     ov::element::Type inputPrecision = ov::element::f32;
     ov::element::Type outputPrecision = ov::element::f32;
 
-    std::string errorPrefix;
-
     BroadcastingPolicy broadcastingPolicy;
 };
 

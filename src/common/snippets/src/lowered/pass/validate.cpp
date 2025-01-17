@@ -97,8 +97,13 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
     OPENVINO_ASSERT(loop_end, "LoopEnd validation expects LoopEnd op");
-    OPENVINO_ASSERT(loop_end->get_loop_begin() != nullptr,
+    const auto& loop_begin = loop_end->get_loop_begin();
+    OPENVINO_ASSERT(loop_begin != nullptr,
                     "LoopEnd must be connected to the LoopBegin");
+    const auto num_inputs = expr->get_input_count();
+    OPENVINO_ASSERT(num_inputs >= 1, "LoopEnd expression must have at least 1 input");
+    OPENVINO_ASSERT(expr->get_input_port_connector(num_inputs - 1)->get_source().get_expr()->get_node() == loop_begin,
+                    "LoopEnd expression must have LoopBegin attached to the last connector");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
@@ -148,6 +153,9 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         if (found != m_validation_map.cend()) {
             (found->second)(expr, linear_ir);
         }
+        OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() ||
+                        ov::is_type<op::LoopEnd>(node) ||
+                        ov::is_type<ov::op::v0::Result>(node), "Incorrect count of output port descriptors!");
         expr->validate();
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node))

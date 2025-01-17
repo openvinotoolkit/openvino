@@ -48,8 +48,7 @@ private:
     struct PadExecutor {
         PadExecutor(const PadAttrs& attrs,
                     const std::vector<MemoryCPtr>& srcMemory,
-                    const std::vector<MemoryCPtr>& dstMemory,
-                    const std::string& errorPrefix);
+                    const std::vector<MemoryCPtr>& dstMemory);
         void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
@@ -106,7 +105,6 @@ private:
             size_t innerEndPadCount = 0lu;
             PadMode padMode;
         } params;
-        const std::string errorPrefix;
     };
 
     static constexpr size_t DATA_ID = 0lu;
@@ -120,7 +118,6 @@ private:
     executorPtr execPtr = nullptr;
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
-    std::string errorPrefix;
     bool shapeHasDataDependency = false;
 };
 

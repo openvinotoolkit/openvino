@@ -55,13 +55,11 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "DetectionOutput node with name '" + getName() + "' ";
-
     if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges.");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
 
     if (getOriginalOutputsNumber() != 1)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges.");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
 
     auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
@@ -101,19 +99,17 @@ void DetectionOutput::prepareParams() {
 
     const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
     if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
-        OPENVINO_THROW(errorPrefix,
-                       "has incorrect number of priors, which must match number of location predictions (",
-                       priorsNum * locNumForClasses * 4,
-                       " vs ",
-                       idLocDims[1],
-                       ")");
+        THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of location predictions (",
+                           priorsNum * locNumForClasses * 4,
+                           " vs ",
+                           idLocDims[1],
+                           ")");
 
     if (priorsNum * classesNum != static_cast<int>(idConfDims.back()))
-        OPENVINO_THROW(errorPrefix,
-                       "has incorrect number of priors, which must match number of confidence predictions.");
+        THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of confidence predictions.");
 
     if (decreaseClassId && backgroundClassId != 0)
-        OPENVINO_THROW(errorPrefix, "cannot use decrease_label_id and background_label_id parameter simultaneously.");
+        THROW_CPU_NODE_ERR("cannot use decrease_label_id and background_label_id parameter simultaneously.");
 
     imgNum = static_cast<int>(idConfDims[0]);
 
@@ -923,7 +919,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData,
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
-        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix);
+        THROW_CPU_NODE_ERR("has unsupported output layout.");
     }
 
     int dstDataSize = 0;
@@ -935,7 +931,7 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData,
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
     if (static_cast<size_t>(dstDataSize) > getChildEdgeAt(0)->getMemory().getSize()) {
-        OPENVINO_THROW(errorPrefix, ": OUT_OF_BOUNDS");
+        THROW_CPU_NODE_ERR("has insufficient output buffer size.");
     }
     memset(dstData, 0, dstDataSize);
 

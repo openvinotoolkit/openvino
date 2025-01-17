@@ -46,8 +46,6 @@ private:
     int partSize = 1;
     float transStd = 1.f;
 
-    std::string errorPrefix;
-
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,
                       int& hInputStride,
