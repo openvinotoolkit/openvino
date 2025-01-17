@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 namespace ov {
 namespace intel_cpu {
 
-inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
+inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, const std::string& paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         return it->second.as<std::string>();

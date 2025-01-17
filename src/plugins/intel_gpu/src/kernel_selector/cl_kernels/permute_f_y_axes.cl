@@ -40,7 +40,7 @@ KERNEL (permute_f_y_axes)(
         OUT_VEC_TYPE result;
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         FUSED_OPS_VEC;
-        result = FUSED_OPS_RESULT_VEC;
+        result = TO_OUT_VEC_TYPE(FUSED_OPS_RESULT_VEC);
 #else
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         OUT_VEC_TYPE result = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));

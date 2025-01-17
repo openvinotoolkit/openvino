@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset15."""
@@ -7,12 +7,12 @@ from functools import partial
 from typing import List, Literal, Optional
 
 import numpy as np
-from openvino.runtime import Node, Type
+from openvino import Node, Type
 from openvino.opset1 import convert_like
 from openvino.opset14 import constant
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op
-from openvino.runtime.utils.types import NodeInput, as_nodes
+from openvino.utils.node_factory import _get_node_factory
+from openvino.utils.decorators import binary_op, nameable_op
+from openvino.utils.types import NodeInput, as_nodes
 
 _get_node_factory_opset15 = partial(_get_node_factory, "opset15")
 

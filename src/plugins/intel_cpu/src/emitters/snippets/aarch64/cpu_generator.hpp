@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "cache/multi_cache.h"
 #include "cpu/aarch64/jit_generator.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
@@ -25,22 +26,28 @@ private:
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
-    explicit CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa);
+    explicit CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr);
     std::shared_ptr<snippets::TargetMachine> clone() const override;
     bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
     size_t get_lanes() const override;
-    size_t get_reg_count() const override;
+
+    std::vector<snippets::Reg> get_abi_arg_regs() const override;
+    std::vector<snippets::Reg> get_gp_reg_pool() const override;
+    std::vector<snippets::Reg> get_vec_reg_pool() const override;
+
     dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
 
 private:
     std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h;
     dnnl::impl::cpu::aarch64::cpu_isa_t isa;
+    ov::intel_cpu::MultiCacheWeakPtr compiled_kernel_cache;
 };
 
 class CPUGenerator : public snippets::Generator {
 public:
-    CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa);
+    CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr);
+    CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target);
     std::shared_ptr<Generator> clone() const override;
 
 protected:

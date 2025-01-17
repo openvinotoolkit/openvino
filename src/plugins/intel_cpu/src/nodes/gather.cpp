@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ namespace node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
+        const auto gather_compression = ov::as_type_ptr<const ov::op::internal::GatherCompressed>(op);
         if (gather_compression) {
             return true;
         }
@@ -58,7 +58,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, GatherShapeInferFactory(op)),
       batchDims(0) {
     std::string errorMessage;
@@ -409,7 +409,7 @@ void Gather::prepareParams() {
 #endif
 }
 
-void Gather::execute(dnnl::stream strm) {
+void Gather::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -477,7 +477,7 @@ void Gather::execute(dnnl::stream strm) {
     execReference();
 }
 
-void Gather::executeDynamicImpl(dnnl::stream strm) {
+void Gather::executeDynamicImpl(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }

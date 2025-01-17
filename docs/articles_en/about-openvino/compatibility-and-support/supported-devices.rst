@@ -90,16 +90,3 @@ topic (step 3 "Configure input and output").
    | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
    |  **For Windows, CPU inference on ARM64 is not supported.**
 
-
-.. note::
-
-   With the OpenVINO 2024.0 release, support for GNA has been discontinued. To keep using it
-   in your solutions, revert to the 2023.3 (LTS) version.
-
-   With the OpenVINO™ 2023.0 release, support has been cancelled for:
-
-   - Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X
-   - Intel® Vision Accelerator Design with Intel® Movidius™
-
-   To keep using the MYRIAD and HDDL plugins with your hardware,
-   revert to the OpenVINO 2022.3 (LTS) version.

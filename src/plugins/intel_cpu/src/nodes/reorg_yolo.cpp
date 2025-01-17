@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace node {
 
 bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
+        const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
         if (!reorgYolo) {
             errorMessage = "Only opset2 ReorgYolo operation is supported";
             return false;
@@ -26,21 +26,20 @@ bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
-    const auto reorgYolo = std::dynamic_pointer_cast<const ov::opset2::ReorgYolo>(op);
+    const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     if (strides.empty())
-        OPENVINO_THROW(errorPrefix, " has empty strides");
+        THROW_CPU_NODE_ERR("has empty strides");
     stride = strides[0];
 }
 
@@ -53,11 +52,11 @@ void ReorgYolo::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ReorgYolo::executeDynamicImpl(dnnl::stream strm) {
+void ReorgYolo::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ReorgYolo::execute(dnnl::stream strm) {
+void ReorgYolo::execute(const dnnl::stream& strm) {
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 

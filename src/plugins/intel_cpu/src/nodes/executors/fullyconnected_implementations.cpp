@@ -254,7 +254,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<MlasGemmExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_X64(
@@ -322,13 +322,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
+               const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
                 struct ConvolutionInstantiator {
                     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
                         const MemoryArgs& memory,
                         const FCAttrs& attrs,
-                        const ExecutorContext::CPtr context,
-                        std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
+                        const ExecutorContext::CPtr& context,
+                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
                         ConvAttrs convAttrs{attrs.withBias};
                         auto primitive =
                             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
@@ -380,7 +380,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_ACL(
@@ -412,7 +412,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_SHL(
@@ -441,7 +441,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<ShlFCExecutor>(attrs, postOps, memory, context);
             }
         )
@@ -475,13 +475,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
+               const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
                 struct MatMulInstantiator {
                     std::shared_ptr<DnnlMatMulPrimitive> operator()(
                         const MemoryArgs& memory,
                         const FCAttrs& attrs,
-                        const ExecutorContext::CPtr context,
-                        std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
+                        const ExecutorContext::CPtr& context,
+                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
                         MatMulAttrs matMulAttrs{false,
                                                 false};
                         auto primitive =
@@ -523,7 +523,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // create
-            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<DnnlFCExecutor<DnnlFCPrimitive, FCAttrs, DnnlShapeAgnosticData>>(attrs,
                                                                                                          postOps,
                                                                                                          memory,

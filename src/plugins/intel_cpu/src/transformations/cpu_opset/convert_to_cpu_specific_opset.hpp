@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@
 #include "common/pass/move_readvalue_inputs_to_subgraph.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "config.h"
-#include "itt.hpp"
 #include "nodes/fullyconnected.h"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"

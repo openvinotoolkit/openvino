@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -207,6 +207,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     build_insts_deps();
     build_exec_order();
     validate_primitives();
+    preallocate_shape_info_buffers();
     add_default_output_chains();
 }
 
@@ -272,6 +273,39 @@ void network::validate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("validate_primitives");
     for (auto const& prim : _exec_order) {
         prim->validate();
+    }
+}
+
+void network::preallocate_shape_info_buffers() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("preallocate_shape_info_buffers");
+    int64_t sum = 0;
+
+    /* Use 512 byte alignment for performance */
+    const int alignment = 512;
+
+    for (auto const& prim : _exec_order) {
+        auto& node = prim->get_node();
+        int64_t shape_elements = align_to(node.get_total_shape_info_size(), alignment);
+        sum += shape_elements;
+    }
+
+    if (sum == 0)
+        return;
+
+    auto& engine = get_engine();
+    _shape_info_ptr = engine.allocate_memory(layout{{sum}, data_types::i32, format::bfyx}, false);
+    size_t offset = 0;
+    for (auto const& prim : _exec_order) {
+        auto& node = prim->get_node();
+        const int64_t shape_elements = node.get_total_shape_info_size();
+
+        if (shape_elements == 0)
+            continue;
+
+        auto new_mem = engine.create_subbuffer(*_shape_info_ptr, layout{{shape_elements}, data_types::i32, format::bfyx}, offset);
+        prim->set_shape_info_memory_subbuffer(new_mem);
+
+        offset += align_to(shape_elements, alignment) * sizeof(int32_t);
     }
 }
 
@@ -661,6 +695,15 @@ void network::build_exec_order() {
         }
     }
 }
+
+bool network::contains_state(const std::string& variable_id) {
+    auto it = _state_initializers.find(variable_id);
+    if (it != _state_initializers.end())
+        return true;
+    else
+        return false;
+}
+
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
     _exec_order.push_back(inst);
@@ -695,6 +738,19 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
             if (inst->output_memory_ptr() &&
                 is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
+        }
+    }
+
+    for (auto& inst : _read_values) {
+        const auto& prim = inst->get_node().as<read_value>().get_primitive();
+        auto it = _state_initializers.find(prim->variable_id);
+        if (it != _state_initializers.end()) {
+            const auto& variable = get_variable(prim->variable_id);
+            if (variable.is_set()) {
+                for (auto& init_inst : it->second) {
+                    init_inst->set_flag(ExecutionFlags::SKIP);
+                }
+            }
         }
     }
 
@@ -913,6 +969,15 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
+    if (node.is_type<read_value>()) {
+        _read_values.push_back(inst);
+        const auto& variable_id = node.as<read_value>().get_primitive()->variable_id;
+        if (_program->contains_state(variable_id)) {
+            for (const auto& id : _program->get_initializers(variable_id)) {
+                _state_initializers[variable_id].push_back(get_primitive(id));
+            }
+        }
+    }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         auto prim = inst->get_node().get_primitive();
         set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get());
@@ -995,6 +1060,10 @@ void network::set_variables_state_info(const std::string& variable_id,
     _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
 
     _variables_state_info.at(variable_id).m_primitives.insert(p);
+}
+
+void network::set_reuse_variable_mem(bool reuse) {
+    _reuse_variable_mem = reuse;
 }
 
 

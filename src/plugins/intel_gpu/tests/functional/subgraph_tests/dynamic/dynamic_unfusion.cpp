@@ -15,6 +15,8 @@ namespace {
 using ov::test::InputShape;
 
 using DynamicUnfusionsParams = std::tuple<std::vector<InputShape>,   // input shapes
+                                          bool,                      // Matmul transpose a
+                                          bool,                      // Matmul transpose b
                                           ov::element::Type>;        // input precision
 
 class DynamicUnfusions : public testing::WithParamInterface<DynamicUnfusionsParams>,
@@ -22,9 +24,11 @@ class DynamicUnfusions : public testing::WithParamInterface<DynamicUnfusionsPara
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DynamicUnfusionsParams> obj) {
         std::vector<InputShape> input_shapes;
+        bool transpose_a;
+        bool transpose_b;
         ov::element::Type input_precision;
 
-        std::tie(input_shapes, input_precision) = obj.param;
+        std::tie(input_shapes, transpose_a, transpose_b, input_precision) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -42,18 +46,22 @@ public:
             }
             result << ")_";
         }
+        result << "transpose_a=" << transpose_a << "_";
+        result << "transpose_b=" << transpose_b << "_";
         result << "input_precision=" << input_precision;
         return result.str();
     }
 
 protected:
     std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
+                                             bool transpose_a,
+                                             bool transpose_b,
                                              const ov::element::Type input_precision) {
         auto input0 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
         auto input1 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[1]);
         auto input2 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[2]);
 
-        auto matmul = std::make_shared<ov::op::v0::MatMul>(input0, input1);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input0, input1, transpose_a, transpose_b);
         auto mul = std::make_shared<ov::op::v1::Multiply>(matmul, input2);
 
         matmul->set_friendly_name("MatMul");
@@ -66,14 +74,16 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         std::vector<InputShape> input_shapes;
+        bool transpose_a;
+        bool transpose_b;
         ov::element::Type input_precision;
 
-        std::tie(input_shapes, input_precision) = GetParam();
+        std::tie(input_shapes, transpose_a, transpose_b, input_precision) = GetParam();
 
         init_input_shapes(input_shapes);
 
         inType = outType = input_precision;
-        function = init_subgraph(inputDynamicShapes, input_precision);
+        function = init_subgraph(inputDynamicShapes, transpose_a, transpose_b, input_precision);
     }
 };
 
@@ -83,13 +93,28 @@ TEST_P(DynamicUnfusions, Inference) {
 
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 
-const std::vector<std::vector<InputShape>> input_shapes_dyn = {
+const std::vector<std::vector<InputShape>> input_shapes_same_rank_fusing_dyn = {
     {{{1024, -1}, {{1024, 1024}}}, {{-1, 1024}, {{1024, 1024}}}, {{1, -1}, {{1, 1}}}},
+    {{{1024, -1}, {{1024, 1024}}}, {{-1, 1024}, {{1024, 1024}}}, {{1, -1}, {{1, 1024}}}},
+};
+const std::vector<std::vector<InputShape>> input_shapes_diff_rank_fusing_dyn = {
+    {{{1024, -1}, {{1024, 1024}}}, {{-1, 1024}, {{1024, 1024}}}, {{1, -1}, {{1, 1}}}},
+    {{{-1, -1, 1024}, {{1, 1024, 1024}}}, {{-1, 1024}, {{1024, 1024}}}, {{1, -1}, {{1, 1024}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(DynamicUnfusions_basic,
+INSTANTIATE_TEST_SUITE_P(DynamicUnfusions_basic_same_rank,
                          DynamicUnfusions,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_dyn),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_same_rank_fusing_dyn),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(input_precisions)),
+                         DynamicUnfusions::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DynamicUnfusions_basic_diff_rank,
+                         DynamicUnfusions,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_diff_rank_fusing_dyn),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
                                             ::testing::ValuesIn(input_precisions)),
                          DynamicUnfusions::getTestCaseName);
 } // namespace

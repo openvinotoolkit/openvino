@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace op {
 
 class Gemm : public ov::op::v0::MatMul {
 public:
-    OPENVINO_OP("Gemm", "gpu_opset");
+    OPENVINO_OP("Gemm", "gpu_opset", ov::op::v0::MatMul);
 
     Gemm() = default;
 
