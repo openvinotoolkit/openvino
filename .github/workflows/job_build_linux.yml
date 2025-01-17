@@ -156,7 +156,6 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
           
           # For rpm build
-          python3 -m pip install rpm-python
           python3 -m pip install rpm
 
 
