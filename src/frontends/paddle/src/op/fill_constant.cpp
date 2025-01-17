@@ -38,10 +38,6 @@ NamedOutputs fill_constant(const NodeContext& node) {
         PADDLE_OP_CHECK(node, false, "fill_constant only supports i32, f32, i64");
     }
 
-    if (shape.empty()) {
-        shape.emplace_back(1);
-    }
-
     PADDLE_OP_CHECK(node,
                     node.has_attribute("shape") || node.has_input("ShapeTensor") || node.has_input("ShapeTensorList"),
                     "fill_constant shape not set");

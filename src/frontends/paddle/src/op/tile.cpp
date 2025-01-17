@@ -13,7 +13,6 @@ namespace op {
 NamedOutputs tile(const NodeContext& node) {
     auto x = node.get_input("X");
     x = get_tensor_safe(x);
-    auto x_dims = static_cast<int64_t>(x.get_partial_shape().rank().get_length());
     Output<Node> repeats;
     if (node.has_input("RepeatTimes")) {
         repeats = node.get_input("RepeatTimes");

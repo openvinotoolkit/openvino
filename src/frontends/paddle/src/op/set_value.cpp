@@ -8,7 +8,6 @@
 #include "op_utils.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace frontend {
