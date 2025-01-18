@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include "modifiers.hpp"
 #include "eltwise.hpp"
-#include "snippets/op/reduce.hpp"
-
-
 #include "libxsmm_typedefs.h"
+#include "modifiers.hpp"
+#include "snippets/op/reduce.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,6 +22,7 @@ public:
     ReduceMax(const Output<Node>& arg, size_t axis);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
+
 private:
     libxsmm_meltw_binary_type m_op_type;
 };
@@ -34,11 +33,12 @@ public:
     ReduceSum(const Output<Node>& arg, size_t axis);
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
+
 private:
     libxsmm_meltw_binary_type m_op_type;
 };
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

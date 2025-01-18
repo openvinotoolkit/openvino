@@ -3,6 +3,7 @@
 //
 
 #include "scalar.hpp"
+
 #include "modifiers.hpp"
 
 namespace ov {
@@ -21,11 +22,11 @@ std::shared_ptr<Node> Scalar::clone_with_new_inputs(const OutputVector& new_args
 
 bool Scalar::visit_attributes(AttributeVisitor& visitor) {
     modifier::TensorProcessingPrimitive::visit_attributes(visitor);
-    return  snippets::op::Scalar::visit_attributes(visitor);;
+    return snippets::op::Scalar::visit_attributes(visitor);
+    ;
 }
 
-
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

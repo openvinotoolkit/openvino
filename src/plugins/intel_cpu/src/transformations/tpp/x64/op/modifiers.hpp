@@ -16,19 +16,19 @@ namespace modifier {
  * @ingroup snippets
  */
 class TensorProcessingPrimitive : virtual public snippets::modifier::MemoryAccess {
-    public:
-        void clone_memory_access_ports(const TensorProcessingPrimitive& other) {
-            m_input_ports = other.m_input_ports;
-            m_output_ports = other.m_output_ports;
-        }
-        static bool visit_attributes(AttributeVisitor& visitor) {
-            std::string modifier{"TPP"};
-            visitor.on_attribute("modifier", modifier);
-            return true;
-        }
+public:
+    void clone_memory_access_ports(const TensorProcessingPrimitive& other) {
+        m_input_ports = other.m_input_ports;
+        m_output_ports = other.m_output_ports;
+    }
+    static bool visit_attributes(AttributeVisitor& visitor) {
+        std::string modifier{"TPP"};
+        visitor.on_attribute("modifier", modifier);
+        return true;
+    }
 };
 
-} // namespace modifier
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace modifier
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov
