@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "descriptor.hpp"
 #include "modifiers.hpp"
 #include "openvino/op/op.hpp"
-#include "descriptor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,13 +20,15 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    const std::vector<OpDescTPP>& get_op_descs() { return m_op_descs; }
+    const std::vector<OpDescTPP>& get_op_descs() {
+        return m_op_descs;
+    }
 
 private:
     std::vector<OpDescTPP> m_op_descs;
 };
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

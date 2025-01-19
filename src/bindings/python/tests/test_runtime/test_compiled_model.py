@@ -225,7 +225,7 @@ def test_inputs_docs(device):
     compiled_model = generate_relu_compiled_model(device)
 
     input_0 = compiled_model.inputs[0]
-    assert input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
+    assert input_0.__doc__ == "openvino.ConstOutput represents port/node output."
 
 
 def test_infer_new_request_numpy(device):

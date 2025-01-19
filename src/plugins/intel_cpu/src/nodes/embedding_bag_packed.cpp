@@ -31,7 +31,7 @@ bool EmbeddingBagPacked::isSupportedOperation(const std::shared_ptr<const ov::No
     return true;
 }
 
-EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
       EmbeddingBag(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
@@ -116,7 +116,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
     weightsIdx = embIndex * _indicesPerBag;
 }
 
-void EmbeddingBagPacked::executeDynamicImpl(dnnl::stream strm) {
+void EmbeddingBagPacked::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -124,7 +124,7 @@ bool EmbeddingBagPacked::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagPacked::execute(dnnl::stream strm) {
+void EmbeddingBagPacked::execute(const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)

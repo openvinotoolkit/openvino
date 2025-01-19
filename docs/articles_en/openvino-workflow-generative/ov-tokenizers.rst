@@ -6,7 +6,7 @@ generation with LLMs. Tokenizers convert the input text into a sequence of token
 corresponding IDs, so that the model can understand and process it during inference. The
 transformation of a sequence of numbers into a string is called detokenization.
 
-.. image:: ../../assets/images/tokenization.svg
+.. image:: ../assets/images/tokenization.svg
    :align: center
 
 There are two important points in the tokenizer-model relation:

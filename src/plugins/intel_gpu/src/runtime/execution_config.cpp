@@ -46,6 +46,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
         std::make_tuple(ov::hint::enable_cpu_pinning, false),
+        std::make_tuple(ov::hint::enable_cpu_reservation, false),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
@@ -235,7 +236,7 @@ void ExecutionConfig::update_specific_default_properties(const cldnn::device_inf
         return;
     specific_default_properties_is_set = true;
 
-    // Enable KV-cache compression by default for non-systolic platforms
+    // Enable KV-cache compression by default for non-systolic platforms MFDNN-11755
     if (get_property(ov::hint::kv_cache_precision) == ov::element::undefined && !info.supports_immad) {
         set_property(ov::hint::kv_cache_precision(ov::element::i8));
     }
@@ -268,15 +269,26 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     if (get_property(ov::intel_gpu::use_onednn)) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
+    if (!is_set_by_user(ov::hint::enable_cpu_reservation)) {
+        if (get_property(ov::hint::enable_cpu_pinning)) {
+            set_property(ov::hint::enable_cpu_reservation(true));
+        }
+    }
+    if (get_property(ov::hint::enable_cpu_reservation)) {
+        if (!is_set_by_user(ov::hint::enable_cpu_pinning)) {
+            set_property(ov::hint::enable_cpu_pinning(true));
+        }
+    }
 
     user_properties.clear();
 }
 
-void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info) {
+void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info, const bool is_llm) {
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
-        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
+    if (!info.supports_immad || !is_llm)
+        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 }
 

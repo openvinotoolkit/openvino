@@ -22,16 +22,20 @@ VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape);
 
 VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank);
 
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc);
+DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
-ov::optional<MemoryPtr> convertWeightPrecision(MemoryPtr input, MemoryPtr output, ov::element::Type weightPrecision);
+ov::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
+                                               const MemoryPtr& output,
+                                               ov::element::Type weightPrecision);
 
-ov::optional<MemoryPtr> reorderDataFallback(MemoryPtr input, MemoryPtr output, ExecutorContext::CPtr context);
+ov::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
+                                            const MemoryPtr& output,
+                                            const ExecutorContext::CPtr& context);
 
-MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
-                      DnnlMemoryDescPtr dstWeightDesc,
-                      MemoryCPtr weightsMem,
-                      ExecutorContext::CPtr context);
+MemoryPtr reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
+                      const DnnlMemoryDescPtr& dstWeightDesc,
+                      const MemoryCPtr& weightsMem,
+                      const ExecutorContext::CPtr& context);
 
 MemoryPtr reorderWeights(const MemoryArgs& memory,
                          const ExecutorContext::CPtr context,
@@ -40,7 +44,7 @@ MemoryPtr reorderWeights(const MemoryArgs& memory,
                          DnnlMemoryDescPtr dnnlDstDesc);
 
 MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
-                              const ExecutorContext::CPtr context,
+                              const ExecutorContext::CPtr& context,
                               const FCAttrs& attrs,
                               ACLFCAttrs& aclfcAttrs,
                               const PostOps& postOps,

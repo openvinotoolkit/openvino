@@ -18,6 +18,7 @@ namespace intel_cpu {
  */
 class BrgemmCopyBLoopPortsAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
+    OPENVINO_RTTI("BrgemmCopyBLoopPortsAdjuster", "", RuntimeOptimizer)
     BrgemmCopyBLoopPortsAdjuster() = default;
     BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                  const CPURuntimeConfigurator* configurator);

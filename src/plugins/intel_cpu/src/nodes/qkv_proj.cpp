@@ -5,6 +5,7 @@
 #include "qkv_proj.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/bfloat16.hpp"
@@ -66,7 +67,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
     WeightBuffer wbuffer;
 
-    Executor(QKVProjection* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {
+    Executor(QKVProjection* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(std::move(scrachPad)) {
         PlainTensor w0(pnode->getSrcMemoryAtPort(1));
         PlainTensor w1(pnode->getSrcMemoryAtPort(2));
         PlainTensor w2(pnode->getSrcMemoryAtPort(3));
@@ -329,12 +330,12 @@ void QKVProjection::createPrimitive() {
     }
 }
 
-void QKVProjection::execute(dnnl::stream strm) {
+void QKVProjection::execute(const dnnl::stream& strm) {
     MAYBE_UNUSED(strm);
     m_executor->execute();
 }
 
-QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
 

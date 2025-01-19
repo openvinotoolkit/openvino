@@ -5,13 +5,14 @@
 #include "sdpa.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::ScaledDotProductAttentionWithKVCache::ScaledDotProductAttentionWithKVCache(const OutputVector& args,
-                                                                                          const Config& cfg)
+                                                                                          Config cfg)
     : Op(args),
-      m_config(cfg) {
+      m_config(std::move(cfg)) {
     constructor_validate_and_infer_types();
 }
 
@@ -102,9 +103,9 @@ bool ov::intel_cpu::ScaledDotProductAttentionWithKVCache::visit_attributes(ov::A
     return true;
 }
 
-ov::intel_cpu::SDPAWithTransposeReshape::SDPAWithTransposeReshape(const OutputVector& args, const Config& cfg)
+ov::intel_cpu::SDPAWithTransposeReshape::SDPAWithTransposeReshape(const OutputVector& args, Config cfg)
     : Op(args),
-      m_config(cfg) {}
+      m_config(std::move(cfg)) {}
 
 std::shared_ptr<ov::Node> ov::intel_cpu::SDPAWithTransposeReshape::clone_with_new_inputs(
     const ov::OutputVector& new_args) const {
@@ -117,7 +118,7 @@ void ov::intel_cpu::SDPAWithTransposeReshape::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(SDPAWithTransposeReshape_validate_and_infer_types);
     // [B,L,H*S]
     auto q_ps = get_input_partial_shape(0);
-    auto output_ps = q_ps;
+    const auto& output_ps = q_ps;
     NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == true);
     NODE_VALIDATION_CHECK(this, m_config.input_BLHxS == true);
     NODE_VALIDATION_CHECK(this, q_ps.size() == 3u);

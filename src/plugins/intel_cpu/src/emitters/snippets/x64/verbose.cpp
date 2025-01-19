@@ -107,13 +107,9 @@ std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter*
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter"
        << " jcp.exec_domain:" << vector_to_string(emitter->jcp.exec_domain)
-       << " gp_regs_pool:" << vector_to_string(emitter->gp_regs_pool)
        << " master_shape:" << vector_to_string(emitter->master_shape) << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx)
-       << " vec_regs_pool:" << vector_to_string(emitter->vec_regs_pool)
-       << " reg_indexes_idx:" << emitter->reg_indexes_idx
-       << " reg_runtime_params_idx:" << emitter->reg_runtime_params_idx;
+       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
     for (size_t i = 0; i < emitter->data_offsets.size(); ++i)
         ss << " data_offsets for " << i << " is:" << vector_to_string(emitter->data_offsets[i]);
     return ss.str();
@@ -122,11 +118,9 @@ std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter*
 std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
-       << " gp_regs_pool:" << vector_to_string(emitter->gp_regs_pool) << " num_inputs:" << emitter->num_inputs
-       << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx)
-       << " vec_regs_pool:" << vector_to_string(emitter->vec_regs_pool)
-       << " reg_runtime_params_idx:" << emitter->reg_runtime_params_idx;
+       << " num_inputs:" << emitter->num_inputs << " num_outputs:" << emitter->num_outputs
+       << " num_unique_buffers:" << emitter->num_unique_buffers
+       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
     return ss.str();
 }
 

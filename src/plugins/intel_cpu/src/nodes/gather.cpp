@@ -58,7 +58,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, GatherShapeInferFactory(op)),
       batchDims(0) {
     std::string errorMessage;
@@ -409,7 +409,7 @@ void Gather::prepareParams() {
 #endif
 }
 
-void Gather::execute(dnnl::stream strm) {
+void Gather::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -477,7 +477,7 @@ void Gather::execute(dnnl::stream strm) {
     execReference();
 }
 
-void Gather::executeDynamicImpl(dnnl::stream strm) {
+void Gather::executeDynamicImpl(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }

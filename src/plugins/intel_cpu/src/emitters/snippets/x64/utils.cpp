@@ -44,10 +44,10 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
 }
 
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
-    // RSP, RBP - stack-related registers, abi_param1 - runtime parameter register in the kernel
+    // RSP - stack pointer should be preserved, abi_param1 and abi_param2 - runtime parameter register in the kernel
     static std::unordered_set<size_t> blacklist_gpr_idxs = {Xbyak::Operand::RSP,
-                                                            Xbyak::Operand::RBP,
-                                                            static_cast<size_t>(abi_param1.getIdx())};
+                                                            static_cast<size_t>(abi_param1.getIdx()),
+                                                            static_cast<size_t>(abi_param2.getIdx())};
     for (size_t gpr_idx = 0; gpr_idx <= Xbyak::Operand::R15; ++gpr_idx) {
         size_t _idx = Xbyak::Operand::R15 - gpr_idx;  // we allocate from the end
         if (std::find(used_gpr_idxs.cbegin(), used_gpr_idxs.cend(), _idx) != used_gpr_idxs.cend())
@@ -57,6 +57,17 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
         return Xbyak::Reg64(_idx);
     }
     OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
+}
+
+Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
+                                        const std::vector<size_t>& aux_gpr_idxs,
+                                        std::set<snippets::Reg>& regs_to_spill) {
+    if (!aux_gpr_idxs.empty()) {
+        return Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
+    }
+    const auto aux_reg = ov::intel_cpu::utils::get_aux_gpr(used_gpr_reg_idxs);
+    regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
+    return aux_reg;
 }
 
 void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,

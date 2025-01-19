@@ -36,7 +36,7 @@ class OVDict(Mapping):
     This class is a dict-like object. It provides possibility to
     address data tensors with three key types:
 
-    * `openvino.runtime.ConstOutput` - port of the output
+    * `openvino.ConstOutput` - port of the output
     * `int` - index of the output
     * `str` - names of the output
 

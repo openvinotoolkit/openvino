@@ -4,6 +4,8 @@
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -32,7 +34,7 @@ private:
 
 class ColorConvertShapeInferFactory : public ShapeInferFactory {
 public:
-    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

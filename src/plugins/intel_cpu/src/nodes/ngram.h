@@ -20,13 +20,13 @@ public:
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
 
 private:

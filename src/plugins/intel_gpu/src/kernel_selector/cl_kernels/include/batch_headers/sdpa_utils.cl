@@ -27,6 +27,8 @@
 #define KEY_OFF(x0, x1, x2, x3) _4D_OFF(KEY, x0, x1, x2, x3)
 #define VAL_OFF(x0, x1, x2, x3) _4D_OFF(VAL, x0, x1, x2, x3)
 #define MSK_OFF(x0, x1, x2, x3) _4D_OFF(MSK, x0, x1, x2, x3)
+#define KEY_COMP_OFF(x0, x1, x2, x3) _4D_OFF(KEY_COMP, x0, x1, x2, x3)
+#define VAL_COMP_OFF(x0, x1, x2, x3) _4D_OFF(VAL_COMP, x0, x1, x2, x3)
 
 #define DST_OFF(x0, x1, d, h, w) \
 (((x0) % DST_B0) * DST_SB0 + ((x0) / DST_B0) * DST_S0 \

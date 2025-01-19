@@ -29,7 +29,7 @@ public:
     ConvertExecutorFactory(const ConvertParams& convertParams,
                            const MemoryDescPtr& srcDesc,
                            const MemoryDescPtr& dstDesc,
-                           const ExecutorContext::CPtr context)
+                           const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getConvertExecutorsList()) {
             if (desc.builder->isSupported(convertParams, srcDesc, dstDesc)) {

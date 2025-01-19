@@ -17,7 +17,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const size_t offset_in,
                                     const size_t offset_out0,
                                     const size_t offset_out1,
-                                    std::vector<size_t> layout_input)
+                                    const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
       op::Op({x}),
       m_type(type),
@@ -28,7 +28,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
     if (with_compensations(m_type)) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
-    custom_constructor_validate_and_infer_types(std::move(layout_input));
+    custom_constructor_validate_and_infer_types(layout_input);
 }
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
@@ -37,7 +37,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const PortDescriptor& desc_in0,
                                     const PortDescriptor& desc_out0,
                                     const PortDescriptor& desc_out1,
-                                    std::vector<size_t> layout_input)
+                                    const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
       op::Op({x}),
       m_type(type),
@@ -48,7 +48,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
     if (with_compensations(m_type)) {
         set_output_port_descriptor(desc_out1, 1);
     }
-    custom_constructor_validate_and_infer_types(std::move(layout_input));
+    custom_constructor_validate_and_infer_types(layout_input);
 }
 
 bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
@@ -59,7 +59,7 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input) {
+void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
     INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
     OPENVINO_ASSERT(m_type == BRGEMM_TYPE::WITH_COMPENSATIONS || m_type == BRGEMM_TYPE::REPACKING_ONLY,
                     "Unsupported BRGEMM_TYPE value");

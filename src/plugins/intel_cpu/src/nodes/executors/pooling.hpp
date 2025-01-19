@@ -40,7 +40,7 @@ struct PoolingAttrs {
 
 class PoolingExecutor {
 public:
-    PoolingExecutor(const ExecutorContext::CPtr context);
+    PoolingExecutor(ExecutorContext::CPtr context);
     virtual bool init(const PoolingAttrs& poolingAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

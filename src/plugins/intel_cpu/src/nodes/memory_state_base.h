@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "memory_state.h"
 
 namespace ov {
@@ -12,7 +14,7 @@ namespace node {
 
 class MemoryNode {
 public:
-    explicit MemoryNode(std::string id) : m_id(id) {}
+    explicit MemoryNode(std::string id) : m_id(std::move(id)) {}
     explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
     const std::string& getId() const {

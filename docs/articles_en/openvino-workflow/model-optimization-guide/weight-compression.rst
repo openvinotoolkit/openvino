@@ -105,7 +105,7 @@ By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
          print(results)
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+      :doc:`infer LLMs using Optimum Intel <../../openvino-workflow-generative/inference-with-optimum-intel>`.
 
    .. tab-item:: Compression with NNCF
       :sync: nncf
@@ -221,7 +221,7 @@ depending on the model.
 
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+      :doc:`infer LLMs using Optimum Intel <../../../openvino-workflow-generative/inference-with-optimum-intel>`.
 
 The code snippet below shows how to do 4-bit quantization of the model weights represented
 in OpenVINO IR using NNCF:
@@ -344,7 +344,7 @@ load the compressed model later for faster time to first inference.
 .. tip::
 
    Models optimized with with NNCF or Optimum Intel can be used with
-   :doc:`OpenVINO GenAI <../../learn-openvino/llm_inference_guide/genai-guide>`.
+   :doc:`OpenVINO GenAI <../../openvino-workflow-generative/inference-with-genai>`.
 
 
 Auto-tuning of Weight Compression Parameters

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -21,11 +21,12 @@ public:
         tpp_matcher matcher;
         tpp_builder builder;
     };
+
 private:
     static std::unordered_map<ov::DiscreteTypeInfo, tpp_builder> m_direct_mapping;
     static std::vector<TPPCustomBuilder> m_custom_mapping;
 };
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

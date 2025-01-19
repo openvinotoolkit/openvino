@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "dnnl_postops_composer_legacy.h"
@@ -60,7 +61,7 @@ struct jit_uni_eltwise_kernel {
         ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_kernel(const jit_eltwise_params& jep) : ker_(nullptr), jep_(jep) {}
+    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
@@ -86,12 +87,12 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuseParent(const NodePtr& parentNode) const;
@@ -140,7 +141,7 @@ public:
     void prepareParams() override;
     void createPrimitive() override;
 
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     enum BroadcastingPolicy {
         PerChannel,

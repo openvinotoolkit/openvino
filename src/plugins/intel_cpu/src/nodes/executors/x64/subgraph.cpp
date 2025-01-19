@@ -76,10 +76,9 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
                            start_offset_in,
                            start_offset_out,
                            allocator,
-                           kernel_cache) {
-    m_repacking_impl_type = snippet_config->repacking_impl_type;
-    m_repacked_inputs = snippet_config->repacked_inputs;
-
+                           kernel_cache),
+      m_repacked_inputs(snippet_config->repacked_inputs),
+      m_repacking_impl_type(snippet_config->repacking_impl_type) {
     auto external_buffer_size =
         std::accumulate(m_repacked_inputs.begin(),
                         m_repacked_inputs.end(),

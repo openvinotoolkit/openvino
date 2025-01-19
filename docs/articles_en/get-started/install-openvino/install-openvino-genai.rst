@@ -5,7 +5,7 @@ OpenVINO GenAI is a new flavor of OpenVINO, aiming to simplify running inference
 It hides the complexity of the generation process and minimizes the amount of code required.
 You can now provide a model and input context directly to OpenVINO, which performs tokenization of the
 input text, executes the generation loop on the selected device, and returns the generated text.
-For a quickstart guide, refer to the :doc:`GenAI API Guide <../../learn-openvino/llm_inference_guide/genai-guide>`.
+For a quickstart guide, refer to the :doc:`GenAI API Guide <../../openvino-workflow-generative/inference-with-genai>`.
 
 To see GenAI in action, check the Jupyter notebooks:
 `LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md>`__ and
@@ -28,7 +28,7 @@ but use the *openvino-genai* package instead of *openvino*:
 Archive Installation
 ###############################
 
-The OpenVINO GenAI archive package includes the OpenVINO™ Runtime and :doc:`Tokenizers <../../learn-openvino/llm_inference_guide/ov-tokenizers>`.
+The OpenVINO GenAI archive package includes the OpenVINO™ Runtime and :doc:`Tokenizers <../../openvino-workflow-generative/ov-tokenizers>`.
 To install the GenAI flavor of OpenVINO from an archive file, follow the standard installation steps for your system
 but instead of using the vanilla package file, download the one with OpenVINO GenAI:
 

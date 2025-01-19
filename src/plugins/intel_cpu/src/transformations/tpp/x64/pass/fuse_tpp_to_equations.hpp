@@ -16,11 +16,12 @@ namespace pass {
  * @brief Converts a group of elementwise operations into a fused TPP Equation node
  * @ingroup snippets
  */
-class FuseTPPToEquations: public ov::pass::ModelPass {
+class FuseTPPToEquations : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("FuseTPPToEquations");
     FuseTPPToEquations() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
 private:
     static bool fuse_from_root(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Model>& m);
 };

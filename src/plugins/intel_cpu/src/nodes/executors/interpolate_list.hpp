@@ -28,7 +28,7 @@ public:
     InterpolateExecutorFactory(const InterpolateAttrs& InterpolateAttrs,
                                const std::vector<MemoryDescPtr>& srcDescs,
                                const std::vector<MemoryDescPtr>& dstDescs,
-                               const ExecutorContext::CPtr context)
+                               const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getInterpolateExecutorsList()) {
             if (desc.builder->isSupported(InterpolateAttrs, srcDescs, dstDescs)) {

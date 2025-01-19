@@ -90,7 +90,7 @@ static ICompiled::Ptr compileSimulation(Simulation::Ptr simulation, const bool p
         return simulation->compilePipelined(drop_frames);
     }
     return simulation->compileSync(drop_frames);
-};
+}
 
 class ThreadRunner {
 public:
@@ -112,8 +112,8 @@ void ThreadRunner::run() {
     }
     for (auto& future : futures) {
         future.get();
-    };
-};
+    }
+}
 
 class Task {
 public:

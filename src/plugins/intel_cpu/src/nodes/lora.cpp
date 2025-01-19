@@ -106,11 +106,11 @@ void LoRA::createPrimitive() {
     m_graph.Activate(inputMemory, outputMemory);
 }
 
-void LoRA::execute(dnnl::stream) {
+void LoRA::execute(const dnnl::stream&) {
     m_graph.Infer();
 }
 
-void LoRA::executeDynamicImpl(dnnl::stream strm) {
+void LoRA::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

@@ -1810,7 +1810,7 @@ void jit_mish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     const TReg vmm_src(in_vec_idxs[0]);
     const TReg vmm_dst(out_vec_idxs[0]);
     const TReg vmm_aux0(aux_vec_idxs[0]);
-    const TReg vmm_aux2(std::max<size_t>(exp_emitter->get_aux_vecs_count(), 1));
+    const TReg vmm_aux2(aux_vec_idxs[std::max<size_t>(exp_emitter->get_aux_vecs_count(), 1)]);
 
     h->ld1r(vmm_aux0.s, table_val2("fwd_mish_max_x_for_equation_f"));
     h->fminnm(vmm_aux2.s, vmm_src.s, vmm_aux0.s);

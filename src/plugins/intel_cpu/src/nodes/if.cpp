@@ -5,6 +5,7 @@
 #include "if.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
@@ -17,10 +18,10 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-If::PortMapHelper::PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng)
-    : srcMemPtr(from),
-      dstMemPtrs(to) {
-    size = 0;
+If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& eng)
+    : srcMemPtr(std::move(from)),
+      dstMemPtrs(std::move(to)),
+      size(0) {
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->getShape().getElementsCount();
 
@@ -30,7 +31,7 @@ If::PortMapHelper::PortMapHelper(const MemoryPtr& from, const std::deque<MemoryP
     }
 }
 
-void If::PortMapHelper::execute(dnnl::stream& strm) {
+void If::PortMapHelper::execute(const dnnl::stream& strm) {
     // if output shapes are changed,
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
@@ -69,7 +70,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     return true;
 }
 
-If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()),
       ovOp(op) {
     std::string errorMessage;
@@ -238,12 +239,12 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
 
 std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) const {
     std::deque<MemoryPtr> memories;
-    for (auto edge : node->getChildEdgesAtPort(port))
+    for (const auto& edge : node->getChildEdgesAtPort(port))
         memories.push_back(edge->getMemoryPtr());
     return memories;
 }
 
-void If::execute(dnnl::stream strm) {
+void If::execute(const dnnl::stream& strm) {
     const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
@@ -258,7 +259,7 @@ void If::execute(dnnl::stream strm) {
         mapper->execute(strm);
 }
 
-void If::executeDynamicImpl(dnnl::stream strm) {
+void If::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

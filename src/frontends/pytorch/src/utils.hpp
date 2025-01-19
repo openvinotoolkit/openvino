@@ -35,7 +35,7 @@ const std::string& get_pytorch_prefix();
         OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), get_pytorch_prefix(), __VA_ARGS__)
 #endif
 
-void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs, bool allow_complex = false);
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
@@ -135,6 +135,8 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const ov::Rank& rank,
                           Output<Node>& new_output,
                           bool& use_input_as_output);
+
+Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& complex_input);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>

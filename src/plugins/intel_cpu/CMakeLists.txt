@@ -239,7 +239,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS}
-              ADD_CLANG_FORMAT)
+              ADD_CLANG_FORMAT
+              ADD_CLANG_TIDY)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)

@@ -10,7 +10,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -54,8 +54,8 @@ bool StringTensorPack::needPrepareParams() const {
     return false;
 }
 
-void StringTensorPack::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void StringTensorPack::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 }
 
 template <class T_idx>
@@ -85,7 +85,7 @@ bool StringTensorPack::isExecutable() const {
     return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
 }
 
-void StringTensorPack::execute(dnnl::stream strm) {
+void StringTensorPack::execute(const dnnl::stream& strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     StringTensorPackContext ctx = {*this};
     OV_SWITCH(intel_cpu,

@@ -4,6 +4,8 @@
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -34,7 +36,7 @@ private:
 
 class PriorBoxClusteredShapeInferFactory : public ShapeInferFactory {
 public:
-    explicit PriorBoxClusteredShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    explicit PriorBoxClusteredShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

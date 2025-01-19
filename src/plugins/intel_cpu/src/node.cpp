@@ -15,6 +15,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
@@ -48,15 +49,13 @@ Node::NodesFactory& Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ov::Node>& op,
-           const GraphContext::CPtr ctx,
-           const ShapeInferFactory& shapeInferFactory)
+Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
       constant(ConstantType::NoConst),
-      context(ctx),
+      context(std::move(ctx)),
       algorithm(Algorithm::Default),
       fusingPort(-1),
-      engine(ctx->getEngine()),
+      engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
@@ -177,7 +176,7 @@ Node::Node(const std::string& type,
            std::vector<ov::element::Type> inputPrecisions,
            std::vector<ov::element::Type> outputPrecisions,
            const std::string& name,
-           const GraphContext::CPtr ctx)
+           const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
       selectedPrimitiveDescriptorIndex(-1),
@@ -205,7 +204,7 @@ void Node::addEdge(const EdgePtr& edge) {
 }
 
 void Node::remove() {
-    auto drop = [](std::vector<EdgeWeakPtr> edges) {
+    auto drop = [](const std::vector<EdgeWeakPtr>& edges) {
         for (auto& edge : edges) {
             auto edgePtr = edge.lock();
             if (!edgePtr)
@@ -594,7 +593,7 @@ std::string Node::getPrimitiveDescriptorType() const {
 
     std::string str_type;
 
-    auto add_type = [&](std::string t) {
+    auto add_type = [&](const std::string& t) {
         if (!str_type.empty() && t.c_str()[0] != '_')
             str_type += "_";
         str_type += t;
@@ -798,7 +797,7 @@ void Node::updateDynamicParams() {
     }
 }
 
-void Node::execute(const dnnl::stream strm, int numaId) {
+void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
         return executeDynamic(strm, numaId);
     } else {
@@ -806,12 +805,12 @@ void Node::execute(const dnnl::stream strm, int numaId) {
     }
 }
 
-void Node::executeStatic(const dnnl::stream strm, int numaId) {
+void Node::executeStatic(const dnnl::stream& strm, int numaId) {
     toNumaNode(numaId);
     execute(strm);
 }
 
-void Node::executeDynamic(dnnl::stream strm, int numaId) {
+void Node::executeDynamic(const dnnl::stream& strm, int numaId) {
     if (isExecutable()) {
         toNumaNode(numaId);
         executeDynamicImpl(strm);
@@ -1039,9 +1038,11 @@ void Node::initDescriptor(const NodeConfig& config) {
     descs.clear();
 
     std::vector<MemoryDescPtr> inDescs;
+    inDescs.reserve(config.inConfs.size());
     for (const auto& inConf : config.inConfs)
         inDescs.emplace_back(inConf.getMemDesc());
     std::vector<MemoryDescPtr> outDescs;
+    outDescs.reserve(config.outConfs.size());
     for (const auto& outConf : config.outConfs)
         outDescs.emplace_back(outConf.getMemDesc());
     createDescriptor(inDescs, outDescs);
@@ -1112,6 +1113,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
 
 void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     std::vector<DnnlMemoryDescPtr> intDescs;
+    intDescs.reserve(internalBlobDesc.size());
     for (auto& it : internalBlobDesc)
         intDescs.push_back(it(itpd, 0));
 
@@ -1255,11 +1257,11 @@ void Node::addOriginalLayer(const std::string& layerName) {
 void Node::cleanup() {
     internalBlobs.clear();
 
-    for (auto it : fusedWith) {
+    for (const auto& it : fusedWith) {
         it->cleanup();
     }
 
-    for (auto it : mergedWith) {
+    for (const auto& it : mergedWith) {
         it->cleanup();
     }
 }
@@ -1452,7 +1454,7 @@ void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
 }
 
 bool Node::isFusedWith(Type fusedNodeType) const {
-    for (auto fusedNode : fusedWith) {
+    for (const auto& fusedNode : fusedWith) {
         if (fusedNode->type == fusedNodeType)
             return true;
     }
@@ -1532,7 +1534,7 @@ ov::element::Type Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the
     // NotImplemented exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:

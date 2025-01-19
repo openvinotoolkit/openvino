@@ -120,13 +120,13 @@ size_t compute_inner_k_block(const ov::element::Type& precision) {
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()),
                     "get_copy_b_expr must be called only for BrgemmCPU node");
-    const auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
+    auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
     } else if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1,
                         "BufferExpression on brgemm's B input must have at least one input");
-        const auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
+        auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
         if (ov::is_type<BrgemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
         }

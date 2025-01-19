@@ -49,7 +49,9 @@ public:
     ov::snippets::CompiledSnippetPtr get_snippet() override { return std::make_shared<DummyCompiledSnippet>(); }
     size_t get_lanes() const override { return 10; }
     std::shared_ptr<TargetMachine> clone() const override { return std::make_shared<DummyTargetMachine>(); }
-    size_t get_reg_count() const override { return 16; }
+    std::vector<ov::snippets::Reg> get_abi_arg_regs() const override;
+    std::vector<ov::snippets::Reg> get_gp_reg_pool() const override;
+    std::vector<ov::snippets::Reg> get_vec_reg_pool() const override;
 };
 
 class DummyGenerator : public ov::snippets::Generator {
@@ -58,7 +60,6 @@ public:
     DummyGenerator(const std::shared_ptr<ov::snippets::TargetMachine>& t) : ov::snippets::Generator(t) {}
     std::shared_ptr<Generator> clone() const override { return std::make_shared<DummyGenerator>(target); }
 
-protected:
     ov::snippets::RegType get_op_out_reg_type(const ov::Output<ov::Node>& out) const override { return ov::snippets::RegType::vec; };
 };
 

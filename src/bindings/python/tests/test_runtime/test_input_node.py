@@ -27,7 +27,7 @@ def test_const_output_docs(device):
     compiled_model = core.compile_model(model, device)
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
-    exptected_string = "openvino.runtime.Input wraps ov::Input<Node>"
+    exptected_string = "openvino.Input wraps ov::Input<Node>"
     assert input_node.__doc__ == exptected_string
 
 

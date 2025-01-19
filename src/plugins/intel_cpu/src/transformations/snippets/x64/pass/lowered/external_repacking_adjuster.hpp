@@ -19,6 +19,7 @@ namespace intel_cpu {
  */
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
+    OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", RuntimeOptimizer)
     BrgemmExternalRepackingAdjuster() = default;
     BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                     const CPURuntimeConfigurator* configurator);

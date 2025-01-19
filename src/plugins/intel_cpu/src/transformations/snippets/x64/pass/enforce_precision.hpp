@@ -19,7 +19,7 @@ public:
 
     EnforcePrecision(const element::Type source,
                      const element::Type target,
-                     std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)>
+                     const std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)>&
                          get_supported_precisions = nullptr);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

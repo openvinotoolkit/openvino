@@ -74,7 +74,7 @@ std::string PortDescriptor::serialize() const {
     ss << m_layout.size() << " ";
     for (auto val : m_layout)
         ss << val << " ";
-    ss << regTypeToStr(m_reg.type) << "["<< m_reg.idx << "]";
+    ss << m_reg;
     return ss.str();
 }
 bool operator==(const PortDescriptor& lhs, const PortDescriptor& rhs) {

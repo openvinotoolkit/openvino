@@ -7,13 +7,13 @@
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
-                                                            std::shared_ptr<ov::Model> body) {
+                                                            const std::shared_ptr<ov::Model>& body) {
     m_variable = variable;
     set_function(body);
 }
 
 ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
-                                                            std::shared_ptr<ov::Model> body,
+                                                            const std::shared_ptr<ov::Model>& body,
                                                             const OutputVector& args)
     : ReadValueWithSubgraph(variable, body) {
     set_arguments(args);

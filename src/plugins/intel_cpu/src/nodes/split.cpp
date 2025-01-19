@@ -50,7 +50,7 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
     return true;
 }
 
-Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -295,7 +295,7 @@ bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
 
-void Split::execute(dnnl::stream strm) {
+void Split::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -493,7 +493,7 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     return result;
 }
 
-Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc,
+Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                                       const std::vector<BlockedMemoryDescCPtr>& outDescs,
                                                       const size_t axis) {
     // find axis order position

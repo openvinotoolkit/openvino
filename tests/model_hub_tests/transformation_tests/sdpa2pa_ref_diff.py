@@ -133,7 +133,7 @@ ref_diff_map = {
 	"hf-tiny-model-private/tiny-random-OPTForCausalLM" : {
 		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
-		"Parameter" : 14,
+		"Parameter" : 13,
 		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
@@ -273,14 +273,14 @@ ref_diff_map = {
 	"facebook/opt-125m" : {
 		"Assign" : -24,
 		"PagedAttentionExtension" : 12,
-		"Parameter" : 28,
+		"Parameter" : 27,
 		"ReadValue" : -24,
 		"ScaledDotProductAttention" : -12,
 	},
 	"facebook/opt-350m" : {
 		"Assign" : -48,
 		"PagedAttentionExtension" : 24,
-		"Parameter" : 52,
+		"Parameter" : 51,
 		"ReadValue" : -48,
 		"ScaledDotProductAttention" : -24,
 	},
@@ -319,13 +319,13 @@ ref_diff_map = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
-	# "katuni4ka/tiny-random-nanollava" : {
-	# 	"Assign" : -4,
-	# 	"PagedAttentionExtension" : 2,
-	# 	"Parameter" : 7,
-	# 	"ReadValue" : -4,
-	# 	"ScaledDotProductAttention" : -2,
-	# },
+	"katuni4ka/tiny-random-nanollava" : {
+		"Assign" : -4,
+		"Parameter" : 7,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+		"PagedAttentionExtension" : 2,
+	},
     "hf-internal-testing/tiny-random-GPTNeoForCausalLM" : {
 		"ScaledDotProductAttention" : -4,
 		"ReadValue" : -8,
@@ -465,7 +465,7 @@ ref_diff_map_cache_eviction = {
 	"hf-tiny-model-private/tiny-random-OPTForCausalLM" : {
 		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
-		"Parameter" : 29,
+		"Parameter" : 28,
 		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
@@ -605,14 +605,14 @@ ref_diff_map_cache_eviction = {
 	"facebook/opt-125m" : {
 		"Assign" : -24,
 		"PagedAttentionExtension" : 12,
-		"Parameter" : 64,
+		"Parameter" : 63,
 		"ReadValue" : -24,
 		"ScaledDotProductAttention" : -12,
 	},
 	"facebook/opt-350m" : {
 		"Assign" : -48,
 		"PagedAttentionExtension" : 24,
-		"Parameter" : 124,
+		"Parameter" : 123,
 		"ReadValue" : -48,
 		"ScaledDotProductAttention" : -24,
 	},
@@ -651,13 +651,13 @@ ref_diff_map_cache_eviction = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
-    # "katuni4ka/tiny-random-nanollava" : {
-	# 	"Assign" : -4,
-	# 	"PagedAttentionExtension" : 2,
-	# 	"Parameter" : 13,
-	# 	"ReadValue" : -4,
-	# 	"ScaledDotProductAttention" : -2,
-	# },
+    "katuni4ka/tiny-random-nanollava" : {
+		"Assign" : -4,
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 13,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+	},
 
     "hf-internal-testing/tiny-random-GPTNeoForCausalLM" : {
 		"ScaledDotProductAttention" : -4,

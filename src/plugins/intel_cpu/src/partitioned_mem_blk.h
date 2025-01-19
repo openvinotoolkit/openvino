@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "cpu_memory.h"
 
 namespace ov {

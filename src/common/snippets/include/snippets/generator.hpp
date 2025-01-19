@@ -65,7 +65,7 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class Generator {
+class Generator : public std::enable_shared_from_this<Generator>{
 public:
     /**
      * @brief Default constructor

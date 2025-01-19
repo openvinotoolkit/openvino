@@ -4,6 +4,8 @@
 
 #include "nodes/executors/subgraph.hpp"
 
+#include <utility>
+
 #include "common/primitive_hashing_utils.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -59,13 +61,13 @@ SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs
 SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                                            const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                                            const std::shared_ptr<SubgraphCodeGenerator>& snippet,
-                                           const std::vector<ptrdiff_t>& start_offset_in,
-                                           const std::vector<ptrdiff_t>& start_offset_out,
+                                           std::vector<ptrdiff_t> start_offset_in,
+                                           std::vector<ptrdiff_t> start_offset_out,
                                            const BufferScratchpadAllocator& allocator,
                                            const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache)
     : m_schedule(snippet->get()),
-      m_start_offset_in(start_offset_in),
-      m_start_offset_out(start_offset_out) {
+      m_start_offset_in(std::move(start_offset_in)),
+      m_start_offset_out(std::move(start_offset_out)) {
     OPENVINO_ASSERT(m_schedule, "Schedule is empty!");
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
     init_parallel_domain(snippet_config, m_parallel_exec_domain);

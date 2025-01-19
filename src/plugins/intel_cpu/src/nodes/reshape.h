@@ -13,7 +13,7 @@ namespace node {
 
 class Reshape : public Node {
 public:
-    Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -24,15 +24,13 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
-    void executeDynamicImpl(dnnl::stream strm) override;
-    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
+    void execute(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     mutable std::vector<int> lastSecondInputValues;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

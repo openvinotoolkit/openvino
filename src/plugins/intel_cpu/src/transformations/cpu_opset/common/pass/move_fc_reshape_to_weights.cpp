@@ -24,7 +24,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m}, consumers_count(1));
 
     auto one_consumer_rank_equals = [](const ov::Dimension& expected_rank) {
-        return [=](ov::Output<ov::Node> output) -> bool {
+        return [=](const ov::Output<ov::Node>& output) -> bool {
             return consumers_count(1)(output) && rank_equals(expected_rank)(output);
         };
     };

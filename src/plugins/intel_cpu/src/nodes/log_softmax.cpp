@@ -26,14 +26,13 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
     const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
     if (logSoftMax == nullptr)
         OPENVINO_THROW("Operation with name '",
@@ -41,7 +40,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
                        "' is not an instance of LogSoftmax from opset5.");
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
     if (dimsSize == 0)
@@ -51,7 +50,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         axis += dimsSize;
 
     if (dimsSize < static_cast<size_t>((size_t)(1) + axis))
-        OPENVINO_THROW(errorPrefix, " has incorrect input parameters dimensions and axis number!");
+        THROW_CPU_NODE_ERR("has incorrect input parameters dimensions and axis number!");
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {
@@ -84,11 +83,11 @@ void LogSoftmax::prepareParams() {
         reducedAxisStride *= dims[i];
 }
 
-void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
+void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(dnnl::stream strm) {
+void LogSoftmax::execute(const dnnl::stream& strm) {
     const float* srcData = getSrcDataAtPortAs<const float>(0);
     float* dstData = getDstDataAtPortAs<float>(0);
 

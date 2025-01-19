@@ -24,8 +24,8 @@ public:
     bool needPrepareParams() const override;
     void createPrimitive() override;
 
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }

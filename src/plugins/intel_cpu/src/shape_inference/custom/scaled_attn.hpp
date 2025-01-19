@@ -4,6 +4,8 @@
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -13,7 +15,7 @@ namespace node {
 
 class SDPAShapeInferFactory : public ShapeInferFactory {
 public:
-    SDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    SDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

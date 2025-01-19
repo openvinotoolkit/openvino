@@ -936,11 +936,10 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";
         const auto binConv = ov::as_type_ptr<const ov::opset1::BinaryConvolution>(op);
 
         pad_value = binConv->get_pad_value();
@@ -980,21 +979,21 @@ void BinaryConvolution::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
 
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 }
 
@@ -1359,7 +1358,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
     });
 }
 
-void BinaryConvolution::execute(dnnl::stream strm) {
+void BinaryConvolution::execute(const dnnl::stream& strm) {
     auto srcMemory = getSrcMemoryAtPort(0);
     auto weightsMemory = getSrcMemoryAtPort(1);
     auto dstMemory = getDstMemoryAtPort(0);

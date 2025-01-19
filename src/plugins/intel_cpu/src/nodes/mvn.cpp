@@ -361,7 +361,7 @@ private:
             }
         };
 
-        auto vector_worker = [&](std::function<void(int)> func) {
+        auto vector_worker = [&](const std::function<void(int)>& func) {
             Xbyak::Label label_end;
             func(0);
             cmp(reg_unroll_size, 1);
@@ -749,7 +749,7 @@ private:
         }
     }
 
-    inline void worker_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
+    inline void worker_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
         int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
@@ -1314,7 +1314,7 @@ private:
             add(reg_dst_aux, step * jcp_.dst_data_size);
         };
 
-        auto vector_worker = [&](std::function<void(int, int)> func) {
+        auto vector_worker = [&](const std::function<void(int, int)>& func) {
             Xbyak::Label label_end;
             func(0, vector_step);
             cmp(addr_unroll_size, 1);
@@ -1659,7 +1659,7 @@ private:
                                          {store_pool_gpr_idxs});
     }
 
-    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
+    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
         int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
@@ -1869,7 +1869,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -2257,11 +2257,11 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
     attr.set_post_ops(ops);
 }
 
-void MVN::executeDynamicImpl(dnnl::stream strm) {
+void MVN::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MVN::execute(dnnl::stream strm) {
+void MVN::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
 

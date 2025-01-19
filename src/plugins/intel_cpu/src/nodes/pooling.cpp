@@ -164,14 +164,15 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute, const std::vector<size_t> external_attribute) {
+    auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
+                             const std::vector<size_t>& external_attribute) {
         for (size_t i = 0; i < external_attribute.size(); i++) {
             internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
         }
@@ -503,7 +504,7 @@ void Pooling::prepareParams() {
     }
 }
 
-void Pooling::execute(dnnl::stream strm) {
+void Pooling::execute(const dnnl::stream& strm) {
     if (dnnlExecPtr) {
         dnnlExecPtr->exec(primArgs, strm);
     } else if (execPtr) {
@@ -522,7 +523,7 @@ void Pooling::execute(dnnl::stream strm) {
     }
 }
 
-void Pooling::executeDynamicImpl(dnnl::stream strm) {
+void Pooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

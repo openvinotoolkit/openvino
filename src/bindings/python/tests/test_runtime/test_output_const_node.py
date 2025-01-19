@@ -34,7 +34,7 @@ def test_const_output_docs(device):
     model = get_relu_model()
     compiled_model = core.compile_model(model, device)
     node = compiled_model.input(0)
-    exptected_string = "openvino.runtime.ConstOutput represents port/node output."
+    exptected_string = "openvino.ConstOutput represents port/node output."
     assert node.__doc__ == exptected_string
 
 
@@ -156,4 +156,4 @@ def test_deepcopy():
     output_node = node.outputs()[0]
     with pytest.raises(TypeError) as e:
         deepcopy(output_node)
-    assert "Cannot deepcopy 'openvino.runtime.Output' object." in str(e)
+    assert "Cannot deepcopy 'openvino.Output' object." in str(e)

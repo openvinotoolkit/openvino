@@ -75,6 +75,9 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir, lowered::LinearIR::constExprI
                 const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), broadcasted_dim);
                 const auto broadcast_expr = *linear_ir.insert_node(broadcast, std::vector<PortConnectorPtr>{ input },
                                                                    expr->get_loop_ids(), true, expr_it, { expr->get_input_port(i) });
+                // Note: We have to set live regs manually, since this transformation is applied after all register-related passes.
+                // Since BroadcastMove sets in_regs the same as out_regs, live regs are the same as for the child.
+                broadcast_expr->set_live_regs(expr->get_live_regs());
                 // Note that BroadcastMove modified the next expr input shape, so we need to set update
                 // expr's input port descriptor to reflect the changes
                 expr->get_input_port_descriptor(i)->set_shape(broadcast_expr->get_output_port_descriptor(0)->get_shape());

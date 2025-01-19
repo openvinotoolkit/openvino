@@ -29,6 +29,7 @@
 #include "op/rank_normalization.hpp"
 #include "op/perf_count.hpp"
 #include "op/reduce.hpp"
+#include "op/reg_spill.hpp"
 
 namespace ov {
 namespace snippets {

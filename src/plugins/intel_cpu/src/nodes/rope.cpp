@@ -21,7 +21,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -106,7 +106,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -188,7 +188,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -238,7 +238,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -327,7 +327,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
@@ -444,7 +444,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void RoPE::execute(dnnl::stream strm) {
+void RoPE::execute(const dnnl::stream& strm) {
     std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getSrcMemoryAtPort(i);

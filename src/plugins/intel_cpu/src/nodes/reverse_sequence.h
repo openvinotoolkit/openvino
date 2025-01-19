@@ -12,15 +12,15 @@ namespace node {
 
 class ReverseSequence : public Node {
 public:
-    ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -53,7 +53,6 @@ private:
     int batch_axis;
 
     ov::element::Type lengthsPrecision;
-    std::string errorPrefix;
 };
 
 }  // namespace node

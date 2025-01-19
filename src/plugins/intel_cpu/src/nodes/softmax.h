@@ -13,7 +13,7 @@ namespace node {
 
 class SoftMax : public Node {
 public:
-    SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -22,8 +22,8 @@ public:
     bool created() const override;
     AttrPtr initPrimitiveAttr() override;
     void prepareParams() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 

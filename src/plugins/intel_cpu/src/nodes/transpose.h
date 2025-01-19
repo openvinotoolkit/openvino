@@ -18,13 +18,13 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -43,7 +43,7 @@ public:
     }
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     std::shared_ptr<ExecutorContext> transpose_context;
 
 private:

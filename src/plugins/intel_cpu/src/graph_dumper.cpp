@@ -307,6 +307,7 @@ void summary_perf(const Graph& graph) {
     {
         std::cout << " perf_by_type:" << std::endl;
         std::vector<std::pair<std::string, double>> A;
+        A.reserve(perf_by_type.size());
         for (auto& it : perf_by_type)
             A.push_back(it);
         sort(A.begin(), A.end(), [](std::pair<std::string, double>& a, std::pair<std::string, double>& b) {
@@ -326,6 +327,7 @@ void summary_perf(const Graph& graph) {
     {
         std::cout << " perf_by_node:" << std::endl;
         std::vector<std::pair<NodePtr, double>> A;
+        A.reserve(perf_by_node.size());
         for (auto& it : perf_by_node)
             A.push_back(it);
         sort(A.begin(), A.end(), [](std::pair<NodePtr, double>& a, std::pair<NodePtr, double>& b) {
@@ -383,7 +385,7 @@ void average_counters(const Graph& graph) {
         return std::chrono::microseconds(value).count() / 1000.0;
     };
 
-    auto printAverageCounter = [&toMs, &file](NodePtr node) {
+    auto printAverageCounter = [&toMs, &file](const NodePtr& node) {
         const uint64_t avg = node->PerfCounter().avg();
         const std::string status = avg > 0 ? "EXECUTED" : "NOT_RUN";
         const auto cpuTime = toMs(avg);

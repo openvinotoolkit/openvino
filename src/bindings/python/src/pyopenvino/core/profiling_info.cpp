@@ -13,7 +13,7 @@ namespace py = pybind11;
 
 void regclass_ProfilingInfo(py::module m) {
     py::class_<ov::ProfilingInfo, std::shared_ptr<ov::ProfilingInfo>> cls(m, "ProfilingInfo");
-    cls.doc() = "openvino.runtime.ProfilingInfo contains performance metrics for single node.";
+    cls.doc() = "openvino.ProfilingInfo contains performance metrics for single node.";
 
     cls.def("__repr__", [](const ov::ProfilingInfo& self) {
         return Common::get_simple_repr(self);

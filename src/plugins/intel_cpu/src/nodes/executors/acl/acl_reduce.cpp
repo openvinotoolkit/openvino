@@ -24,7 +24,7 @@ static arm_compute::ReductionOperation getAclReductionOperationByAlgorithm(Algor
     }
 }
 
-AclReduceExecutor::AclReduceExecutor(const ExecutorContext::CPtr context) : ReduceExecutor(context) {}
+AclReduceExecutor::AclReduceExecutor(ExecutorContext::CPtr context) : ReduceExecutor(std::move(context)) {}
 
 bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,

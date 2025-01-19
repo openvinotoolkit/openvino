@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -24,7 +25,7 @@ public:
     std::shared_ptr<ExecutorT> operator()(const MemoryArgs& memory,
                                           const Attrs& attrs,
                                           const ExecutorContext::CPtr context,
-                                          const std::shared_ptr<ShapeAgnosticData> shapeAgnosticData) {
+                                          const std::shared_ptr<ShapeAgnosticData>& shapeAgnosticData) {
         return ExecutorT::create(memory, attrs, context, shapeAgnosticData);
     }
 };
@@ -39,10 +40,10 @@ public:
     DnnlFCExecutor(const Attrs& attrs,
                    const PostOps& postOps,
                    const MemoryArgs& memory,
-                   const ExecutorContext::CPtr context,
+                   ExecutorContext::CPtr context,
                    const bool cacheWeights)
         : m_attrs(attrs),
-          m_context(context),
+          m_context(std::move(context)),
           m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->primAttrs.dnnlArgs) {}
     bool update(const MemoryArgs& memory) override {
@@ -91,7 +92,7 @@ public:
     }
 
 private:
-    void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
+    void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr& memory) {
         const auto& primMemDesc = primitive->srcDesc();
         if (memDesc->isCompatible(*primMemDesc)) {
             m_primArgs[DNNL_ARG_SRC] = memory->getPrimitive();
@@ -103,7 +104,7 @@ private:
         }
     }
 
-    void updateDstMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
+    void updateDstMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr& memory) {
         const auto& primMemDesc = primitive->dstDesc();
         if (memDesc->isCompatible(*primMemDesc)) {
             m_primArgs[DNNL_ARG_DST] = memory->getPrimitive();
@@ -118,7 +119,7 @@ private:
     void updateWeightsMemory(DnnlMemoryDescPtr originalMemDesc,
                              const PrimitivePtr currentPrimitive,
                              const PrimitivePtr newPrimitive,
-                             const MemoryPtr memory) {
+                             const MemoryPtr& memory) {
         const auto newPrimMemDesc = newPrimitive->weightsDesc();
         if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc))
             return;
@@ -130,7 +131,7 @@ private:
         m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();
     }
 
-    void updateBiasMemory(const MemoryPtr memory) {
+    void updateBiasMemory(const MemoryPtr& memory) {
         m_primArgs[DNNL_ARG_BIAS] = memory->getPrimitive();
     }
 

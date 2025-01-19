@@ -64,7 +64,7 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -277,11 +277,11 @@ void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint
         permuteKernel->execute(srcData, dstData);
 }
 
-void ShuffleChannels::executeDynamicImpl(dnnl::stream strm) {
+void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ShuffleChannels::execute(dnnl::stream strm) {
+void ShuffleChannels::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_SHCH_ERROR("doesn't have a compiled executor.");
 

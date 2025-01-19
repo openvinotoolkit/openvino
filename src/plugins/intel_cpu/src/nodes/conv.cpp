@@ -116,7 +116,7 @@ bool ConvKey::operator==(const ConvKey& rhs) const {
 
 class Convolution::FusedSubgraph {
 public:
-    FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr context) {
+    FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr& context) {
         _graph = std::unique_ptr<Graph>(new Graph());
 
         std::unordered_set<NodePtr> nodesSet;
@@ -239,7 +239,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return true;
 }
 
-Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
       withBiases(false),
       withSum(false),
@@ -1398,17 +1398,17 @@ void Convolution::prepareParams() {
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
                                deriveWeightDataType(key.inp0->getDataType()),
                                memory::format_tag::any);
-        auto createDnnlConvDesc = [](const dnnl::engine engine,
+        auto createDnnlConvDesc = [](const dnnl::engine& engine,
                                      const dnnl::memory::desc& srcDesc,
                                      const dnnl::memory::desc& wghDesc,
                                      const dnnl::memory::desc& dstDesc,
-                                     DnnlMemoryDescCPtr biasDescPtr,
+                                     const DnnlMemoryDescCPtr& biasDescPtr,
                                      const std::vector<size_t>& stride,
                                      const std::vector<ptrdiff_t>& dilation,
                                      const std::vector<ptrdiff_t>& paddingL,
                                      const std::vector<ptrdiff_t>& paddingR,
                                      dnnl::algorithm alg,
-                                     const dnnl::primitive_attr attr) -> dnnl::primitive_desc {
+                                     const dnnl::primitive_attr& attr) -> dnnl::primitive_desc {
             dnnl::memory::desc dnnlBiasDesc;
             if (biasDescPtr) {
                 dnnlBiasDesc = biasDescPtr->getDnnlDesc();
@@ -1585,7 +1585,7 @@ Convolution::ConvolutionSumExecutor::ConvolutionSumExecutor(const dnnl::primitiv
 }
 
 void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs,
-                                                       dnnl::stream strm) {
+                                                       const dnnl::stream& strm) {
     auto outputMem = primArgs.at(DNNL_ARG_DST);
     for (auto& inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
@@ -1602,7 +1602,7 @@ void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, d
     }
 }
 
-void Convolution::execute(dnnl::stream strm) {
+void Convolution::execute(const dnnl::stream& strm) {
     if (!execPtr) {
         OPENVINO_THROW("Can't execute Convolution node with name: ", getName(), ", because executor is not compiled");
     }
@@ -1610,7 +1610,7 @@ void Convolution::execute(dnnl::stream strm) {
     execPtr->exec(primArgs, strm);
 }
 
-void Convolution::executeDynamicImpl(dnnl::stream strm) {
+void Convolution::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
     if (withSumBroadcast) {
         if (!subgraph) {

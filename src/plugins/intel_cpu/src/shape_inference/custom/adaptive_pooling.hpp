@@ -4,6 +4,8 @@
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -33,7 +35,7 @@ private:
 
 class AdaptivePoolingShapeInferFactory : public ShapeInferFactory {
 public:
-    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

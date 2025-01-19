@@ -10,6 +10,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/perf_count.hpp"
+#include "snippets/op/reg_spill.hpp"
 
 namespace ov {
 namespace snippets {
@@ -34,6 +35,10 @@ private:
     static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
     static ExpressionPtr create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs,
+                                const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
+    static ExpressionPtr create(const std::shared_ptr<op::RegSpillBegin>& n, const std::vector<PortConnectorPtr>& inputs,
+                                const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
+    static ExpressionPtr create(const std::shared_ptr<op::RegSpillEnd>& n, const std::vector<PortConnectorPtr>& inputs,
                                 const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory);
 
     // Note: PerfCountBegin nodes have a PerfCountEnd ov::Output, but corresponding expression should not have any outputs to avoid register allocation

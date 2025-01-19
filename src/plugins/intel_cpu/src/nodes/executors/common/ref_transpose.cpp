@@ -30,7 +30,7 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
 
 void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
                                             uint8_t* dst_data,
-                                            jit_permute_config_params jcp,
+                                            const jit_permute_config_params& jcp,
                                             const int mb) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;

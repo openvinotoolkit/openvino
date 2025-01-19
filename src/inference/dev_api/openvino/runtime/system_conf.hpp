@@ -220,6 +220,13 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 OPENVINO_RUNTIME_API int get_current_socket_id();
 
 /**
+ * @brief      Returns the numa node ID in cpu mapping table of the currently running thread.
+ * @ingroup    ov_dev_api_system_conf
+ * @return     numa node ID in cpu mapping
+ */
+OPENVINO_RUNTIME_API int get_current_numa_node_id();
+
+/**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU
  * resources. The difference from get_proc_type_table: This is used to get the configuration of current machine. For
  * example, GPU plugin occupies all Pcores, there is only one type core in proc_type_table from get_proc_type_table().

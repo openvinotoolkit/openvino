@@ -4,12 +4,13 @@
 #include "causal_mask_preprocess.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::CausalMaskPreprocessNode::CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg)
+ov::intel_cpu::CausalMaskPreprocessNode::CausalMaskPreprocessNode(const OutputVector& args, Config cfg)
     : Op(args),
-      m_config(cfg) {
+      m_config(std::move(cfg)) {
     constructor_validate_and_infer_types();
 }
 

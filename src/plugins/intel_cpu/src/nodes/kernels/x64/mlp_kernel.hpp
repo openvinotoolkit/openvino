@@ -422,7 +422,7 @@ struct ScratchBuffAllocator {
     ScratchBuffAllocator() = default;
 
     // register size / allocate totally size / inform consumers
-    void register_allocation(size_t size, CallBack cb) {
+    void register_allocation(size_t size, const CallBack& cb) {
         m_allocs.push_back(cb);
         m_total_size += size;
         m_sizes.push_back(size);

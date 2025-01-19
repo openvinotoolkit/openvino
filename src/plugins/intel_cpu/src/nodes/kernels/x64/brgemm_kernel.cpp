@@ -28,6 +28,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type inType,
                            bool b_accumulate)
     : M(M),
+      M_blk(matmulOptimalM),
+      M_tail(M % M_blk),
       K(K),
       N(N),
       lda(lda),
@@ -36,10 +38,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
       b_transposed(b_transposed),
       inType(inType),
       b_accumulate(b_accumulate) {
-    // blocking M
-    M_blk = matmulOptimalM;
-    M_tail = M % M_blk;
-
     if (!one_of(inType, ov::element::bf16, ov::element::f16, ov::element::f32))
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
     bool is_f32 = inType == ov::element::f32;

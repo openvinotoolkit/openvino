@@ -18,7 +18,7 @@ namespace py = pybind11;
 void regclass_graph_op_Result(py::module m) {
     py::class_<ov::op::v0::Result, std::shared_ptr<ov::op::v0::Result>, ov::Node> result(m, "Result");
 
-    result.doc() = "openvino.runtime.op.Result wraps ov::op::v0::Result";
+    result.doc() = "openvino.op.Result wraps ov::op::v0::Result";
 
     result.def(py::init<const ov::Output<ov::Node>&>());
 

@@ -65,11 +65,11 @@ public:
     }
 
     template <typename NET>
-    void CreateGraph(NET& model, const GraphContext::CPtr context);
+    void CreateGraph(NET& model, const GraphContext::CPtr& context);
 
     void CreateGraph(const std::vector<NodePtr>& graphNodes,
                      const std::vector<EdgePtr>& graphEdges,
-                     const GraphContext::CPtr context,
+                     const GraphContext::CPtr& context,
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
@@ -141,7 +141,7 @@ public:
     void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
-    void AddNode(NodePtr node);
+    void AddNode(const NodePtr& node);
     void DropNode(const NodePtr& node);
     void DropDWConvNode(const NodePtr& node);
 
@@ -166,8 +166,8 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    NodePtr InsertReorder(EdgePtr edge,
-                          std::string layerName,
+    NodePtr InsertReorder(const EdgePtr& edge,
+                          const std::string& layerName,
                           const MemoryDesc& inDesc,
                           const MemoryDesc& outDesc,
                           bool isOptimized = false,
@@ -186,7 +186,7 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(EdgePtr edge, NodePtr node, bool initNode = false);
+    bool InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode = false);
 
     /**
      * @brief Insert Node between two specified nodes.
@@ -206,7 +206,12 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
+    bool InsertNode(const NodePtr& parent,
+                    const NodePtr& child,
+                    const NodePtr& node,
+                    int parentPort,
+                    int childPort,
+                    bool initNode = false);
 
     std::shared_ptr<ov::Model> dump() const;
 
@@ -224,7 +229,7 @@ public:
      * Init graph using \p model, \p context, \p inputConfigs and \p outputConfigs
      */
     void Init(const std::shared_ptr<const ov::Model>& model,
-              const GraphContext::CPtr context,
+              const GraphContext::CPtr& context,
               const std::vector<node::Input::InputConfig>& inputConfigs = {},
               const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 

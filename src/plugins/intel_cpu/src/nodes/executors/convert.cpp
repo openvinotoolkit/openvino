@@ -4,5 +4,7 @@
 
 #include "convert.hpp"
 
-ov::intel_cpu::ConvertExecutor::ConvertExecutor(const ov::intel_cpu::ExecutorContext::CPtr context)
-    : convertContext(context) {}
+#include <utility>
+
+ov::intel_cpu::ConvertExecutor::ConvertExecutor(ov::intel_cpu::ExecutorContext::CPtr context)
+    : convertContext(std::move(context)) {}
