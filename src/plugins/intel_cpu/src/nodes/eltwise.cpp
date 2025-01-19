@@ -1908,15 +1908,9 @@ void Eltwise::prepareParams() {
 
         // FP32 constant inputs may contain values out of BF16 representable range. In case output precision is BF16 we
         // choose "saturation" mode for fp32->bf16 conversion procedure to prevent getting -Inf/+Inf values in the
-        // outputs. Since "saturation" conversion is more time consuming, better solution would be to clamp constants on
-        // compilation stage (ticket: 159589).
+        // outputs. Since "saturation" conversion during kernel runtime is more time consuming, current solution is
+        // clamp constants on compilation stage.
         key.doOutputSaturation = false;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            if (getParentEdgeAt(i)->getParent()->isConstant()) {
-                key.doOutputSaturation = true;
-                break;
-            }
-        }
 
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, buildExecutor);
