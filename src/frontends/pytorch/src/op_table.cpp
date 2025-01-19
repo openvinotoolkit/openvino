@@ -139,6 +139,7 @@ OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
+OP_CONVERTER(translate_logcumsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
@@ -744,6 +745,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
+        {"aten::logcumsumexp", op::translate_logcumsumexp},
     };
 };
 
