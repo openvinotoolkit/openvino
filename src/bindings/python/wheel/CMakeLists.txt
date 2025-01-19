@@ -100,7 +100,6 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
-
 execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
                 OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
 
@@ -127,16 +126,14 @@ else()
         --wheel)
 endif()
 
-add_custom_target(ie_wheel ALL)
-
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${setup_py_env} ${wheel_build_command}
     DEPENDS ${ov_setup_py_deps}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
-add_dependencies(ie_wheel ${openvino_wheel_path})
-
+    
+add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
 
 if(NOT WIN32)
     set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
