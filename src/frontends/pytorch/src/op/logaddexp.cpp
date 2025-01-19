@@ -4,7 +4,6 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/exp.hpp"
