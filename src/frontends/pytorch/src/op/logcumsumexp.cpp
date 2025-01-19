@@ -31,7 +31,9 @@ OutputVector translate_logcumsumexp(const NodeContext& context) {
     auto cumsum = context.mark_node(std::make_shared<v0::CumSum>(exp, dim));
     
     // Finally take log of the result
-    auto log = max + context.mark_node(std::make_shared<v0::Log>(cumsum));
+    auto logcumsum = context.mark_node(std::make_shared<v0::Log>(cumsum));
+
+    auto log = context.mark_node(std::make_shared<v0::Add>(max,logcumsum));
     
     return {log};
 }
@@ -40,3 +42,4 @@ OutputVector translate_logcumsumexp(const NodeContext& context) {
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
+
