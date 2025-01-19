@@ -293,6 +293,7 @@ OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_leaky_relu_fx);
 OP_CONVERTER(translate_log_sigmoid_fx);
 OP_CONVERTER(translate_log_softmax_fx);
+OP_CONVERTER(translate_logaddexp);
 OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_pool2d_fx);
 OP_CONVERTER(translate_max_pool3d_fx);
@@ -544,6 +545,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::logical_xor", op::translate_xor},
         {"aten::log_sigmoid", op::translate_log_sigmoid},
         {"aten::log_softmax", op::translate_log_softmax},
+        {"aten::logaddexp", op::translate_logaddexp},
         {"aten::log1p", op::optional_out<op::translate_log1p, 1>},
         {"aten::log1p_", op::inplace_op<op::translate_log1p>},
         {"aten::log2", op::optional_out<op::translate_log2, 1>},
