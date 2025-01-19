@@ -30,8 +30,9 @@ GraphContext::GraphContext(Config config,
         m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
         m_numaNodeId = m_cpuStreamExecutor ? m_cpuStreamExecutor->get_numa_node_id() : 0;
         auto nNumaNodes = get_num_numa_nodes();
-        if (m_numNumaNodes < nNumaNodes)
+        if (m_numNumaNodes < nNumaNodes) {
             m_numNumaNodes = nNumaNodes;
+        }
     }
     // primitive/executors can be shared across sub-stream
     // but scratch pad cannot be shared.

@@ -56,9 +56,11 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
 
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
-            for (size_t i = 1; i < node->getChildEdges().size(); i++)
+            for (size_t i = 1; i < node->getChildEdges().size(); i++) {
                 outputPrecisionsStr +=
-                    "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
+                    "," + static_cast<std::string>(
+                              node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
+            }
         }
     } else {
         // Branch to correctly handle output nodes
@@ -189,8 +191,9 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
             to_hold.push_back(return_node);
         }
 
-        for (auto&& kvp : meta_data)
+        for (auto&& kvp : meta_data) {
             return_node->get_rt_info()[kvp.first] = kvp.second;
+        }
         return_node->set_friendly_name(node->getName());
 
         return return_node;
@@ -203,10 +206,12 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         node2layer[node] = nodes.back();
     }
 
-    for (auto&& kvp : paramsMap)
+    for (auto&& kvp : paramsMap) {
         params.push_back(kvp.second);
-    for (auto&& kvp : resultsMap)
+    }
+    for (auto&& kvp : resultsMap) {
         results.push_back(kvp.second);
+    }
 
     auto holder = !results.empty() ? results[0] : std::make_shared<ov::op::v0::Result>();
     for (auto& node : to_hold) {

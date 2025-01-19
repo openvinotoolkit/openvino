@@ -53,8 +53,9 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
-    if (linear_ir->is_dynamic())
+    if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
+    }
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {

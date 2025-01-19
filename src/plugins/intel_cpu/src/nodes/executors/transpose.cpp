@@ -19,10 +19,12 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     VectorDims src_block_order = params.src_block_order;
     VectorDims src_block_strides(params.src_block_dims.size(), 1);
     VectorDims dst_block_strides(params.dst_block_dims.size(), 1);
-    for (int i = params.src_block_dims.size() - 2; i >= 0; i--)
+    for (int i = params.src_block_dims.size() - 2; i >= 0; i--) {
         src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
-    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
+    }
+    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--) {
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
+    }
 
     VectorDims new_dst_block_strides = dst_block_strides;
     VectorDims new_dst_block_order = params.dst_block_order;

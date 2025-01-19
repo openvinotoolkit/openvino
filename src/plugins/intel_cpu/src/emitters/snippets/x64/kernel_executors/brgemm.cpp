@@ -57,8 +57,9 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     std::shared_ptr<BrgemmCompiledKernel> compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
-    if (config.is_empty())
+    if (config.is_empty()) {
         return compiled_kernel;
+    }
 
     create_brgemm_kernel(compiled_kernel->brgemm_kernel,
                          config.get_dt_in0(),

@@ -48,8 +48,9 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
     Vmm dst_vmm = Vmm(out[0]);
     Vmm aux_vmm = Vmm(aux_vec_idxs[0]);
 
-    if (in[0] != out[0])
+    if (in[0] != out[0]) {
         h->uni_vmovups(dst_vmm, src_vmm);
+    }
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
         Xbyak::Zmm dst_zmm = Xbyak::Zmm(out[0]);
         Xbyak::Zmm aux_zmm = Xbyak::Zmm(aux_vec_idxs[0]);

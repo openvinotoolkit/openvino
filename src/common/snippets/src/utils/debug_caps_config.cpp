@@ -14,7 +14,7 @@ void DebugCapsConfig::readProperties() {
         if (env && *env)
             return env;
 
-        return (const char*)nullptr;
+        return static_cast<const char*>(nullptr);
     };
 
     const char* envVarValue = nullptr;
