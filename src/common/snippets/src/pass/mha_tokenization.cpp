@@ -458,7 +458,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         /* ================================ */
 
         /* ====== Subgraph creation ======= */
-        /*
+
         ov::OutputVector body_inputs, subgraph_inputs;
         ov::ParameterVector body_parameters;
         ov::ResultVector body_results;
@@ -471,7 +471,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                 const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
                 if (constant && (ov::shape_size(input.get_shape()) == 1 ||
                                  ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                                 constant_input_should_be_inside_body(node))) {
+                                 ov::snippets::utils::constant_input_should_be_inside_body(node))) {
                     // If Constant has one consumer - target node, we add Constant to body_inputs
                     // If Constant has several consumers, we should check that all these consumers are inside Subgraph body
                     // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we should
@@ -525,7 +525,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             OPENVINO_THROW("body results and node results size mismatch during subgraph collapse");
         }
 
-        auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
+        auto body = ov::snippets::utils::create_body(last_node->get_friendly_name(), body_results, body_parameters);
         auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
         // Copy runtime info from last node to subgraph - to copy topological order
         copy_runtime_info(last_node, subgraph);
@@ -536,7 +536,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                 target_input.replace_source_output(subgraph->output(i));
             }
         }
-        op::update_out_tensor_name(subgraph);
+        ov::snippets::utils::update_out_tensor_name(subgraph);
 
         subgraph->validate_and_infer_types();
 
@@ -545,9 +545,6 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fused_names;
-        */
-
-        auto subgraph = utils::wrap_nodes_as_subgraph(ordered_ops);
         subgraph->set_virtual_port_count(hidden_virtual_ports_count);
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common Tokenization
