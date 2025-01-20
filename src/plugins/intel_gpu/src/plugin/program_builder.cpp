@@ -327,51 +327,6 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     m_topology->add_primitive(prim);
 }
 
-bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const {
-    if (op->is_dynamic()) {
-        return true;
-    }
-
-    // HACK: SearchSorted has specific shape requirements.
-    // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
-    // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
-    // Similar case for STFT.
-    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
-        return true;
-
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
-        return true;
-
-    if (ov::is_type<ov::op::v5::Loop>(op)) {
-        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
-            return true;
-    }
-
-    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
-        return true;
-    }
-    // When input node has dynamic shape with 4 dimension, this function return false
-    // because op.is_dynamic() which only checks input shapes return false.
-    // So, in the case of input data, we need to check output shape.
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    return false;
-}
-
 int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const {
     return m_model->get_parameter_index(parameter);
 }
