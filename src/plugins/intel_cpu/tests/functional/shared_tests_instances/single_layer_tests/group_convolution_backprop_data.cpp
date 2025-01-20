@@ -15,19 +15,19 @@ const std::vector<ov::element::Type> model_types = {
         ov::element::f16,
         ov::element::i32};
 
-const std::vector<size_t> num_out_channels = {16, 32};
-const std::vector<size_t> num_groups = {2, 8, 16};
+const ov::inplace_vector<size_t> num_out_channels = {16, 32};
+const ov::inplace_vector<size_t> num_groups = {2, 8, 16};
 const std::vector<ov::Shape> empty_output_shape = {{}};
 const std::vector<std::vector<ptrdiff_t >> empty_output_padding = {{}};
 
 /* ============= _1d GroupConvolution ============= */
 const std::vector<ov::Shape> input_shapes_1d = {{1, 16, 32}};
 
-const std::vector<std::vector<size_t >> kernels_1d = {{1}, {3}};
-const std::vector<std::vector<size_t>> strides_1d = {{1}};
+const std::vector<ov::inplace_vector<size_t>> kernels_1d = {{1}, {3}};
+const std::vector<ov::inplace_vector<size_t>> strides_1d = {{1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_1d = {{0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_1d = {{0}};
-const std::vector<std::vector<size_t>> dilations_1d = {{1}};
+const std::vector<ov::inplace_vector<size_t>> dilations_1d = {{1}};
 
 const auto groupConvBackpropData_1dParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels_1d),
@@ -74,11 +74,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_1d_AutoPadValid, GroupConvB
 /* ============= _2d GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> input_shapes_2d = {{{1, 16, 10, 10}},
                                                              {{1, 32, 10, 10}}};
-const std::vector<std::vector<size_t >> kernels_2d = {{1, 1}, {3, 3}};
-const std::vector<std::vector<size_t >> strides_2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> kernels_2d = {{1, 1}, {3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides_2d = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_2d = {{0, 0}};
-const std::vector<std::vector<size_t >> dilations_2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations_2d = {{1, 1}};
 
 const auto groupConvBackpropData_2dParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels_2d),
@@ -134,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_2d_OutputShapeDefined, Grou
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> output_padding_2d = {{1, 1}, {2, 2}};
-const std::vector<std::vector<size_t >> test_strides_2d = {{3, 3}};
+const std::vector<ov::inplace_vector<size_t>> test_strides_2d = {{3, 3}};
 
 const auto conv_2dParams_ExplicitPadding_output_padding = ::testing::Combine(
         ::testing::ValuesIn(kernels_2d),
@@ -180,11 +180,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_2d_AutoPadding_output_paddi
 /* ============= _3d GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> input_shapes_3d = {{{1, 16, 5, 5, 5}},
                                                              {{1, 32, 5, 5, 5}}};
-const std::vector<std::vector<size_t >> kernels_3d = {{1, 1, 1}, {3, 3, 3}};
-const std::vector<std::vector<size_t >> strides_3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> kernels_3d = {{1, 1, 1}, {3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides_3d = {{1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t >> dilations_3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations_3d = {{1, 1, 1}};
 
 const auto groupConvBackpropData_3dParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels_3d),
@@ -240,7 +240,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_3d_OutputShapeDefined, Grou
                         GroupConvBackpropLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> output_padding_3d = {{1, 1, 1}, {2, 2, 2}};
-const std::vector<std::vector<size_t >> test_strides_3d = {{3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> test_strides_3d = {{3, 3, 3}};
 
 const auto conv_3dParams_ExplicitPadding_output_padding = ::testing::Combine(
         ::testing::ValuesIn(kernels_3d),

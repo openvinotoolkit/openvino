@@ -113,14 +113,14 @@ py::array array_from_constant_view(ov::op::v0::Constant&& c);
 }; // namespace array_helpers
 
 namespace constant_helpers {
-std::vector<size_t> _get_byte_strides(const ov::Shape& s, size_t element_byte_size);
+ov::Strides _get_byte_strides(const ov::Shape& s, size_t element_byte_size);
 
 template <typename T>
-std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
+ov::Strides _get_byte_strides(const ov::Shape& s) {
     return _get_byte_strides(s, sizeof(T));
 }
 
-std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
+ov::Strides _get_strides(const ov::op::v0::Constant& self);
 
 }; // namespace constant_helpers
 

@@ -12,7 +12,7 @@ namespace intel_cpu {
 ArbitraryOrderDescCreator::ArbitraryOrderDescCreator(VectorDims order) : m_order(std::move(order)) {
     OPENVINO_ASSERT(std::adjacent_find(m_order.begin(), m_order.end()) == m_order.end(),
                     "Can't construct ArbitraryOrderDescCreator, order vector contains repetitive elements",
-                    vec2str(m_order));
+                    m_order);
 }
 
 CpuBlockedMemoryDesc ArbitraryOrderDescCreator::createDesc(const ov::element::Type& precision,

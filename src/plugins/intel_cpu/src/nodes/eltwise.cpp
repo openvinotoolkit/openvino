@@ -379,7 +379,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
             mov(reg_work_amount, ptr[reg_const_params + GET_OFF(work_amount)]);
         } else {
-            auto init_ptrs_with_offsets = [this, offset_count](Reg64 pointer, const std::vector<size_t>& offsets) {
+            auto init_ptrs_with_offsets = [this, offset_count](Reg64 pointer, const auto& offsets) {
                 for (int j = 0; j < offset_count; j++) {
                     if (jep_.dims[j] != 1 && offsets[j] != 0) {
                         mov(reg_tmp_64, offsets[j]);
@@ -1518,7 +1518,7 @@ public:
                        const dnnl::post_ops& post_ops,
                        bool useRuntimePtrs,
                        bool doOutputSaturation) {
-        auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        auto collapseLastDims = [](auto& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
             }
@@ -1532,7 +1532,7 @@ public:
             }
         };
 
-        auto collapseLastOffsets = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        auto collapseLastOffsets = [](auto& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 if (dims[dims.size() - 1] > 0 || dims[i] > 0) {
                     dims[dims.size() - 1] = std::max(dims[dims.size() - 1], static_cast<size_t>(1)) *

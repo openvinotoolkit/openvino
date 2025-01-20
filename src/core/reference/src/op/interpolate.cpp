@@ -121,7 +121,7 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     std::vector<float> a(num_of_axes);
     std::vector<int64_t> r(num_of_axes);
 
-    std::vector<std::size_t> vector_for_indices(num_of_axes);
+    ov::inplace_vector<std::size_t> vector_for_indices(num_of_axes);
     float prod_a = 1;
     for (std::size_t i = 0; i < num_of_axes; ++i) {
         a[i] = antialias ? m_scales[i] : 1.0f;
@@ -210,7 +210,7 @@ InterpolateEvalHelper::LinearModeInnerIterationResult InterpolateEvalHelper::inn
         w *= triangle_coeff(info.a[i] * dz[i]);
     }
 
-    std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
+    Coordinate unsigned_inner_coords_vector(input_rank);
     for (std::size_t i = 0; i < input_rank; ++i) {
         unsigned_inner_coords_vector[i] = inner_coords_vector[i];
     }

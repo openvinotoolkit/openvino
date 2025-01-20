@@ -185,7 +185,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
     std::ostringstream in_regs, out_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
-    std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
+    std::vector<std::pair<std::string, VectorDims>> layouts;
     for (size_t i = 0; i < get_input_count(); i++) {
         const auto& desc = m_input_port_descriptors[i];
         const auto& shape = desc->get_shape();

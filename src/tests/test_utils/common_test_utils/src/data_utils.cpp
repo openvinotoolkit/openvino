@@ -14,10 +14,10 @@ namespace utils {
 namespace {
 template <typename T>
 void copy_7D(void* src_raw_ptr,
-             std::vector<size_t>& src_str,
+             ov::inplace_vector<size_t>& src_str,
              void* dst_raw_ptr,
-             std::vector<size_t>& dst_str,
-             std::vector<size_t>& dims) {
+             ov::inplace_vector<size_t>& dst_str,
+             ov::inplace_vector<size_t>& dims) {
     auto src_ptr = static_cast<T*>(src_raw_ptr);
     auto dst_ptr = static_cast<T*>(dst_raw_ptr);
 

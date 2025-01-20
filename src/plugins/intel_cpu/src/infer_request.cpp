@@ -375,7 +375,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            ", because the model input (shape=",
                            shape,
                            ") and the tensor (shape=",
-                           vec2str(tensor->get_shape()),
+                           tensor->get_shape(),
                            ") are incompatible");
         }
 
@@ -427,7 +427,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            ", because the model output tensor (shape=",
                            shape,
                            ") and the current tensor (shape=",
-                           vec2str(tensor->get_shape()),
+                           tensor->get_shape(),
                            ") are incompatible");
         }
 

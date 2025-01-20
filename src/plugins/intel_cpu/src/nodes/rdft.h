@@ -28,7 +28,7 @@ public:
                  const VectorDims& outputStrides);
 
     std::vector<std::vector<float>> generateTwiddles(const std::vector<int>& signalSizes,
-                                                     const std::vector<size_t>& outputShape,
+                                                     const VectorDims& outputShape,
                                                      const std::vector<int>& axes);
 
     static std::shared_ptr<RDFTExecutor> build(bool inverse, NodeDesc* primDesc = nullptr);

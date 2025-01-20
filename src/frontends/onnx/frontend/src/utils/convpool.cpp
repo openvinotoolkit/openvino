@@ -37,12 +37,12 @@ namespace {
 ///
 /// \return     The attribute default value.
 ///
-std::vector<std::size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
+ov::inplace_vector<size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
     const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "If '", attr_name, "' is not provided data rank must be static.");
-    const auto data_spatial_dims = data_rank.get_length() - 2;
+    const auto data_spatial_dims = static_cast<size_t>(data_rank.get_length() - 2);
 
-    return std::vector<std::size_t>(data_spatial_dims, 1UL);
+    return {data_spatial_dims, 1UL};
 }
 
 ///
@@ -56,13 +56,13 @@ std::vector<std::size_t> get_attr_default_value(const Node& node, const std::str
 ///
 /// \return     Read vector attribute if available or default value
 ///
-std::vector<std::size_t> get_attribute_value(const Node& node,
-                                             const std::string& attr_name,
-                                             const std::size_t kernel_rank = 0UL) {
+ov::inplace_vector<std::size_t> get_attribute_value(const Node& node,
+                                                    const std::string& attr_name,
+                                                    const std::size_t kernel_rank = 0UL) {
     if (node.has_attribute(attr_name)) {
-        return node.get_attribute_value<std::vector<std::size_t>>(attr_name);
+        return node.get_attribute_value<ov::inplace_vector<std::size_t>>(attr_name);
     } else if (kernel_rank != 0) {
-        return std::vector<std::size_t>(kernel_rank, 1UL);
+        return {kernel_rank, 1UL};
     } else {
         return get_attr_default_value(node, attr_name);
     }

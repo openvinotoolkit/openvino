@@ -122,15 +122,16 @@ std::string Interpolate11LayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 namespace {
-std::shared_ptr<ov::op::v0::Constant> make_scales_or_sizes_input(ov::op::util::InterpolateBase::ShapeCalcMode shape_calc_mode,
-                                                                        const std::vector<size_t>& sizes,
-                                                                        const std::vector<float>& scales) {
+std::shared_ptr<ov::op::v0::Constant> make_scales_or_sizes_input(
+    ov::op::util::InterpolateBase::ShapeCalcMode shape_calc_mode,
+    const ov::Shape& sizes,
+    const std::vector<float>& scales) {
     if (shape_calc_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SIZES)
         return std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{sizes.size()}, sizes);
     else
         return std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{scales.size()}, scales);
 }
-}
+}  // namespace
 void Interpolate11LayerTest::SetUp() {
     InterpolateSpecificParams interpolate_params;
     ov::element::Type model_type;

@@ -18,13 +18,13 @@ const std::vector<ov::element::Type> model_types = {
 /* ============= _1d GroupConvolution ============= */
 const std::vector<ov::Shape> input_shapes_1d = {{1, 16, 30}};
 
-const std::vector<std::vector<size_t>> kernels_1d = {{3}};
-const std::vector<std::vector<size_t>> strides_1d = {{1}};
+const std::vector<ov::inplace_vector<size_t>> kernels_1d = {{3}};
+const std::vector<ov::inplace_vector<size_t>> strides_1d = {{1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_1d = {{0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_1d = {{0}};
-const std::vector<std::vector<size_t>> dilations_1d = {{1}};
-const std::vector<size_t> num_out_channels_1d = {8, 16};
-const std::vector<size_t> num_groups_1d = {2, 8};
+const std::vector<ov::inplace_vector<size_t>> dilations_1d = {{1}};
+const ov::inplace_vector<size_t> num_out_channels_1d = {8, 16};
+const ov::inplace_vector<size_t> num_groups_1d = {2, 8};
 
 const auto group_conv_1d_params_explicit_padding = ::testing::Combine(
     ::testing::ValuesIn(kernels_1d),
@@ -65,13 +65,13 @@ INSTANTIATE_TEST_SUITE_P(
 /* ============= 2D GroupConvolution ============= */
 const std::vector<ov::Shape> input_shapes_2d = {{1, 16, 30, 30}};
 
-const std::vector<std::vector<size_t>> kernels_2d = {{3, 3}};
-const std::vector<std::vector<size_t>> strides_2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> kernels_2d = {{3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides_2d = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations_2d = {{1, 1}};
-const std::vector<size_t> num_out_channels_2d = {8, 16};
-const std::vector<size_t> num_groups_2d = {2, 8};
+const std::vector<ov::inplace_vector<size_t>> dilations_2d = {{1, 1}};
+const ov::inplace_vector<size_t> num_out_channels_2d = {8, 16};
+const ov::inplace_vector<size_t> num_groups_2d = {2, 8};
 
 const auto group_conv2DParams_explicit_padding = ::testing::Combine(
     ::testing::ValuesIn(kernels_2d),
@@ -114,10 +114,10 @@ INSTANTIATE_TEST_SUITE_P(
 /* ============= 3D GroupConvolution ============= */
 const std::vector<ov::Shape> input_shapes_3d = {{1, 4, 10, 10, 10}};
 
-const std::vector<std::vector<size_t>> kernels_3d = {{3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels_3d = {{3, 3, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings_3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t>> strides_3d = {{1, 1, 1}};
-const std::vector<std::vector<size_t>> dilations_3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides_3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations_3d = {{1, 1, 1}};
 
 const auto group_conv3DParams_explicit_padding = ::testing::Combine(
     ::testing::ValuesIn(kernels_3d),

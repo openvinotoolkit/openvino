@@ -132,9 +132,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
     auto lastIter = order.begin() + outer_ndims;
     for (size_t dim = 0; dim < outer_ndims; dim++) {
-        if (std::find(order.begin(), lastIter, dim) == lastIter) {
-            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc because of incorrect order: ", vec2str(order));
-        }
+        if (std::find(order.begin(), lastIter, dim) == lastIter)
+            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc because of incorrect order: ", order);
     }
 
     size_t inner_ndims = order.size() - dims.size();
@@ -154,9 +153,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
         // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to transpose blocked dims
         //       and may be we can achieve correct "descending strides" form which allow conversion.
-        if (!is_descending_strides) {
-            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc from strides: ", vec2str(strides));
-        }
+        if (!is_descending_strides)
+            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc from strides: ", strides);
     }
 
     if (!strides.empty() && !emptyDesc && std::none_of(strides.begin(), strides.end(), [](size_t x) {
@@ -169,7 +167,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
         if (!inner_block_are_dense) {
             OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc from strides: ",
-                           vec2str(strides),
+                           strides,
                            " inner blocks are not dense.");
         }
     }
@@ -190,8 +188,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
         if (!inner_pad_offsets_is_zero) {
             OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: ",
-                           vec2str(offsetPaddingToData));
-        }
+                           offsetPaddingToData);
         auto dnnlPaddedOffsets = DnnlExtensionUtils::convertToDnnlDims(offsetPaddingToData);
         std::copy(dnnlPaddedOffsets.begin(), dnnlPaddedOffsets.begin() + outer_ndims, desc.get()->padded_offsets);
     } else {
@@ -247,14 +244,15 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
         desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(dims), dataType, format);
     }
 
-    VectorDims perm;
-    VectorDims inner_blks;
-    VectorDims inner_idxs;
+    std::vector<size_t> perm;
+    std::vector<size_t> inner_blks;
+    std::vector<size_t> inner_idxs;
 
     dnnl::impl::memory_desc_wrapper::compute_blocking(dnnl::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
 
-    order.swap(perm);
-    order.insert(order.end(), inner_idxs.begin(), inner_idxs.end());
+    order.resize(0);
+    auto it = order.insert(order.end(), perm.begin(), perm.end());
+    order.insert(it, inner_idxs.begin(), inner_idxs.end());
 
     if (shape.hasZeroDims()) {
         auto& blk = desc.get()->format_desc.blocking;

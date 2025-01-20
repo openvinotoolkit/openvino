@@ -17,11 +17,11 @@ typedef std::tuple<bool,       // with_bilinear_interpolation_pad
                    >
     DefConvSpecificParams;
 
-typedef std::tuple<ov::op::PadType,         // pad. type
-                   std::vector<ptrdiff_t>,  // pad. begin
-                   std::vector<ptrdiff_t>,  // pad. end
-                   std::vector<size_t>,     // strides
-                   std::vector<size_t>      // dilations
+typedef std::tuple<ov::op::PadType,             // pad. type
+                   std::vector<ptrdiff_t>,      // pad. begin
+                   std::vector<ptrdiff_t>,      // pad. end
+                   ov::inplace_vector<size_t>,  // strides
+                   ov::inplace_vector<size_t>   // dilations
                    >
     AddSpatialParamsDyn;
 
@@ -52,7 +52,7 @@ public:
         std::tie(addSpParams, inputShape, dcSpecificParams, netPrecision, td) = basicParamsSet;
 
         ov::op::PadType padType;
-        std::vector<size_t> stride, dilation;
+        ov::inplace_vector<size_t> stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         std::tie(padType, padBegin, padEnd, stride, dilation) = addSpParams;
 
@@ -162,7 +162,7 @@ protected:
         init_input_shapes(inputShape);
 
         ov::op::PadType padType;
-        std::vector<size_t> stride, dilation;
+        ov::inplace_vector<size_t> stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         std::tie(padType, padBegin, padEnd, stride, dilation) = addSpParams;
 
@@ -267,15 +267,15 @@ const auto defConvSpecificParams =
                                                                    OffsetType::REAL_NEGATIVE}));
 
 std::vector<ov::op::PadType> padTypes = {ov::op::PadType::EXPLICIT, ov::op::PadType::VALID};
-std::vector<std::vector<size_t>> getCartProduct(const std::vector<std::vector<size_t>>& v) {
+std::vector<ov::inplace_vector<size_t>> getCartProduct(const std::vector<ov::inplace_vector<size_t>>& v) {
     int outSize = 1;
     int n = v.size();
     for (int i = 0; i < n; i++) {
         outSize *= v[i].size();
     }
-    std::vector<std::vector<size_t>> res(outSize);
+    std::vector<ov::inplace_vector<size_t>> res(outSize);
     for (int i = 0; i < outSize; i++) {
-        std::vector<size_t> cortege(n);
+        ov::inplace_vector<size_t> cortege(n);
         int curResid = i, curInd = 0;
         for (int j = v.size() - 1; j >= 0; j--) {
             curInd = curResid % v[j].size();
@@ -286,11 +286,12 @@ std::vector<std::vector<size_t>> getCartProduct(const std::vector<std::vector<si
     }
     return res;
 }
-std::vector<std::vector<ov::Shape>> buildStaticParams(const std::vector<std::vector<size_t>> spatParams,
-                                                      const std::vector<std::vector<size_t>> chParamsUncombined) {
-    std::vector<std::vector<size_t>> chParams = getCartProduct(chParamsUncombined);
+std::vector<std::vector<ov::Shape>> buildStaticParams(
+    const std::vector<ov::inplace_vector<size_t>> spatParams,
+    const std::vector<ov::inplace_vector<size_t>> chParamsUncombined) {
+    std::vector<ov::inplace_vector<size_t>> chParams = getCartProduct(chParamsUncombined);
     std::vector<std::vector<ov::Shape>> shapes;
-    for (std::vector<size_t>& chPar : chParams) {
+    for (ov::inplace_vector<size_t>& chPar : chParams) {
         const size_t batch = spatParams[0][0];
         const size_t inSpH = spatParams[1][0];
         const size_t inSpW = spatParams[1][1];
@@ -313,75 +314,75 @@ std::vector<std::vector<ov::Shape>> buildStaticParams(const std::vector<std::vec
     return shapes;
 }
 
-const auto addSpParams = ::testing::Combine(::testing::ValuesIn(padTypes),                      // pad. type
-                                            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
-                                            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
-                                            ::testing::Values(std::vector<size_t>{1, 1}),       // strides
-                                            ::testing::Values(std::vector<size_t>{1, 1})        // dilations
+const auto addSpParams = ::testing::Combine(::testing::ValuesIn(padTypes),                        // pad. type
+                                            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),    // pad. begin
+                                            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),    // pad. end
+                                            ::testing::Values(ov::inplace_vector<size_t>{1, 1}),  // strides
+                                            ::testing::Values(ov::inplace_vector<size_t>{1, 1})   // dilations
 );
 
 const auto addSpParamsDilationUneven =
-    ::testing::Combine(::testing::ValuesIn(padTypes),                      // pad. type
-                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
-                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
-                       ::testing::Values(std::vector<size_t>{1, 1}),       // strides
-                       ::testing::Values(std::vector<size_t>{2, 1}));      // dilations
+    ::testing::Combine(::testing::ValuesIn(padTypes),                         // pad. type
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),     // pad. begin
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),     // pad. end
+                       ::testing::Values(ov::inplace_vector<size_t>{1, 1}),   // strides
+                       ::testing::Values(ov::inplace_vector<size_t>{2, 1}));  // dilations
 
-const std::vector<std::vector<size_t>> spatParams1 = {
+const std::vector<ov::inplace_vector<size_t>> spatParams1 = {
     {1},       // batch
     {34, 34},  // in. spat. shape
     {32, 32},  // off. spat. shape
     {3, 3}     // ker. spat. shape
 };
-const std::vector<std::vector<size_t>> spatParams2 = {
+const std::vector<ov::inplace_vector<size_t>> spatParams2 = {
     {1},     // batch
     {3, 3},  // in. spat. shape
     {2, 2},  // off. spat. shape
     {2, 2}   // ker. spat. shape
 };
-const std::vector<std::vector<size_t>> spatParams3 = {
+const std::vector<ov::inplace_vector<size_t>> spatParams3 = {
     {1},     // batch
     {5, 5},  // in. spat. shape
     {4, 4},  // off. spat. shape
     {2, 2}   // ker. spat. shape
 };
-const std::vector<std::vector<size_t>> spatParams4 = {
+const std::vector<ov::inplace_vector<size_t>> spatParams4 = {
     {1},     // batch
     {3, 2},  // in. spat. shape
     {2, 1},  // off. spat. shape
     {2, 2}   // ker. spat. shape
 };
-const std::vector<std::vector<size_t>> spatParamsDilationUneven = {
+const std::vector<ov::inplace_vector<size_t>> spatParamsDilationUneven = {
     {1},     // batch
     {3, 2},  // in. spat. shape
     {1, 1},  // off. spat. shape
     {2, 2}   // ker. spat. shape
 };
-const std::vector<std::vector<size_t>> spatParams5_onnx2d = {
+const std::vector<ov::inplace_vector<size_t>> spatParams5_onnx2d = {
     {1},     // batch
     {4, 4},  // in. spat. shape
     {3, 3},  // off. spat. shape
     {2, 2}   // ker. spat. shape
 };
-const std::vector<std::vector<size_t>> channelParamsSingleGr = {
+const std::vector<ov::inplace_vector<size_t>> channelParamsSingleGr = {
     {1},       // gr. 2,4
     {1, 2},    // def. gr. 1,2
     {16, 32},  // in. ch. per gr.
     {16, 32}   // out. ch. per gr.
 };
-const std::vector<std::vector<size_t>> channelParamsSingleGr2 = {
+const std::vector<ov::inplace_vector<size_t>> channelParamsSingleGr2 = {
     {1},  // gr. 2,4
     {1},  // def. gr. 1,2
     {3},  // in. ch. per gr.
     {3}   // out. ch. per gr.
 };
-const std::vector<std::vector<size_t>> channelParamsMulGr = {
+const std::vector<ov::inplace_vector<size_t>> channelParamsMulGr = {
     {2, 4},  // gr. 2,4
     {1, 2},  // def. gr. 1,2
     {3, 7},  // in. ch. per gr.
     {3, 7}   // out. ch. per gr.
 };
-const std::vector<std::vector<size_t>> channelParams_onnx2d = {
+const std::vector<ov::inplace_vector<size_t>> channelParams_onnx2d = {
     {1},  // gr. 2,4
     {1},  // def. gr. 1,2
     {1},  // in. ch. per gr.
@@ -435,7 +436,7 @@ const std::vector<std::vector<InputShape>> dynShapeChainJITAutoPad = {{
     {{16, 16, 2, 2}, {{16, 16, 2, 2}, {16, 16, 2, 2}, {16, 16, 2, 2}}},                      // input 2
     {{{1, 5}, 4, {1, 10}, {1, 10}}, {{1, 4, 3, 2}, {1, 4, 10, 10}, {1, 4, 3, 2}}}            // input 3
 }};
-const std::vector<std::vector<size_t>> autoPadSpatParams = {
+const std::vector<ov::inplace_vector<size_t>> autoPadSpatParams = {
     {1},     // batch
     {3, 2},  // in. spat. shape
     {3, 2},  // off. spat. shape
@@ -445,11 +446,11 @@ const std::vector<std::vector<size_t>> autoPadSpatParams = {
 std::vector<ov::op::PadType> padTypesAutoPad = {ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER};
 
 const auto autoPadAddSpParams =
-    ::testing::Combine(::testing::ValuesIn(padTypesAutoPad),               // pad. type
-                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin - ignored
-                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end - ignored
-                       ::testing::Values(std::vector<size_t>{1, 1}),       // strides
-                       ::testing::Values(std::vector<size_t>{1, 1}));      // dilations
+    ::testing::Combine(::testing::ValuesIn(padTypesAutoPad),                  // pad. type
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),     // pad. begin - ignored
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),     // pad. end - ignored
+                       ::testing::Values(ov::inplace_vector<size_t>{1, 1}),   // strides
+                       ::testing::Values(ov::inplace_vector<size_t>{1, 1}));  // dilations
 
 const auto params1_Smoke = ::testing::Combine(
     ::testing::Combine(addSpParams,
@@ -647,13 +648,13 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest10, DefConvLayerCPUTest, params10, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest11, DefConvLayerCPUTest, params11, DefConvLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> blockMultigroupChParam = {
+const std::vector<ov::inplace_vector<size_t>> blockMultigroupChParam = {
     {2},   // gr.
     {1},   // def. gr.
     {16},  // in. ch. per gr.
     {16}   // out. ch. per gr.
 };
-const std::vector<std::vector<size_t>> blockMultigroupSpatParam = {
+const std::vector<ov::inplace_vector<size_t>> blockMultigroupSpatParam = {
     {1},     // batch
     {2, 2},  // in. spat. shape
     {2, 2},  // off. spat. shape
@@ -664,11 +665,11 @@ const auto blockMultigroupAddParam = ::testing::Combine(::testing::Values(true),
                                                         ::testing::Values(OffsetType::ZERO)  // offset type
 );
 const auto blockMultigroupKernelParam =
-    ::testing::Combine(::testing::Values(ov::op::PadType::EXPLICIT),       // pad. type
-                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
-                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
-                       ::testing::Values(std::vector<size_t>{1, 1}),       // strides
-                       ::testing::Values(std::vector<size_t>{1, 1}));      // dilations
+    ::testing::Combine(::testing::Values(ov::op::PadType::EXPLICIT),          // pad. type
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),     // pad. begin
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),     // pad. end
+                       ::testing::Values(ov::inplace_vector<size_t>{1, 1}),   // strides
+                       ::testing::Values(ov::inplace_vector<size_t>{1, 1}));  // dilations
 const auto blockMultigroupParam =
     ::testing::Combine(::testing::Combine(blockMultigroupKernelParam,
                                           ::testing::ValuesIn(static_shapes_to_test_representation(

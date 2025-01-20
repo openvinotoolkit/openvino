@@ -95,10 +95,10 @@ SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfi
     m_internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
 }
 
-void SubgraphBaseExecutor::init_parallel_domain(const std::vector<size_t>& master_shape,
+void SubgraphBaseExecutor::init_parallel_domain(const VectorDims& master_shape,
                                                 size_t tensor_rank,
                                                 size_t tile_rank,
-                                                std::vector<size_t>& domain) {
+                                                VectorDims& domain) {
     domain.resize(tensor_rank, 1);
     std::fill(domain.begin(), domain.end(), 1);
     std::copy(master_shape.cbegin(),
@@ -107,7 +107,7 @@ void SubgraphBaseExecutor::init_parallel_domain(const std::vector<size_t>& maste
 }
 
 void SubgraphBaseExecutor::init_parallel_domain(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                                                std::vector<size_t>& domain) {
+                                                VectorDims& domain) {
     init_parallel_domain(snippet_config->master_shape, snippet_config->tensor_rank, snippet_config->tile_rank, domain);
 }
 

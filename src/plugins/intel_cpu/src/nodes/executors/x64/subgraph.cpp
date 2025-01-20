@@ -103,13 +103,13 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
         }
 
         if (m_tensor_rank == rank6D) {
-            init_offset = [](const std::vector<size_t>& offsets, const std::vector<size_t>& indexes, size_t& offset) {
+            init_offset = [](const auto& offsets, const std::vector<size_t>& indexes, size_t& offset) {
                 offset += offsets[0] * indexes[0] + offsets[1] * indexes[1] + offsets[2] * indexes[2] +
                           offsets[3] * indexes[3];
             };
         } else {
-            init_offset = [](const std::vector<size_t>& offsets, const std::vector<size_t>& indexes, size_t& offset) {
-                for (size_t j = 0; j < indexes.size(); j++) {
+            init_offset = [](const auto& offsets, const std::vector<size_t>& indexes, size_t& offset) {
+                for (size_t j = 0; j < indexes.size(); j++)
                     offset += offsets[j] * indexes[j];
                 }
             };

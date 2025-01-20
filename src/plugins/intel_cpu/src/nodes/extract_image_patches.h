@@ -57,9 +57,9 @@ public:
     enum class ExtImgPatcherPadType { VALID, SAME_LOWER, SAME_UPPER };
 
 private:
-    std::vector<size_t> _ksizes;
-    std::vector<size_t> _strides;
-    std::vector<size_t> _rates;
+    ov::Shape _ksizes;
+    ov::Strides _strides;
+    ov::Shape _rates;
     static const std::set<size_t> _supported_precisions_sizes;
     ExtImgPatcherPadType _auto_pad;
 

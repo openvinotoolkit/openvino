@@ -17,12 +17,12 @@ const std::vector<ov::element::Type> model_types = {
     ov::element::i32};
 
 /* ============= 2D Binary Convolution ============= */
-const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
-const std::vector<std::vector<size_t>> strides = {{1, 1}, {1, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels = {{3, 3}, {3, 5}};
+const std::vector<ov::inplace_vector<size_t>> strides = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padsBegin = {{0, 0}, {0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padsEnd = {{0, 0}, {0, 3}};
-const std::vector<std::vector<size_t>> dilations = {{1, 1}, {3, 1}};
-const std::vector<size_t> numOutChannels = {1, 5};
+const std::vector<ov::inplace_vector<size_t>> dilations = {{1, 1}, {3, 1}};
+const ov::inplace_vector<size_t> numOutChannels = {1, 5};
 const std::vector<float> padValues = {0, 1};
 
 const std::vector<std::vector<ov::Shape>> input_shapes_static = {

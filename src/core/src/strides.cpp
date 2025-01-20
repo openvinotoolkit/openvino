@@ -13,22 +13,22 @@ std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
     return s;
 }
 
-ov::Strides::Strides() : std::vector<size_t>() {}
+ov::Strides::Strides() : ov::inplace_vector<size_t>() {}
 
-ov::Strides::Strides(const std::initializer_list<size_t>& axis_strides) : std::vector<size_t>(axis_strides) {}
+ov::Strides::Strides(const std::initializer_list<size_t>& axis_strides) : ov::inplace_vector<size_t>(axis_strides) {}
 
-ov::Strides::Strides(const std::vector<size_t>& axis_strides) : std::vector<size_t>(axis_strides) {}
+ov::Strides::Strides(const ov::inplace_vector<size_t>& axis_strides) : ov::inplace_vector<size_t>(axis_strides) {}
 
-ov::Strides::Strides(const Strides& axis_strides) : std::vector<size_t>(axis_strides) {}
+ov::Strides::Strides(const Strides& axis_strides) : ov::inplace_vector<size_t>(axis_strides) {}
 
-ov::Strides::Strides(size_t n, size_t initial_value) : std::vector<size_t>(n, initial_value) {}
+ov::Strides::Strides(size_t n, size_t initial_value) : ov::inplace_vector<size_t>(n, initial_value) {}
 
 ov::Strides& ov::Strides::operator=(const Strides& v) {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<ov::inplace_vector<size_t>*>(this)->operator=(v);
     return *this;
 }
 
 ov::Strides& ov::Strides::operator=(Strides&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
+    static_cast<ov::inplace_vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }

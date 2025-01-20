@@ -51,7 +51,7 @@ protected:
     std::vector<std::vector<size_t>> m_repacked_offsets_by_threads = {};
     std::unordered_map<size_t, RepackedInput> m_repacked_inputs = {};
 
-    std::function<void(const std::vector<size_t>&, const std::vector<size_t>&, size_t&)> init_offset = {};
+    std::function<void(const ov::inplace_vector<size_t>&, const std::vector<size_t>&, size_t&)> init_offset = {};
 
     using RepackingImplType = CPURuntimeConfig::RepackingImplType;
     const RepackingImplType& get_repacking_impl_type() const {

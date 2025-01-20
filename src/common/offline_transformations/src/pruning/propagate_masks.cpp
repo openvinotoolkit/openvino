@@ -967,7 +967,7 @@ public:
     }
 };
 
-using dims_vec = std::vector<size_t>;
+using dims_vec = ov::inplace_vector<size_t>;
 static std::vector<dims_vec> map_reshaped_dimensions(const dims_vec input_shape, const dims_vec output_shape) {
     auto dims_map = std::vector<dims_vec>();
     auto cur_output_dims = dims_vec();
@@ -1107,7 +1107,7 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
  * dims_map map vector and unsquized_shape shape.
  */
 static std::vector<DimsAttr> collect_dims_attrs(const std::vector<dims_vec> dims_map,
-                                                const std::vector<size_t> unsquized_shape) {
+                                                const ov::inplace_vector<size_t> unsquized_shape) {
     auto dims_attrs = std::vector<DimsAttr>();
     for (size_t squized_dim = 0; squized_dim < dims_map.size(); ++squized_dim) {
         auto unsquized_dims = dims_map[squized_dim];

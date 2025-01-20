@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
 

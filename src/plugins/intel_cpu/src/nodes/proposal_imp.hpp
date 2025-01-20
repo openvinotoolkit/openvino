@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <vector>
 
+#include "openvino/core/shape.hpp"
+
 namespace ov {
 namespace Extensions {
 namespace Cpu {
@@ -39,7 +41,7 @@ namespace XARCH {
 
 void proposal_exec(const float* input0,
                    const float* input1,
-                   std::vector<size_t> dims0,
+                   ov::inplace_vector<size_t> dims0,
                    std::array<float, 4> img_info,
                    const float* anchors,
                    int* roi_indices,

@@ -49,7 +49,7 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
     OPENVINO_ASSERT(zeroUtils::getZePrecision(ioDescriptor.precision) == zeDescriptor.info.devicePrecision,
                     "Precision mismatch for input/output named " + ioDescriptor.nameFromCompiler);
 
-    const std::vector<size_t>& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
+    const auto& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
     OPENVINO_ASSERT(ovDimensions.size() <= ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
                     "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
                         '\n' + "Given: " + std::to_string(ovDimensions.size()));

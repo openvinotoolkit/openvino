@@ -12,8 +12,8 @@ using namespace tests;
 
 namespace {
 
-template <typename vecElementType>
-std::string vec2str(const std::vector<vecElementType>& vec) {
+template <typename vecElementType, class A>
+std::string vec2str(const std::vector<vecElementType, A>& vec) {
     if (!vec.empty()) {
         std::ostringstream result;
         result << "(";

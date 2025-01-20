@@ -27,7 +27,7 @@ ov::OutputVector hannwindow(const ov::frontend::onnx::Node& node) {
     const bool periodic = node.get_attribute_value<int64_t>("periodic", 1) == 1;
 
     const ov::PartialShape shape = size.get_partial_shape();
-    const std::vector<size_t> axis_lengths = shape.to_shape();
+    const auto axis_lengths = shape.to_shape();
 
     // Weights as described in ONNX HannWindow docs
     // https://github.com/onnx/onnx/blob/main/docs/Operators.md#hannwindow

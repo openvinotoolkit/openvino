@@ -24,8 +24,8 @@ namespace ov {
 namespace op {
 namespace util {
 
-template <class T>
-bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_range = true) {
+template <class T, class A>
+bool normalize_single_value(std::vector<T, A> vec, float& value, bool check_value_range = true) {
     for (const auto& val : vec) {
         if (val != *vec.begin())
             return false;

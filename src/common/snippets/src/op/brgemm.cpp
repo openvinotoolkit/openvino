@@ -14,7 +14,7 @@ namespace snippets {
 namespace op {
 
 namespace {
-std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) {
+VectorDims get_output_layout(const std::shared_ptr<const ov::Node>& n) {
     const auto& key = lowered::PortDescriptorVectorAttribute::get_type_info_static();
     auto& rt_info = n->get_rt_info();
     const auto& found = rt_info.find(key);
@@ -30,10 +30,16 @@ std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) 
 
 } // namespace
 
-Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
-               const size_t offset_a, const size_t offset_b, const size_t offset_c,
-               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
-    : MemoryAccess(std::set<size_t>{0, 1}, std::set<size_t>{0}), Op({A, B}) {
+Brgemm::Brgemm(const Output<Node>& A,
+               const Output<Node>& B,
+               const size_t offset_a,
+               const size_t offset_b,
+               const size_t offset_c,
+               VectorDims layout_a,
+               VectorDims layout_b,
+               VectorDims layout_c)
+    : MemoryAccess(std::set<size_t>{0, 1}, std::set<size_t>{0}),
+      Op({A, B}) {
     set_output_size(1);
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
@@ -41,15 +47,23 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
-Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
-               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
-               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
-    : MemoryAccess(PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}), Op({A, B}) {
+Brgemm::Brgemm(const Output<Node>& A,
+               const Output<Node>& B,
+               const PortDescriptor& desc_a,
+               const PortDescriptor& desc_b,
+               const PortDescriptor& desc_c,
+               VectorDims layout_a,
+               VectorDims layout_b,
+               VectorDims layout_c)
+    : MemoryAccess(PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}),
+      Op({A, B}) {
     set_output_size(1);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
-void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
+void Brgemm::custom_constructor_validate_and_infer_types(VectorDims layout_a,
+                                                         VectorDims layout_b,
+                                                         VectorDims layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
 
     // During ctor call, Brgemm doesn't know his port descriptors.

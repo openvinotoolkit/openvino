@@ -148,38 +148,38 @@ inline derived_type& downcast(base_type& base) {
     throw std::runtime_error("downcast failed with unhandled exception");
 }
 
-template <typename T>
-inline bool all_ones(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool all_ones(const std::vector<T, A> vec) {
     return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
 }
 
-template <typename T>
-inline bool all_zeroes(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool all_zeroes(const std::vector<T, A> vec) {
     return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val == 0; });
 }
 
-template <typename T>
-inline bool all_not_zeroes(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool all_not_zeroes(const std::vector<T, A> vec) {
     return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
 }
 
-template <typename T>
-inline bool any_one(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool any_one(const std::vector<T, A> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
 }
 
-template <typename T>
-inline bool any_zero(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool any_zero(const std::vector<T, A> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 0; });
 }
 
-template <typename T>
-inline bool any_not_one(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool any_not_one(const std::vector<T, A> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 1; });
 }
 
-template <typename T>
-inline bool any_not_zero(const std::vector<T> vec) {
+template <typename T, class A>
+inline bool any_not_zero(const std::vector<T, A> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
 }
 

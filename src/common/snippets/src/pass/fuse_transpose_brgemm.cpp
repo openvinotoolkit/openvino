@@ -54,13 +54,13 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root());
 
-        auto fuse_layouts = [](const std::vector<size_t>& layout_1, const std::vector<size_t>& layout_2) {
+        auto fuse_layouts = [](const auto& layout_1, const auto& layout_2) -> VectorDims {
             if (layout_1.empty())
-                return layout_2;
+                return VectorDims(layout_1);
             if (layout_2.empty())
                 return layout_1;
             OPENVINO_ASSERT(layout_1.size() == layout_2.size(), "Fused layouts must have equal ranks");
-            std::vector<size_t> fused_layout(layout_1.size());
+            VectorDims fused_layout(layout_1.size());
             for (size_t i = 0; i < layout_1.size(); ++i) {
                 OPENVINO_ASSERT(layout_2[i] < layout_1.size(), "Fused layouts values mustn't exceed layout size");
                 fused_layout[i] = layout_1[layout_2[i]];

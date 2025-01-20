@@ -20,7 +20,7 @@ std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<g
     std::string target_device;
     std::tie(group_conv_backprop_data_params, model_type, shapes, output_shape, target_device) = obj.param;
     ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
     size_t conv_out_channels, num_groups;
     std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding) = group_conv_backprop_data_params;
@@ -60,7 +60,7 @@ void GroupConvBackpropLayerTest::SetUp() {
     ov::Shape output_shape;
     std::tie(group_conv_backprop_data_params, model_type, shapes, output_shape, targetDevice) = this->GetParam();
     ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
     size_t conv_out_channels, num_groups;
     std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding) = group_conv_backprop_data_params;

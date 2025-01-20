@@ -11,9 +11,9 @@
 using namespace ov::snippets::lowered;
 
 namespace std {
-template <typename T>
-inline string to_string(const vector<T>& vec) {
-    return ov::test::utils::vec2str<T>(vec);
+template <typename T, class A>
+inline string to_string(const vector<T, A>& vec) {
+    return ov::test::utils::vec2str<T, A>(vec);
 }
 
 inline string to_string(const ov::snippets::Reg& reg) {

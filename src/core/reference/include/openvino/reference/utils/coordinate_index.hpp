@@ -20,6 +20,6 @@ std::size_t coordinate_index(const Coordinate& c, const Shape& s);
  * @param strides    Vector with multi-dimension strides
  * @return           Offset of element from start of buffer.
  */
-size_t coordinate_offset(const std::vector<size_t>& coordinate, const std::vector<size_t>& strides);
+size_t coordinate_offset(const ov::inplace_vector<size_t>& coordinate, const ov::inplace_vector<size_t>& strides);
 
 }  // namespace ov

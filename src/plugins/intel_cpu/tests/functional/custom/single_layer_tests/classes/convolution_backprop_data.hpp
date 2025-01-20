@@ -41,14 +41,14 @@ std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inSh
                                        ov::test::utils::InputLayerType outShapeType);
 
 protected:
-std::vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> kernel, stride;
 
-void SetUp() override;
+    void SetUp() override;
 
 private:
     ElementType prec;
     ov::op::PadType padType;
-    std::vector<size_t> dilation;
+    ov::inplace_vector<size_t> dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::vector<std::vector<int32_t>> outShapeData;
@@ -68,32 +68,32 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
 /* ============= Deconvolution params (planar layout) ============= */
-const std::vector<size_t> numOutChannels_Planar = {6};
+const ov::inplace_vector<size_t> numOutChannels_Planar = {6};
 
 /* ============= Deconvolution params (blocked layout) ============= */
-const std::vector<size_t> numOutChannels_Blocked = {64};
+const ov::inplace_vector<size_t> numOutChannels_Blocked = {64};
 
 /* ============= Deconvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
-const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations2d = {{1, 1}};
 
-const std::vector<std::vector<size_t>> deconvBrgKernels2d = {{3, 3}, {2, 2}};
-const std::vector<std::vector<size_t>> deconvBrgKernels2d_1x1 = {{1, 1}};
-const std::vector<std::vector<size_t>> deconvBrgStrides2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> deconvBrgKernels2d = {{3, 3}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> deconvBrgKernels2d_1x1 = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> deconvBrgStrides2d = {{1, 1}};
 
 /* ============= Deconvolution params (3D) ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
-const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations3d = {{1, 1, 1}};
 
-const std::vector<std::vector<size_t>> deconvBrgKernels3d = {{3, 3, 3}, {2, 2, 2}};
-const std::vector<std::vector<size_t>> deconvBrgKernels3d_1x1 = {{1, 1, 1}};
-const std::vector<std::vector<size_t>> deconvBrgStrides3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> deconvBrgKernels3d = {{3, 3, 3}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> deconvBrgKernels3d_1x1 = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> deconvBrgStrides3d = {{1, 1, 1}};
 
 /* ============= */
 

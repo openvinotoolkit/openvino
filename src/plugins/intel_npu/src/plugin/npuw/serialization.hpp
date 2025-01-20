@@ -14,6 +14,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/core/shape.hpp"
+
 const constexpr std::array<uint8_t, 6> NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
@@ -105,6 +107,14 @@ void write(std::ostream& stream, const std::vector<T>& var) {
     }
 }
 
+template <typename T>
+void write(std::ostream& stream, const ov::inplace_vector<T>& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el);
+    }
+}
+
 template <typename T, size_t N>
 void write(std::ostream& stream, const std::array<T, N>& var) {
     for (const auto& el : var) {
@@ -152,6 +162,19 @@ void read(std::istream& stream, std::pair<T1, T2>& var) {
 
 template <typename T>
 void read(std::istream& stream, std::vector<T>& var) {
+    var.clear();
+    std::size_t var_size = 0;
+    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
+    var.reserve(var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        T elem;
+        read(stream, elem);
+        var.push_back(elem);
+    }
+}
+
+template <typename T>
+void read(std::istream& stream, ov::inplace_vector<T>& var) {
     var.clear();
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);

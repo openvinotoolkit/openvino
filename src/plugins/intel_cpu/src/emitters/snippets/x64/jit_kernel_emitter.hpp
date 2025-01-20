@@ -79,8 +79,9 @@ private:
                             const std::vector<Xbyak::Reg64>& data_ptr_regs,
                             const std::vector<Xbyak::Reg64>& aux_gprs) const override;
 
-    std::vector<size_t> master_shape;
-    std::vector<std::vector<size_t>> data_offsets;
+    const size_t reg_indexes_idx{1};
+    VectorDims master_shape;
+    std::vector<VectorDims> data_offsets;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter);

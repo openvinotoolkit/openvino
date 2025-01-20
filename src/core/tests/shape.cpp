@@ -8,6 +8,8 @@
 
 #include <memory>
 
+#include "openvino/core/strides.hpp"
+
 using namespace std;
 using namespace ov;
 

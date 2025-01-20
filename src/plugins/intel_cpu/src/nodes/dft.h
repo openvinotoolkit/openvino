@@ -52,7 +52,8 @@ private:
     std::unordered_map<size_t, std::vector<float>> twiddlesMapDFT;
 
     std::vector<int32_t> axes;
-    std::vector<size_t> inputShape;
+    VectorDims inputShape;
+    // std::string layerErrorPrefix;
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;

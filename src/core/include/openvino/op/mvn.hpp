@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {

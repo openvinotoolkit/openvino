@@ -1602,20 +1602,20 @@ static ov::Layout getLayoutByRank(const size_t rank) {
     throw std::logic_error("Failed to get layout for rank equal to " + std::to_string(rank));
 }
 
-static std::string toString(const std::vector<size_t>& vec) {
-    std::stringstream ss;
-    if (!vec.empty()) {
-        ss << "[";
-        for (size_t i = 0; i < vec.size() - 1; ++i) {
-            ss << vec[i] << ",";
-        }
-        ss << vec[vec.size() - 1];
-        ss << "]";
-    } else {
-        ss << "SCALAR";
-    }
-    return ss.str();
-}
+// static std::string toString(const std::vector<size_t>& vec) {
+//     std::stringstream ss;
+//     if (!vec.empty()) {
+//         ss << "[";
+//         for (size_t i = 0; i < vec.size() - 1; ++i) {
+//             ss << vec[i] << ",";
+//         }
+//         ss << vec[vec.size() - 1];
+//         ss << "]";
+//     } else {
+//         ss << "SCALAR";
+//     }
+//     return ss.str();
+// }
 
 bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
                       const TensorDescriptorMap& inputDescriptors, size_t batch_size = 1) {
@@ -2197,8 +2197,8 @@ static int runSingleImageTest() {
                     } else {
                         outputLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Since --oml option isn't set, output model layout for layer \""
-                                  << tensorName << "\" is infered from shape: " << toString(shape) << " rank ("
-                                  << shape.size() << ") as " << outputLayout.to_string() << std::endl;
+                                  << tensorName << "\" is infered from shape: " << shape << " rank (" << shape.size()
+                                  << ") as " << outputLayout.to_string() << std::endl;
                     }
 
                     outputLayouts.emplace(tensorName, outputLayout);

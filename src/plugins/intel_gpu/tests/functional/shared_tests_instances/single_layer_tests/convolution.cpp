@@ -15,15 +15,13 @@ const std::vector<ov::element::Type> netPrecisions = {
 };
 
 /* ============= 1D Convolution ============= */
-const auto conv1DParams = ::testing::Combine(
-        ::testing::Values(std::vector<size_t>({1})),
-        ::testing::Values(std::vector<size_t>({1})),
-        ::testing::Values(std::vector<ptrdiff_t>({0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0})),
-        ::testing::Values(std::vector<size_t>({1})),
-        ::testing::Values(192),
-        ::testing::Values(ov::op::PadType::EXPLICIT)
-);
+const auto conv1DParams = ::testing::Combine(::testing::Values(ov::inplace_vector<size_t>({1})),
+                                             ::testing::Values(ov::inplace_vector<size_t>({1})),
+                                             ::testing::Values(std::vector<ptrdiff_t>({0})),
+                                             ::testing::Values(std::vector<ptrdiff_t>({0})),
+                                             ::testing::Values(ov::inplace_vector<size_t>({1})),
+                                             ::testing::Values(192),
+                                             ::testing::Values(ov::op::PadType::EXPLICIT));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D, ConvolutionLayerTest,
                          ::testing::Combine(
@@ -34,17 +32,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D, ConvolutionLayerTest,
                          ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D Convolution ============= */
-const std::vector<std::vector<size_t >> kernels = {{3, 3},
-                                                   {3, 5}};
-const std::vector<std::vector<size_t >> strides = {{1, 1},
-                                                   {1, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels = {{3, 3}, {3, 5}};
+const std::vector<ov::inplace_vector<size_t>> strides = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0},
                                                        {0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0},
                                                      {0, 3}};
-const std::vector<std::vector<size_t >> dilations = {{1, 1},
-                                                     {3, 1}};
-const std::vector<size_t> numOutChannels = {1, 5};
+const std::vector<ov::inplace_vector<size_t>> dilations = {{1, 1}, {3, 1}};
+const ov::inplace_vector<size_t> numOutChannels = {1, 5};
 const std::vector<ov::op::PadType> padTypes = {
         ov::op::PadType::EXPLICIT,
         ov::op::PadType::VALID
@@ -84,18 +79,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ConvolutionLayerTest::getTestCaseName);
 /* ============= 3D Convolution ============= */
-const std::vector<std::vector<size_t >> kernels3d = {{3, 3, 3},
-                                                     {3, 5, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
 
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0},
                                                         {0, 2, 0}};
 
-const std::vector<std::vector<size_t >> strides3d = {{1, 1, 1},
-                                                     {1, 2, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides3d = {{1, 1, 1}, {1, 2, 1}};
 
-const std::vector<std::vector<size_t >> dilations3d = { {1, 1, 1} };
+const std::vector<ov::inplace_vector<size_t>> dilations3d = {{1, 1, 1}};
 
-const std::vector<size_t > numOutChannels3d = {1, 5, 16};
+const ov::inplace_vector<size_t> numOutChannels3d = {1, 5, 16};
 
 const auto conv3DParams = ::testing::Combine(
         ::testing::ValuesIn(kernels3d),

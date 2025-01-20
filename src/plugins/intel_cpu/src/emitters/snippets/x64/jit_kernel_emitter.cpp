@@ -182,8 +182,8 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
     const size_t offset_rank = master_shape.size() - 1;
 
     // master_shape size must be valid in both static and dynamic cases
-    std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
-    init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {
+    std::function<void(Reg64, const VectorDims&, Reg64)> init_ptr_with_offset;
+    init_ptr_with_offset = [&](Reg64 pointer, const auto& offsets, Reg64 reg_tmp) {
         for (size_t j = 0; j < offset_rank; j++) {
             if (master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);

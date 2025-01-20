@@ -56,12 +56,11 @@ public:
                          const std::vector<MemoryPtr>& inMemPtrs,
                          const std::vector<MemoryPtr>& outMemPtrs);
 
-    static void init_parallel_domain(const std::vector<size_t>& master_shape,
+    static void init_parallel_domain(const VectorDims& master_shape,
                                      size_t tensor_rank,
                                      size_t tile_rank,
-                                     std::vector<size_t>& domain);
-    static void init_parallel_domain(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                                     std::vector<size_t>& domain);
+                                     VectorDims& domain);
+    static void init_parallel_domain(const std::shared_ptr<CPURuntimeConfig>& snippet_config, VectorDims& domain);
 
 protected:
     virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
@@ -81,7 +80,7 @@ protected:
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
-    std::vector<size_t> m_parallel_exec_domain = {};
+    VectorDims m_parallel_exec_domain = {};
     size_t m_harness_work_amount = 0;
 
     // Buffer scratchpad
@@ -184,7 +183,7 @@ protected:
     }
 
     std::vector<size_t> m_buffer_offsets = {};
-    std::vector<std::vector<size_t>> m_data_offsets = {};
+    std::vector<VectorDims> m_data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> m_loop_args = {};
     std::function<void()> m_reset_exec_table_state;
 };

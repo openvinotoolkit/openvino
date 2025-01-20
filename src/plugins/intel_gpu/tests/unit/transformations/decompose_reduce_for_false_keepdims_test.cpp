@@ -27,7 +27,7 @@ using InputShape = ov::PartialShape;
 using KeepDims = bool;
 using ReduceAxes = std::vector<int64_t>;
 using ReduceType = cldnn::reduce_mode;
-using ReshapeShape = std::vector<size_t>;
+using ReshapeShape = ov::Shape;
 using NeedDecompose = bool;
 
 class ReduceDecomposeTests

@@ -91,7 +91,7 @@ static inline auto rnd_up(const T lhs, const U rhs) -> decltype(div_up(lhs, rhs)
     return div_up_res * rhs;
 }
 
-static inline bool is_planar_layout(const std::vector<size_t>& order) {
+static inline bool is_planar_layout(const VectorDims& order) {
     for (size_t i = 0; i < order.size(); ++i)
         if (order[i] != i) return false;
     return true;
@@ -155,12 +155,13 @@ inline size_t dimension_to_size_t(const ov::Dimension& dim) {
 }
 
 // dim_idx starts from the layout end: dim_idx = 0 -> last element in layout (layout.back())
-inline size_t get_input_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+inline size_t get_input_dim_idx(const VectorDims& layout, size_t dim_idx) {
     OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
     return *(layout.rbegin() + dim_idx);
 }
 // dim_idx starts from the layout end: dim_idx = 0 -> last index in layout (layout.size() - 1)
-inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
+template <class T, class A>
+inline size_t get_output_dim_idx(const std::vector<T, A>& layout, size_t dim_idx) {
     OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
     return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
 }
@@ -182,7 +183,7 @@ int64_t get_stride(size_t dim_idx, const VectorDims& shape);
  *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
  *                  planar_shape = [32, 16, 2, 64]
  */
-ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order);
+ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const VectorDims& order);
 /**
  * @brief Returns original shape before applying the order.
  *        It means that the shape dimensions have been already reordered in accordance with order indices to produce planar shape
@@ -192,7 +193,7 @@ ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vec
  *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
  *                  planar_shape = [2, 32, 16, 64]
  */
-ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const std::vector<size_t>& order);
+ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const VectorDims& order);
 /**
  * @brief Returns a dense shape of node input.
  *        It means that the node input shape dimensions will be reordered in accordance with order indices to produce planar shape
@@ -216,7 +217,7 @@ ov::PartialShape get_preordered_pshape(const Output<Node>& out);
  *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
  *                  planar_shape = [32, 16, 2, 64]
  */
-VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& order);
+VectorDims get_planar_vdims(const VectorDims& shape, const VectorDims& order);
 /**
  * @brief Returns original shape before applying the order.
  *        It means that the preordered shape dimensions have been already reordered in accordance with order indices to produce planar shape
@@ -226,7 +227,7 @@ VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& 
  *         Example, shape = [16, 2, 32, 64], order = [2, 0, 1, 3]
  *                  planar_shape = [2, 32, 16, 64]
  */
-VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_t>& order);
+VectorDims get_preordered_vdims(const VectorDims& shape, const VectorDims& order);
 /**
  * @brief Returns a dense shape of expression input port.
  *        It means that the input shape dimensions will be reordered in accordance with order indices to produce planar shape

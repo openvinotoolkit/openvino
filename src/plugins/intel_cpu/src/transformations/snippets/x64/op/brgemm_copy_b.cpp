@@ -3,7 +3,6 @@
 //
 
 #include "brgemm_copy_b.hpp"
-
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
@@ -17,7 +16,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const size_t offset_in,
                                     const size_t offset_out0,
                                     const size_t offset_out1,
-                                    const std::vector<size_t>& layout_input)
+                                    const VectorDims& layout_input)
     : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
       op::Op({x}),
       m_type(type),
@@ -37,7 +36,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const PortDescriptor& desc_in0,
                                     const PortDescriptor& desc_out0,
                                     const PortDescriptor& desc_out1,
-                                    const std::vector<size_t>& layout_input)
+                                    const VectorDims& layout_input)
     : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1),
       op::Op({x}),
       m_type(type),
@@ -59,7 +58,7 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
+void BrgemmCopyB::custom_constructor_validate_and_infer_types(const VectorDims& layout_input) {
     INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
     OPENVINO_ASSERT(m_type == BRGEMM_TYPE::WITH_COMPENSATIONS || m_type == BRGEMM_TYPE::REPACKING_ONLY,
                     "Unsupported BRGEMM_TYPE value");
@@ -114,7 +113,7 @@ size_t BrgemmCopyB::get_offset_compensations() const {
     return get_output_offset(1);
 }
 
-bool BrgemmCopyB::is_transposed(const std::vector<size_t>& layout) {
+bool BrgemmCopyB::is_transposed(const VectorDims& layout) {
     const auto is_transposed = !layout.empty() && layout.back() != layout.size() - 1;
     OPENVINO_ASSERT(IMPLICATION(is_transposed, (layout[layout.size() - 2] == layout.size() - 1)),
                     "supports only N dim placed as last or pre last dimension");

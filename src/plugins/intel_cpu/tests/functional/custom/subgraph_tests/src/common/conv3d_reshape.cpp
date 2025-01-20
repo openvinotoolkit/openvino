@@ -44,11 +44,11 @@ protected:
             std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1024, 64})};
 
         std::shared_ptr<Node> conv;
-        const std::vector<size_t> kernelSize = {1};
-        const std::vector<size_t> strides = {1};
+        const ov::inplace_vector<size_t> kernelSize = {1};
+        const ov::inplace_vector<size_t> strides = {1};
         const std::vector<ptrdiff_t> padBegin = {0};
         const std::vector<ptrdiff_t> padEnd = {0};
-        const std::vector<size_t> dilation = {1};
+        const ov::inplace_vector<size_t> dilation = {1};
         const size_t numOutChannels = 30;
         const size_t numOfGroups = 2;
         const op::PadType paddingType = op::PadType::EXPLICIT;
@@ -102,7 +102,7 @@ TEST_P(Conv3dReshapeTest, CompareWithRefs) {
 namespace {
 
 const std::vector<nodeType> convType = {nodeType::convolution, nodeType::groupConvolution};
-const std::vector<size_t> numOut = {1, 2, 5};
+const ov::inplace_vector<size_t> numOut = {1, 2, 5};
 const auto conv3dReshapeParams = ::testing::Combine(::testing::ValuesIn(convType), ::testing::ValuesIn(numOut));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv3dReshapeTest,

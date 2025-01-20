@@ -536,8 +536,9 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
         auto const_target_shape =
             std::make_shared<opset1::Constant>(element::i64, Shape{3}, std::vector<int64_t>{3, 5, 1});
         const auto& target_shape = const_target_shape->cast_vector<size_t>();
-        auto broadcast =
-            std::make_shared<opset1::Multiply>(input, opset1::Constant::create(element::f32, target_shape, {1}));
+        auto broadcast = std::make_shared<opset1::Multiply>(
+            input,
+            opset1::Constant::create(element::f32, Shape{target_shape.begin(), target_shape.end()}, {1}));
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<Model>(NodeVector{broadcast}, ParameterVector{input});

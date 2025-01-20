@@ -46,7 +46,7 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     ov::element::Type element_type = ov::element::undefined;
     std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
     size_t quantLevels;
@@ -54,17 +54,17 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, inputShape)};
 
-    std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
+    ov::inplace_vector<size_t> dataFqConstShapes(inputShape.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         dataFqConstShapes[1] = inputShape[1];
     auto dataFq = ov::test::utils::make_fake_quantize(params[0], element_type, quantLevels, dataFqConstShapes);
 
-    std::vector<size_t> weightsShapes = {inputShape[1], convOutChannels};
+    ov::inplace_vector<size_t> weightsShapes = {inputShape[1], convOutChannels};
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     auto weightsNode = ov::test::utils::make_constant(element_type, weightsShapes);
 
-    std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
+    ov::inplace_vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
         weightsFqConstShapes[0] = weightsShapes[0];
 

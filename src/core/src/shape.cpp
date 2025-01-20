@@ -26,22 +26,25 @@ size_t stringToSizeT(const std::string& valStr) {
 }
 }  // namespace
 
-ov::Shape::Shape() : std::vector<size_t>() {}
+ov::Shape::Shape() : ov::inplace_vector<size_t>() {}
 
-ov::Shape::Shape(const std::initializer_list<size_t>& axis_lengths) : std::vector<size_t>(axis_lengths) {}
+ov::Shape::Shape(const std::initializer_list<size_t>& axis_lengths) : ov::inplace_vector<size_t>(axis_lengths) {}
 
-ov::Shape::Shape(const std::vector<size_t>& axis_lengths) : std::vector<size_t>(axis_lengths) {}
+ov::Shape::Shape(const ov::inplace_vector<size_t>& axis_lengths) : ov::inplace_vector<size_t>(axis_lengths) {}
+
+ov::Shape::Shape(const std::vector<size_t>& axis_lengths)
+    : ov::inplace_vector<size_t>{axis_lengths.begin(), axis_lengths.end()} {}
 
 ov::Shape::Shape(const Shape& axis_lengths) = default;
 
-ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initial_value) {}
+ov::Shape::Shape(size_t n, size_t initial_value) : ov::inplace_vector<size_t>(n, initial_value) {}
 
 ov::Shape::Shape(const std::string& value) {
     auto val = ov::util::trim(value);
     if (val[0] == '[' && val[val.size() - 1] == ']')
         val = val.substr(1, val.size() - 2);
     val = ov::util::trim(val);
-    std::vector<size_t> dims;
+    inplace_vector<size_t> dims;
     std::stringstream ss(val);
     std::string field;
     while (getline(ss, field, ',')) {
@@ -54,12 +57,14 @@ ov::Shape::Shape(const std::string& value) {
 ov::Shape::~Shape() = default;
 
 ov::Shape& ov::Shape::operator=(const Shape& v) {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    inplace_vector<size_t>::operator=(v);
+    // Shape::inplace_vector<size_t>::operator=(v);
+    // static_cast<ov::inplace_vector<size_t>*>(this)->operator=(v);
     return *this;
 }
 
 ov::Shape& ov::Shape::operator=(Shape&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
+    static_cast<ov::inplace_vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
 
@@ -72,18 +77,18 @@ std::string ov::Shape::to_string() const {
 namespace ov {
 
 typename Shape::reference Shape::operator[](std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize(i, size()));
+    return ov::inplace_vector<size_t>::operator[](util::normalize(i, size()));
 }
 
 typename Shape::const_reference Shape::operator[](std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize(i, size()));
+    return ov::inplace_vector<size_t>::operator[](util::normalize(i, size()));
 }
 
 typename Shape::reference Shape::at(std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    return ov::inplace_vector<size_t>::operator[](util::normalize_shape_index(i, size()));
 }
 
 typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    return ov::inplace_vector<size_t>::operator[](util::normalize_shape_index(i, size()));
 }
 }  // namespace ov

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <numeric>
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 

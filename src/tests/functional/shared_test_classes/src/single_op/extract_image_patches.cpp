@@ -44,7 +44,7 @@ std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInf
 
 void ExtractImagePatchesTest::SetUp() {
     std::vector<InputShape> shapes;
-    std::vector<size_t> kernel, strides, rates;
+    ov::Shape kernel, strides, rates;
     ov::op::PadType pad_type;
     ov::element::Type model_type;
     std::tie(shapes, kernel, strides, rates, pad_type, model_type, targetDevice) = this->GetParam();

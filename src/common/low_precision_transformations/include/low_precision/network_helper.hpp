@@ -85,10 +85,9 @@ public:
 
     static std::shared_ptr<Node> getConstantInput(const std::shared_ptr<const Node>& node, const bool convertIsExpected = false);
 
-    static std::vector<size_t> updateReshapeValues(
-        const Shape& elementwiseConstantShape,
-        const Shape& elementwiseShape,
-        const std::vector<size_t>& reshapeValues);
+    static ov::inplace_vector<size_t> updateReshapeValues(const Shape& elementwiseConstantShape,
+                                                          const Shape& elementwiseShape,
+                                                          const ov::inplace_vector<size_t>& reshapeValues);
 
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ov::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);

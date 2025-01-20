@@ -45,8 +45,8 @@ public:
     /// \param shape The shape of the tensor constant.
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
-    template <typename T>
-    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
+    template <typename T, class A>
+    Constant(const element::Type& type, const Shape& shape, const std::vector<T, A>& values)
         : Constant(false, type, shape) {
         const auto this_shape_size = shape_size(m_shape);
         const auto values_size = values.size();
@@ -255,12 +255,29 @@ public:
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param values A vector of values to use as the constant data.
-    template <typename T>
+    template <typename T, class A>
     static std::shared_ptr<Constant> create(const element::Type& type,
                                             const Shape& shape,
-                                            const std::vector<T>& values) {
+                                            const std::vector<T, A>& values) {
+        // if constexpr (std::is_pointer_v<T>) {
         return std::make_shared<Constant>(type, shape, values);
+        // } else if constexpr (std::is_class_v<T>) {
+        //     return std::make_shared<Constant>(type,
+        //                                       shape,
+        //                                       std::vector<decltype(values.begin())>{values.begin(), values.end()});
+        // } else {
+        //     return std::make_shared<Constant>(type, shape, std::vector{std::forward<T>(values)});
+        //     // static_assert(std::is_pointer_v<T> || std::is_class_v<T>, "Unsupported type");
+        //     // return {};
+        // }
     }
+
+    // template <typename T, typename std::enable_if_t<std::is_class_v<T>>* = nullptr>
+    // static std::shared_ptr<Constant> create(const element::Type& type, const Shape& shape, T&& values) {
+    //     return std::make_shared<Constant>(type,
+    //                                       shape,
+    //                                       std::vector<decltype(values.begin())>{values.begin(), values.end()});
+    // }
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
     ///
@@ -609,15 +626,16 @@ private:
         return static_cast<typename element_type_traits<ET>::value_type*>(get_data_ptr_nc());
     }
 
-    template <typename T>
-    void write_values(const std::vector<T>& values) {
+    template <typename T, class A>
+    void write_values(const std::vector<T, A>& values) {
         write_to_buffer(values);
     }
 
     template <element::Type_t Type,
               typename T,
+              class A,
               typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
+    void write_buffer(const std::vector<T, A>& source) {
         using StorageDataType = fundamental_type_for<Type>;
         auto p = get_data_ptr_nc<Type>();
         for (size_t i = 0; i < source.size(); ++i) {
@@ -627,8 +645,9 @@ private:
 
     template <element::Type_t Type,
               typename T,
+              class A,
               typename std::enable_if<Type == element::string && std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
+    void write_buffer(const std::vector<T, A>& source) {
         // elements of string are already pre-initialized in allocate_buffer
         auto p = get_data_ptr_nc<Type>();
         std::uninitialized_copy_n(source.begin(), source.size(), p);
@@ -637,8 +656,9 @@ private:
     template <
         element::Type_t Type,
         typename T,
+        class A,
         typename std::enable_if<(Type == element::string) != std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
+    void write_buffer(const std::vector<T, A>& source) {
         if (Type == element::string) {
             fill_data<element::string>(std::string());
         }
@@ -649,8 +669,8 @@ private:
     }
 
     // generic write_lp_buffer if input is not std or OV type (do additional conversion)
-    template <element::Type_t ET, class T>
-    void write_lp_buffer(const std::vector<T>& source) {
+    template <element::Type_t ET, class T, class A>
+    void write_lp_buffer(const std::vector<T, A>& source) {
         auto lp_buffer = LPBuffer<ET>(get_data_ptr_nc());
         for (const auto& value : source) {
             lp_buffer.write(static_cast<float>(value));
@@ -663,8 +683,8 @@ private:
         write_buffer<element::i8>(source);
     }
 
-    template <typename T>
-    void write_to_buffer(const std::vector<T>& source) {
+    template <typename T, class A>
+    void write_to_buffer(const std::vector<T, A>& source) {
         if (source.size() != shape_size(m_shape)) {
             OPENVINO_THROW("Constant initializer does not match shape");
         }
@@ -759,8 +779,8 @@ private:
 #endif
     }
 
-    template <class T>
-    void fill_or_write(const bool fill, const element::Type& et, const std::vector<T>& values) {
+    template <class T, class A>
+    void fill_or_write(const bool fill, const element::Type& et, const std::vector<T, A>& values) {
         if (fill) {
             fill_data<T>(et, values[0]);
         } else {

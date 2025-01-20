@@ -36,9 +36,9 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
     const ov::op::PadType paddingType{ov::op::PadType::EXPLICIT};
     const size_t numOutChannels = 256;
-    const std::vector<size_t> dilation{1, 1};
-    const std::vector<size_t> kernelSize{1, 1};
-    const std::vector<size_t> strides{1, 1};
+    const ov::inplace_vector<size_t> dilation{1, 1};
+    const ov::inplace_vector<size_t> kernelSize{1, 1};
+    const ov::inplace_vector<size_t> strides{1, 1};
     const std::vector<ptrdiff_t> padBegin{0, 0};
     const std::vector<ptrdiff_t> padEnd{0, 0};
 
@@ -104,7 +104,7 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
                     std::make_shared<ov::op::v0::Constant>(
                         ov::element::i32,
                         ov::Shape{5},
-                        std::vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),
+                        ov::inplace_vector<size_t>{1, numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]}),
                     true),
                 ov::element::f32,
                 strides,

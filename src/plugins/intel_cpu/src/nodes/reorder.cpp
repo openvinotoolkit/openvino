@@ -139,7 +139,7 @@ void Reorder::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
     auto getOrderAndBlockedDims = [](const MemoryDesc& lhs,
-                                     const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
+                                     const MemoryDesc& rhs) -> std::pair<VectorDims, VectorDims> {
         const auto& in = lhs.as<BlockedMemoryDesc>()->getBlockDims();
         const auto rank = lhs.getShape().getRank();
 

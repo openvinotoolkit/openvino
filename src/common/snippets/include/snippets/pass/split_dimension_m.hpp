@@ -47,7 +47,7 @@ public:
      * @param m_index M dimension index
      * @return updated order with the split M dimension
      */
-    static std::vector<size_t> get_updated_order(const std::vector<size_t>& order, size_t m_index);
+    static VectorDims get_updated_order(const VectorDims& order, size_t m_index);
     /**
      * @brief Reshapes m dimension in "shape": separates M in two parts: "batch_m_dim" and "new_m_dim"
      * @param shape Shape to split

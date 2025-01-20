@@ -20,7 +20,7 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestP
     bool with_modulation;
     std::tie(convParams, with_modulation, model_type, shapes, target_device) = obj.param;
     ov::op::PadType padType;
-    std::vector<size_t> stride, dilation;
+    ov::inplace_vector<size_t> stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t groups, deformable_groups, conv_out_channels;
     bool with_bilinear_interpolation_pad;
@@ -63,7 +63,7 @@ void DeformableConvolutionLayerTest::SetUp() {
     init_input_shapes(shapes);
 
     ov::op::PadType padType;
-    std::vector<size_t> stride, dilation;
+    ov::inplace_vector<size_t> stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t groups, deformable_groups, conv_out_channels;
     bool with_bilinear_interpolation_pad;

@@ -32,7 +32,7 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
         const auto& in_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();
 
-        auto is_supported_layout = [](const std::vector<size_t>& layout) {
+        auto is_supported_layout = [](const VectorDims& layout) {
             return layout.empty() || (layout.size() - 1 == layout.back());
         };
 

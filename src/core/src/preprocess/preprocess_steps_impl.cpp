@@ -23,7 +23,7 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
     auto node_shape = node.get_partial_shape();
     auto node_rank = node_shape.rank();
     auto channels_index = get_and_check_channels_idx(context.layout(), node_shape);
-    std::vector<std::size_t> v(node_rank.get_length(), 1);
+    Shape v(node_rank.get_length(), 1);
 
     OPENVINO_ASSERT(node_shape[channels_index].is_dynamic() || node_shape[channels_index] == values_size,
                     "Number of channels and mean/values size mismatch: Channels = ",
@@ -35,7 +35,7 @@ static Shape construct_mean_scale_shape(const Output<Node>& node,
                     ", layout = ",
                     context.layout().to_string());
     v[channels_index] = values_size;
-    return {v};
+    return v;
 }
 
 template <typename T>
@@ -327,9 +327,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             std::tie(shape, unsqueeze_layout, add_cnt) =
                 layout::utils::find_unsqueeze(context.layout(), shape, dst_layout);
             if (add_cnt) {
-                std::vector<size_t> dims;
-                dims.push_back(add_cnt);
-                Shape const_shape(dims);
+                Shape const_shape{add_cnt};
                 std::vector<int64_t> vals(add_cnt);
                 for (size_t i = 0; i < add_cnt; i++) {
                     vals[i] = i;

@@ -5,6 +5,8 @@
 #pragma once
 
 #include <memory>
+
+#include "openvino/core/axis_set.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace ov {

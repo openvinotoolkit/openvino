@@ -22,11 +22,11 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
     const std::string targetDevice = ov::test::utils::DEVICE_CPU;
     const ov::element::Type type(ov::element::Type_t::f32);
     const std::string convName("conv_name"), weightName("weight_name");
-    const std::vector<size_t> kernel{3, 3};
-    const std::vector<size_t> strides{1, 1};
+    const ov::inplace_vector<size_t> kernel{3, 3};
+    const ov::inplace_vector<size_t> strides{1, 1};
     const std::vector<ptrdiff_t> padsBegin{0, 0};
     const std::vector<ptrdiff_t> padsEnd{0, 0};
-    const std::vector<size_t> dilations{1, 1};
+    const ov::inplace_vector<size_t> dilations{1, 1};
     const ov::op::PadType autoPad(ov::op::PadType::EXPLICIT);
 
     if (ov::with_cpu_x86_avx512f()) {

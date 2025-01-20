@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling.h"
-
 #include <memory_desc/cpu_memory_desc_utils.h>
 
 #include <memory>
@@ -19,6 +17,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "pooling.h"
 #include "utils/general_utils.h"
 
 // to access and change C pooling primitive desc internal padding field
@@ -171,8 +170,7 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
-                             const std::vector<size_t>& external_attribute) {
+    auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute, const auto& external_attribute) {
         for (size_t i = 0; i < external_attribute.size(); i++) {
             internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
         }

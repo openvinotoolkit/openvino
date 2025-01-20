@@ -136,7 +136,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginal(
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
 
-    const std::vector<size_t> inputShape2 = inputShape;
+    const auto inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
@@ -486,19 +486,17 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalSelectionWithIntermediate(
     const bool transparentIntermediate,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2) {
-    const std::vector<size_t> inputShape1 = {
-        inputShape[0],
-        inputShape[1],
-        inputShape[2] - (transparentIntermediate ? 2 : 0),
-        inputShape[3] - (transparentIntermediate ? 2 : 0)
-    };
+    const ov::inplace_vector<size_t> inputShape1 = {inputShape[0],
+                                                    inputShape[1],
+                                                    inputShape[2] - (transparentIntermediate ? 2 : 0),
+                                                    inputShape[3] - (transparentIntermediate ? 2 : 0)};
 
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape1));
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
+    const ov::inplace_vector<size_t> inputShape2 = {inputShape[0], inputShape[1], inputShape[2], inputShape[3]};
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
@@ -642,10 +640,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithStridedSlice(
         results.push_back(result1);
     }
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -689,10 +687,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithDifferentPrecisionOnCh
 
     const auto concat = std::make_shared<ov::opset1::Concat>(OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, axis);
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -776,10 +774,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithIntermediateWithConsta
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = "concat";
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -869,7 +867,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithIntermediateReshape(
         ov::opset1::Constant::create(ov::element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
         true);
 
-    const std::vector<size_t> inputShape2 = inputShape;
+    const auto inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
@@ -902,7 +900,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReference(
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
 
-    const std::vector<size_t> inputShape2 = inputShape;
+    const auto inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
@@ -1560,12 +1558,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceSelectionWithIntermediate
     const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationOperations1,
     const DequantizationOperations& dequantizationOperations2) {
-    const std::vector<size_t> inputShape1 = {
-        inputShape[0],
-        inputShape[1],
-        inputShape[2] - (transparentIntermediate ? 2 : 0),
-        inputShape[3] - (transparentIntermediate ? 2 : 0)
-    };
+    const ov::inplace_vector<size_t> inputShape1 = {inputShape[0],
+                                                    inputShape[1],
+                                                    inputShape[2] - (transparentIntermediate ? 2 : 0),
+                                                    inputShape[3] - (transparentIntermediate ? 2 : 0)};
 
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape1));
     input1->set_friendly_name("input1");
@@ -1575,7 +1571,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceSelectionWithIntermediate
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, precisionBeforeOp);
     const auto deqBefore1 = makeDequantization(fakeQuantize1, dequantizationBefore1);
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
+    const ov::inplace_vector<size_t> inputShape2 = {inputShape[0], inputShape[1], inputShape[2], inputShape[3]};
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
@@ -1726,10 +1722,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithStridedSlice(
         results.push_back(result1);
     }
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -1794,10 +1790,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithDifferentPrecisionOnC
 
     const auto lastDequantization1 = makeDequantization(concat->output(0), dequantizationAfter1);
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -1896,10 +1892,10 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateWithConst
     const auto deqAfter = makeDequantization(concat->output(0), dequantizationAfter);
     deqAfter->set_friendly_name("concat");
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 
@@ -2004,7 +2000,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateReshape(
         ov::opset1::Constant::create(ov::element::i64, Shape{reshapeOutputShape.size()}, reshapeOutputShape),
         true);
 
-    const std::vector<size_t> inputShape2 = inputShape;
+    const auto inputShape2 = inputShape;
     const auto input2 = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
@@ -2031,10 +2027,11 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateReshape(
     return function;
 }
 
-std::shared_ptr<Node> ConcatFunction::makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel) {
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+std::shared_ptr<Node> ConcatFunction::makeMaxPool(const ov::Output<Node>& parent,
+                                                  const ov::inplace_vector<size_t>& kernel) {
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
     const auto pooling = std::make_shared<ov::opset1::MaxPool>(

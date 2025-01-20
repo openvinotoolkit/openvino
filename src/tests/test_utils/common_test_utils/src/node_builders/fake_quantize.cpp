@@ -15,7 +15,7 @@ namespace utils {
 std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
                                              const ov::element::Type& type,
                                              std::size_t levels,
-                                             std::vector<size_t> constShapes,
+                                             ov::Shape constShapes,
                                              const std::vector<float>& inputLowData,
                                              const std::vector<float>& inputHighData,
                                              const std::vector<float>& outputLowData,
@@ -37,7 +37,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
 std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
                                              const ov::element::Type& type,
                                              std::size_t levels,
-                                             std::vector<size_t> constShapes) {
+                                             ov::Shape constShapes) {
     size_t constDataSize = ov::shape_size(constShapes);
     std::vector<float> inputLowData, inputHighData, outputLowData, outputHighData;
     inputLowData = ov::test::utils::generateVector<ov::element::Type_t::f32>(constDataSize, 10, 1);

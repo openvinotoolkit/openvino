@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/op/op.hpp"
 
