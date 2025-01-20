@@ -22,7 +22,7 @@ class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerT
 public:
     OPENVINO_RTTI("ConvolutionTransformation", "0", WeightableLayerTransformation);
     ConvolutionTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
         const std::vector<ov::element::Type>&defaultPrecisions) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
