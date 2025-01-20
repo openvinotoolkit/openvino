@@ -57,7 +57,7 @@ SinkReshape::SinkReshape() {
                 return false;
             auto& in_ps = node->get_input_partial_shape(0);
             auto& out_ps = node->get_output_partial_shape(0);
-            if (in_ps.size() != out_ps.size() && (in_ps.size() - out_ps.size()) != 1)
+            if (in_ps.size() - out_ps.size() != 1)
                 return false;
             size_t mismatch_count = 0;
             if (in_ps.size() > out_ps.size()) {
@@ -90,7 +90,7 @@ SinkReshape::SinkReshape() {
         auto update_order = [](std::vector<uint16_t> original_order, const std::shared_ptr<v1::Reshape>& reshape_node) {
             // Example. For this sequence, there is Reshape node which merges 2 consecutive dims into one
             // order must be updated like permute is done before reshape
-            // [1,3,4,6] -> Reshape[1,3,24,1]-> permute(0,2,1) -> [1,24,3,1]
+            // [1,3,4,6] -> Reshape[1,3,24]-> permute(0,2,1) -> [1,24,3]
             // updated order must be (0,2,3,1):
             // dim with index=2 is split into 2 parts: 2 and 3
             auto reshape_in_shape = reshape_node->get_input_partial_shape(0).to_shape();
@@ -114,13 +114,6 @@ SinkReshape::SinkReshape() {
                 }
             }
             transformed_order.insert(insertIt, merge_dim_idx + 1);
-            // remove invalid orders
-            if (transformed_order.size() > reshape_in_shape.size()) {
-                transformed_order.erase(
-                    std::remove_if(transformed_order.begin(), transformed_order.end(), [&](uint16_t& order) {
-                        return order >= reshape_in_shape.size();
-                    }));
-            }
             return transformed_order;
         };
 

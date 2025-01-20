@@ -67,11 +67,11 @@ public:
         }
         std::shared_ptr<ov::Model> model = nullptr;
         if (!ref) {
-            auto shape = eligible_reshape ? std::vector<int>{2, 4, 100, 1} : std::vector<int>{2, 2, 20, 1};
-            auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {4}, shape);
+            auto shape = eligible_reshape ? std::vector<int>{2, 4, 100} : std::vector<int>{2, 2, 20};
+            auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {3}, shape);
             auto reshape = std::make_shared<ov::opset1::Reshape>(reshape_input_node, reshape_const, true);
-            auto order = eligible_rotation ? std::vector<int>{0 ,2, 1, 3} : std::vector<int>{2, 1, 0, 3};
-            auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {4}, order);
+            auto order = eligible_rotation ? std::vector<int>{0 ,2, 1} : std::vector<int>{2, 1, 0};
+            auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {3}, order);
             auto transpose = std::make_shared<ov::opset1::Transpose>(reshape, transpose_const);
         
             auto softmax = std::make_shared<ov::op::v8::Softmax>(transpose);
@@ -79,7 +79,7 @@ public:
         } else {
             auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {4}, {0, 2, 3, 1});
             auto transpose = std::make_shared<ov::opset1::Transpose>(reshape_input_node, transpose_const);
-            auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {4}, {2, 100, 4, 1});
+            auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {3}, {2, 100, 4});
             auto reshape = std::make_shared<ov::opset1::Reshape>(transpose, reshape_const, true);
             auto softmax = std::make_shared<ov::op::v8::Softmax>(reshape);
             model = std::make_shared<ov::Model>(ov::NodeVector{softmax}, ov::ParameterVector{input});
