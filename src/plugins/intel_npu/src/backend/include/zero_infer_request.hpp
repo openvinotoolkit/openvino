@@ -67,7 +67,7 @@ private:
                                                const ov::Shape& shape,
                                                const ov::Allocator& allocator = {}) const override;
 
-    void add_state(const IODescriptor& descriptor, size_t index) const override;
+    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();

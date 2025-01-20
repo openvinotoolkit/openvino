@@ -9,7 +9,7 @@
 
 namespace intel_npu {
 
-class VariableState : public ov::IVariableState {
+class VariableState final : public ov::IVariableState {
 public:
     explicit VariableState(const std::string& name, const ov::SoPtr<ov::ITensor>& tensor) : ov::IVariableState(name) {
         m_state = tensor;

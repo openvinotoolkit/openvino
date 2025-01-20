@@ -167,7 +167,7 @@ protected:
                                                        const ov::Shape& shape,
                                                        const ov::Allocator& allocator = {}) const;
 
-    virtual void add_state(const IODescriptor& descriptor, const size_t index) const;
+    virtual void add_state(const IODescriptor& descriptor, const size_t tensorIndex) const;
 
     bool is_batched_input(size_t idx) const;
 
