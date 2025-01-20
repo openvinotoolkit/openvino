@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <array>
+#include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -750,7 +752,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 #    endif
 #endif
     for (; i < size; i++) {
-        a[i] = exp(a[i] - max);
+        a[i] = std::exp(a[i] - max);
         sum += a[i];
     }
 }

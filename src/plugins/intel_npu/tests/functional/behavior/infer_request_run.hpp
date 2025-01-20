@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "overload/overload_test_utils_npu.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -341,6 +342,115 @@ TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
 
         delete[] data;
     }
+}
+
+using RandomTensorOverZeroTensorRunTests = InferRequestRunTests;
+
+TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input_zero_tensor = inference_request.get_input_tensor(0);
+    auto* input_zero_data = input_zero_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_zero_data[i] = 5.f;
+    }
+
+    inference_request.infer();  // Adds '1' to each element
+
+    auto output_tensor = inference_request.get_output_tensor(0);
+    auto* output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data[i] << " for index " << i;
+    }
+
+    float* buffer = new float[shape_size];
+    ov::Tensor tensor{element::f32, shape, buffer};
+    auto* input_data = tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 9.f;
+    }
+
+    inference_request.set_input_tensor(tensor);
+    inference_request.infer();  // Adds '1' to each element
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+    }
+
+    delete[] buffer;
+}
+
+TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request0, inference_request1;
+    inference_request0 = compiled_model.create_infer_request();
+    inference_request1 = compiled_model.create_infer_request();
+
+    auto input_zero_tensor = inference_request0.get_input_tensor(0);
+    auto* input_zero_data = input_zero_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_zero_data[i] = 5.f;
+    }
+
+    inference_request0.infer();  // Adds '1' to each element
+
+    auto output_tensor0 = inference_request0.get_output_tensor(0);
+    auto* output_data0 = output_tensor0.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+    }
+
+    inference_request1.set_input_tensor(output_tensor0);
+    inference_request1.infer();  // Adds '1' to each element
+
+    auto output_tensor1 = inference_request1.get_output_tensor(0);
+    auto* output_data1 = output_tensor1.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data1[i], 7.f, 1e-5) << "Expected=7, actual=" << output_data1[i] << " for index " << i;
+    }
+
+    float* buffer = new float[shape_size];
+    ov::Tensor tensor{element::f32, shape, buffer};
+    auto* input_data = tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 9.f;
+    }
+
+    inference_request1.set_input_tensor(tensor);
+    inference_request1.infer();  // Adds '1' to each element
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data1[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data1[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+    }
+
+    delete[] buffer;
 }
 
 using BatchingRunTests = InferRequestRunTests;
@@ -780,6 +890,76 @@ TEST_P(ROITensorInference, InferenceROITensor) {
     OV_EXPECT_THROW_HAS_SUBSTRING(req.set_tensor(tensor_name, m_param.m_input_tensor),
                                   ov::Exception,
                                   "The tensor is not continuous");
+}
+
+using SetShapeInferRunTests = InferRequestRunTests;
+
+TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto original_shape = Shape{1, 10, 10, 10};
+    auto dummy_shape = Shape{1, 50, 100, 100};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModel(element::f32, original_shape, "N...");
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    input = compiled_model.input();
+    output = compiled_model.output();
+
+    ov::Tensor input_tensor, first_output_tensor, second_output_tensor;
+    auto in_shape = input.get_shape();
+    auto out_shape = output.get_shape();
+
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 5.f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    OV_ASSERT_NO_THROW(first_output_tensor = inference_request.get_tensor(output));
+    // create dummy Tensors to force the driver to allocate memory for the initial tensor somewhere else
+    [[maybe_unused]] auto l0_host_dummy_tensor_0 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_1 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_2 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_3 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_4 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_5 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_6 = context.create_host_tensor(ov::element::f32, dummy_shape);
+    [[maybe_unused]] auto l0_host_dummy_tensor_7 = context.create_host_tensor(ov::element::f32, dummy_shape);
+
+    auto* actual = first_output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+    }
+
+    // imitates blob reallocation
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({1, 50, 20, 20}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
+
+    OV_ASSERT_NO_THROW(second_output_tensor = inference_request.get_tensor(output));
+    OV_ASSERT_NO_THROW(second_output_tensor.set_shape({1, 20, 20, 20}));
+    OV_ASSERT_NO_THROW(second_output_tensor.set_shape(out_shape));
+
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 9.f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    OV_ASSERT_NO_THROW(second_output_tensor = inference_request.get_tensor(output));
+
+    actual = second_output_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 10.f, 1e-5) << "Expected=10, actual=" << actual[i] << " for index " << i;
+    }
 }
 
 }  // namespace behavior

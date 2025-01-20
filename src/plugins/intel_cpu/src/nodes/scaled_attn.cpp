@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "kernels/scaled_attn/attn_memcpy.hpp"
@@ -73,7 +74,7 @@ template <ScaledDotProductAttention::KernelTypes KType, typename T>
 struct MHAKernel {
     const GraphContext::CPtr context;
     MHAKernel() = delete;
-    explicit MHAKernel(GraphContext::CPtr ctx) : context(ctx) {}
+    explicit MHAKernel(GraphContext::CPtr ctx) : context(std::move(ctx)) {}
 
     template <typename D>
     float dot_product(const D* a, const D* b, int len, int stride_b = 1) {
@@ -110,7 +111,7 @@ struct MHAKernel {
 
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
-    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+    void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
     }
@@ -121,7 +122,7 @@ struct MHAKernel {
     // present_value [B, H, kv_len, S]
     // attention_mask [B, 1, q_len, kv_len]
     // output_emb    [B, q_len, H*S]
-    void operator()(dnnl::stream strm,
+    void operator()(const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -252,7 +253,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     std::shared_ptr<BrgemmKernel> wv_gemm_ptr = nullptr;
 
     MHAKernel() = delete;
-    explicit MHAKernel(GraphContext::CPtr ctx) : context(ctx) {}
+    explicit MHAKernel(GraphContext::CPtr ctx) : context(std::move(ctx)) {}
 
     dnnl::memory::dims make_dnnl_dims(const std::vector<size_t>& dims) {
         dnnl::memory::dims dnnl_dims(dims.size());
@@ -261,7 +262,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return dnnl_dims;
     }
 
-    void prepare_brgemm_prim(dnnl::stream strm,
+    void prepare_brgemm_prim(const dnnl::stream& strm,
                              PlainTensor& query,
                              PlainTensor& present_key,
                              PlainTensor& present_value,
@@ -436,12 +437,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             }
             T* v_ptr = is_xf16 ? &wv_scratch_b.at<T>({b, h / h_each_group_len, 0})
                                : &present_value.at<T>({b, h / h_each_group_len, 0, 0});
-            wv_gemm_ptr->executeGemm(m_cnt < m_block_size,
+            const bool is_m_tail = m_cnt < m_block_size;
+            wv_gemm_ptr->executeGemm(is_m_tail,
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
                                      wsp.data() + tid * wsp_size_per_thread,
-                                     wv_scratch_a ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
+                                     wv_gemm_ptr->get_scratch_a_size() > 0 ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
             if (is_xf16) {
                 if (has_out_transpose) {
                     attn_memcpy2d_kernel(&fp32_out.at<float>({b, m_start, h, 0}),
@@ -472,7 +474,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
-    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+    void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
     }
@@ -519,15 +521,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     ov::element::Type precision;
 
     MHAKernel() = delete;
-    explicit MHAKernel(GraphContext::CPtr ctx) : context(ctx) {
-        m_block_size = 512;
-        select_nfltmax_at_0 = false;
-        precision = ov::element::from<T>();
-    }
+    explicit MHAKernel(GraphContext::CPtr ctx)
+        : context(std::move(ctx)),
+          m_block_size(512),
+          precision(ov::element::from<T>()),
+          select_nfltmax_at_0(false) {}
 
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
-    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+    void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
     }
@@ -539,7 +541,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(dnnl::stream strm,
+    void operator()(const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -666,16 +668,17 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     size_t m_threads_num = 0lu;
 
     MHAKernel() = delete;
-    explicit MHAKernel(GraphContext::CPtr ctx) : context(ctx) {
-        m_block_size = 4;
-        select_nfltmax_at_0 = false;
-        m_threads_num = parallel_get_max_threads();
+    explicit MHAKernel(GraphContext::CPtr ctx)
+        : context(std::move(ctx)),
+          m_block_size(4),
+          m_threads_num(parallel_get_max_threads()),
+          select_nfltmax_at_0(false) {
         qk_buffers.resize(m_threads_num);
     }
 
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
-    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+    void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
         causal_mask = mask;
         select_nfltmax_at_0 = _select_nfltmax_at_0;
     }
@@ -687,7 +690,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(dnnl::stream strm,
+    void operator()(const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -885,16 +888,16 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     MHAKernel<KType, T> kernel;
     MHASingleToken kernel_single_token;
 
-    AttentionExecutor(GraphContext::CPtr ctx) : context(ctx), kernel(context) {}
+    AttentionExecutor(GraphContext::CPtr ctx) : context(std::move(ctx)), kernel(context) {}
 
-    void prepare_attn_mask(MemoryPtr attn_input) {
+    void prepare_attn_mask(const MemoryPtr& attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
         auto p = attn_input->getDataAs<uint8_t>();
         for (size_t i = 0; i < attn_input->getSize(); i++)
             attn_buf.ptr<float>()[i] = p[i] ? 0.0f : -FLT_MAX;
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const Config& config,
                  const std::vector<MemoryPtr>& inputs,
                  const MemoryPtr output,
@@ -1053,18 +1056,38 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 };
 
 ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::Node>& op,
-                                                     const GraphContext::CPtr context)
+                                                     const GraphContext::CPtr& context)
     : Node(op, context, SDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
+    const auto& cpuConfig = context->getConfig();
+    const auto& keyCachePrecision = cpuConfig.keyCachePrecision;
+    const auto& valueCachePrecision = cpuConfig.valueCachePrecision;
+    const auto keyDims = getInputShapeAtPort(1).getDims();
+    const auto valueDims = getInputShapeAtPort(2).getDims();
+    const auto keyS = *(keyDims.end() - 1);
+    const auto valueS = *(valueDims.end() - 1);
+    OPENVINO_ASSERT(valueCachePrecision == keyCachePrecision,
+                    "CPU: SDPA node only supports same key/value cache precision");
+    OPENVINO_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
+                    "CPU: SDPA only supports key/value cache precision f32, f16, bf16, u8 but gets ",
+                    keyCachePrecision);
+    m_key_quant_param.groupSize = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
+                                      ? keyS
+                                      : cpuConfig.keyCacheGroupSize;
+    m_key_quant_param.precision = keyCachePrecision;
+    m_value_quant_param.groupSize = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
+                                        ? valueS
+                                        : cpuConfig.valueCacheGroupSize;
+    m_key_quant_param.precision = valueCachePrecision;
 
-    if (const auto node = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op)) {
+    if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
-    } else if (const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op)) {
+    } else if (const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op)) {
         m_config.config = node->get_config();
-    } else if (const auto node = std::dynamic_pointer_cast<const SDPAWithTransposeReshape>(op)) {
+    } else if (const auto node = ov::as_type_ptr<const SDPAWithTransposeReshape>(op)) {
         m_config.config = node->get_config();
     }
 }
@@ -1194,7 +1217,7 @@ void ScaledDotProductAttention::createPrimitive() {
     m_executor = result.first;
 }
 
-void ScaledDotProductAttention::execute(dnnl::stream strm) {
+void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
     auto output = getDstMemoryAtPort(0);
@@ -1225,9 +1248,9 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
 bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                      std::string& errorMessage) noexcept {
     try {
-        auto sdpaWithTransposeReshapeOp = std::dynamic_pointer_cast<const SDPAWithTransposeReshape>(op);
-        if (!std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(op) &&
-            !std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op) && !sdpaWithTransposeReshapeOp) {
+        auto sdpaWithTransposeReshapeOp = ov::as_type_ptr<const SDPAWithTransposeReshape>(op);
+        if (!ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op) &&
+            !ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op) && !sdpaWithTransposeReshapeOp) {
             errorMessage = "Only ScaledDotProductAttention, ScaledDotProductAttentionWithKVCache or "
                            "SDPAWithTransposeReshape operation are supported";
             return false;
@@ -1248,7 +1271,7 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
         }
 
         int orgSDPAInput = static_cast<int>(op->get_input_size());
-        const auto node = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(op);
+        const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op);
         if (node) {
             if (node->get_config().fuse_concat) {
                 orgSDPAInput -= 3;
@@ -1833,12 +1856,16 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
 
 ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     ov::element::Type kvcache_precision;
+    // TODO: SDPA only supports same key/value cache precision.
     auto rtPrecision = getRuntimePrecision();
-    auto kvCachePrecisionHint = context->getConfig().kvCachePrecision;
+    auto keyCachePrecisionHint = context->getConfig().keyCachePrecision;
+    auto valueCachePrecisionHint = context->getConfig().valueCachePrecision;
     bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
-                             rtPrecision != ov::element::bf16 && kvCachePrecisionHint == ov::element::f16;
+                             rtPrecision != ov::element::bf16 &&
+                             (keyCachePrecisionHint == ov::element::f16 && valueCachePrecisionHint == ov::element::f16);
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
-    bool use_int8_kv_cache_precision = kvCachePrecisionHint == ov::element::u8;
+    bool use_int8_kv_cache_precision =
+        (keyCachePrecisionHint == ov::element::u8 && valueCachePrecisionHint == ov::element::u8);
     if (use_int8_kv_cache_precision)
         kvcache_precision = ov::element::u8;
     else

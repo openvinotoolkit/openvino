@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ bool SoftmaxKey::operator==(const SoftmaxKey& rhs) const {
 
 bool SoftMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::opset1::Softmax>(op)) {
+        if (!ov::as_type_ptr<const ov::opset1::Softmax>(op)) {
             errorMessage = "Only opset1 Softmax operation is supported";
             return false;
         }
@@ -68,7 +68,7 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -223,7 +223,7 @@ void SoftMax::prepareParams() {
 #endif
 }
 
-void SoftMax::execute(dnnl::stream strm) {
+void SoftMax::execute(const dnnl::stream& strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {
@@ -231,7 +231,7 @@ void SoftMax::execute(dnnl::stream strm) {
     }
 }
 
-void SoftMax::executeDynamicImpl(dnnl::stream strm) {
+void SoftMax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

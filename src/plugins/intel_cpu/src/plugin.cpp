@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,7 +241,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto config = orig_config;
+    const auto& config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
@@ -335,6 +335,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
+    } else if (name == ov::hint::enable_cpu_reservation) {
+        const bool reserve_value = engConfig.enableCpuReservation;
+        return decltype(ov::hint::enable_cpu_reservation)::value_type(reserve_value);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
@@ -377,6 +380,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(engConfig.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(engConfig.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(engConfig.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
@@ -411,6 +422,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::execution_mode.name()),
             RW_property(ov::hint::num_requests.name()),
             RW_property(ov::hint::enable_cpu_pinning.name()),
+            RW_property(ov::hint::enable_cpu_reservation.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
             RW_property(ov::hint::model_distribution_policy.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),
@@ -420,6 +432,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
+            RW_property(ov::key_cache_precision.name()),
+            RW_property(ov::value_cache_precision.name()),
+            RW_property(ov::key_cache_group_size.name()),
+            RW_property(ov::value_cache_group_size.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;

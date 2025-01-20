@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -78,6 +78,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
         inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
     }
     std::vector<PortConfigurator> outPortConfigs;
+    outPortConfigs.reserve(4);
     for (int i = 0; i < 4; i++) {
         outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
     }
@@ -132,7 +133,7 @@ struct Unique::slicedExec {
     }
 };
 
-void Unique::execute(dnnl::stream strm) {
+void Unique::execute(const dnnl::stream& strm) {
     if (flattened) {
         OV_SWITCH(intel_cpu,
                   flattenExec,
@@ -154,7 +155,7 @@ void Unique::execute(dnnl::stream strm) {
     }
 }
 
-void Unique::executeDynamicImpl(dnnl::stream strm) {
+void Unique::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcDataDims = getSrcMemoryAtPort(IN_DATA)->getStaticDims();
     VectorDims dstDataDims;
     Dim uniqLen = 1;
