@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "brgemm_cpu.hpp"
+#include "gemm_cpu.hpp"
 
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -14,9 +14,8 @@ namespace ov {
 namespace intel_cpu {
 using namespace brgemm_utils;
 
-BrgemmCPU::BrgemmCPU(const Output<Node>& A,
+GemmCPU::GemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
-                     size_t iter_count,
                      BRGEMM_TYPE type,
                      const size_t offset_a,
                      const size_t offset_b,
@@ -36,9 +35,31 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
     custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
-BrgemmCPU::BrgemmCPU(const Output<Node>& A,
+GemmCPU::GemmCPU(const Output<Node>& A,
                      const Output<Node>& B,
-                     size_t iter_count,
+                     const Output<Node>& scratch,
+                     BRGEMM_TYPE type,
+                     const size_t offset_a,
+                     const size_t offset_b,
+                     const size_t offset_scratch,
+                     const size_t offset_c,
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
+    : Brgemm(),
+      m_type(type) {
+    set_arguments({A, B, scratch});
+    set_output_size(1);
+    ctor_initialize(std::set<size_t>{0, 1, 2}, std::set<size_t>{0});
+    set_input_port_descriptor({0, offset_a}, 0);
+    set_input_port_descriptor({0, offset_b}, 1);
+    set_output_port_descriptor({0, offset_c}, 0);
+    set_input_port_descriptor({0, offset_scratch}, 2);
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
+}
+
+GemmCPU::GemmCPU(const Output<Node>& A,
+                     const Output<Node>& B,
                      BRGEMM_TYPE type,
                      const PortDescriptor& desc_a,
                      const PortDescriptor& desc_b,
@@ -55,10 +76,30 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
     custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
-void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
+GemmCPU::GemmCPU(const Output<Node>& A,
+                     const Output<Node>& B,
+                     const Output<Node>& scratch,
+                     BRGEMM_TYPE type,
+                     const PortDescriptor& desc_a,
+                     const PortDescriptor& desc_b,
+                     const PortDescriptor& desc_scratch,
+                     const PortDescriptor& desc_c,
+                     const std::vector<size_t>& layout_a,
+                     const std::vector<size_t>& layout_b,
+                     const std::vector<size_t>& layout_c)
+    : Brgemm(),
+      m_type(type) {
+    set_arguments({A, B, scratch});
+    set_output_size(1);
+    m_input_ports = {{0, desc_a}, {1, desc_b}, {2, desc_scratch}};
+    m_output_ports = {{0, desc_c}};
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
+}
+
+void GemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                             const std::vector<size_t>& layout_b,
                                                             const std::vector<size_t>& layout_c) {
-    INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
+    INTERNAL_OP_SCOPE(GemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
 
     const std::vector<ov::PartialShape> planar_input_shapes{
@@ -71,8 +112,8 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<si
     validate_with_scratchpad();
 }
 
-void BrgemmCPU::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(BrgemmCPU_validate_and_infer_types);
+void GemmCPU::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(GemmCPU_validate_and_infer_types);
     validate_inputs();
 
     const auto planar_input_shapes = get_planar_input_shapes({input(0), input(1)});
@@ -83,7 +124,7 @@ void BrgemmCPU::validate_and_infer_types() {
     validate_with_scratchpad();
 }
 
-void BrgemmCPU::validate_with_scratchpad() const {
+void GemmCPU::validate_with_scratchpad() const {
     // Additional check for 3rd input
     if (with_compensations(m_type)) {
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32,
@@ -94,38 +135,53 @@ void BrgemmCPU::validate_with_scratchpad() const {
     }
 }
 
-void BrgemmCPU::validate_inputs() const {
+void GemmCPU::validate_inputs() const {
     OPENVINO_ASSERT(
         implication(one_of(m_type, BRGEMM_TYPE::STAND_ALONE, BRGEMM_TYPE::REPACKING_ONLY), get_input_size() == 2),
-        "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
+        "GemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
     OPENVINO_ASSERT(
         implication(one_of(m_type, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), get_input_size() == 3),
-        "BrgemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
+        "GemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
 }
 
-std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
+std::shared_ptr<Node> GemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(GemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<BrgemmCPU>(
-        new_args.at(0),
-        new_args.at(1),
-        1,
-        m_type,
-        get_input_port_descriptor(0),
-        get_input_port_descriptor(1),
-        get_output_port_descriptor(0),
-        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-        snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+    std::shared_ptr<GemmCPU> brgemm;
+    if (!with_scratchpad(m_type)) {
+        return std::make_shared<GemmCPU>(
+            new_args.at(0),
+            new_args.at(1),
+            m_type,
+            get_input_port_descriptor(0),
+            get_input_port_descriptor(1),
+            get_output_port_descriptor(0),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+    } else {
+        return std::make_shared<GemmCPU>(
+            new_args.at(0),
+            new_args.at(1),
+            new_args.at(2),
+            m_type,
+            get_input_port_descriptor(0),
+            get_input_port_descriptor(1),
+            get_input_port_descriptor(2),
+            get_output_port_descriptor(0),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
+    }
 }
 
-size_t BrgemmCPU::get_offset_scratch() const {
+size_t GemmCPU::get_offset_scratch() const {
     OPENVINO_ASSERT(with_scratchpad(m_type) && get_input_size() == 3,
                     "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
 }
 
-bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
+bool GemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
     visitor.on_attribute("type", m_type);
     return true;

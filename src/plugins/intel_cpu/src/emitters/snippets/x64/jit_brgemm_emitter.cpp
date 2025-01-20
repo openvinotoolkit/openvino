@@ -7,8 +7,10 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_batched.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "utils.hpp"
 
@@ -26,44 +28,67 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
-    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    const auto brgemm_type = brgemm_node->get_type();
-    m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
-    if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
-        m_kernel_executor =
-            kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
-    } else {
-        BrgemmKernelConfig kernel_config(brg0Prc,
-                                         brg1Prc,
-                                         with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false));
-        m_kernel_executor =
-            kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
-    }
-    // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
-    // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
-    // for both static and the 1st dynamic shapes.
-    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()) &&
-                                  !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(1)->get_shape()),
-                              "Jit emitter is called when the shapes are unknown");
+    if (is_type<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
+        const auto& gemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+        const auto& brg0Prc = gemm_node->get_input_element_type(0);
+        const auto& brg1Prc = gemm_node->get_input_element_type(1);
+        const auto brgemm_type = gemm_node->get_type();
+        m_is_with_amx = false;
 
-    m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    utils::get_buffer_cluster_id(expr->get_input_port(1)),
-                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
-    if (with_scratchpad(brgemm_type)) {
-        m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
-        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
+        BrgemmBatchedKernelConfig kernel_config(brg0Prc,
+                                                brg1Prc,
+                                                with_compensations(brgemm_type),
+                                                brgemm_utils::get_primitive_isa(brg0Prc, false));
+        m_kernel_executor =
+            kernel_table->register_kernel<BrgemmBatchedKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+
+        m_memory_offsets = {gemm_node->get_offset_a(), gemm_node->get_offset_b(), gemm_node->get_offset_c()};
+        m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                        utils::get_buffer_cluster_id(expr->get_input_port(1)),
+                        utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
+        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
+        const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+        const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+        const auto brgemm_type = brgemm_node->get_type();
+        m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
+        if (m_is_with_amx) {
+            BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+            m_kernel_executor =
+                kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        } else {
+            BrgemmKernelConfig kernel_config(brg0Prc,
+                                             brg1Prc,
+                                             with_compensations(brgemm_type),
+                                             brgemm_utils::get_primitive_isa(brg0Prc, false));
+            m_kernel_executor =
+                kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        }
+        // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
+        // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
+        // for both static and the 1st dynamic shapes.
+        OV_CPU_JIT_EMITTER_ASSERT(
+            !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()) &&
+                !snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(1)->get_shape()),
+            "Jit emitter is called when the shapes are unknown");
+
+        m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
+        m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                        utils::get_buffer_cluster_id(expr->get_input_port(1)),
+                        utils::get_buffer_cluster_id(expr->get_output_port(0))};
+        if (with_scratchpad(brgemm_type)) {
+            m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
+            m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
+        }
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("got unsupported node type");
     }
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
-    const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
+    const auto brgemm = as_type_ptr<ov::intel_cpu::GemmCPU>(node);
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects GemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
     if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
         return {{element::f32, element::f32}};
@@ -83,7 +108,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
                 {element::bf16, element::bf16, element::u8},
                 {element::f16, element::f16, element::u8}};
     }
-    OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    OV_CPU_JIT_EMITTER_THROW("got GemmCPU node with unsupported type");
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -103,6 +128,8 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         emit_call<BrgemmAMXKernelExecutor>(mem_ptrs_idxs);
     } else if (std::dynamic_pointer_cast<BrgemmKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmKernelExecutor>(mem_ptrs_idxs);
+    } else if (std::dynamic_pointer_cast<BrgemmBatchedKernelExecutor>(m_kernel_executor)) {
+        emit_call<BrgemmBatchedKernelExecutor>(mem_ptrs_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("uknown execuor type");
     }
