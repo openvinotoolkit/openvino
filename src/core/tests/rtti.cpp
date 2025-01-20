@@ -101,7 +101,7 @@ public:
     OPENVINO_RTTI("DerivedIncompleteRtti", "rtti_test", IncompleteRtti);
 };
 
-// Assert backward compatibility of RTTI definition without parent but casted with as_type or as_type pointer work
+// Assert backward compatibility of RTTI definition without parent but casted with as_type or as_type_ptr pointer work.
 TEST(rtti, assert_casting_without_parent) {
     {
         IncompleteRtti incomplete;
