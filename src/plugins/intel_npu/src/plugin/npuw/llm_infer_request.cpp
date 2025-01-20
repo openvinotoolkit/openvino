@@ -229,6 +229,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     kvcache_desc.num_stored_tokens += 1;
 
+    if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
+        return;
+    }
+
     LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
     const std::size_t kStartOutputKVCacheLayers = 1u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
