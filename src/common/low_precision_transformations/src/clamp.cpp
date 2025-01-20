@@ -72,7 +72,8 @@ bool ClampTransformation::transform(TransformationContext& context, ov::pass::pa
 
     replace_node_update_name(newClamp, replacement);
 
-    element::Type outputClampType = dequantization.multiply ?
+    OPENVINO_ASSERT(dequantization.multiply != nullptr || dequantization.subtract != nullptr, "incorrect dequantization ops configuration");
+    const auto outputClampType = dequantization.multiply ?
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
