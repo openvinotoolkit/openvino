@@ -207,6 +207,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     }
 
+    // Store original constants' offset for serialization purposes
+    store_const_offsets(model);
+
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
@@ -481,9 +484,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             compile(i);
         }
     }
-
-    // Store constants' offset for serialization purposes
-    store_const_offsets(model);
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
