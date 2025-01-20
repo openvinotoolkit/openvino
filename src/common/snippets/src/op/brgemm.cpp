@@ -50,7 +50,7 @@ Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
 }
 
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
-    INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
+    INTERNAL_OP_SCOPE(GemmCPU_constructor_validate_and_infer_types);
 
     // During ctor call, Brgemm doesn't know his port descriptors.
     // So we use explicit layouts from parameters
@@ -100,7 +100,7 @@ ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, con
 ov::element::Type Brgemm::get_output_type() const {
     auto output_type = get_output_type(get_input_element_type(0), get_input_element_type(1));
     if (output_type == element::dynamic) {
-        OPENVINO_THROW("BrgemmCPU node has incompatible input element types: " +
+        OPENVINO_THROW("GemmCPU node has incompatible input element types: " +
                        get_input_element_type(0).get_type_name() +
                        " and " +
                        get_input_element_type(1).get_type_name());
