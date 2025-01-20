@@ -20,31 +20,22 @@ namespace low_precision {
 AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ov::Model> model, const Params& params) :
     LayerTransformation(params), model(model) {
     MATCHER_SCOPE(AssignAndReadValueTransformation);
-    auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
-    auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
+    auto assign_m = pattern::wrap_type<opset3::Assign, opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto& opsMap = m.get_pattern_value_map();
-        auto op = m.get_match_root();
-        auto assignIt = opsMap.find(assign3);
-        if (assignIt == opsMap.end()) {
-            assignIt = opsMap.find(assign6);
-        }
-        const auto assign = assignIt->second.get_node_shared_ptr();
+        const auto assign = m.get_match_root();
         // check that we have ReadValue as the first dependency
         if (assign->get_control_dependencies().empty()) {
             return false;
         }
 
-        if (transformation_callback(op)) {
+        if (transformation_callback(assign)) {
             return false;
         }
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{ assign3, assign6 }),
-        matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(assign_m, matcher_name);
     this->register_matcher(m, callback);
 }
 

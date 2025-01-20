@@ -51,7 +51,7 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
                     const std::shared_ptr<ov::opset1::Constant>& constant,
                     const float value,
                     const float max_diff,
-                    const bool exact_comparison) noexcept {
+                    const bool exact_comparison) {
     bool need_to_check_intervals = false;
     const auto& constant_values = constant->cast_vector<float>();
     for (const auto constant_value : constant_values) {

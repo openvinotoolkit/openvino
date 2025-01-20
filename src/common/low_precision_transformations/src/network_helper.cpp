@@ -622,6 +622,7 @@ std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_
             parent = multiply->output(0);
         }
 
+        OPENVINO_ASSERT(dequantization.multiply != nullptr || dequantization.subtract != nullptr, "incorrect dequantization ops configuration");
         const auto originalParent = dequantization.multiply ?
             dequantization.multiply->shared_from_this() :
             dequantization.subtract->shared_from_this();
