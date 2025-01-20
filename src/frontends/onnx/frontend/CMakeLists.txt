@@ -81,6 +81,21 @@ ov_add_frontend(NAME onnx
 if(NOT ONNX_FOUND)
     message (STATUS "ONNX DBG Linked Frontend with own onnx_proto and onnx")
     add_dependencies(${TARGET_NAME} openvino_onnx_common)
+
+    # Files produced by protobuf may contain missing declarations
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+        target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-declarations>)
+    endif()
+    # Protobuf generates files which cause a following warnings
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
+    endif()
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # 4244 conversion from 'XXX' to 'YYY', possible loss of data
+        ov_add_compiler_flags(/wd4244)
+        # '<': signed/unsigned mismatch
+        ov_add_compiler_flags(/wd4018)
+    endif()
 else()
     message (STATUS "ONNX DBG Linked Frontend with system onnx_proto and onnx")
     ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
