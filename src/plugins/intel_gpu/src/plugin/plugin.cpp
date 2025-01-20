@@ -81,7 +81,8 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // HACK: SearchSorted has specific shape requirements.
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
-    if (ov::is_type<ov::op::v15::SearchSorted>(op))
+    // Similar case for STFT.
+    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
@@ -589,8 +590,6 @@ bool Plugin::is_metric(const std::string& name) const {
 
 ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_metric");
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 
     auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
@@ -764,7 +763,6 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 }
 
 uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_engine().get_device_info();

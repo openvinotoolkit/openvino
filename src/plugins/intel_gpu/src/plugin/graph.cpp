@@ -136,8 +136,8 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 }
 
 Graph::~Graph() {
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
-        const auto log_level = cldnn::debug_configuration::get_instance()->host_time_profiling;
+    GPU_DEBUG_IF(m_config.get_host_time_profiling()) {
+        const auto log_level = m_config.get_host_time_profiling();
 
         auto get_time_str = [](int64_t time_mcs, int64_t iters_num = 1) {
             double time = static_cast<double>(time_mcs);

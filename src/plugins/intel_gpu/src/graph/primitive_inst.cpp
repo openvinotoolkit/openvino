@@ -558,7 +558,6 @@ void primitive_inst::clear_output_memory() {
 
 void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     const auto& users = get_user_insts();
@@ -837,11 +836,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        // If debug config is set, repsect the config most
-        tmp_prealloc_count = -1;
-    }
-
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
         bool reclaim = 0;
@@ -1275,8 +1269,7 @@ void primitive_inst::update_paddings() {
 
 void primitive_inst::do_runtime_skip_reorder() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_reorder: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_skip_reorder) {
+    GPU_DEBUG_IF(get_config().get_disable_runtime_skip_reorder()) {
         return;
     }
     if (can_be_optimized())
@@ -2754,42 +2747,31 @@ bool primitive_inst::is_valid_fusion() const {
 }
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
+    instrumentation::perf_counter_key key {
+            _network.get_input_layouts(),
+            _impl_params->input_layouts,
+            _impl_params->output_layouts,
+            get_implementation_name(),
+            stage,
 #ifdef GPU_DEBUG_CONFIG
-    int64_t curr_iter = -1;
-    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
-        curr_iter = get_network().get_current_iteration_num();
-    }
-    GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+            per_iter_mode ? get_network().get_current_iteration_num() : 0,
 #else
-    {
+            0,
 #endif
-        instrumentation::perf_counter_key key {
-                _network.get_input_layouts(),
-                _impl_params->input_layouts,
-                _impl_params->output_layouts,
-                get_implementation_name(),
-                stage,
-#ifdef GPU_DEBUG_CONFIG
-                per_iter_mode ? get_network().get_current_iteration_num() : 0,
-#else
-                0,
-#endif
-                cache_hit,
-                memalloc_info
-        };
+            cache_hit,
+            memalloc_info
+    };
 
-        auto hash = instrumentation::perf_counter_hash()(key);
-        auto& d = _profiling_data[hash];
-        if (_profiling_info.find(hash) == _profiling_info.end()) {
-            _profiling_info.emplace(hash, key);
-        }
-
-        auto& total_time = std::get<0>(d);
-        auto& total_iter = std::get<1>(d);
-        total_time += time;
-        total_iter++;
+    auto hash = instrumentation::perf_counter_hash()(key);
+    auto& d = _profiling_data[hash];
+    if (_profiling_info.find(hash) == _profiling_info.end()) {
+        _profiling_info.emplace(hash, key);
     }
+
+    auto& total_time = std::get<0>(d);
+    auto& total_iter = std::get<1>(d);
+    total_time += time;
+    total_iter++;
 }
 
 std::string primitive_inst::get_implementation_name() const {
