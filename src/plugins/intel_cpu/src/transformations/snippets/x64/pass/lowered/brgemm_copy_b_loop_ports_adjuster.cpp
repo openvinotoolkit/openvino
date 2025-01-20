@@ -45,5 +45,5 @@ bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& linear
     return true;
 }
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

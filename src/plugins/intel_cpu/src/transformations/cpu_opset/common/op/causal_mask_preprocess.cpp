@@ -4,14 +4,18 @@
 #include "causal_mask_preprocess.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::CausalMaskPreprocessNode::CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg) : Op(args), m_config(cfg) {
+ov::intel_cpu::CausalMaskPreprocessNode::CausalMaskPreprocessNode(const OutputVector& args, Config cfg)
+    : Op(args),
+      m_config(std::move(cfg)) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ov::Node> ov::intel_cpu::CausalMaskPreprocessNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::CausalMaskPreprocessNode::clone_with_new_inputs(
+    const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(CausalMaskPreprocessNode_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(new_args, m_config);

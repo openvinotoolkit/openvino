@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include "openvino/core/except.hpp"
-#include "openvino/core/visibility.hpp"
 #include <memory>
+#include <utility>
 
 #include "cache/multi_cache.h"
 #include "cpu_memory.h"
 #include "graph_context.h"
-#include "onednn/iml_type_mapper.h"
 #include "memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,25 +25,25 @@ namespace intel_cpu {
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
-#   if defined(OPENVINO_ARCH_ARM)
-#       define OV_CPU_INSTANCE_ACL32(...) {__VA_ARGS__},
-#   else
-#       define OV_CPU_INSTANCE_ACL32(...)
-#   endif
-#   if defined(OPENVINO_ARCH_ARM64)
-#       define OV_CPU_INSTANCE_ACL64(...) {__VA_ARGS__},
-#   else
-#       define OV_CPU_INSTANCE_ACL64(...)
-#   endif
-#   if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#       define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
-#   else
-#       define OV_CPU_INSTANCE_ACL(...)
-#   endif
+#    if defined(OPENVINO_ARCH_ARM)
+#        define OV_CPU_INSTANCE_ACL32(...) {__VA_ARGS__},
+#    else
+#        define OV_CPU_INSTANCE_ACL32(...)
+#    endif
+#    if defined(OPENVINO_ARCH_ARM64)
+#        define OV_CPU_INSTANCE_ACL64(...) {__VA_ARGS__},
+#    else
+#        define OV_CPU_INSTANCE_ACL64(...)
+#    endif
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#        define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
+#    else
+#        define OV_CPU_INSTANCE_ACL(...)
+#    endif
 #else
-#   define OV_CPU_INSTANCE_ACL32(...)
-#   define OV_CPU_INSTANCE_ACL64(...)
-#   define OV_CPU_INSTANCE_ACL(...)
+#    define OV_CPU_INSTANCE_ACL32(...)
+#    define OV_CPU_INSTANCE_ACL64(...)
+#    define OV_CPU_INSTANCE_ACL(...)
 #endif
 
 #if defined(OV_CPU_WITH_DNNL)
@@ -72,28 +73,11 @@ namespace intel_cpu {
 #define OV_CPU_INSTANCE_COMMON(...) {__VA_ARGS__},
 
 // @todo another option is to determine shape relation by executor type
-enum class ShapeTolerance {
-    Agnostic,
-    Dependant
-};
+enum class ShapeTolerance { Agnostic, Dependant };
 
-enum class ExecutorType {
-    Undefined,
-    Graph,
-    Common,
-    jit_x64,
-    Dnnl,
-    Acl,
-    Mlas,
-    jit_aarch64,
-    Shl
-};
+enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl };
 
-enum class OperationType {
-    FullyConnected,
-    MatMul,
-    Convolution
-};
+enum class OperationType { FullyConnected, MatMul, Convolution };
 
 std::string ExecutorTypeToString(const ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
@@ -103,17 +87,19 @@ public:
     using Ptr = std::shared_ptr<ExecutorContext>;
     using CPtr = std::shared_ptr<const ExecutorContext>;
 
-    ExecutorContext(const GraphContext::CPtr graphContext,
-                    const std::vector<impl_desc_type>& implPriorities,
+    ExecutorContext(const GraphContext::CPtr& graphContext,
+                    std::vector<impl_desc_type> implPriorities,
                     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache = nullptr)
         : runtimeCache(graphContext->getParamsCache()),
           scratchPads(graphContext->getScratchPads()),
           weightsCache(graphContext->getWeightsCache()),
           engine(graphContext->getEngine()),
-          implPriorities(implPriorities),
+          implPriorities(std::move(implPriorities)),
           privateWeighCache(std::move(privateWeighCache)),
-          numNumaNodes(graphContext->getNumNumaNodes())
-    {}
+          numNumaNodes(graphContext->getNumNumaNodes()) {
+        auto cpuStreamsExecutor = graphContext->getCPUStreamExecutor();
+        curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
+    }
 
     MultiCachePtr getRuntimeCache() const {
         auto runtimeCachePtr = runtimeCache.lock();
@@ -121,12 +107,8 @@ public:
         return runtimeCachePtr;
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
-        if (subStreamID < 0)
-            subStreamID = 0;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return scratchPads[subStreamID];
+    DnnlScratchPadPtr getScratchPad() const {
+        return scratchPads[curNumaNodeId];
     }
 
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
@@ -156,11 +138,12 @@ private:
     // @todo remove after global cache is used exclusevly
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache;
     int numNumaNodes;
+    int curNumaNodeId = -1;
 };
 
 class ExecutorFactoryLegacy {
 public:
-    ExecutorFactoryLegacy(const ExecutorContext::CPtr context) : context(context) {}
+    ExecutorFactoryLegacy(ExecutorContext::CPtr context) : context(std::move(context)) {}
     virtual ~ExecutorFactoryLegacy() = default;
 
     const ExecutorContext::CPtr context;

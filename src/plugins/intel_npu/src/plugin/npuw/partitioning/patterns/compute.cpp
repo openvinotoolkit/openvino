@@ -247,8 +247,8 @@ DQMatMulConv::DQMatMulConv(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_node_param = node_to_output.at(param);
-        auto matched_node_param2 = node_to_output.at(param2);
+        const auto& matched_node_param = node_to_output.at(param);
+        const auto& matched_node_param2 = node_to_output.at(param2);
 
         auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
         auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();

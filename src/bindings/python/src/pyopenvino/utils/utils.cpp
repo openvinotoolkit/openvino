@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,8 +217,6 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::device::Type>());
     } else if (any.is<ov::streams::Num>()) {
         return py::cast(any.as<ov::streams::Num>());
-    } else if (any.is<ov::Affinity>()) {
-        return py::cast(any.as<ov::Affinity>());
     } else if (any.is<ov::WorkloadType>()) {
         return py::cast(any.as<ov::WorkloadType>());
     } else if (any.is<ov::CacheMode>()) {
@@ -311,6 +309,18 @@ std::string convert_path_to_string(const py::object& path) {
     OPENVINO_THROW(str.str());
 }
 
+std::shared_ptr<ov::Model> convert_to_model(const py::object& obj) {
+    if (!py::isinstance(obj, py::module_::import("openvino").attr("Model"))) {
+        throw py::type_error("Incompatible `model` argument. Please provide a valid openvino.Model instance.");
+    }
+    auto model = obj.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+    if (model == nullptr) {
+        throw py::attribute_error("Invalid openvino.Model instance. It cannot be None. "
+                                  "Please make sure it is not used outside of its context.");
+    }
+    return model;
+}
+
 Version convert_to_version(const std::string& version) {
     if (version == "UNSPECIFIED")
         return Version::UNSPECIFIED;
@@ -360,9 +370,7 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     for (auto& item : py::cast<py::dict>(py_obj)) {
         std::string key = py::cast<std::string>(item.first);
         py::object value = py::cast<py::object>(item.second);
-        if (py::isinstance<ov::Affinity>(value)) {
-            return_value[key] = py::cast<ov::Affinity>(value);
-        } else if (py_object_is_any_map(value)) {
+        if (py_object_is_any_map(value)) {
             return_value[key] = Common::utils::py_object_to_any_map(value);
         } else {
             return_value[key] = Common::utils::py_object_to_any(value);
@@ -437,8 +445,6 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::device::Type>(py_obj);
     } else if (py::isinstance<ov::streams::Num>(py_obj)) {
         return py::cast<ov::streams::Num>(py_obj);
-    } else if (py::isinstance<ov::Affinity>(py_obj)) {
-        return py::cast<ov::Affinity>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {

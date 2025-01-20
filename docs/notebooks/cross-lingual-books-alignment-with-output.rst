@@ -32,7 +32,7 @@ Prerequisites
 
 -  ``requests`` - for getting books
 -  ``pysbd`` - for splitting sentences
--  ``transformers[torch]`` and ``openvino_dev`` - for getting sentence
+-  ``transformers[torch]`` and ``openvino`` - for getting sentence
    embeddings
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
@@ -416,12 +416,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image01|
+|image02|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/627d3a39-7076-479f-a7b1-392f49a0b83e
+.. |image02| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/627d3a39-7076-479f-a7b1-392f49a0b83e
 
 .. code:: ipython3
 

@@ -1,24 +1,26 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
+
+#include <cmath>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "utils/general_utils.h"
-#include "common/cpu_memcpy.h"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                          std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
-                ov::op::v6::GatherElements::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v6::GatherElements::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
             return false;
         }
@@ -29,28 +31,26 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
-
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix_, " has invalid number of input/output edges.");
+        THROW_CPU_NODE_ERR(" has invalid number of input/output edges.");
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
     if (dataRank != indicesRank)
-        OPENVINO_THROW(errorPrefix_, " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
+        THROW_CPU_NODE_ERR(" has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
 
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0)
         axis += dataRank;
     if (axis < 0 || axis >= static_cast<int>(dataRank))
-        OPENVINO_THROW(errorPrefix_, " has invalid axis attribute: ", axis);
+        THROW_CPU_NODE_ERR(" has invalid axis attribute: ", axis);
     axis_ = axis;
 }
 
@@ -78,31 +78,30 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
-        OPENVINO_THROW(errorPrefix_, " has unsupported 'inputData' input precision: ", inDataPrecision);
+        THROW_CPU_NODE_ERR(" has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
     if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
-        OPENVINO_THROW(errorPrefix_, " has unsupported 'indices' input precision: ", indicesPrecision);
+        THROW_CPU_NODE_ERR(" has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, ov::element::i32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 
-void GatherElements::executeDynamicImpl(dnnl::stream strm) {
+void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
 template <typename dataType>
 void GatherElements::directExecution() {
-    const auto *srcData = getSrcDataAtPortAs<const dataType>(dataIndex_);
-    const auto *indices = getSrcDataAtPortAs<const int>(indicesIndex_);
-    auto *dstData = getDstDataAtPortAs<dataType>(0);
+    const auto* srcData = getSrcDataAtPortAs<const dataType>(dataIndex_);
+    const auto* indices = getSrcDataAtPortAs<const int>(indicesIndex_);
+    auto* dstData = getDstDataAtPortAs<dataType>(0);
 
     const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
@@ -131,16 +130,16 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(dnnl::stream strm) {
+void GatherElements::execute(const dnnl::stream& strm) {
     switch (dataTypeSize_) {
-        case sizeof(element_type_traits<ov::element::i32>::value_type):
-            return directExecution<element_type_traits<ov::element::i32>::value_type>();
-        case sizeof(element_type_traits<ov::element::i16>::value_type):
-            return directExecution<element_type_traits<ov::element::i16>::value_type>();
-        case sizeof(element_type_traits<ov::element::i8>::value_type):
-            return directExecution<element_type_traits<ov::element::i8>::value_type>();
-        default:
-            OPENVINO_THROW("Unsupported data type size");
+    case sizeof(element_type_traits<ov::element::i32>::value_type):
+        return directExecution<element_type_traits<ov::element::i32>::value_type>();
+    case sizeof(element_type_traits<ov::element::i16>::value_type):
+        return directExecution<element_type_traits<ov::element::i16>::value_type>();
+    case sizeof(element_type_traits<ov::element::i8>::value_type):
+        return directExecution<element_type_traits<ov::element::i8>::value_type>();
+    default:
+        OPENVINO_THROW("Unsupported data type size");
     }
 }
 
@@ -148,6 +147,6 @@ bool GatherElements::created() const {
     return getType() == Type::GatherElements;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

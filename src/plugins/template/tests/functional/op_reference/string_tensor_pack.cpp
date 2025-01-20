@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,6 +155,11 @@ std::vector<StringTensorPackParams> generateStringTensorPackParams() {
                    ov::element::u8,
                    std::vector<uint8_t>{0x49, 0x6e, 0x74, 0x65, 0x6c, 0x4f, 0x70, 0x65, 0x6e, 0x56, 0x49, 0x4e, 0x4f}),
             Tensor({1, 3}, ov::element::string, std::vector<std::string>{"Intel", "OpenVINO", ""})),
+        // empty bytes input
+        StringTensorPackParams(Tensor({1, 3}, T_idx, std::vector<T_I>{0, 0, 0}),
+                               Tensor({1, 3}, T_idx, std::vector<T_I>{0, 0, 0}),
+                               Tensor({0}, ov::element::u8, std::vector<uint8_t>{}),
+                               Tensor({1, 3}, ov::element::string, std::vector<std::string>{"", "", ""})),
     };
     return StringTensorPackParamsList;
 }

@@ -29,6 +29,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -63,6 +64,7 @@ jobs:
       cmake-options: |-
             -G "Ninja Multi-Config" `
             -DENABLE_PYTHON=ON `
+            -DENABLE_WHEEL=ON `
             -DENABLE_CPPLINT=OFF `
             -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
@@ -111,6 +113,7 @@ jobs:
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -184,6 +187,7 @@ jobs:
     steps:
       - name: Fetch OpenVINO JS sources
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             src/bindings/js
@@ -282,6 +286,7 @@ jobs:
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -353,7 +358,7 @@ jobs:
           --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
 
       - name: OVC Python API Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).OVC.test
         shell: cmd
         run: |
           :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
@@ -372,7 +377,7 @@ jobs:
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
+        if: fromJSON(needs.smart_ci.outputs.affected_components).OVC.test
         shell: cmd
         run: python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
@@ -424,6 +429,7 @@ jobs:
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -493,6 +499,15 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_jax_layer_tests.yml
+    with:
+      runner: 'aks-win-8-cores-16gb'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Build, Smart_CI ]
@@ -543,6 +558,7 @@ jobs:
 
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml

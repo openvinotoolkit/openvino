@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,14 +28,14 @@ OutputVector translate_as_tensor(const NodeContext& context) {
     auto list_elems = get_list_as_outputs(data);
     if (!context.input_is_none(1)) {
         auto dtype_ext_node = context.get_input_from_visible_context(1).get_node_shared_ptr();
-        auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_ext_node);
+        auto dtype_fw_node = ov::as_type_ptr<PtFrameworkNode>(dtype_ext_node);
         if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
             auto type_input = dtype_fw_node->input_value(0);
             std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
                 n = context.mark_node(std::make_shared<v1::ConvertLike>(n, type_input));
             });
         }
-        if (auto dtype_const = std::dynamic_pointer_cast<v0::Constant>(dtype_ext_node)) {
+        if (auto dtype_const = ov::as_type_ptr<v0::Constant>(dtype_ext_node)) {
             auto pt_type = dtype_const->cast_vector<int64_t>()[0];
             dtype = convert_dtype(pt_type);
             std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {

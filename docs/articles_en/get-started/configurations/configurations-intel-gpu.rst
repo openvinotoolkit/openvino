@@ -44,6 +44,7 @@ Below are the instructions on how to install the OpenCL packages on supported Li
       .. code-block:: sh
 
          apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
+         sudo usermod -a -G render $LOGNAME
 
    .. tab-item:: Ubuntu 20.04 LTS
       :sync: ubuntu-20
@@ -57,6 +58,7 @@ Below are the instructions on how to install the OpenCL packages on supported Li
          echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list && \
          apt-get update
          apt-get update && apt-get install -y --no-install-recommends intel-opencl-icd intel-level-zero-gpu level-zero
+         sudo usermod -a -G render $LOGNAME
 
       Alternatively, download older `deb` version from `here <https://github.com/intel/compute-runtime/releases>`__. Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported hardware for the versions you are installing.
 
@@ -135,6 +137,6 @@ Additional Resources
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
 * `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
-
+* `GPU Driver issue troubleshoot <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_plugin_driver_troubleshooting.md>`
 
 

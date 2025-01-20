@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #    include <sys/auxv.h>
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP    (1 << 9)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP (1 << 10)
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     (1 << 24)
 #elif defined(__APPLE__) && defined(__aarch64__)
 #    include <sys/sysctl.h>
 #    include <sys/types.h>
@@ -114,6 +115,10 @@ bool with_cpu_neon_fp16() {
     return false;
 }
 
+bool with_cpu_sve() {
+    return false;
+}
+
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
@@ -169,6 +174,20 @@ bool with_cpu_neon_fp16() {
     const std::string& cap = "hw.optional.neon_fp16";
     sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
     return result > 0;
+#    else
+    return false;
+#    endif
+}
+bool with_cpu_sve() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    return hwcaps & ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    return false;
 #    else
     return false;
 #    endif
@@ -242,6 +261,10 @@ int get_current_socket_id() {
     return 0;
 }
 
+int get_current_numa_node_id() {
+    return 0;
+}
+
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -300,6 +323,10 @@ bool is_cpu_map_available() {
 }
 
 int get_current_socket_id() {
+    return 0;
+}
+
+int get_current_numa_node_id() {
     return 0;
 }
 
@@ -392,8 +419,43 @@ int get_current_socket_id() {
 
     return 0;
 }
+
+int get_current_numa_node_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = sched_getcpu();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_NUMA_NODE_ID];
+        }
+    }
+
+    return 0;
+}
 #    else
 int get_current_socket_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = GetCurrentProcessorNumber();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_SOCKET_ID];
+        }
+    }
+
+    return 0;
+}
+
+int get_current_numa_node_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = GetCurrentProcessorNumber();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_NUMA_NODE_ID];
+        }
+    }
+
     return 0;
 }
 #    endif

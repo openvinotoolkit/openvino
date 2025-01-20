@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,12 @@ void ov::AssertFailure::create(const char* file,
     throw ov::AssertFailure(make_what(file, line, check_string, context_info, explanation));
 }
 
+ov::AssertFailure::~AssertFailure() = default;
+
 void ov::NotImplemented::create(const char* file, int line, const std::string& explanation) {
     throw ov::NotImplemented(make_what(file, line, nullptr, default_msg, explanation));
 }
+
+ov::NotImplemented::~NotImplemented() = default;
 
 const std::string ov::NotImplemented::default_msg{"Not Implemented"};

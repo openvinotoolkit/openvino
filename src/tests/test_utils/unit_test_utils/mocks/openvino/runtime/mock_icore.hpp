@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,10 @@ public:
                 (const std::string&, const ov::Tensor&, const std::string&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const ov::Tensor&, bool), (const));
-    MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const std::string&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::Model>,
+                read_model,
+                (const std::string&, const std::string&, const ov::AnyMap&),
+                (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>,
                 read_model,
                 (const std::shared_ptr<AlignedBuffer>&, const std::shared_ptr<AlignedBuffer>&),

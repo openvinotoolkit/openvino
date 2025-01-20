@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <node.h>
+
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -18,9 +21,8 @@ using Result = IShapeInfer::Result;
 class OneHotShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return PortMask(1);
@@ -32,14 +34,13 @@ private:
 
 class OneHotShapeInferFactory : public ShapeInferFactory {
 public:
-    OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    OneHotShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:
     std::shared_ptr<ov::Node> m_op;
 };
 
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

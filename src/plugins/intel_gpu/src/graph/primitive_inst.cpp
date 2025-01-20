@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "impls/registry/implementation_manager.hpp"
 #include "impls/registry/registry.hpp"
@@ -337,13 +338,13 @@ void primitive_inst::update_shape() {
                 _impl_params->state_layouts.resize(compressed_cache_variable->has_zp_state() ? 3 : 2);
 
                 auto scales_state = compressed_cache_variable->get_compression_scale_state();
-                auto new_scales_layout = compressed_cache_variable->get_compression_scale_state()->get_layout();
+                auto new_scales_layout = scales_state->get_layout();
                 update_state_layout(*scales_state, new_scales_layout, 1);
 
                 if (compressed_cache_variable->has_zp_state()) {
-                    auto scales_state = compressed_cache_variable->get_compression_zp_state();
-                    auto new_zp_layout = compressed_cache_variable->get_compression_zp_state()->get_layout();
-                    update_state_layout(*scales_state, new_zp_layout, 2);
+                    auto zp_state = compressed_cache_variable->get_compression_zp_state();
+                    auto new_zp_layout = zp_state->get_layout();
+                    update_state_layout(*zp_state, new_zp_layout, 2);
                 }
             }
         }
@@ -549,7 +550,12 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
     return check_all_deps_cpu(this);
 }
 
-void primitive_inst::realloc_if_needed() {
+void primitive_inst::clear_output_memory() {
+    _outputs[0] = nullptr;
+    _max_output_layout_count[0] = 0;
+}
+
+void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -618,7 +624,24 @@ void primitive_inst::realloc_if_needed() {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL
+                    << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared"
+                    << std::endl;
+                if (!get_network().is_reuse_variable_mem()) {
+                    GPU_DEBUG_TRACE_DETAIL << "Update output mem with new variable mem" << std::endl;
+                    _outputs[0] = variable.get_memory();
+                    _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
+
+                    if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                        _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+
+                        if (compressed_cache_variable->has_zp_state()) {
+                            _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                        }
+                    }
+                } else {
+                    GPU_DEBUG_TRACE_DETAIL << "Can reuse variable mem of prev request" << std::endl;
+                }
             }
         } else {
             variable.set_layout(_impl_params->output_layouts[0]);
@@ -738,21 +761,15 @@ void primitive_inst::realloc_if_needed() {
 
     // Clear out memory if was previously reused, but now primitive can't be optimized
     if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
-        std::function<void(cldnn::primitive_inst*, cldnn::memory::ptr)> reset_user_output_memory;
-        reset_user_output_memory = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr input_mem_ptr) {
-            auto curr_output_memory_ptr = curr_inst->output_memory_ptr(0);
-            if (curr_inst->can_be_optimized()
-                    && (curr_output_memory_ptr
-                        && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *input_mem_ptr))) {
-                if (curr_inst->mem_allocated()) {
-                    get_network().get_memory_pool().release_memory(curr_inst->_outputs[0].get(),
-                            curr_inst->get_node().get_unique_id(), curr_inst->id(), get_network_id());
-                    _mem_allocated = false;
-                }
-                curr_inst->_outputs[0] = nullptr;
-                curr_inst->_max_output_layout_count[0] = 0;
-                for (auto& user_inst : curr_inst->get_user_insts()) {
-                    reset_user_output_memory(user_inst, input_mem_ptr);
+        std::function<void(cldnn::primitive_inst*, cldnn::memory::ptr)> reset_user_output_memory
+                            = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr target_mem_ptr) {
+            for (auto& user_inst : curr_inst->get_user_insts()) {
+                auto curr_output_memory_ptr = user_inst->output_memory_ptr(0);
+                if (user_inst->can_be_optimized()
+                        && (curr_output_memory_ptr
+                            && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *target_mem_ptr))) {
+                    user_inst->clear_output_memory();
+                    reset_user_output_memory(user_inst, target_mem_ptr);
                 }
             }
         };
@@ -766,9 +783,7 @@ void primitive_inst::realloc_if_needed() {
             // * iter1: node1(skipped)  -> node2(skipped) -> node3(executed)
             if (_outputs[0] && dep_memory_ptr(0)
                 && !_network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-                for (auto& user_inst : get_user_insts()) {
-                    reset_user_output_memory(user_inst, dep_memory_ptr(0));
-                }
+                reset_user_output_memory(this, dep_memory_ptr(0));
             }
             return;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
@@ -778,16 +793,22 @@ void primitive_inst::realloc_if_needed() {
                         get_node().get_unique_id(), id(), get_network_id());
                 _mem_allocated = false;
             }
-            _outputs[0] = nullptr;
-            _max_output_layout_count[0] = 0;
+            clear_output_memory();
             // Check users recursively and if the users is can_be_optimized && runtime_skippable
             // && output_memory of user is same as current input memory,
             // then reset the users output memory too.
             // Ex.
             // * iter0: node1(skipped)  -> node2(skipped) -> node3(skipped)
             // * iter1: node1(executed) -> node2(skipped) -> node3(executed)
-            for (auto& user_inst : get_user_insts()) {
-                reset_user_output_memory(user_inst, dep_memory_ptr(0));
+            reset_user_output_memory(this, dep_memory_ptr(0));
+        } else {
+            // when this inst was not executed at the previous iteration,
+            // Reset output memory becuase current output memory is invalid.
+            if (prev_execution_skipped) {
+                if (_outputs[0]) {
+                    reset_user_output_memory(this, _outputs[0]);
+                }
+                clear_output_memory();
             }
         }
     }
@@ -830,7 +851,7 @@ void primitive_inst::realloc_if_needed() {
             auto prealloc_shape = updated_layouts[i].get_shape();
             const auto shape_rank = prealloc_shape.size();
             const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
-                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+                                         : kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
             prealloc_shape[seq_axis] += tmp_prealloc_count;
             required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
@@ -862,7 +883,7 @@ void primitive_inst::realloc_if_needed() {
             const auto& desc = _node->as<kv_cache>().get_primitive();
             const auto shape_rank = updated_layouts[i].get_shape().size();
             const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
-                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+                                         : kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
@@ -886,7 +907,7 @@ void primitive_inst::realloc_if_needed() {
                 auto& present_layout = _impl_params->output_layouts[i];
                 const auto present_layout_rank = present_layout.get_partial_shape().size();
                 const auto sequence_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, present_layout_rank)
-                                                  : kv_cache_inst::get_scale_zp_sequence_axis();;
+                                                  : kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
                 auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                           _max_output_layout_count[i],
@@ -957,7 +978,7 @@ void primitive_inst::realloc_if_needed() {
             if (max_pad > 0) {
                 if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                     auto present_scales_layout = _impl_params->output_layouts[2];
-                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();;
+                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
                     // In case of compressed KV-cache, calling update_impl for each iteration
                     // because of scales layout [batch, num_heads, seq_len, head_size], which requires proper
@@ -969,8 +990,9 @@ void primitive_inst::realloc_if_needed() {
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
                     if (compressed_cache_variable->has_zp_state()) {
                         auto present_zp_layout = present_scales_layout;
+                        present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
 
-                        _impl_params->output_layouts[3] = present_scales_layout;
+                        _impl_params->output_layouts[3] = present_zp_layout;
                         compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
                     }
                 }
@@ -1123,6 +1145,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
             shape_info_ptr[offset++] = upper_pads[j];  // pad_after
         }
     }
+}
+
+void primitive_inst::set_shape_info_memory_subbuffer(memory::ptr addr) {
+    _shape_info_memory = addr;
 }
 
 void primitive_inst::allocate_shape_info_memory() {
@@ -1348,7 +1374,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
         if (desc->compressed) {
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
             auto& present_scales_layout = _impl_params->output_layouts[2];
-            const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
+            const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
             kv_cache_inst::update_pad(present_scales_layout, max_pad - new_seq_len, sequence_axis);
             GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
                                    << " Updated present_scale_layout's pad : " << present_scales_layout.to_string() << std::endl;
@@ -1360,7 +1386,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
                                        << " Updated present_zp_layout's pad : " << present_scales_layout.to_string() << std::endl;
 
-                compressed_cache_variable->get_compression_zp_state()->set_layout(present_scales_layout);
+                compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
             }
         }
 
@@ -1372,7 +1398,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
             if (desc->compressed) {
                 auto& past_scale_layout = _impl_params->input_layouts[3];
-                const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
+                const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
                 kv_cache_inst::update_pad(past_scale_layout, max_pad, sequence_axis);
 
                 if (desc->get_compression_zp_inputs_num() > 0) {
@@ -1389,7 +1415,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 void primitive_inst::do_runtime_skip_gather() {
     // Check pattern
     if (!get_node().is_type<gather>()
-        || !get_node().can_be_optimized()
+        || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
         || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
@@ -1461,7 +1487,6 @@ void primitive_inst::do_runtime_skip_permute() {
     // Check pattern
     if (!get_node().is_type<permute>()
         || is_output()
-        || !get_node().can_be_optimized()
         || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
@@ -1501,7 +1526,7 @@ void primitive_inst::do_runtime_skip_permute() {
 void primitive_inst::do_runtime_skip_strided_slice() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_strided_slice: " + id()));
     // Check pattern
-    if (!get_node().is_type<strided_slice>() || !get_node().can_be_optimized())
+    if (!get_node().is_type<strided_slice>() || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
@@ -1525,7 +1550,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
 void primitive_inst::do_runtime_skip_broadcast() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_broadcast: " + id()));
     // Check pattern
-    if (!get_node().is_type<broadcast>() || !get_node().can_be_optimized())
+    if (!get_node().is_type<broadcast>() || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : check optimizability" << std::endl;
@@ -1634,7 +1659,7 @@ void primitive_inst::do_runtime_skip_scatter_update() {
     if (!(get_node().is_type<scatter_update>()
         || get_node().is_type<scatter_elements_update>()
         || get_node().is_type<scatter_nd_update>())
-        || !get_node().can_be_optimized())
+        || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
@@ -1780,6 +1805,10 @@ void primitive_inst::prepare_primitive() {
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
+    // If it is optimized out or skipped for zero dimension at the previous iteration,
+    // Set this flag true to reset output memory in realloc_if_needed.
+    const bool prev_execution_skipped = can_be_optimized()
+                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
     if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
@@ -1839,7 +1868,7 @@ void primitive_inst::prepare_primitive() {
             update_impl(can_use_async_compilation);
             if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
-                realloc_if_needed();
+                realloc_if_needed(prev_execution_skipped);
             }
         }
 
@@ -1848,7 +1877,7 @@ void primitive_inst::prepare_primitive() {
         if (_node->is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
             _impl->update(*this, *_impl_params);
 
-            realloc_if_needed();
+            realloc_if_needed(prev_execution_skipped);
         }
 
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
@@ -2028,7 +2057,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _inputs_memory_count(node.get_inputs_count())
     , _outputs_memory_count(node.get_outputs_count())
     , _fused_mem_count(node.get_fused_inputs_count())
-    , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? node.get_first_fused_dep_idx() : 0)
+    , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
@@ -2075,6 +2104,9 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         } else {
             _outputs = allocate_outputs();
         }
+    }
+    if (_node) {
+        GPU_DEBUG_TRACE_DETAIL << _node->type()->to_string(*_node) << "\n";
     }
     _impls_factory = std::make_shared<ImplementationsFactory>(_node);
     _impl_params->strm = _network.get_stream_ptr();
@@ -2359,6 +2391,9 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (_node.is_in_shape_of_subgraph())
         reusable_across_network = false;
 
+    if (reusable_across_network && _node.get_program().is_body_program() && is_output_buffer && runtime_alloc)
+        reusable_across_network = false;
+
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
@@ -2395,11 +2430,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
             if ((_node.is_output() && is_reorder_weights) || (!_node.is_output() && _node.is_type<input_layout>()))
                 reset = false;
             GPU_DEBUG_LOG << "[" << _node.id() << ": constant]" << std::endl;
-            return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
+            return _engine.allocate_memory(layout, alloc_type, reset);
         }
     } else if (!_node.can_share_buffer() || impl_params.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
-        return ov::intel_gpu::allocate_memory_evenif_zero_bytes(_engine, layout, alloc_type, reset);
+        return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
                                     net_id,
@@ -2561,7 +2596,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),
-            ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling))
+            ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling)),
+            ov::intel_gpu::use_onednn(get_network().get_config().get_property(ov::intel_gpu::use_onednn))
         };
         auto prog = program::build_program(get_network().get_engine(),
                                            t,
@@ -2590,6 +2626,16 @@ bool primitive_inst::is_valid_fusion() const {
         } else {
             if (fd.is_type<reorder>() || fd.is_type<quantize>())
                 continue;
+            if (fd.is_type<swiglu>()) {
+                OPENVINO_ASSERT(_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::ocl);
+                if (!_node->get_selected_impl())
+                    return false;
+                // TODO : support ref kernel too
+                if (_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
+                    return true;
+                else
+                    return false;
+            }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
@@ -2631,6 +2677,27 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>())
             can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
+        // Check if broadcast happens more than single axis.
+        // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
+        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length()) {
+            uint8_t broadcast_more_than_single_axis = 0;
+            auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
+
+            // Update outer_dep_pshape to merged_shape rank
+            if (merged_shape.rank().get_length() > outer_dep_pshape.rank().get_length()) {
+                updated_outer_dep_pshape.insert(updated_outer_dep_pshape.begin(),
+                                                merged_shape.rank().get_length() - outer_dep_pshape.rank().get_length(), ov::Dimension(1));
+            }
+
+            for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
+                if (merged_shape[i] != updated_outer_dep_pshape[i])
+                    broadcast_more_than_single_axis++;
+            }
+
+            if (broadcast_more_than_single_axis > 1)
+                can_broadcast = false;
+        }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
         // batch dimension mismatch in OneDNN tensor descriptors as follow:
@@ -2644,7 +2711,6 @@ bool primitive_inst::is_valid_fusion() const {
             auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                          cldnn::format::dimension(gemm_layout.format),
                                                          false);
-
             auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
@@ -2658,8 +2724,19 @@ bool primitive_inst::is_valid_fusion() const {
             const auto fc_dims = fc_layout.get_dims();
             const auto data_dims = data_layout.get_dims();
 
+            auto same_spatial = [](layout a, layout b) {
+                if (a.get_spatial_rank() != b.get_spatial_rank())
+                    return false;
+                for (size_t i = 0; i < a.get_spatial_rank(); i++) {
+                    if (a.spatial(i) != b.spatial(i))
+                        return false;
+                }
+                return true;
+            };
+
             if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
                 !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !((data_dims[0] == 1 || data_dims[1] == 1) && same_spatial(fc_layout, data_layout)) &&
                 !(fc_layout.count() == data_layout.count())) {
                 return false;
             }

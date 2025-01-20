@@ -16,15 +16,14 @@ namespace pass {
  * @brief Converts Snippets Brgemm to BrgemmTPP operation, if possible. Only fp32 Brgemms are currently converted.
  * @ingroup snippets
  */
-class BrgemmToBrgemmTPP: public ov::pass::MatcherPass {
+class BrgemmToBrgemmTPP : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BrgemmToBrgemmTPP", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BrgemmToBrgemmTPP");
     BrgemmToBrgemmTPP();
 
     static bool is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
                                                   const ov::element::TypeVector& precisions);
 };
-
 
 }  // namespace pass
 }  // namespace tpp

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/runtime.hpp"
+#include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -30,7 +31,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IGraph>& graph,
                              const Config& config)
     : ICompiledModel(model, plugin),
-      _model(model),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
@@ -73,11 +73,14 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    _graph->export_blob(stream);
+    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
+
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, ov::get_openvino_version().buildNumber);
+    meta.write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    return _model;
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -261,6 +264,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
+        {ov::intel_npu::compiler_dynamic_quantization.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
+          }}},
         {ov::intel_npu::turbo.name(),
          {isPropertySupported(ov::intel_npu::turbo.name()),
           ov::PropertyMutability::RO,
@@ -310,6 +319,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
     };
 

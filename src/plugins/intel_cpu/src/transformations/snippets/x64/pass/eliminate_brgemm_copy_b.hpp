@@ -13,16 +13,16 @@ namespace pass {
 /**
  * @interface EliminateBrgemmCopyB
  * @brief EliminateBrgemmCopyB identifies BrgemmCopyB nodes which can be inferred outside the Subgraph.
- * If this is possible, CopyB node is removed, and the external repacking is configured on the further pipeline stages in RuntimeConfigurator.
- * 
+ * If this is possible, CopyB node is removed, and the external repacking is configured on the further pipeline stages
+ * in RuntimeConfigurator.
+ *
  * @ingroup snippets
  */
-class EliminateBrgemmCopyB: public ov::pass::MatcherPass {
+class EliminateBrgemmCopyB : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateBrgemmCopyB", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EliminateBrgemmCopyB");
     EliminateBrgemmCopyB();
 };
-
 
 }  // namespace pass
 }  // namespace intel_cpu

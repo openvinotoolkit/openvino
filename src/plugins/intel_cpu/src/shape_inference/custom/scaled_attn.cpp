@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "scaled_attn.hpp"
 
-#include "shape_inference/shape_inference_cpu.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include <utility>
+
+#include "shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
 
@@ -15,7 +16,7 @@ namespace node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
-    SDPAShapeInfer(const ScaledDotProductAttentionWithKVCache::Config& config) : m_config(config) {}
+    SDPAShapeInfer(ScaledDotProductAttentionWithKVCache::Config config) : m_config(std::move(config)) {}
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
@@ -72,13 +73,13 @@ private:
 };
 
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
-    if (auto sdpa = std::dynamic_pointer_cast<const ScaledDotProductAttentionWithKVCache>(m_op)) {
+    if (auto sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
         if (config.output_BLHxS == false)
             return std::make_shared<SDPAShapeInfer>(config);
     }
     // fallback to ngraph shape infer on non-perf-critical case
-    return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+    return make_shape_inference(m_op);
 }
 
 }  // namespace node

@@ -106,9 +106,7 @@ folder.
 Large Language Models (LLMs) are a core component of agent. LlamaIndex
 does not serve its own LLMs, but rather provides a standard interface
 for interacting with many different LLMs. In this example, we can select
-``Qwen2.5`` as LLM in agent pipeline.
-
-
+``Qwen2.5`` as LLM in agent pipeline. \*
 **qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct** -
 Qwen2.5 is the latest series of Qwen large language models. Comparing
 with Qwen2, Qwen2.5 series brings significant improvements in coding,
@@ -215,7 +213,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 You can find more details about OpenVINO LLM inference using HuggingFace
 Optimum API in `LLM inference
-guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__.
+guide <https://docs.openvino.ai/2024/openvino-workflow-generative.html>`__.
 
 .. code:: ipython3
 

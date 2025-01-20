@@ -6,10 +6,11 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reorder.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
 namespace ov {
@@ -30,17 +31,31 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
 
         const auto& in_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();
-        // TODO:
-        // 1. Ticket 157340: support external repacking for copyB with compensations
-        // 2. Ticket 157339: support external repacking for non-planar layout
-        if (!ov::snippets::utils::is_planar_layout(layout) ||
-            brgemm_utils::with_compensations(copy_b_node->get_type()) || transformation_callback(copy_b_node))
+
+        auto is_supported_layout = [](const std::vector<size_t>& layout) {
+            return layout.empty() || (layout.size() - 1 == layout.back());
+        };
+
+        // TODO [157340]: support external repacking for copyB with compensations
+        if (!is_supported_layout(layout) || brgemm_utils::with_compensations(copy_b_node->get_type()) ||
+            transformation_callback(copy_b_node))
             return false;
+
+        // If there is non-planar layout, we should insert reshape to support shape inference
+        if (!ov::snippets::utils::is_planar_layout(layout)) {
+            const auto& subtensor = in_desc->get_subtensor();
+            const auto& reshape = std::make_shared<ov::snippets::op::Reorder>(copy_b_node->input_value(0), layout);
+            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(reshape->input(0), subtensor, layout);
+            ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(reshape->output(0), subtensor);
+            return ov::replace_node_update_name(copy_b_node, reshape);
+        }
+
+        // If there is no layout, we can just remove BrgemmCopyB from the subgraph
         return ov::replace_output_update_name(copy_b_out, copy_b_node->input_value(0));
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b, matcher_name);
     register_matcher(m, callback);
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

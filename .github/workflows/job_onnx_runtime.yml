@@ -64,6 +64,7 @@ jobs:
           
       - name: Fetch ONNX runtime version and skip tests list
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
@@ -78,6 +79,7 @@ jobs:
         
       - name: Clone ONNX Runtime
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'microsoft/onnxruntime'
           path: ${{ env.ONNX_RUNTIME_REPO }}

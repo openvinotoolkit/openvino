@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,11 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -61,6 +65,32 @@ namespace intel_gpu {
 #define REGISTER_FACTORY(op_version, op_name) FACTORY_DECLARATION(op_version, op_name)
 #include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
+
+const auto is_llm = [](const std::shared_ptr<const ov::Model>& model) -> bool {
+    using namespace ov::pass::pattern;
+
+    auto past = wrap_type<ov::op::v6::ReadValue>();
+    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
+    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
+    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
+    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
+    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
+    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
+    auto present = wrap_type<ov::op::v6::Assign>({present_input});
+
+    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
+
+    for (auto& op : model->get_ordered_ops()) {
+        if (kvcache_matcher->match(op)) {
+            return true;
+        }
+    }
+
+    return false;
+};
 
 void Plugin::register_primitives() const {
     #define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
@@ -189,6 +219,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -278,6 +310,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(ctx->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -325,16 +359,31 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         _orig_config.erase(it);
     }
 
+    std::shared_ptr<ov::AlignedBuffer> model_buffer;
+    if (_orig_config.count(ov::internal::cached_model_buffer.name())) {
+        model_buffer = _orig_config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        _orig_config.erase(ov::internal::cached_model_buffer.name());
+    }
+
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
+    ov::CacheMode cache_mode = config.get_property(ov::cache_mode);
+    ov::EncryptionCallbacks encryption_callbacks = config.get_property(ov::cache_encryption_callbacks);
+    const bool encryption_enabled = encryption_callbacks.decrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
 
-    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
-    ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
+    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
+        encryption_enabled ? cldnn::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
+                                                                                   context_impl->get_engine(),
+                                                                                   encryption_callbacks.decrypt)
+                           : cldnn::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
+    auto& ib = *ib_ptr;
 
-    if (cache_mode != config.get_property(ov::cache_mode)) {
+    ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    ib >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
+
+    if (loaded_cache_mode != cache_mode) {
         return nullptr;
     }
 
@@ -594,10 +643,13 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::enable_cpu_reservation.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::weights_path.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
@@ -776,12 +828,24 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_engine().get_device_info();
-    auto next_pow_of_2 = [] (float x) {
-        return pow(2, ceil(std::log(x)/std::log(2)));
-    };
+
     auto closest_pow_of_2 = [] (float x) {
-        return pow(2, floor(std::log(x)/std::log(2)));
+        int lower_power = static_cast<int>(floor(std::log(x) / std::log(2)));
+        double lower_value = pow(2, lower_power);        // Current power of 2
+        double upper_value = pow(2, lower_power + 1);   // Next power of 2
+
+        // Determine the threshold (70% of the range between lower and upper values)
+        // If x is within the upper 30% of the range, return the upper power of 2.
+        double threshold = 0.7 * (upper_value - lower_value);
+
+        // Compare x with the threshold and return the appropriate power of 2
+        if (x - lower_value > threshold) {
+            return upper_value;  // Return the next power of 2
+        } else {
+            return lower_value;  // Return the current power of 2
+        }
     };
+
     auto model_param = options.find(ov::hint::model.name());
     if (model_param == options.end()) {
         GPU_DEBUG_INFO << "[OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
@@ -795,31 +859,10 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     }
     GPU_DEBUG_INFO << "DEVICE_INFO:"
                    << "gfx_version.major, " << device_info.gfx_ver.major
-                   << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor) << std::endl;
-    static std::map<cldnn::gfx_version, size_t> gen_kbytes_per_bank = {
-            {{12, 0, 0}, 480},  // TGL
-            {{12, 1, 0}, 2048}, // DG1
-            {{12, 5, 0}, 320},
-            {{12, 7, 0}, 512},
-    };
-    size_t L3_cache_size = device_info.gfx_ver.major && (device_info.gfx_ver.major <= 9)
-            ? 768 * 1024 // Gen9
-            : 2 * 768 * 1024;  //reasonable default when no arch has been detected (e.g. due to old driver ver)
-    cldnn::gfx_version gen = {device_info.gfx_ver.major, device_info.gfx_ver.minor, 0 /*ignore the revision*/};
-    auto val = gen_kbytes_per_bank.find(gen);
-    if (gen_kbytes_per_bank.end() != val) {
-        auto kbytes_per_bank = val->second;
-        auto num_banks_per_slice = device_info.num_sub_slices_per_slice > 4
-                                    ? next_pow_of_2(device_info.num_sub_slices_per_slice)
-                                    : 2 * device_info.num_sub_slices_per_slice;
-        L3_cache_size = kbytes_per_bank * 1024 * num_banks_per_slice * device_info.num_slices;
-        GPU_DEBUG_INFO << "DEVICE_INFO:"
-                        << "num_slices " << device_info.num_slices
-                        << ", num_sub_slices_per_slice " << device_info.num_sub_slices_per_slice
-                        << ", num_banks_per_slice " << num_banks_per_slice
-                        << ", gen_kbytes_per_bank : " << kbytes_per_bank
-                        << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
-    }
+                   << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor)
+                   << "Cache size " << std::to_string(device_info.max_global_cache_size) << std::endl;
+
+    size_t L3_cache_size = device_info.max_global_cache_size;
     auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);

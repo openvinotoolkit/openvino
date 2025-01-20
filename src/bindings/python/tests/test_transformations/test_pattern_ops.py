@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import pytest
 
 from openvino import PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput, Optional
-from openvino.runtime.passes import (
+from openvino import opset13 as ops
+from openvino.passes import Matcher, WrapType, Or, AnyInput, Optional
+from openvino.passes import (
     consumers_count,
     has_static_dim,
     has_static_dims,
@@ -16,7 +16,7 @@ from openvino.runtime.passes import (
     type_matches,
     type_matches_any,
 )
-from openvino.runtime.utils.types import get_element_type
+from openvino.utils.types import get_element_type
 
 from tests.test_transformations.utils.utils import expect_exception
 

@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rope.h"
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
-#include "kernels/x64/rope_kernel.hpp"
-
 #include <chrono>
 #include <string>
 #include <vector>
+
+#include "common/bfloat16.hpp"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "kernels/x64/rope_kernel.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/plain_tensor.hpp"
 
 using namespace ov::intel_cpu::kernel;
 
@@ -21,18 +21,19 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
+    const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
     m_config = node->get_config();
 }
 
-static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param, bool check_vec_size2 = false) {
+static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_compile_params& param,
+                                                              bool check_vec_size2 = false) {
     std::shared_ptr<kernel::JitKernelBase> res;
 
     MAYBE_UNUSED(param);
@@ -63,12 +64,16 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_c
     if (res)
         res->create_kernel();
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
     return res;
 }
 
-static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const void* src, void* dst, const float* cos, const float* sin) {
+static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
+                          const void* src,
+                          void* dst,
+                          const float* cos,
+                          const float* sin) {
     MAYBE_UNUSED(ker);
     MAYBE_UNUSED(src);
     MAYBE_UNUSED(dst);
@@ -84,7 +89,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
     call_args.dst = dst;
     (*ker)(&call_args);
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 }
 
 template <typename T>
@@ -101,7 +106,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -183,7 +188,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -233,7 +238,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -322,13 +327,13 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
-        ov::intel_cpu::PlainTensor t_src(inputs[0]);    // [batch, length, head_cnt*head_size * 3]
-        ov::intel_cpu::PlainTensor t_cos(inputs[1]);    // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_sin(inputs[2]);    // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_dst(outputs[0]);   // [batch, length, head_cnt, head_size]>
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
+        ov::intel_cpu::PlainTensor t_cos(inputs[1]);   // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_sin(inputs[2]);   // [1, present-kv-length, 1, rotary_dims]
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);  // [batch, length, head_cnt, head_size]>
         auto rotary_dims = t_cos.size(3);
 
         if (m_config.slice_stop - m_config.slice_start > 0) {
@@ -392,7 +397,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-    } else if (m_config.is_interleaved) {
+    } else if (m_config.is_interleaved && m_config.output_trans0213) {
         OPENVINO_ASSERT(m_config.input_trans0213 == false);
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);
@@ -439,7 +444,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void RoPE::execute(dnnl::stream strm) {
+void RoPE::execute(const dnnl::stream& strm) {
     std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getSrcMemoryAtPort(i);
@@ -452,7 +457,7 @@ void RoPE::execute(dnnl::stream strm) {
 
 bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto node = std::dynamic_pointer_cast<const op::internal::RoPE>(op);
+        const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
         if (!node) {
             errorMessage = "Only RoPE operation is supported";
             return false;

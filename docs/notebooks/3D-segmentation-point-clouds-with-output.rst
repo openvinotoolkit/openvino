@@ -214,12 +214,12 @@ chair for example.
 
 .. parsed-literal::
 
-    data/chair.pts:   0%|          | 0.00/69.2k [00:00<?, ?B/s]
+    chair.pts:   0%|          | 0.00/69.2k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3496878/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_2157242/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label="chair")
 
 
@@ -313,7 +313,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3496878/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_2157242/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
 
 

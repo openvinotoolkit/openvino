@@ -214,7 +214,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-no…
+    ch_PP-OCRv3_det_infer.tar:   0%|          | 0.00/3.65M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -260,7 +260,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-no…
+    ch_PP-OCRv3_rec_infer.tar:   0%|          | 0.00/11.4M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -489,13 +489,13 @@ video file. See the list of procedures below:
 
 .. parsed-literal::
 
-    fonts/simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
+    simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    fonts/ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
+    ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
 
 
 .. code:: ipython3

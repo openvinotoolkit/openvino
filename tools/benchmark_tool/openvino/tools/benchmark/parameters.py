@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys, argparse
@@ -149,12 +149,8 @@ def parse_args():
     devp.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU '
                            '(including HETERO and MULTI cases).')
-    devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
-                      help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
-                           'threads->(NUMA)nodes (\'NUMA\'), '
-                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs) '
-                           'or completely disable (\'NO\') '
-                           'CPU threads pinning for CPU-involved inference.')
+    devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO'],
+                      help='Optional. Enable threads->cores pinning for CPU-involved inference.')
 
     stat = parser.add_argument_group('Statistics dumping options')
     stat.add_argument('-latency_percentile', '--latency_percentile', type=int, required=False, default=50,

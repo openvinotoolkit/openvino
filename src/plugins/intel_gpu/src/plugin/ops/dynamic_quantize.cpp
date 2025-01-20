@@ -18,7 +18,8 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
     auto prim = cldnn::dynamic_quantize(primitive_name,
                                         inputs[0],
-                                        op->get_attrs());
+                                        op->get_attrs(),
+                                        op->get_input_partial_shape(0).size());
 
     prim.num_outputs = op->get_output_size();
 

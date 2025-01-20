@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,7 +131,7 @@ public:
 
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32};
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32, data_types::u8};
 
     auto formats = {
         format::bfyx,

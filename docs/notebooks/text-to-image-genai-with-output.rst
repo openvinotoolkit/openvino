@@ -22,11 +22,13 @@ is a high-level API that enables us to convert and quantize models from
 the Hugging Face Transformers library to the OpenVINO™ IR format. For
 more details, refer to the `Hugging Face Optimum Intel
 documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
-2. Run inference using the `Text to Image
-pipeline <https://openvino-doc.iotg.sclab.intel.com/nightly/learn-openvino/llm_inference_guide/genai-guide/genai-use-cases.html#using-genai-for-text-to-image-generation>`__
+2. Run inference using the `Text-to-Image Generation
+pipeline <https://docs.openvino.ai/2024/openvino-workflow-generative/inference-with-genai.html>`__
 from OpenVINO GenAI.
 
+
 **Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Convert model using Optimum-CLI

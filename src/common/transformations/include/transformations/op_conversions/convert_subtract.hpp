@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,12 @@ class TRANSFORMATIONS_API ConvertSubtractWithConstant;
 
 class ov::pass::ConvertSubtract : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSubtract", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSubtract");
     ConvertSubtract();
 };
 
 class ov::pass::ConvertSubtractWithConstant : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSubtractWithConstant", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSubtractWithConstant");
     ConvertSubtractWithConstant();
 };

@@ -54,12 +54,28 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
 
 /**
+ * @brief [Only for NPU plugin]
+ * Type: uint32_t
+ * Read-only property to get NPU compiler version. Composite of Major (16bit MSB) and Minor (16bit LSB)
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> compiler_version{"NPU_COMPILER_VERSION"};
+
+/**
  * @brief [Only for NPU compiler]
  * Type: std::string
  * Set various parameters supported by the NPU compiler.
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
+
+/**
+ * @brief [Only for NPU compiler]
+ * Type: boolean
+ * Set or verify state of dynamic quantization in  the NPU compiler
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> compiler_dynamic_quantization{"NPU_COMPILER_DYNAMIC_QUANTIZATION"};
 
 /**
  * @brief [Only for NPU plugin]
@@ -94,6 +110,13 @@ static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false
+ * This option allows to delay loading the weights until inference is created
+ */
+static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
 }  // namespace intel_npu
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -293,13 +293,6 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
                 "compiler: Unsupported arch kind: NPUX311X", {
                 ".*CompilationForSpecificPlatform.*(3800|3900).*",
-        });
-
-        // [Track number: E#67741]
-        _skipRegistry.addPatterns(
-                "Cannot call setShape for Blobs", {
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
         });
 
         // [Track number: E#67749]
@@ -758,6 +751,11 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns("Failing runtime model tests", {
                 ".*OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*",
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
+        });
+
+        // get_runtime_model method is not supported on NPU
+        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
+                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
         });
 
         return _skipRegistry;

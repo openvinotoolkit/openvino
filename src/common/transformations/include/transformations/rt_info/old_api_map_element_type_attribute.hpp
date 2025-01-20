@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ namespace ov {
  */
 class TRANSFORMATIONS_API OldApiMapElementType : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("old_api_map_element_type", "0");
+    OPENVINO_RTTI("old_api_map_element_type", "0", RuntimeAttribute);
 
     /**
      * A default constructor

@@ -20,7 +20,7 @@ namespace pass {
 // Merge nodes can have the same eliminated markers that means the fused If will have several outputs.
 class SwitchMergeResolver : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::SwitchMergeResolver");
+    OPENVINO_MODEL_PASS_RTTI("ov::frontend::tensorflow::SwitchMergeResolver");
     SwitchMergeResolver() = default;
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

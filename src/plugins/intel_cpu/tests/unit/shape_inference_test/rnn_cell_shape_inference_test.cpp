@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class RNNCellV0StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v0::RNNCell> {
-protected:
-    void SetUp() override {
-        this->output_shapes = ShapeVector(1);
-    }
-};
+class RNNCellV0StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v0::RNNCell> {};
 
 TEST_F(RNNCellV0StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;

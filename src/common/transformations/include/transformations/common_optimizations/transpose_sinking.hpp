@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API TransposeFuse;
  */
 class ov::pass::TransposeReduction : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeReduction", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeReduction");
     TransposeReduction();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::TransposeFQReduction : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeFQReduction", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeFQReduction");
     TransposeFQReduction();
 };
 
@@ -50,7 +50,7 @@ public:
  */
 class ov::pass::TransposeConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeConvert", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeConvert");
     TransposeConvert();
 };
 
@@ -60,7 +60,7 @@ public:
  */
 class ov::pass::TransposeEltwise : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeEltwise", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeEltwise");
     TransposeEltwise();
 };
 
@@ -71,7 +71,7 @@ public:
  */
 class ov::pass::TransposeFuse : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeFuse", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TransposeFuse");
     TransposeFuse();
 };
 
@@ -81,7 +81,7 @@ public:
  */
 class ov::pass::TransposeSinking : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TransposeSinking", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("TransposeSinking");
     TransposeSinking() {
         add_matcher<ov::pass::TransposeFQReduction>();
         add_matcher<ov::pass::TransposeReduction>();

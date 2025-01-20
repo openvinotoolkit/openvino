@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,11 @@ struct data_type_traits {
     static bool is_i8_u8(data_types data_type) {
         auto et = ov::element::Type(data_type);
         return et.is_quantized() && et.bitwidth() == 8;
+    }
+
+    static bool is_i4_u4(data_types data_type) {
+        auto et = ov::element::Type(data_type);
+        return et.bitwidth() == 4;
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {

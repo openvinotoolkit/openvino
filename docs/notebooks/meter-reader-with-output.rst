@@ -135,7 +135,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    model/meter_det_model.tar.gz:   0%|          | 0.00/192M [00:00<?, ?B/s]
+    meter_det_model.tar.gz:   0%|          | 0.00/192M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -146,7 +146,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    model/meter_seg_model.tar.gz:   0%|          | 0.00/94.9M [00:00<?, ?B/s]
+    meter_seg_model.tar.gz:   0%|          | 0.00/94.9M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -157,7 +157,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. parsed-literal::
 
-    data/170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg:   0%|          | 0.00/183k [00:00<?, ?B/s]
+    170696219-f68699c6-1e82-46bf-aaed-8e2fc3fa5f7b.jpg:   0%|          | 0.00/183k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -637,7 +637,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8812b167f0>
+    <matplotlib.image.AxesImage at 0x7f1a979271f0>
 
 
 

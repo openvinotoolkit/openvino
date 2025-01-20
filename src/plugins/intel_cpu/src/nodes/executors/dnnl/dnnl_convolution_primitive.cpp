@@ -145,7 +145,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
                                                const PostOps& postOps,
                                                const MemoryArgs& memory,
-                                               ExecutorContext::CPtr context) {
+                                               const ExecutorContext::CPtr& context) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
@@ -157,8 +157,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer
-        dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, {}, attrs.withBias, outputDataType);
+    DnnlPostOpsComposer dnnlpoc(postOps, context->getEngine(), dims, 1, isINT8, 1 << 0, memory, outputDataType);
 
     return dnnlpoc.compose();
 }
@@ -166,7 +165,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const ConvAttrs& attrs,
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
                                                                            const PostOps& postOps,
                                                                            const MemoryArgs& memory,
-                                                                           const ExecutorContext::CPtr context,
+                                                                           const ExecutorContext::CPtr& context,
                                                                            const bool cacheWeights) {
     DEBUG_LOG("Creating shape agnostic data");
     ConvAttrs convAttrs{attrs.withBias};
@@ -204,8 +203,8 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     return primitive;
 }
 
-DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                                           const DnnlMemoryDescPtr dstDesc,
+DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                           const DnnlMemoryDescPtr& dstDesc,
                                                                            bool weightsNonTransposed) {
     return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, weightsNonTransposed);
 }

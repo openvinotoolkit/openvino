@@ -75,10 +75,17 @@ private:
     ov::element::Type m_output_type{};
 };
 
-// TODO 157615: Move to shape_inference
-TRANSFORMATIONS_API std::vector<ov::PartialShape> shape_infer(const GLU* op,
-                                                              std::vector<ov::PartialShape> input_shapes);
-
 }  // namespace internal
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const op::internal::GLU::GluType& reduction);
+
+template <>
+class AttributeAdapter<op::internal::GLU::GluType> : public EnumAttributeAdapterBase<op::internal::GLU::GluType> {
+public:
+    AttributeAdapter(op::internal::GLU::GluType& value) : EnumAttributeAdapterBase<op::internal::GLU::GluType>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<op::internal::GLU::GluType>");
+};
+
 }  // namespace ov

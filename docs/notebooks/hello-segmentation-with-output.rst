@@ -101,13 +101,13 @@ Download model weights
 
 .. parsed-literal::
 
-    model/road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
+    road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
+    road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
 Select inference device
@@ -181,14 +181,14 @@ is provided.
 
 .. parsed-literal::
 
-    data/empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
+    empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f048a3c3190>
+    <matplotlib.image.AxesImage at 0x7f620b9afe50>
 
 
 
@@ -215,7 +215,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f043c4bfa90>
+    <matplotlib.image.AxesImage at 0x7f61bc2f8a00>
 
 
 

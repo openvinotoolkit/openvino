@@ -218,10 +218,13 @@ Prerequisites
         "transformers>=4.30.2",
         "controlnet-aux>=0.0.6",
         "gradio>=3.36",
+        "datasets>=2.14.6",
+        "nncf>=2.7.0",
+        "opencv-python",
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
     )
-    pip_install("openvino>=2023.1.0", "datasets>=2.14.6", "nncf>=2.7.0", "opencv-python")
+    pip_install("openvino>=2023.1.0")
 
 Instantiating Generation Pipeline
 ---------------------------------
@@ -296,7 +299,7 @@ Now, let us check its result on example image:
     
     image_path = Path("example_image.jpg")
     if not image_path.exists():
-        download_file(image_path, filename="example_image.jpg")
+        download_file(example_url, filename="example_image.jpg")
     
     img = Image.open(image_path)
     pose = pose_estimator(img)

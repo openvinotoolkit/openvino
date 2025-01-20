@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,94 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+
+ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
+    MATCHER_SCOPE(RoPEFusionFlux);
+    // x[?,24,?,128]
+    // x1 = reshape(x, [?,24,?,64,2])
+    // x1_0, x1_1 = split(x1, -1)
+    // x2 = concat(x1_0, x1_1 * (-1), -1)
+    // x3 = reshape(x2, [?,24,?,128])
+    // y1 = x * t_cos
+    // y2 = x3 * t_sin
+    // y = y1 + y2
+    auto x = makePattern(ov::Rank(4));
+    auto t_cos = makePattern(ov::Rank(4));
+    auto t_sin = makePattern(ov::Rank(4));
+
+    auto num_heads = ov::gen_pattern::Symbol("num_heads");
+    auto head_size = ov::gen_pattern::Symbol("head_size");
+
+    auto x1_target_shape = makeConst({0, num_heads, 0, -1, 2});
+    auto x1 = makePattern<opset1::Reshape>({x, x1_target_shape}, {{"special_zero", true}});
+    auto split = makePattern<opset1::Split>({x1, -1}, {{"num_splits", 2}});
+    split->set_output_size(2);
+
+    // 3 versions of mulitply by -1 depending on transformations execution prior to this pass
+    auto x1_1_neg_1 = makePattern<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+
+    auto squeeze_2 = makePattern<opset1::Squeeze>({split->output(1), -1});
+    auto x1_1_neg_2 = makePattern<opset1::Multiply>({squeeze_2, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto unsqueeze_2 = makePattern<opset1::Unsqueeze>({x1_1_neg_2, -1});
+
+    auto x1_1_neg_3 = makePattern<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto squeeze_3 = makePattern<opset1::Squeeze>({x1_1_neg_3, -1});
+    auto unsqueeze_3 = makePattern<opset1::Unsqueeze>({squeeze_3, -1});
+
+    auto x2 = makePattern<opset1::Concat>({x1_1_neg_1 | unsqueeze_2 | unsqueeze_3, split->output(0)}, {{"axis", -1}});
+    auto x3_target_shape = makeConst({0, num_heads, 0, head_size});
+    auto x3 = makePattern<opset1::Reshape>({x2, x3_target_shape}, {{"special_zero", true}});
+
+    auto y1 = makePattern<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto y2 = makePattern<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
+
+    auto y = makePattern<opset1::Add>({y1, y2}, {{"auto_broadcast", "numpy"}});
+    auto result = y;
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+
+        op::internal::RoPE::Config config;
+        config.head_cnt = static_cast<size_t>(validator["num_heads"]);
+        config.head_size = static_cast<size_t>(validator["head_size"]);
+        config.rotary_ndims = config.head_size;
+        config.is_interleaved = true;
+        config.output_trans0213 = false;
+
+        OutputVector new_args;
+        new_args.push_back(pattern_map.at(x));
+        new_args.push_back(pattern_map.at(t_cos));
+        new_args.push_back(pattern_map.at(t_sin));
+
+        auto old_node = root;
+        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        new_node->set_friendly_name(old_node->get_friendly_name());
+        ov::copy_runtime_info({pattern_map.at(x1).get_node_shared_ptr(),
+                               pattern_map.at(split).get_node_shared_ptr(),
+                               pattern_map.at(x2).get_node_shared_ptr(),
+                               pattern_map.at(x3).get_node_shared_ptr(),
+                               pattern_map.at(y1).get_node_shared_ptr(),
+                               pattern_map.at(y2).get_node_shared_ptr(),
+                               pattern_map.at(result).get_node_shared_ptr()},
+                              new_node);
+
+        ov::replace_node(old_node, new_node);
+
+        // this new node may match following additional matchers
+        register_new_node(new_node);
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
 
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
@@ -373,6 +461,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
 
+        config.output_trans0213 = true;
         config.is_interleaved = true;
 
         // input is [B,L,H,S]
@@ -468,9 +557,11 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     } else {
         auto ListConstruct_452_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_0 = makeConst({0, 0, head_cnt, ndims / 2, 2});
         auto const_target_shape_1 = makeConst({seq_len, batch, head_cnt, ndims / 2, 2});
-        reshape_Reshape_453 = makePattern<opset1::Reshape>(
-            {slice_Slice_437 | var_split_1->output(0), ListConstruct_452_Concat | const_target_shape_1});
+        reshape_Reshape_453 =
+            makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0),
+                                          ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
     }
 
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
@@ -499,6 +590,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     } else {
         auto ListConstruct_379_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_0 = makeConst({1, -1, 1, ndims / 2, 2});
         auto const_target_shape_2 = makeConst({seq_len, batch, 1, ndims / 2, 2});
 
         auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
@@ -507,7 +599,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // [seq_length, 1, batch, half_rotary_dims, 2]
         view_Reshape_460 =
             makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
-                                          ListConstruct_379_Concat | const_target_shape_2},
+                                          ListConstruct_379_Concat | const_target_shape_0 | const_target_shape_2},
                                          {{"special_zero", false}});
     }
 
@@ -520,12 +612,17 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto sub_Subtract_469 = makePattern<opset1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
 
     auto y_even = makePattern<opset1::Unsqueeze>({sub_Subtract_469, -1});
+    auto const_y_even_reshape = makeConst({1, -1, head_cnt, ndims / 2, 1});
+    auto y_even_reshape =
+        makePattern<opset1::Reshape>({sub_Subtract_469, const_y_even_reshape}, {{"special_zero", false}});
     auto x_odd_cos = makePattern<opset1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
     auto x_even_sin = makePattern<opset1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto add_Add_476 = makePattern<opset1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
     auto y_odd = makePattern<opset1::Unsqueeze>({add_Add_476, -1});
+    auto const_y_odd_reshape = makeConst({1, -1, head_cnt, ndims / 2, 1});
+    auto y_odd_reshape = makePattern<opset1::Reshape>({add_Add_476, const_y_odd_reshape}, {{"special_zero", false}});
 
-    auto stack_481 = makePattern<opset1::Concat>({y_even, y_odd}, {{"axis", -1}});
+    auto stack_481 = makePattern<opset1::Concat>({y_even | y_even_reshape, y_odd | y_odd_reshape}, {{"axis", -1}});
 
     auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
     auto flatten_Slice_497 = GenSlice(ShapeOf_135133, 0, 3, 1, 0);
@@ -540,9 +637,11 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
                                                            {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
+        auto const_target_shape_0 = makeConst({0, 0, head_cnt, ndims});
         const_target_shape_3 = makeConst({seq_len, batch, head_cnt, ndims});
-        flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
-                                                           {{"special_zero", true}});
+        flatten_Reshape_501 =
+            makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3 | const_target_shape_0},
+                                         {{"special_zero", true}});
     }
     auto slice_Slice_443 = GenSlice(input_key, ndims, INT_MAX, 1, 3);
 

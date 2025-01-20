@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -247,7 +247,8 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "gemm", "Gemm" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
-                { "lstm_elt", "LSTM_Eltwise" },
+                { "lstm_cell", "LSTM_Cell" },
+                { "lstm_seq", "LSTM_Seq" },
                 { "mvn", "MVN" },
                 { "normalize", "Normalize" },
                 { "permute", "Permute" },
@@ -592,10 +593,10 @@ void Graph::update_profiling_info() {
             perfMap[executedID.first].first = executedID.first;
             pcIter = perfMap.find(executedID.first);
             auto& perfCount = pcIter->second.second;
-
-            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
-
-            collectTimings(cldnnInfo, perfCount);
+            if (executedID.second) {
+                cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
+                collectTimings(cldnnInfo, perfCount);
+            }
             perfCount.num++;
         }
     }
@@ -721,6 +722,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if ((!existInProfiling || (existInProfiling && perfIter->second.first.length() == 0)) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
+            if (!event)
+                continue;
 
             cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 

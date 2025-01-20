@@ -24,8 +24,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),
                        ::testing::Values(4),  // 4 Threads
-                       ::testing::Values(6),  // Subgraph + 4 Reshapes on inputs and 1 Reshape on output
-                       ::testing::Values(1),
+                       ::testing::Values(7),  // Subgraph + 4 Reshapes, Transpose1 on inputs and 1 Reshape on output
+                       ::testing::Values(2),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(enable_callback())),
     MHA::getTestCaseName);
@@ -80,8 +80,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),
                        ::testing::Values(4),  // 4 Threads
-                       ::testing::Values(1),
-                       ::testing::Values(1),
+                       ::testing::Values(2), // Transpose1 + MHA
+                       ::testing::Values(2), // Transpose1 + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);

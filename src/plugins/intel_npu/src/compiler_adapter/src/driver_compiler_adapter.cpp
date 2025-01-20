@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "driver_compiler_adapter.hpp"
-
-#include <ze_graph_ext.h>
 
 #include <regex>
 #include <string_view>
@@ -21,7 +19,6 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 
@@ -256,6 +253,10 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     return result;
 }
 
+uint32_t DriverCompilerAdapter::get_version() const {
+    return _zeroInitStruct->getCompilerVersion();
+}
+
 /**
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
@@ -425,10 +426,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
             optLevelStr << keyOfOptL << KEY_VALUE_SEPARATOR << "\\d+";
             std::ostringstream perfHintStr;
             perfHintStr << keyOfPerfHO << KEY_VALUE_SEPARATOR << "\\S+";
-            logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+            logger.warning("%s property is not supported by this compiler version. Removing from parameters",
                            keyOfOptL.c_str());
             valueOfParams = std::regex_replace(valueOfParams, std::regex(optLevelStr.str()), "");
-            logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+            logger.warning("%s property is not supported by this compiler version. Removing from parameters",
                            keyOfPerfHO.c_str());
             valueOfParams = std::regex_replace(valueOfParams, std::regex(perfHintStr.str()), "");
 
@@ -486,7 +487,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                    << VALUE_DELIMITER;
         logger.warning(
-            "ENABLE_CPU_PINNING property is not suppored by this compiler version. Removing from parameters");
+            "ENABLE_CPU_PINNING property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
 
@@ -498,9 +499,9 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         std::ostringstream maxtilestr;
         maxtilestr << ov::intel_npu::max_tiles.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
                    << VALUE_DELIMITER;
-        logger.warning("NPU_STEPPING property is not suppored by this compiler version. Removing from parameters");
+        logger.warning("NPU_STEPPING property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(stepstr.str()), "");
-        logger.warning("NPU_MAX_TILES property is not suppored by this compiler version. Removing from parameters");
+        logger.warning("NPU_MAX_TILES property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
     }
 
@@ -510,13 +511,13 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                 << VALUE_DELIMITER;
         logger.warning(
-            "INFERENCE_PRECISION_HINT property is not suppored by this compiler version. Removing from parameters");
+            "INFERENCE_PRECISION_HINT property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(precstr.str()), "");
     }
 
     /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
     if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
-        logger.warning("NPU_TILES property is not suppored by this compiler version. Swaping it to "
+        logger.warning("NPU_TILES property is not supported by this compiler version. Swaping it to "
                        "NPU_DPU_GROUPS (obsolete)");
         content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
     }
@@ -527,7 +528,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
 
-        logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
+        logger.warning("NPU_BATCH_MODE property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
@@ -537,17 +538,36 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         batchstr << ov::hint::execution_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
         logger.warning(
-            "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
+            "EXECUTION_MODE_HINT property is not supported by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
-    // NPU_DEFER_WEIGHTS_LOAD is not supported in versions < 6.2 - need to remove it
-    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 2)) {
+    // COMPILER_DYNAMIC_QUANTIZATION is not supported in versions < 7.1 - need to remove it
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 1)) {
+        std::ostringstream dqstr;
+        dqstr << ov::intel_npu::compiler_dynamic_quantization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+              << VALUE_DELIMITER;
+        logger.warning(
+            "COMPILER_DYNAMIC_QUANTIZATION property is not supported by this compiler version. Removing from "
+            "parameters");
+        content = std::regex_replace(content, std::regex(dqstr.str()), "");
+    }
+
+    // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
+    {
         std::ostringstream batchstr;
         batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
-        logger.warning(
-            "NPU_DEFER_WEIGHTS_LOAD property is not suppored by this compiler version. Removing from parameters");
+        logger.info("NPU_DEFER_WEIGHTS_LOAD property is needed at runtime only. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    // NPU_RUN_INFERENCES_SEQUENTIALLY is needed at runtime only
+    {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                 << "\\S+" << VALUE_DELIMITER;
+        logger.info("NPU_RUN_INFERENCES_SEQUENTIALLY property is needed at runtime only. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 

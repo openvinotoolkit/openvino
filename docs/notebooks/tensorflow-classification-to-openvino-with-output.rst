@@ -249,7 +249,7 @@ network.
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 
@@ -284,7 +284,7 @@ Do Inference
 
 .. parsed-literal::
 
-    data/imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
+    imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
 
 
 
@@ -324,5 +324,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 999.35
+    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 977.05
 

@@ -53,14 +53,16 @@ public:
         return m_implType;
     }
 
+    static bool useWeightsDecompressionImpl(const ov::element::Type inputType, const ov::element::Type weightsType);
+
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const PostOps& postOps,
                                                             const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr context,
+                                                            const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
 
-    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                            const DnnlMemoryDescPtr dstDesc,
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
                                                             bool weightsNonTransposed);
 
     static std::shared_ptr<DnnlMatMulPrimitive> create(const MemoryArgs& memory,

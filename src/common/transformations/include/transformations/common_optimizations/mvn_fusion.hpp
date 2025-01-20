@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API MVNFusionWithConstantsInside;
  */
 class ov::pass::MVNFusionWithoutConstants : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MVNFusionWithoutConstants", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MVNFusionWithoutConstants");
     MVNFusionWithoutConstants();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::MVNFusionWithConstantsInside : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MVNFusionWithConstantsInside", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MVNFusionWithConstantsInside");
     MVNFusionWithConstantsInside();
 };
 
@@ -50,7 +50,7 @@ public:
  */
 class ov::pass::MVNFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("MVNFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("MVNFusion");
     MVNFusion() {
         add_matcher<ov::pass::MVNFusionWithoutConstants>();
         add_matcher<ov::pass::MVNFusionWithConstantsInside>();

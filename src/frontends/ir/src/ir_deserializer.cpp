@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,11 @@
 #include <pugixml.hpp>
 #include <regex>
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -17,6 +19,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
@@ -530,18 +533,18 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         auto node = create_node(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
-        if (const auto& parameter_node = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+        if (const auto& parameter_node = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
             io_map.inputs.insert({layer_id, func_nodes.parameters.size()});
             func_nodes.parameters.emplace_back(parameter_node);
         }
 
-        if (const auto& result_node = std::dynamic_pointer_cast<ov::op::v0::Result>(node)) {
+        if (const auto& result_node = ov::as_type_ptr<ov::op::v0::Result>(node)) {
             io_map.outputs.insert({layer_id, func_nodes.results.size()});
             func_nodes.results.emplace_back(result_node);
         }
 
-        if (const auto& sink = std::dynamic_pointer_cast<ov::op::Sink>(node)) {
-            auto subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node);
+        if (const auto& sink = ov::as_type_ptr<ov::op::Sink>(node)) {
+            auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
             if (subgraph_op) {
                 for (const auto& body_model : subgraph_op->get_functions()) {
                     if (body_model->get_sinks().size()) {
@@ -554,7 +557,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
             }
         }
 
-        if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
+        if (const auto& read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
             variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
 
@@ -566,7 +569,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
                                                 func_nodes.parameters,
                                                 pugixml::get_str_attr(root, "name", ""));
     for (const auto& sink : func_nodes.sinks) {
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(sink)) {
+        if (const auto& assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
             assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
         }
     }
@@ -574,7 +577,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     // Read meta data from legacy representation
     if (root.child("rt_info").empty()) {
         // Legacy representation
-        // meta_data - MO meta
+        // meta_data - IR meta
         // quantization_parameters - NNCF quantization section
         std::unordered_set<std::string> meta_names = {"meta_data", "quantization_parameters"};
         read_legacy_meta_data(function, meta_names, root);
@@ -831,7 +834,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " has incorrect input with index ",
                            i,
                            "!");
-        if (ov::element::Type_t::undefined == inputs[i].get_element_type())
+
+        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
+            ov::element::Type_t::undefined == inputs[i].get_element_type())
             OPENVINO_THROW(params.type,
                            " layer ",
                            params.name,
@@ -897,7 +902,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             OPENVINO_THROW("Opset ", params.version, " doesn't contain the operation with type: ", type_name);
         }
         // Share Weights form constant blob
-        if (auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(ovNode)) {
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(ovNode)) {
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ovNode->set_arguments(inputs);
@@ -947,10 +952,12 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         }
         const auto size = dn.attribute("size");
         const auto offset = dn.attribute("offset");
-        if (size && offset) {
+        const auto element_type = dn.attribute("element_type");
+        if (size && offset && element_type) {
             rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
                 ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
-                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")),
+                                             ov::element::Type(pugixml::get_str_attr(dn, "element_type")));
         }
     }
 
@@ -1016,6 +1023,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             FOREACH_CHILD (rt_node, in_node, "port") {
                 set_runtime_info(ovNode->input(index).get_rt_info(), rt_node.child("rt_info"));
                 ++index;
+            }
+        }
+
+        // The IR does not store information about dedicated output names for Result node (model output),
+        // assume all names from parent node are Result's (model's) tensor names.
+        //  Consider adding dedicated RT info with information about Result's output names.
+        if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
+            if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
+                // Copy names if parent node is not parameter, model's input names should not be dedicated
+                // output names as they could be removed from Parameter's tensor during model transformations.
+                result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
             }
         }
     }

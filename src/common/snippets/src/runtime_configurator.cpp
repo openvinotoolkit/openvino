@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/solve_buffer_memory.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
@@ -116,7 +118,26 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
         // input->shape changing ops->load
         PortDescriptorPtr desc = nullptr;
         const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(param);
-        const auto& mem_desc_expr = shape_infer_seq.empty() ? param : shape_infer_seq.back();
+        ExpressionPtr mem_desc_expr = param;
+        if (!shape_infer_seq.empty()) {
+            // [160048] Reorder, as any another ShapeInferOp, should just propagate input shape to output using target order
+            //          without data movement. However, currently we have to save desc of input of the Reorder
+            //          to support correct input data offsets calculations and MHAParallelWAOptimizer pass work.
+            //          Please, remove this code part when the mentioned ticket is completed.
+            const auto& reorder_it = std::find_if(shape_infer_seq.cbegin(), shape_infer_seq.cend(),
+                                                  [](const ExpressionPtr& expr) {
+                                                     return ov::is_type<op::Reorder>(expr->get_node());
+                                                  });
+            if (reorder_it != shape_infer_seq.cend()) {
+                const auto& reorder = *reorder_it;
+                const auto& etype = reorder->get_node()->get_output_element_type(0);
+                update_io_parameters(reorder->get_input_port_descriptor(0), etype);
+                continue;
+            }
+
+            mem_desc_expr = shape_infer_seq.back();
+        }
+
         auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
         for (const auto& child_input : consumer_inputs) {
             const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
@@ -125,6 +146,7 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
                 break;
             }
         }
+        OPENVINO_ASSERT(desc, "Descriptor is missed!");
         const auto& etype = mem_desc_expr->get_node()->get_output_element_type(0);
         update_io_parameters(desc, etype);
     }
@@ -228,7 +250,8 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
 
 void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRCPtr& linear_ir) const {
     const auto& loop_manager = linear_ir->get_loop_manager();
-    m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
+    // Align initial buffer scratchpad size with cache line size
+    m_config->buffer_scratchpad_size = utils::rnd_up(linear_ir->get_static_buffer_scratchpad_size(), lowered::pass::SolveBufferMemory::byte_alignment);
 
     auto is_not_executed = [&loop_manager](const lowered::ExpressionPtr& buffer_expr) {
         const auto& loop_ids = buffer_expr->get_loop_ids();
@@ -253,6 +276,9 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
             additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
+
+        // Align with cache line size. The experiments shows that it affects performance.
+        additional_size = utils::rnd_up(additional_size, lowered::pass::SolveBufferMemory::byte_alignment);
 
         cluster_offset = m_config->buffer_scratchpad_size;
         OPENVINO_ASSERT(!utils::is_dynamic_value(cluster_offset), "Offset of the cluster must be defined!");

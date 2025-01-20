@@ -749,13 +749,12 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments:
-
-- The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
-- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments : -
+The ``--group-size`` parameter will define the group size to use for
+quantization, -1 it will results in per-column quantization. - The
+``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency. You can enable AWQ to
@@ -933,7 +932,7 @@ history, we should move LLMPipeline to chat mode using ``start_chat()``
 method.
 
 More info about OpenVINO LLM inference can be found in `LLM Inference
-Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
+Guide <https://docs.openvino.ai/2024/openvino-workflow-generative.html>`__
 
 .. raw:: html
 

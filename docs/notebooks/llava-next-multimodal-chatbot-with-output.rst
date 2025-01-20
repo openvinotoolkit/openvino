@@ -59,9 +59,9 @@ Prerequisites
 
 .. code:: ipython3
 
-    # %pip install -q "nncf>=2.14.0" "torch>=2.1" "transformers>=4.39.1" "accelerate" "pillow" "gradio>=4.26" "datasets>=2.14.6" "tqdm" --extra-index-url https://download.pytorch.org/whl/cpu
-    # %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5"
-    # %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "nncf>=2.14.0" "torch>=2.1" "transformers>=4.39.1" "accelerate" "pillow" "gradio>=4.26" "datasets>=2.14.6" "tqdm" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5"
+    %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 

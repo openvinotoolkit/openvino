@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -80,7 +80,7 @@ if(ENABLE_INTEL_NPU)
         endif()
     endif()
 
-    if(NOT libze_loader_FOUND)
+    if(NOT level_zero_FOUND)
         add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
     endif()
@@ -474,7 +474,6 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(SNAPPY_BUILD_BENCHMARKS OFF)
             set(SNAPPY_BUILD_TESTS OFF)
             set(INSTALL_GTEST OFF)
-            set(CMAKE_CXX_STANDARD 14)
             if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
                 # '<': signed/unsigned mismatch
                 ov_add_compiler_flags(/wd4018)
