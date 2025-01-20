@@ -46,7 +46,6 @@ public:
 
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);
-    ov::Tensor eval(std::istream& stream) const;
     void read_weight(std::istream& stream);
 
 private:

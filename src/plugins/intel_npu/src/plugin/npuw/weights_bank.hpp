@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <tuple>
 #include <unordered_map>
 
@@ -39,9 +40,7 @@ public:
     ov::Tensor get(int64_t uid, const std::string& device);
 
     // Evaluate and allocate all LazyTensors in the bank
-    void evaluate_and_allocate();
-    // For deserialized bank only
-    void evaluate_and_allocate(std::ifstream& weights_stream);
+    void evaluate_and_allocate(std::optional<std::string> weights_path);
 
     bool is_remote(int64_t uid) const;
 

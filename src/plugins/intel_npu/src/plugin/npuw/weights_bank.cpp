@@ -74,8 +74,14 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     return iter_device->second.tensor;
 }
 
-void Bank::evaluate_and_allocate() {
+void Bank::evaluate_and_allocate(std::optional<std::string> weights_path) {
     std::lock_guard<std::mutex> guard(m_mutex);
+
+    std::ifstream weights_stream;
+    if (weights_path) {
+        weights_stream = std::ifstream(*weights_path, std::ios::in | std::ios::binary);
+        NPUW_ASSERT(weights_stream && "Couldn't open .bin file with model weights!");
+    }
 
     for (auto&& bank : m_device_banks) {
         const auto& device_for_alloc = bank.first;
@@ -89,6 +95,11 @@ void Bank::evaluate_and_allocate() {
             // Add non-allocated tensors for furter evaluation and allocation
             if (!el.second.tensor) {
                 vec.push_back(el.second.lt);
+                if (weights_path) {
+                    // Read weights from file sequentially
+                    // FIXME: suboptimal - find a way not to read same offset + size several times
+                    vec.back().read_weight(weights_stream);
+                }
             }
         }
         storage_guard.unlock();
@@ -134,70 +145,6 @@ void Bank::evaluate_and_allocate() {
             // not needed anymore (transformations, if any, and copies are done)
             // Note: this is the non-CPU path!
             const_cast<LazyTensor&>(lt).detach();
-        });
-    }
-}
-
-// FIXME: almost a copy of evaluate_and_allocate() above
-void Bank::evaluate_and_allocate(std::ifstream& weights_stream) {
-    std::lock_guard<std::mutex> guard(m_mutex);
-
-    for (auto&& bank : m_device_banks) {
-        const auto& device_for_alloc = bank.first;
-        auto& device_bank = bank.second;
-
-        std::vector<LazyTensor> vec;
-
-        std::unique_lock storage_guard(device_bank.mutex);
-        vec.reserve(device_bank.storage.size());
-        for (const auto& el : device_bank.storage) {
-            // Add non-allocated tensors for furter evaluation and allocation
-            if (!el.second.tensor) {
-                vec.push_back(el.second.lt);
-                // First, read weights from file sequentially
-                // FIXME: suboptimal - find a way not to read same offset + size several times
-                vec.back().read_weight(weights_stream);
-            }
-        }
-        storage_guard.unlock();
-
-        ov::parallel_for(vec.size(), [&](std::size_t idx) {
-            const auto& lt = vec[idx];
-            std::unique_lock dev_guard(device_bank.mutex);
-            auto iter_device_registered = device_bank.registered_tensors.find(lt);
-            NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
-                        "Tensor should be registered first!");
-            if (device_bank.storage[iter_device_registered->second].tensor) {
-                // Already allocated
-                return;
-            }
-            dev_guard.unlock();
-
-            // Allocation and/or evaluation needed
-            // Second, evaluate concurrently, lock the device
-            // mutex only to update the device bank (& allocate on-device memory, if needed)
-            const auto& transformed_tensor = lt.eval(weights_stream);
-
-            std::unique_lock<std::mutex> guard(device_bank.mutex);
-            if (device_for_alloc == "CPU") {
-                // No allocation needed
-                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
-                return;
-            }
-
-            // FIXME: ideally we would want to allocate memory sequentially - in order of UID
-            ov::SoPtr<ov::ITensor> remote_tensor;
-            ov::Tensor allocated_tensor;
-
-            auto remote_ctx = m_core->get_default_context(device_for_alloc)._ptr;
-            remote_tensor =
-                remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
-            allocated_tensor = ov::make_tensor(remote_tensor);
-            device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = allocated_tensor;
-            guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
-
-            transformed_tensor.copy_to(allocated_tensor);
-            // Note: no detach needed since we aren't operating with Constants
         });
     }
 }

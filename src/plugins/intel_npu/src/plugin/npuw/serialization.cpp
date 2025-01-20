@@ -272,6 +272,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& v
 }
 
 // Weightless
+// FIXME: all serialization needs a good rewriting
 void ov::npuw::s11n::write_weightless(std::ostream& stream,
                                       const std::vector<ov::Tensor>& var,
                                       const std::unordered_map<const void*, std::size_t>& const_to_offset) {
@@ -298,9 +299,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
     }
 }
 
-void ov::npuw::s11n::read_weightless(std::istream& stream,
-                                     std::vector<ov::Tensor>& var,
-                                     std::ifstream& weights_stream) {
+void ov::npuw::s11n::read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, std::istream& weights_stream) {
     var.clear();
     std::size_t size;
     read(stream, size);

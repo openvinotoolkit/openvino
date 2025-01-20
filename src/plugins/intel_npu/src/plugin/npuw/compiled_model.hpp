@@ -96,10 +96,9 @@ private:
     // For full deserialization flow with weights
     void reconstruct_closure();
     // For weightless serialization flow
-    void reconstruct_closure_weightless(const std::string& weights_path);
     void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
-    void finalize_weights_bank();
+    void finalize_weights_bank(std::optional<std::string> weights_path);
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
@@ -174,7 +173,7 @@ private:
         void serialize(std::ostream& stream,
                        bool is_weightless,
                        const std::unordered_map<const void*, std::size_t>& const_to_offset) const;
-        void deserialize(std::istream& stream, bool is_weightless, const std::string& weights_path);
+        void deserialize(std::istream& stream, bool is_weightless, std::istream& weights_stream);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

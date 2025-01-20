@@ -82,7 +82,7 @@ void write_weightless(std::ostream& stream,
                       const std::vector<ov::Tensor>& var,
                       const std::unordered_map<const void*, std::size_t>& const_to_offset);
 // No allocation needed
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, std::ifstream& weights_stream);
+void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, std::istream& weights_stream);
 
 // Forward declaration
 template <typename T1, typename T2>

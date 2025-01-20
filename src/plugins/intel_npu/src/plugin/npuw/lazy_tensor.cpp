@@ -50,9 +50,13 @@ struct Const {
                 m_cached_ptr == other.m_cached_ptr);
     }
     ov::Tensor eval() const {
-        NPUW_ASSERT(!was_deserialized && "Const::eval() cannot be called on deserialized LazyTensor");
-        NPUW_ASSERT(m_node && "Const::eval() can only happen before detach");
-        return ov::npuw::util::tensor_from_const(m_node);
+        if (!was_deserialized) {
+            NPUW_ASSERT(m_node && "Const::eval() can only happen before detach");
+            return ov::npuw::util::tensor_from_const(m_node);
+        }
+
+        NPUW_ASSERT(m_read_from_weights && "Underlying data should have been read first!");
+        return m_read_from_weights;
     }
     void read_weight(std::istream& stream) {
         NPUW_ASSERT(was_deserialized);
@@ -60,11 +64,6 @@ struct Const {
         // Note: assumed to be called sequentially
         stream.seekg(m_offset);
         stream.read(reinterpret_cast<char*>(m_read_from_weights.data()), m_byte_size);
-    }
-    ov::Tensor eval(std::istream& stream) const {
-        NPUW_ASSERT(was_deserialized);
-        NPUW_ASSERT(m_read_from_weights && "Underlying data should have been read first!");
-        return m_read_from_weights;
     }
     void detach() {
         m_node.reset();
@@ -119,13 +118,6 @@ struct Concat {
         for (auto& lt : tensors) {
             lt.read_weight(stream);
         }
-    }
-    ov::Tensor eval(std::istream& stream) const {
-        std::vector<ov::Tensor> to_concat;
-        for (const auto& lt : tensors) {
-            to_concat.push_back(lt.eval(stream));
-        }
-        return ov::npuw::util::concat(to_concat, axis);
     }
     void detach() {
         for (auto&& lt : tensors) {
@@ -186,22 +178,6 @@ struct Unpack {
         z.read_weight(stream);
         s.read_weight(stream);
     }
-    ov::Tensor eval(std::istream& stream) const {
-        const auto& gti = ov::get_tensor_impl;
-        const auto& tw = w.eval(stream);
-        const auto& tz = z.eval(stream);
-        const auto& ts = s.eval(stream);
-        NPUW_ASSERT(tw);
-        ov::Tensor dst(type, shape);
-        if (tw && tz && ts) {
-            ov::npuw::util::unpack(gti(tw), gti(tz), gti(ts), gti(dst));
-        } else if (tw && ts) {
-            ov::npuw::util::unpack(gti(tw), gti(ts), gti(dst));
-        } else {
-            NPUW_ASSERT(false && "Unsupported combination");
-        }
-        return dst;
-    }
     void detach() {
         w.detach();
         z.detach();
@@ -250,9 +226,6 @@ struct Permute {
     void read_weight(std::istream& stream) {
         tensor.read_weight(stream);
     }
-    ov::Tensor eval(std::istream& stream) const {
-        return ov::npuw::util::permute(tensor.eval(stream), axes);
-    }
     void detach() {
         tensor.detach();
     }
@@ -289,10 +262,6 @@ struct Convert {
     }
     void read_weight(std::istream& stream) {
         tensor.read_weight(stream);
-    }
-    ov::Tensor eval(std::istream& stream) const {
-        NPUW_ASSERT(ov::element::f16 == type);
-        return ov::npuw::util::to_f16(tensor.eval(stream));
     }
     void detach() {
         tensor.detach();
@@ -331,7 +300,6 @@ public:
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<LazyTensorImpl> deserialize(std::istream& stream);
-    ov::Tensor eval(std::istream& stream) const;
     void read_weight(std::istream& stream);
 
     Transform m_transform;
@@ -377,22 +345,6 @@ ov::Tensor LazyTensorImpl::eval() const {
     */
     return std::visit(overloaded{[](const auto& op) {
                           return op.eval();
-                      }},
-                      m_transform);
-}
-
-ov::Tensor LazyTensorImpl::eval(std::istream& stream) const {
-    /* FIXME:
-    Consider case:
-        model1: concat->permute->f16
-        model2: permute->f16
-    Due to different history of transformation new tensors will be allocated for model2.
-    However, we could avoid it by introducing a proper slicing on top of known axes and
-    some kind of indicator that the only difference is concat and we should look for an existing ov::Tensor.
-    Perhaps it should be done after model compilation and not handled here.
-    */
-    return std::visit(overloaded{[&stream](const auto& op) {
-                          return op.eval(stream);
                       }},
                       m_transform);
 }
@@ -518,13 +470,6 @@ ov::Tensor LazyTensor::eval() const {
         return ov::Tensor();
     }
     return m_impl->eval();
-}
-
-ov::Tensor LazyTensor::eval(std::istream& stream) const {
-    if (!m_impl) {
-        return ov::Tensor();
-    }
-    return m_impl->eval(stream);
 }
 
 void LazyTensor::read_weight(std::istream& stream) {

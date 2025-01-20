@@ -597,21 +597,15 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     m_kvcache_compiled->serialize(stream, is_weightless);
     m_prefill_compiled->serialize(stream, is_weightless);
 
+    // Serialize bank name
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    write(stream, kv_bank->get_name());
+
     if (!is_weightless) {
-        // Serialize weights bank (if required)
-        const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-        const auto& p_bank = m_prefill_compiled->m_weights_bank;
-        NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank &&
-                    "Prefill and KVCache models' weight bank should be shared!");
-        write(stream, kv_bank->get_name());
+        // Serialize weights bank
         kv_bank->serialize(stream);
-    } else {
-        // Write just bank name
-        const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-        const auto& p_bank = m_prefill_compiled->m_weights_bank;
-        NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank &&
-                    "Prefill and KVCache models' weight bank should be shared!");
-        write(stream, kv_bank->get_name());
     }
 
     LOG_INFO("Done.");
@@ -717,8 +711,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         compiled->m_kvcache_compiled->m_weights_bank = bank;
         compiled->m_prefill_compiled->m_weights_bank = bank;
 
-        compiled->m_kvcache_compiled->reconstruct_closure_weightless(weights_path);
-        compiled->m_prefill_compiled->reconstruct_closure_weightless(weights_path);
+        compiled->m_kvcache_compiled->finalize_weights_bank(weights_path);
+        compiled->m_prefill_compiled->finalize_weights_bank(weights_path);
     }
 
     LOG_INFO("Done.");
