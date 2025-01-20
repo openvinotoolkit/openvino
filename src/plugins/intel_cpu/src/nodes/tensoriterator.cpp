@@ -25,8 +25,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " layer with name '", getName(), "' ", __VA_ARGS__)
-
 static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     NodeConfig config;
 
@@ -435,7 +433,7 @@ TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphC
 void TensorIterator::getSupportedDescriptors() {
     auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
     if (!tiOp) {
-        THROW_ERROR("cannot be cast to ov::op::util::SubGraphOp");
+        THROW_CPU_NODE_ERR("cannot be cast to ov::op::util::SubGraphOp");
     }
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
     sub_graph.CreateGraph(body, context);
@@ -519,7 +517,7 @@ void TensorIterator::getSupportedDescriptors() {
                                               -1,
                                               1});
         } else {
-            THROW_ERROR("has incorrect type of the input description.");
+            THROW_CPU_NODE_ERR("has incorrect type of the input description.");
         }
     }
 
@@ -537,7 +535,7 @@ void TensorIterator::getSupportedDescriptors() {
     } else if (auto ti = ov::as_type_ptr<const ov::op::v0::TensorIterator>(ngraphOp)) {
         algorithm = Algorithm::TensorIteratorCommon;
     } else {
-        THROW_ERROR("isn't supported!");
+        THROW_CPU_NODE_ERR("isn't supported!");
     }
 }
 
@@ -894,11 +892,11 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
     const auto getNumIterations = [this](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
         const auto axis = rule.axis;
         if (axis < 0 || static_cast<std::size_t>(axis) >= dimensions.size()) {
-            THROW_ERROR(": Invalid \"axis\" value in an iteration component: ",
-                        rule.axis,
-                        ", dimensions number = ",
-                        dimensions.size(),
-                        " (out of range)");
+            THROW_CPU_NODE_ERR(": Invalid \"axis\" value in an iteration component: ",
+                               rule.axis,
+                               ", dimensions number = ",
+                               dimensions.size(),
+                               " (out of range)");
         }
         const auto space = dimensions[axis];
         const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
@@ -906,7 +904,9 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
 
         const auto stride = rule.stride;
         if (stride == 0) {
-            THROW_ERROR(": Invalid \"stride\" value in an iteration component: ", rule.stride, " (infinite loop)");
+            THROW_CPU_NODE_ERR(": Invalid \"stride\" value in an iteration component: ",
+                               rule.stride,
+                               " (infinite loop)");
         }
         const auto step = std::abs(stride);
 
@@ -914,21 +914,21 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
         const auto dst = stride < 0 ? start : end;
         const auto length = dst - src;
         if (src < 0 || src >= dst || dst > static_cast<int64_t>(space) || length < step) {
-            THROW_ERROR(": Invalid \"start\",\"stride\",\"end\" values in an iteration component",
-                        ": \"start\" = ",
-                        rule.start,
-                        ", \"stride\" = ",
-                        rule.stride,
-                        ", \"end\" = ",
-                        rule.end);
+            THROW_CPU_NODE_ERR(": Invalid \"start\",\"stride\",\"end\" values in an iteration component",
+                               ": \"start\" = ",
+                               rule.start,
+                               ", \"stride\" = ",
+                               rule.stride,
+                               ", \"end\" = ",
+                               rule.end);
         }
 
         if (length % step != 0) {
-            THROW_ERROR(": Each iteration must be the same size: length (",
-                        length,
-                        ") is not divisible by step (",
-                        step,
-                        ")");
+            THROW_CPU_NODE_ERR(": Each iteration must be the same size: length (",
+                               length,
+                               ") is not divisible by step (",
+                               step,
+                               ")");
         }
 
         return static_cast<int>(length / step);
@@ -943,11 +943,11 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
         }
 
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(inputShapes.size())) {
-            THROW_ERROR(": Invalid \"from\" value: \"from\" = ",
-                        rule.from,
-                        " inputs number = ",
-                        inputShapes.size(),
-                        " (out of range)");
+            THROW_CPU_NODE_ERR(": Invalid \"from\" value: \"from\" = ",
+                               rule.from,
+                               " inputs number = ",
+                               inputShapes.size(),
+                               " (out of range)");
         }
 
         const auto currentNumIterations = getNumIterations(rule, dims);
@@ -955,10 +955,10 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
             isDefault = false;
             numIterations = currentNumIterations;
         } else if (numIterations != currentNumIterations) {
-            THROW_ERROR(": There are at least two different iterations numbers: ",
-                        numIterations,
-                        " and ",
-                        currentNumIterations);
+            THROW_CPU_NODE_ERR(": There are at least two different iterations numbers: ",
+                               numIterations,
+                               " and ",
+                               currentNumIterations);
         }
     }
 
@@ -972,11 +972,11 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
             continue;
 
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(outputShapes.size())) {
-            THROW_ERROR(": Invalid \"from\" value: \"from\" = ",
-                        rule.from,
-                        " inputs number = ",
-                        outputShapes.size(),
-                        " (out of range)");
+            THROW_CPU_NODE_ERR(": Invalid \"from\" value: \"from\" = ",
+                               rule.from,
+                               " inputs number = ",
+                               outputShapes.size(),
+                               " (out of range)");
         }
 
         const auto currentNumIterations = getNumIterations(rule, dims);
@@ -984,10 +984,10 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
             isDefault = false;
             numIterations = currentNumIterations;
         } else if (numIterations != currentNumIterations) {
-            THROW_ERROR(": There are at least two different iterations numbers: ",
-                        numIterations,
-                        " and ",
-                        currentNumIterations);
+            THROW_CPU_NODE_ERR(": There are at least two different iterations numbers: ",
+                               numIterations,
+                               " and ",
+                               currentNumIterations);
         }
     }
 
