@@ -24,7 +24,7 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
 
 protected:
-    JitConstants GetJitConstants(const STFT_params& params) const;
+    virtual JitConstants GetJitConstants(const STFT_params& params) const;
     virtual CommonDispatchData CalcLaunchConfig(const STFT_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

@@ -2,19 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// alternative: https://github.com/OpenCL/ComplexMath/blob/master/clcomplex.h
-typedef float2 cfloat;
-#define real(a)      ((a).s0)
-#define imag(a)      ((a).s1)
-#define crmult(a, b) ((cfloat)(real(a) * (b), imag(a) * (b)))
-#define cadd(a, b)   ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
-#define csub(a, b)   ((cfloat)(real(a) - real(b), imag(a) - imag(b)))
-#define expmi(x)     ((cfloat)(native_cos(x), -native_sin(x)))
-#define czero()      ((cfloat)(0))
 
-#define X_I_MAX_BUFFER_SIZE 2048
+#define FREQS_PER_THREAD 4
 
-// Unoptimized, the most obvious stft impl from the definition.
 KERNEL(stft_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* restrict signal, 
@@ -23,42 +13,23 @@ KERNEL(stft_ref)(
     const __global INPUT3_TYPE* restrict frame_step_buff,
     __global OUTPUT_TYPE* restrict output)
 {
+#if TRANSPOSE_FRAMES
+    const size_t FREQS = OUTPUT_FEATURE_NUM;
+#else
+    const size_t FREQS = OUTPUT_SIZE_Y;
+#endif 
 
-    const int freq_id = get_global_id(0);
-    const int frame_id = get_global_id(1);
-    const int batch = get_global_id(2);
-    const int frame_size = (int)frame_size_buff[0];
-    const int frame_step = (int)frame_step_buff[0];
-    const int window_size = INPUT1_SIZE_X;
+    const size_t blocksPerFreq = (FREQS + FREQ_PER_BLOCK-1)/FREQ_PER_BLOCK;
+    const size_t batch = get_global_id(0);
+    const size_t frame_id = get_group_id(1)/blocksPerFreq;
+    const size_t freq_start =  (get_group_id(1)%blocksPerFreq)*FREQ_PER_BLOCK;
+    const size_t frame_size = (size_t)frame_size_buff[0];
+    const size_t frame_step = (size_t)frame_step_buff[0];
+    const size_t window_size = INPUT1_SIZE_X;
 
     __local float x_i_shared[X_I_MAX_BUFFER_SIZE];
 
     const size_t block_size = get_local_size(0)*get_local_size(1)*get_local_size(2);
-
-    // const int bla = 1;
-    // const int test = sub_group_reduce_add(bla);
-
-//     if(freq_id == 0 && frame_id == 0 && batch == 0) {
-//         printf("Printing from thread 0!\n");
-//         printf("BlockSize: %i\n", get_local_size(0)*get_local_size(1)*get_local_size(2));
-//         printf("Blocks: %i\n", get_num_groups(0)*get_num_groups(1)*get_num_groups(2));
-
-// #if TRANSPOSE_FRAMES
-//         const int FREQS = OUTPUT_FEATURE_NUM;
-// #else
-//         const int FREQS = OUTPUT_SIZE_Y;
-// #endif 
-//         printf("FREQS: %i\n", FREQS);
-//         printf("get_sub_group_size(): %i\n", get_sub_group_size());
-//         printf("get_num_sub_groups(): %i\n", get_num_sub_groups());
-//         printf("test: %i\n", test);
-//     }
-
-    // if(get_local_linear_id() == 0) {
-    //     printf("get_group_id(0): %i \n", get_group_id(0));
-    //     printf("get_group_id(1): %i \n", get_group_id(1));
-    //     printf("get_group_id(2): %i \n", get_group_id(2));
-    // }
 
     // Handling case where window size is smaller than frame size.
     const int start_offset = (frame_size - window_size) / 2;
@@ -74,29 +45,54 @@ KERNEL(stft_ref)(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // FT from def for single freq for given frame:
-    cfloat freq_val = czero();
+    const size_t max_freq_for_this_block = min(freq_start + FREQ_PER_BLOCK, FREQS);
 
-    // dft_power = 2*PI*(k/N) from dft def.
-    const float dft_power = 2.0f * M_PI_F * (float)freq_id / (float)frame_size;
+    // Currently each sub group calcs 4 freq_id at the same time
+    for(size_t freq_id = get_sub_group_id()*FREQS_PER_THREAD + freq_start; freq_id < max_freq_for_this_block; freq_id += get_num_sub_groups()*FREQS_PER_THREAD) {
 
-    cfloat err = czero();
-    for(int i = 0; i < window_size; ++i) {
-        const float x_i =  x_i_shared[i];
-        const cfloat e_i = expmi(dft_power*(float)(i+start_offset));
-        const cfloat val_i = crmult(e_i, x_i);
+        float4 freq_val_real = 0.0f;
+        float4 freq_val_img = 0.0f;
 
-        freq_val = cadd(freq_val, val_i);
-    }
+        // // dft_power = 2*PI*(k/N) from dft def.
+        float4 dft_power = 2.0f * M_PI_F / (float)frame_size;
+        dft_power.s0 *= (float)(freq_id + 0);
+        dft_power.s1 *= (float)(freq_id + 1);
+        dft_power.s2 *= (float)(freq_id + 2);
+        dft_power.s3 *= (float)(freq_id + 3);
 
+        // sin cos bound(?): Probably there is some external unit to calc sin cos 
+        // which is overloaded with commands(each thread issues 8 such instructions)
+        // TODO: Implement fft.
+        for(int i = get_sub_group_local_id(); i < window_size; i+= get_sub_group_size()) {
+            const float x_i = x_i_shared[i];
+
+            const float4 real = native_cos(dft_power*(float)(i+start_offset))*x_i;
+            const float4 img = -native_sin(dft_power*(float)(i+start_offset))*x_i;
+
+            freq_val_real += real;
+            freq_val_img += img;
+        }
+
+        freq_val_real.s0 = sub_group_reduce_add(freq_val_real.s0);
+        freq_val_real.s1 = sub_group_reduce_add(freq_val_real.s1);
+        freq_val_real.s2 = sub_group_reduce_add(freq_val_real.s2);
+        freq_val_real.s3 = sub_group_reduce_add(freq_val_real.s3);
+
+        freq_val_img.s0 = sub_group_reduce_add(freq_val_img.s0);
+        freq_val_img.s1 = sub_group_reduce_add(freq_val_img.s1);
+        freq_val_img.s2 = sub_group_reduce_add(freq_val_img.s2);
+        freq_val_img.s3 = sub_group_reduce_add(freq_val_img.s3);
+
+        if((freq_id < FREQS) && (get_sub_group_local_id() < 2*min((size_t)FREQS_PER_THREAD, (FREQS - freq_id)))) {
 #if TRANSPOSE_FRAMES
-    const int output_real_idx = OUTPUT_GET_INDEX(batch, freq_id, frame_id, 0);
-    const int output_imag_idx = OUTPUT_GET_INDEX(batch, freq_id, frame_id, 1);
+            const int output_idx = OUTPUT_GET_INDEX(batch, freq_id + get_sub_group_local_id()/2, frame_id, get_sub_group_local_id() % 2);
 #else
-    const int output_real_idx = OUTPUT_GET_INDEX(batch, frame_id, freq_id, 0);
-    const int output_imag_idx = OUTPUT_GET_INDEX(batch, frame_id, freq_id, 1);
+            const int output_idx = OUTPUT_GET_INDEX(batch, frame_id, freq_id + get_sub_group_local_id()/2, get_sub_group_local_id() % 2);
 #endif
-
-    output[output_real_idx] = (OUTPUT_TYPE)real(freq_val);
-    output[output_imag_idx] = (OUTPUT_TYPE)imag(freq_val);
+            if ( (get_sub_group_local_id() % 2) == 0)
+                output[output_idx] = (OUTPUT_TYPE)freq_val_real[get_sub_group_local_id()/2];
+            else 
+                output[output_idx] = (OUTPUT_TYPE)freq_val_img[get_sub_group_local_id()/2];
+        }
+    }
 }

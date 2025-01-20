@@ -4,6 +4,9 @@
 
 #include "stft_kernel_opt.h"
 
+const size_t FREQ_PER_BLOCK = 256;
+const size_t X_I_MAX_BUFFER_SIZE = 2048;
+const size_t THREADS_PER_BLOCK = 256;
 namespace kernel_selector {
 ParamsKey STFTKernelOpt::GetSupportedKey() const {
     ParamsKey k;
@@ -26,6 +29,15 @@ ParamsKey STFTKernelOpt::GetSupportedKey() const {
     return k;
 }
 
+JitConstants STFTKernelOpt::GetJitConstants(const STFT_params& params) const {
+    JitConstants jit = STFTKernelBase::GetJitConstants(params);
+
+    jit.AddConstants({MakeJitConstant("FREQ_PER_BLOCK", FREQ_PER_BLOCK)});
+    jit.AddConstants({MakeJitConstant("X_I_MAX_BUFFER_SIZE", X_I_MAX_BUFFER_SIZE)});
+
+    return jit;
+}
+
 KernelsData STFTKernelOpt::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(params);
 }
@@ -41,20 +53,17 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
     OPENVINO_ASSERT(output.Dimentions() == 4);
     OPENVINO_ASSERT(output.X().v == 2);
 
-    std::vector<std::vector<Tensor::DataChannelName>> dimsByGws;
+    const size_t freqSize = params.transpose_frames ? output.Feature().v : output.Y().v;
+    const int blocksPerFreq = (freqSize + FREQ_PER_BLOCK-1)/FREQ_PER_BLOCK;
 
-    if (params.transpose_frames) {
-        dispatchData.gws = {output.Feature().v, output.Y().v, output.Batch().v};
-    } else {
-        dispatchData.gws = {output.Y().v, output.Feature().v, output.Batch().v};
-    }
+    const size_t framesSize = params.transpose_frames ? output.Y().v : output.Feature().v;
+    const size_t batchSize = output.Batch().v;
 
-    const int wantedThreadsPerBlock = 128;
-    const size_t threads = dispatchData.gws[0] < wantedThreadsPerBlock ? dispatchData.gws[0] : wantedThreadsPerBlock;
+    dispatchData.lws = {1, THREADS_PER_BLOCK};
+    dispatchData.gws = {batchSize, framesSize * THREADS_PER_BLOCK * blocksPerFreq};
 
-    dispatchData.lws = {threads, 1, 1};
-
-    //std::cout << dispatchData << std::endl;
+    std::cout << dispatchData << std::endl;
+    std::cout << "Blocks: " << dispatchData.gws[1]/dispatchData.lws[1] << std::endl;
     return dispatchData;
 }
 

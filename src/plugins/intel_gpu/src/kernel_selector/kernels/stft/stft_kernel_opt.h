@@ -11,6 +11,7 @@ class STFTKernelOpt : public STFTKernelBase {
 public:
     STFTKernelOpt() : STFTKernelBase("stft_opt") {}
 
+    JitConstants GetJitConstants(const STFT_params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     CommonDispatchData CalcLaunchConfig(const STFT_params& params) const override;
