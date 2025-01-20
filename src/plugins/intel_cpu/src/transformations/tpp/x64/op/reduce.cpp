@@ -10,8 +10,8 @@ namespace tpp {
 namespace op {
 
 ReduceMax::ReduceMax(const Output<Node>& arg, size_t axis)
-    : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_MAX), ov::snippets::op::ReduceMax(arg, axis) {
-}
+    : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_MAX),
+      ov::snippets::op::ReduceMax(arg, axis) {}
 
 std::shared_ptr<Node> ReduceMax::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
@@ -26,8 +26,8 @@ bool ReduceMax::visit_attributes(AttributeVisitor& visitor) {
 }
 
 ReduceSum::ReduceSum(const Output<Node>& arg, size_t axis)
-    : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_ADD), ov::snippets::op::ReduceSum(arg, axis) {
-}
+    : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_ADD),
+      ov::snippets::op::ReduceSum(arg, axis) {}
 
 std::shared_ptr<Node> ReduceSum::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
@@ -41,7 +41,7 @@ bool ReduceSum::visit_attributes(AttributeVisitor& visitor) {
     return UnaryEltwiseTPP::visit_attributes(visitor);
 }
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov
