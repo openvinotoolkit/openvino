@@ -91,6 +91,8 @@ TEST(rtti, op_with_type_version_parent_old) {
     ASSERT_EQ(*type_info.parent, OpType::get_type_info_static());
 }
 
+#if !defined(__ANDROID__) && !defined(ANDROID)
+
 class IncompleteRtti : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("IncompleteRtti", "rtti_test");
@@ -138,5 +140,5 @@ TEST(rtti, assert_casting_without_parent) {
         EXPECT_NE(nullptr, as_type_ptr<DerivedIncompleteRtti>(pass_C));
     }
 }
-
+#endif  // ANDROID
 }  // namespace ov::test
