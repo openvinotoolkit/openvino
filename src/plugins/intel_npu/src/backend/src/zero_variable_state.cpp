@@ -32,7 +32,7 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
         if (!is_remote_tensor(new_state._ptr)) {
             if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
                                                                        new_state->data())) {
-                _logger.debug("ZeroInferRequest::set_tensor_data - tensor was created in the same L0 context");
+                _logger.debug("ZeroVariableState::set_state - tensor was created in the same L0 context");
                 _zero_tensor_updated = true;
             }
 

@@ -75,8 +75,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _graph(compiledModel->get_graph()),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
-      _executorInputDescriptors(_graph->get_input_descriptors()),
-      _executorOutputDescriptors(_graph->get_output_descriptors()),
+      _graphInputDescriptors(_graph->get_input_descriptors()),
+      _graphOutputDescriptors(_graph->get_output_descriptors()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
       _profilingPool(_initStructs, _graph, zeroProfiling::POOL_SIZE),
@@ -101,7 +101,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     size_t ioIndex = 0;
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
-        check_level_zero_attributes_match(inputDescriptor, _executorInputDescriptors.at(ioIndex));
+        check_level_zero_attributes_match(inputDescriptor, _graphInputDescriptors.at(ioIndex));
 
         if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor)) {
             ++ioIndex;
@@ -116,7 +116,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     ioIndex = 0;
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
-        check_level_zero_attributes_match(outputDescriptor, _executorOutputDescriptors.at(ioIndex));
+        check_level_zero_attributes_match(outputDescriptor, _graphOutputDescriptors.at(ioIndex));
 
         if (!(outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor)) {
             ++ioIndex;
@@ -534,11 +534,11 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                                                  : zeroUtils::extract_object(remoteTensor->get_properties(),
                                                                              ov::intel_npu::mem_handle);
 
-                _pipeline->updateCommandList(_executorInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                _pipeline->updateCommandList(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                              userBuffer,
                                              zeroState->get_state()->get_byte_size());
 
-                _pipeline->updateCommandList(_executorOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                _pipeline->updateCommandList(_graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                                              userBuffer,
                                              zeroState->get_state()->get_byte_size());
 

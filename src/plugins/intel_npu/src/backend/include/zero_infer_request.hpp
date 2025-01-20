@@ -77,8 +77,8 @@ private:
     const Config _config;
     Logger _logger;
 
-    const std::vector<ArgumentDescriptor>& _executorInputDescriptors;
-    const std::vector<ArgumentDescriptor>& _executorOutputDescriptors;
+    const std::vector<ArgumentDescriptor>& _graphInputDescriptors;
+    const std::vector<ArgumentDescriptor>& _graphOutputDescriptors;
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.

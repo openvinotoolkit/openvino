@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
