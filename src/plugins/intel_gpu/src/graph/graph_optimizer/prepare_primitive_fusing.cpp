@@ -399,7 +399,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->padding_begin,
                                                                      desc->padding_end,
                                                                      desc->grouped_weights_shape,
-                                                                     conv.get_output_layout().data_type);
+                                                                     conv.get_output_layout().data_type,
+                                                                     desc->auto_pad);
 
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
             conv_with_bias_prim->transposed = desc->transposed;
