@@ -15,10 +15,6 @@ inputs:
     description: 'If the runner is self-hosted'
     required: false
     default: 'true'
-  show-cache-info:
-    description: 'If the action should show the share space occupied by cache'
-    required: false
-    default: 'false'
 runs:
   using: 'composite'
   steps:
