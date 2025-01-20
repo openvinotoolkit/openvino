@@ -8,6 +8,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/custom/subgraph.hpp"
+#include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
@@ -35,6 +36,7 @@
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/x64/pass/lowered/build_brgemm.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
@@ -560,6 +562,10 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
 #endif
+
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
+                                    ov::snippets::lowered::pass::AllocateBuffers,
+                                    ov::intel_cpu::pass::BuildBrgemm);
 
 #undef SNIPPETS_REGISTER_PASS_RELATIVE
     return backend_passes;

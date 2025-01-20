@@ -7,6 +7,7 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_batched.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -36,12 +37,19 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
-        BrgemmKernelConfig kernel_config(brg0Prc,
-                                         brg1Prc,
-                                         with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false));
+        BrgemmBatchedKernelConfig kernel_config(brg0Prc,
+                                                brg1Prc,
+                                                with_compensations(brgemm_type),
+                                                brgemm_utils::get_primitive_isa(brg0Prc, false));
         m_kernel_executor =
-            kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+            kernel_table->register_kernel<BrgemmBatchedKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+
+        // BrgemmKernelConfig kernel_config(brg0Prc,
+        //                                  brg1Prc,
+        //                                  with_compensations(brgemm_type),
+        //                                  brgemm_utils::get_primitive_isa(brg0Prc, false));
+        // m_kernel_executor =
+        //     kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     }
     // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
     // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
@@ -103,6 +111,8 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         emit_call<BrgemmAMXKernelExecutor>(mem_ptrs_idxs);
     } else if (std::dynamic_pointer_cast<BrgemmKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmKernelExecutor>(mem_ptrs_idxs);
+    } else if (std::dynamic_pointer_cast<BrgemmBatchedKernelExecutor>(m_kernel_executor)) {
+        emit_call<BrgemmBatchedKernelExecutor>(mem_ptrs_idxs);
     } else {
         OV_CPU_JIT_EMITTER_THROW("uknown execuor type");
     }
