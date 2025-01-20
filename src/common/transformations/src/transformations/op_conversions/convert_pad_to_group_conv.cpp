@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ov::op::util::PadBase>(m.get_match_root());
+        auto pad = ov::as_type_ptr<ov::op::util::PadBase>(m.get_match_root());
         if (!pad) {
             return false;
         }

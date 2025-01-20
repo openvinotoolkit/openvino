@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,7 +163,7 @@ private:
             return ov::op::util::is_constant(node);
         });
         OPENVINO_ASSERT(it != ops.end());
-        mem_obj->transformed_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(*it);
+        mem_obj->transformed_constant = ov::as_type_ptr<ov::op::v0::Constant>(*it);
         OPENVINO_ASSERT(mem_obj->transformed_constant->get_element_type() == curr_dtype);
     }
 };

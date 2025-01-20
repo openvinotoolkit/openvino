@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "strided_slice.h"
 
+#include <cmath>
 #include <string>
 
 #include "common/cpu_memcpy.h"
@@ -33,13 +34,12 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, StridedSliceShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix = NameFromType(getType()) + " node with name '" + getName() + "' ";
 
     attrs.isStridedSliceOp = ov::is_type<ov::op::v1::StridedSlice>(op);
     attrs.isSliceScatterOp = ov::is_type<ov::op::v15::SliceScatter>(op);
@@ -58,10 +58,10 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     if ((attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
         (!attrs.isStridedSliceOp &&
          (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1)))) {
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     }
     if (outputShapes.size() != 1) {
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
 
     if (inputShapes.size() > attrs.STRIDE_ID) {
@@ -128,7 +128,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             attrs.ellipsisPos1 = attrs.ellipsisMask[i] == 1 && attrs.ellipsisPos1 == -1 ? i : attrs.ellipsisPos1;
         }
         if (attrs.ellipsisMaskCounter > 1)
-            OPENVINO_THROW(errorPrefix, "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
+            THROW_CPU_NODE_ERR("has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
@@ -193,6 +193,7 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
 
         auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {
             std::vector<int> temp;
+            temp.reserve(attrs.ellipsisPos1);
             for (int i = 0; i < attrs.ellipsisPos1; i++)
                 temp.push_back(data[i]);
             for (size_t i = attrs.ellipsisPos1; i < ellipsisPos2 + 1; i++)
@@ -334,21 +335,21 @@ void StridedSlice::prepareParams() {
             dstMemory.push_back(getDstMemoryAtPort(i));
         }
     }
-    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
+    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory);
 }
 
 bool StridedSlice::needShapeInfer() const {
     return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
-void StridedSlice::execute(dnnl::stream strm) {
+void StridedSlice::execute(const dnnl::stream& strm) {
     if (!execPtr)
-        OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
+        THROW_CPU_NODE_ERR("doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
 }
 
-void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
+void StridedSlice::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -358,14 +359,12 @@ bool StridedSlice::created() const {
 
 StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
                                                                      const std::vector<MemoryCPtr>& srcMemory,
-                                                                     const std::vector<MemoryCPtr>& dstMemory,
-                                                                     const std::string& errorPrefix)
-    : StridedSliceExecutor(attrs, srcMemory, dstMemory, errorPrefix) {
+                                                                     const std::vector<MemoryCPtr>& dstMemory)
+    : StridedSliceExecutor(attrs, srcMemory, dstMemory) {
     paramsInitialization(attrs, srcMemory, dstMemory);
     dimsNormalization();
     dimsGluing();
     indicesCalculation();
-    m_threads_num = parallel_get_max_threads();
 }
 
 void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(
@@ -384,7 +383,7 @@ void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(
 
     if (isBlockedLayout) {
         params.attrs.begin[1] = params.attrs.begin[1] / blk;
-        params.attrs.end[1] = ceil(params.attrs.end[1] / static_cast<float>(blk));
+        params.attrs.end[1] = std::ceil(params.attrs.end[1] / static_cast<float>(blk));
         params.attrs.begin.push_back(0);
         params.attrs.end.push_back(0);
         params.attrs.stride.push_back(1);
@@ -442,11 +441,11 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     params.attrs.beginDims = srcMemory[attrs.BEGIN_ID]->getShape().getStaticDims();
     params.attrs.endDims = srcMemory[attrs.END_ID]->getShape().getStaticDims();
     if (params.attrs.beginDims.size() != 1)
-        OPENVINO_THROW(errorPrefix, "should have begin vector with 1 dimension");
+        OPENVINO_THROW("Strided slice common executor should have begin vector with 1 dimension");
     if (params.attrs.endDims.size() != 1)
-        OPENVINO_THROW(errorPrefix, "should have end vector with 1 dimension");
+        OPENVINO_THROW("Strided slice common executor should have end vector with 1 dimension");
     if (params.attrs.beginDims[0] != params.attrs.endDims[0])
-        OPENVINO_THROW(errorPrefix, "should have begin vector with size equal to end vector size");
+        OPENVINO_THROW("Strided slice common executor should have begin vector with size equal to end vector size");
 
     if (params.attrs.begin.empty())
         fillingInParameters(params.attrs.begin, attrs.BEGIN_ID, params.attrs.beginDims[0], 0);
@@ -456,9 +455,10 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > attrs.STRIDE_ID) {
         params.attrs.strideDims = srcMemory[attrs.STRIDE_ID]->getShape().getStaticDims();
         if (params.attrs.strideDims.size() > 1)
-            OPENVINO_THROW(errorPrefix, "should have stride vector with 1 dimension");
+            OPENVINO_THROW("Strided slice common executor should have stride vector with 1 dimension");
         if (params.attrs.beginDims[0] != params.attrs.strideDims[0])
-            OPENVINO_THROW(errorPrefix, "should have stride vector with size equal to begin vector size");
+            OPENVINO_THROW(
+                "Strided slice common executor should have stride vector with size equal to begin vector size");
 
         if (params.attrs.stride.empty())
             fillingInParameters(params.attrs.stride, attrs.STRIDE_ID, params.attrs.strideDims[0], 1);
@@ -467,9 +467,10 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (srcMemory.size() > attrs.AXES_ID) {
         params.attrs.axesDims = srcMemory[attrs.AXES_ID]->getShape().getStaticDims();
         if (params.attrs.axesDims.size() != 1)
-            OPENVINO_THROW(errorPrefix, "should have axes vector with 1 dimension.");
+            OPENVINO_THROW("Strided slice common executor should have axes vector with 1 dimension.");
         if (params.attrs.beginDims[0] != params.attrs.axesDims[0])
-            OPENVINO_THROW(errorPrefix, "should have axes vector with size equal to begin vector size.");
+            OPENVINO_THROW(
+                "Strided slice common executor should have axes vector with size equal to begin vector size.");
 
         if (params.attrs.axes.empty())
             fillingInParameters(params.attrs.axes, attrs.AXES_ID, params.attrs.axesDims[0], 0);
@@ -573,7 +574,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                 strideTemp.push_back(params.attrs.stride[axis]);
                 newSrcDims.push_back(params.srcBlockedDims[srcIdx]);
                 newDstDims.push_back(
-                    ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
+                    std::ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
 
                 srcIdx++;
             }

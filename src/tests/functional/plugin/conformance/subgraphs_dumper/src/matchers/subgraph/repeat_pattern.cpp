@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -306,17 +306,17 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
         if (is_extract_body) {
             for (const auto& matched_node_idx : matched_nodes) {
                 const auto& matched_node = ordered_ops[matched_node_idx];
-                if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(matched_node)) {
+                if (ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node)) {
                     auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(matched_node);
                     auto ti_body = ti->get_function();
                     auto secondary_patterns = find_repeat_patterns(ti_body, is_save_borders_only);
                     update_extractor_cache(extracted_patterns, secondary_patterns);
-                } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(matched_node)) {
+                } else if (ov::as_type_ptr<ov::op::v5::Loop>(matched_node)) {
                     auto loop = ov::as_type_ptr<ov::op::v5::Loop>(matched_node);
                     auto loop_body = loop->get_function();
                     auto secondary_patterns = find_repeat_patterns(loop_body, is_save_borders_only);
                     update_extractor_cache(extracted_patterns, secondary_patterns);
-                } else if (std::dynamic_pointer_cast<ov::op::v8::If>(matched_node)) {
+                } else if (ov::as_type_ptr<ov::op::v8::If>(matched_node)) {
                     auto if_op = ov::as_type_ptr<ov::op::v8::If>(matched_node);
                     std::vector<std::shared_ptr<ov::Model>> bodies;
                     for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {

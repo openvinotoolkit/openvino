@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "utils/general_utils.h"
@@ -17,7 +18,7 @@ class DnnlScratchPad {
     dnnl::engine eng;
 
 public:
-    DnnlScratchPad(const dnnl::engine& eng, int numa_node = -1) : eng(eng) {
+    DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
         blockPtr = std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>(numa_node));
     }
 

@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rnn.h"
+
+#include <utility>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -409,7 +411,7 @@ private:
 
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
-    RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
@@ -420,7 +422,7 @@ private:
 
 }  // namespace
 
-RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, RnnShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -480,7 +482,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         coIdx = 2;
     }
 
-    auto rnnCellBase = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(op);
+    auto rnnCellBase = ov::as_type_ptr<ov::op::util::RNNCellBase>(op);
     if (!rnnCellBase)
         THROW_CPU_NODE_ERR("does not have original layer for RNNCell.");
 
@@ -1108,7 +1110,7 @@ void RNN::copyWeightsData() {
 }
 
 namespace {
-dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine engine,
+dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine& engine,
                                                const dnnl::algorithm cellType,
                                                const dnnl::algorithm cellAct,
                                                const dnnl::rnn_direction direction,
@@ -1385,7 +1387,7 @@ std::shared_ptr<MemoryDesc> RNN::getDstMemDesc(const dnnl::primitive_desc& prim_
     return supportedPrimitiveDescriptors[0].getConfig().outConfs[idx].getMemDesc();
 }
 
-void RNN::execute(dnnl::stream strm) {
+void RNN::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_CPU_NODE_ERR("does not have initialized primitive to execute.");
 
@@ -1423,7 +1425,7 @@ void RNN::execute(dnnl::stream strm) {
     execPtr->exec(args, strm);
 }
 
-void RNN::executeDynamicImpl(dnnl::stream strm) {
+void RNN::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -1434,11 +1436,11 @@ void RNN::cleanup() {
         m_initial_weights[2].reset();
     }
 
-    for (auto it : fusedWith) {
+    for (const auto& it : fusedWith) {
         it->cleanup();
     }
 
-    for (auto it : mergedWith) {
+    for (const auto& it : mergedWith) {
         it->cleanup();
     }
 }

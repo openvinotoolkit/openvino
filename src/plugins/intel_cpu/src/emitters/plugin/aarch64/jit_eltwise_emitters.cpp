@@ -118,7 +118,7 @@ jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    const auto clamp = std::dynamic_pointer_cast<ov::op::v0::Clamp>(node);
+    const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node);
     if (clamp == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
@@ -294,7 +294,7 @@ jit_elu_emitter::jit_elu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
-    const auto elu = std::dynamic_pointer_cast<ov::op::v0::Elu>(node);
+    const auto elu = ov::as_type_ptr<ov::op::v0::Elu>(node);
     if (elu == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to ov::op::v0::Clamp");
     }
@@ -1810,7 +1810,7 @@ void jit_mish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     const TReg vmm_src(in_vec_idxs[0]);
     const TReg vmm_dst(out_vec_idxs[0]);
     const TReg vmm_aux0(aux_vec_idxs[0]);
-    const TReg vmm_aux2(std::max<size_t>(exp_emitter->get_aux_vecs_count(), 1));
+    const TReg vmm_aux2(aux_vec_idxs[std::max<size_t>(exp_emitter->get_aux_vecs_count(), 1)]);
 
     h->ld1r(vmm_aux0.s, table_val2("fwd_mish_max_x_for_equation_f"));
     h->fminnm(vmm_aux2.s, vmm_src.s, vmm_aux0.s);
@@ -2633,7 +2633,7 @@ jit_swish_emitter::jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* ho
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
-    const auto swish = std::dynamic_pointer_cast<SwishNode>(node);
+    const auto swish = ov::as_type_ptr<SwishNode>(node);
     if (swish == nullptr) {
         OV_CPU_JIT_EMITTER_THROW("Can't cast to SwishNode");
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ void regclass_graph_op_If(py::module m) {
             Constructs If with condition.
 
             :param execution_condition: condition node.
-            :type execution_condition: openvino.runtime.Output
+            :type execution_condition: openvino.Output
 
             :rtype: openvino.impl.op.If
         )");
@@ -45,7 +45,7 @@ void regclass_graph_op_If(py::module m) {
             Constructs If with condition.
 
             :param execution_condition: condition node.
-            :type execution_condition: openvino.runtime.Node
+            :type execution_condition: openvino.Node
 
             :rtype: openvino.impl.op.If
         )");
@@ -54,7 +54,7 @@ void regclass_graph_op_If(py::module m) {
         "get_then_body",
         [](ov::op::v8::If& self) {
             auto model = self.get_then_body();
-            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            py::type model_class = py::module_::import("openvino").attr("Model");
             return model_class(py::cast(model));
         },
         R"(
@@ -68,7 +68,7 @@ void regclass_graph_op_If(py::module m) {
         "get_else_body",
         [](ov::op::v8::If& self) {
             auto model = self.get_else_body();
-            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            py::type model_class = py::module_::import("openvino").attr("Model");
             return model_class(py::cast(model));
         },
         R"(
@@ -119,13 +119,13 @@ void regclass_graph_op_If(py::module m) {
             Sets new input to the operation associated with parameters of each sub-graphs.
 
             :param value: input to operation.
-            :type value: openvino.runtime.Output
+            :type value: openvino.Output
 
             :param then_result: parameter for then_body or nullptr.
-            :type then_result: openvino.runtime.Node
+            :type then_result: openvino.Node
 
             :param else_result: parameter for else_body or nullptr.
-            :type else_result: openvino.runtime.Node
+            :type else_result: openvino.Node
 
             :rtype: None
         )");
@@ -144,14 +144,14 @@ void regclass_graph_op_If(py::module m) {
             :type else_result: op.Result
 
             :return: output from operation.
-            :rtype: openvino.runtime.Output
+            :rtype: openvino.Output
         )");
 
     cls.def(
         "get_function",
         [](ov::op::v8::If& self, size_t index) {
             auto model = self.get_function(index);
-            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            py::type model_class = py::module_::import("openvino").attr("Model");
             return model_class(py::cast(model));
         },
         py::arg("index"),
@@ -199,9 +199,9 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :param inputs: list of input descriptions.
-            :type inputs: list[Union[openvino.runtime.op.util.MergedInputDescription,
-                                     openvino.runtime.op.util.InvariantInputDescription,
-                                     openvino.runtime.op.util.SliceInputDescription]]
+            :type inputs: list[Union[openvino.op.util.MergedInputDescription,
+                                     openvino.op.util.InvariantInputDescription,
+                                     openvino.op.util.SliceInputDescription]]
 
             :rtype: None
         )");
@@ -220,8 +220,8 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :param outputs: list of output descriptions.
-            :type outputs: list[Union[openvino.runtime.op.util.BodyOutputDescription,
-                                      openvino.runtime.op.util.ConcatOutputDescription]]
+            :type outputs: list[Union[openvino.op.util.BodyOutputDescription,
+                                      openvino.op.util.ConcatOutputDescription]]
 
             :rtype: None
         )");
@@ -245,8 +245,8 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :return: list of output descriptions.
-            :rtype: list[Union[openvino.runtime.op.util.BodyOutputDescription,
-                              openvino.runtime.op.util.ConcatOutputDescription]]
+            :rtype: list[Union[openvino.op.util.BodyOutputDescription,
+                              openvino.op.util.ConcatOutputDescription]]
         )");
 
     cls.def(
@@ -268,9 +268,9 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :return: list of input descriptions.
-            :rtype: list[Union[openvino.runtime.op.util.MergedInputDescription,
-                               openvino.runtime.op.util.InvariantInputDescription,
-                               openvino.runtime.op.util.SliceInputDescription]]
+            :rtype: list[Union[openvino.op.util.MergedInputDescription,
+                               openvino.op.util.InvariantInputDescription,
+                               openvino.op.util.SliceInputDescription]]
         )");
 
     cls.def("__repr__", [](const ov::op::v8::If& self) {
