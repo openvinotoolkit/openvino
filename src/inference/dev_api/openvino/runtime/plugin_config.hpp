@@ -65,16 +65,11 @@
     }
 
 #define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
-    const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() const { \
-        if (m_is_finalized) { \
+    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
+        auto v = read_env(PropertyNamespace::PropertyVar.name(), m_allowed_env_prefix, &m_ ## PropertyVar); \
+        if (v.empty()) \
             return m_ ## PropertyVar.value; \
-        } else { \
-            if (m_user_properties.find(PropertyNamespace::PropertyVar.name()) != m_user_properties.end()) { \
-                return m_user_properties.at(PropertyNamespace::PropertyVar.name()).as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
-            } else { \
-                return m_ ## PropertyVar.value; \
-            } \
-        } \
+        return v.as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
     }
 
 #define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
@@ -274,7 +269,7 @@ protected:
 
     ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
     ov::AnyMap read_env() const;
-    ov::Any read_env(const std::string& s) const;
+    static ov::Any read_env(const std::string& option_name, const std::string& prefix, const ConfigOptionBase* option);
     void cleanup_unsupported(ov::AnyMap& config) const;
 
     std::map<std::string, ConfigOptionBase*> m_options_map;
@@ -291,7 +286,7 @@ protected:
 
     bool m_is_finalized = false;
 
-    const char* m_allowed_env_prefix = "OV_";
+    inline static const std::string m_allowed_env_prefix = "OV_";
 };
 
 }  // namespace ov

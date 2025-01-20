@@ -138,7 +138,6 @@ public:
     void add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
 
     bool use_new_shape_infer() const { return m_config.get_allow_new_shape_infer(); }
-
     bool is_inner_program() const { return m_is_inner_program; }
     bool is_query_mode() { return queryMode; }
 
@@ -155,6 +154,8 @@ private:
 
     std::shared_ptr<cldnn::topology> m_topology;
     CustomLayerMap m_custom_layers;
+
+    bool allow_new_shape_infer = false;
 
     bool queryMode;
 

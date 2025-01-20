@@ -33,9 +33,8 @@
 namespace {
 
 inline bool can_use_usm_host(const cldnn::engine& engine, const uint64_t total_output_bytes) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->use_usm_host == 1) { return true; }
-    GPU_DEBUG_IF(debug_config->use_usm_host == 2) { return false; }
+    GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_usm_policy() == 1) { return true; }
+    GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_usm_policy() == 2) { return false; }
 
     auto can_use_usm = engine.use_unified_shared_memory();
     // When output size is large, it is better not to write to usm_host directly
@@ -113,20 +112,9 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     : ov::ISyncInferRequest(compiled_model)
     , m_graph(compiled_model->get_graph(0))
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
-    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_buffers_preallocation_ratio()))
+    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_shape_predictor_settings()))
     , m_enable_profiling(m_graph->get_config().get_enable_profiling())
     , m_use_external_queue(m_graph->use_external_queue()) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        auto& mem_preallocation_params = debug_config->mem_preallocation_params;
-        m_shape_predictor.reset(
-            new cldnn::ShapePredictor(&m_graph->get_engine(),
-                                      mem_preallocation_params.next_iters_preallocation_count,
-                                      mem_preallocation_params.max_per_iter_size,
-                                      mem_preallocation_params.max_per_dim_diff,
-                                      mem_preallocation_params.buffers_preallocation_ratio));
-    }
-
     init_mappings();
     allocate_inputs();
     allocate_outputs();
@@ -504,7 +492,7 @@ void SyncInferRequest::wait() {
     }
 
     auto wait_end = std::chrono::high_resolution_clock::now();
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+    GPU_DEBUG_IF(m_graph->get_config().get_host_time_profiling()) {
         auto& exec_time_info = m_graph->host_exec_times.back();
 
         const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(wait_end - wait_start).count();

@@ -190,30 +190,38 @@ ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std
     return config;
 }
 
+ov::Any PluginConfig::read_env(const std::string& option_name, const std::string& prefix, const ConfigOptionBase* option) {
+    auto var_name = prefix + option_name;
+    const auto& val = ov::util::getenv_string(var_name.c_str());
+
+    if (!val.empty()) {
+        if (dynamic_cast<const ConfigOption<bool>*>(option) != nullptr) {
+            const std::set<std::string> off = {"0", "false", "off", "no"};
+            const std::set<std::string> on = {"1", "true", "on", "yes"};
+
+            const auto& val_lower = ov::util::to_lower(val);
+            if (off.count(val_lower)) {
+                return false;
+            } else if (on.count(val_lower)) {
+                return true;
+            } else {
+                OPENVINO_THROW("Unexpected value for boolean property: ", val);
+            }
+        } else {
+            return val;
+        }
+    } else {
+        return ov::Any();
+    }
+}
+
 ov::AnyMap PluginConfig::read_env() const {
     ov::AnyMap config;
 
     for (auto& kv : m_options_map) {
-        auto var_name = m_allowed_env_prefix + kv.first;
-        const auto& val = ov::util::getenv_string(var_name.c_str());
-
+        auto val = read_env(kv.first, m_allowed_env_prefix, kv.second);
         if (!val.empty()) {
-            if (dynamic_cast<ConfigOption<bool>*>(kv.second) != nullptr) {
-                const std::set<std::string> off = {"0", "false", "off", "no"};
-                const std::set<std::string> on = {"1", "true", "on", "yes"};
-
-                const auto& val_lower = ov::util::to_lower(val);
-                if (off.count(val_lower)) {
-                    config[kv.first] = false;
-                } else if (on.count(val_lower)) {
-                    config[kv.first] = true;
-                } else {
-                    OPENVINO_THROW("Unexpected value for boolean property: ", val);
-                }
-            } else {
-                config[kv.first] = val;
-            }
-            break;
+            config[kv.first] = val;
         }
     }
 
