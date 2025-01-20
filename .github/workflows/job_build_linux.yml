@@ -242,14 +242,13 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
-          $python_exec -m pip install rpm
+          python3 -m pip install rpm
           cmake -UTBB* -UPython* -U_Python* -UPYTHON* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=$python_exec \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package --verbose
 
