@@ -412,7 +412,7 @@ ov::Output<ov::Node> broadcast_input(const ov::Output<ov::Node>& input_node,
 ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_node,
                                               const ov::OutputVector& common_sub_shape,
                                               const ov::OutputVector& separate_sub_shape,
-                                              const ov::OutputVector& reduced_sub_shape_prod,
+                                              const ov::OutputVector& reduced_sub_shape,
                                               bool is_separate_first,
                                               ov::NodeVector& subgraph_nodes) {
     ov::OutputVector new_shape_parts;
@@ -436,9 +436,17 @@ ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_
         separate_parts.push_back(separate_shape_prod->output(0));
         subgraph_nodes.insert(subgraph_nodes.end(), {reduce_axis_const, separate_shape_prod});
     }
+    ov::OutputVector reduced_sub_shape_prod;
+    auto const_0 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
+    for (auto sub_shape : reduced_sub_shape) {
+        auto product = std::make_shared<ov::op::v1::ReduceProd>(sub_shape, const_0, true);
+        subgraph_nodes.insert(subgraph_nodes.end(), {const_0, product});
+        reduced_sub_shape_prod.push_back(product->output(0));
+    }
 
     // form a new shape for input so that collapsed dimensions corresponding
     // to the common, separate and reduced dimensions are placed in the correct order
+
     if (is_separate_first) {
         new_shape_parts.insert(new_shape_parts.end(), separate_parts.begin(), separate_parts.end());
         new_shape_parts.insert(new_shape_parts.end(), reduced_sub_shape_prod.begin(), reduced_sub_shape_prod.end());
@@ -454,7 +462,7 @@ ov::Output<ov::Node> reshape_input_for_matmul(const ov::Output<ov::Node>& input_
 
     auto new_shape_op = std::make_shared<ov::op::v0::Concat>(new_shape_parts, 0);
 
-    // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
+    // if new shape is possible to compute on the shape infer stage, insert Constant node immediately
     // in order to prevent repeated computing during constant-folding pass
     std::shared_ptr<ov::op::v1::Reshape> reshaped_input_op;
     if (auto new_shape_const = ov::util::get_constant_from_source(new_shape_op)) {
@@ -947,17 +955,13 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     auto common_sub_shape2 = compute_sub_shape(data_shape2, common_dims_begin2, common_dims_end2, subgraph_nodes);
     OPENVINO_ASSERT(common_sub_shape.size() == common_sub_shape2.size());
     common_sub_shape = broadcast_merge_shapes(common_sub_shape, common_sub_shape2, subgraph_nodes);
-    auto reduced_sub_shape_prod =
-        compute_sub_shape(data_shape1, reduced_dims_begin, reduced_dims_end, subgraph_nodes, true);
-    auto reduced_sub_shape_prod2 =
-        compute_sub_shape(data_shape2, reduced_dims_begin2, reduced_dims_end2, subgraph_nodes, true);
     auto reduced_sub_shape =
         compute_sub_shape(data_shape1, reduced_dims_begin, reduced_dims_end, subgraph_nodes, false);
     auto reduced_sub_shape2 =
         compute_sub_shape(data_shape2, reduced_dims_begin2, reduced_dims_end2, subgraph_nodes, false);
 
-    reduced_sub_shape_prod = broadcast_merge_shapes(reduced_sub_shape_prod, reduced_sub_shape_prod2, subgraph_nodes);
     reduced_sub_shape = broadcast_merge_shapes(reduced_sub_shape, reduced_sub_shape2, subgraph_nodes);
+
     separate1_sub_shape = compute_sub_shape(data_shape1, separate1_dims_begin, separate1_dims_end, subgraph_nodes);
     matmul_operand1 = broadcast_input(input_node1,
                                       common_sub_shape,
@@ -1004,7 +1008,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         matmul_operand1 = reshape_input_for_matmul(matmul_operand1,
                                                    common_sub_shape,
                                                    separate1_sub_shape,
-                                                   reduced_sub_shape_prod,
+                                                   reduced_sub_shape,
                                                    is_separate_first1,
                                                    subgraph_nodes);
     }
@@ -1013,7 +1017,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         matmul_operand2 = reshape_input_for_matmul(matmul_operand2,
                                                    common_sub_shape,
                                                    separate2_sub_shape,
-                                                   reduced_sub_shape_prod,
+                                                   reduced_sub_shape,
                                                    is_separate_first2,
                                                    subgraph_nodes);
     }
