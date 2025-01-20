@@ -1825,6 +1825,29 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return ov::Shape(dataShape);
 }
 
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::vector<std::string>>& refFiles,
+                               size_t numberOfTestCase, size_t outputInd) {
+    std::string blobFileFullPath;
+    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
+        // Case 1: Reference files & directory are provided (relative path)
+        blobFileFullPath = FLAGS_ref_dir + "/" + refFiles[numberOfTestCase][outputInd];
+    } else if (!refFiles.empty()) {
+        // Case 2: Reference files provided only (absolute path)
+        blobFileFullPath = refFiles[numberOfTestCase][outputInd];
+    } else {
+        // Case 3: Reference directory provided only
+        std::ostringstream ostr;
+        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        const auto blobFileName = ostr.str();
+
+        std::filesystem::path fullPath = FLAGS_ref_dir;
+        fullPath /= blobFileName;
+        blobFileFullPath = fullPath.string();
+    }
+
+    return blobFileFullPath;
+}
+
 static int runSingleImageTest() {
     std::cout << "Run single image test" << std::endl;
     try {
@@ -1871,11 +1894,13 @@ static int runSingleImageTest() {
 
         if (!FLAGS_ref_results.empty()) {
             refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
-            // Make sure that the number of reference files is the same as the number of input files
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
             if (refFilesPerCase.size() != inputFilesPerCase.size()) {
-                std::cout << "The number of reference files is not equal to the number of input files."
-                    << "  Number of reference files: " << refFilesPerCase.size()
-                    << "  Number of input files: " << inputFilesPerCase.size() << std::endl;
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
                 return EXIT_FAILURE;
             }
 
@@ -2124,7 +2149,7 @@ static int runSingleImageTest() {
                                                                                  : refFilesForOneInfer[numberOfTestCase];
             if (!FLAGS_ref_results.empty()) {
                 OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
-                " doesn't match network output configuration: ", outputsInfo.size());
+                " doesn't match number of network output (s): ", outputsInfo.size());
             }
 
             TensorMap inTensors;
@@ -2205,23 +2230,7 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::string blobFileFullPath;
-                    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
-                        // Case 1: Reference files & directory are provided (relative path)
-                        blobFileFullPath = FLAGS_ref_dir + "/" + refFiles[numberOfTestCase][outputInd];
-                    } else if (!refFiles.empty()) {
-                        // Case 2: Reference files provided only (absolute path)
-                        blobFileFullPath = refFiles[numberOfTestCase][outputInd];
-                    } else {
-                        // Case 3: Reference directory provided only
-                        std::ostringstream ostr;
-                        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
-                        const auto blobFileName = ostr.str();
-
-                        std::filesystem::path fullPath = FLAGS_ref_dir;
-                        fullPath /= blobFileName;
-                        blobFileFullPath = fullPath.string();
-                    }
+                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
