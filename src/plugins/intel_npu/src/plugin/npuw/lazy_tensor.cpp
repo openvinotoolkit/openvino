@@ -27,6 +27,7 @@ struct Const {
     bool was_deserialized = false;
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
+    ov::Tensor m_read_from_weights;
 
     Const() = default;
 
@@ -53,12 +54,17 @@ struct Const {
         NPUW_ASSERT(m_node && "Const::eval() can only happen before detach");
         return ov::npuw::util::tensor_from_const(m_node);
     }
+    void read_weight(std::istream& stream) {
+        NPUW_ASSERT(was_deserialized);
+        m_read_from_weights = ov::Tensor(m_cached_type, m_cached_shape);
+        // Note: assumed to be called sequentially
+        stream.seekg(m_offset);
+        stream.read(reinterpret_cast<char*>(m_read_from_weights.data()), m_byte_size);
+    }
     ov::Tensor eval(std::istream& stream) const {
         NPUW_ASSERT(was_deserialized);
-        ov::Tensor t(m_cached_type, m_cached_shape);
-        stream.seekg(m_offset);
-        stream.read(reinterpret_cast<char*>(t.data()), m_byte_size);
-        return t;
+        NPUW_ASSERT(m_read_from_weights && "Underlying data should have been read first!");
+        return m_read_from_weights;
     }
     void detach() {
         m_node.reset();
@@ -108,6 +114,11 @@ struct Concat {
             to_concat.push_back(lt.eval());
         }
         return ov::npuw::util::concat(to_concat, axis);
+    }
+    void read_weight(std::istream& stream) {
+        for (auto& lt : tensors) {
+            lt.read_weight(stream);
+        }
     }
     ov::Tensor eval(std::istream& stream) const {
         std::vector<ov::Tensor> to_concat;
@@ -170,6 +181,11 @@ struct Unpack {
         }
         return dst;
     }
+    void read_weight(std::istream& stream) {
+        w.read_weight(stream);
+        z.read_weight(stream);
+        s.read_weight(stream);
+    }
     ov::Tensor eval(std::istream& stream) const {
         const auto& gti = ov::get_tensor_impl;
         const auto& tw = w.eval(stream);
@@ -231,6 +247,9 @@ struct Permute {
     ov::Tensor eval() const {
         return ov::npuw::util::permute(tensor.eval(), axes);
     }
+    void read_weight(std::istream& stream) {
+        tensor.read_weight(stream);
+    }
     ov::Tensor eval(std::istream& stream) const {
         return ov::npuw::util::permute(tensor.eval(stream), axes);
     }
@@ -267,6 +286,9 @@ struct Convert {
     ov::Tensor eval() const {
         NPUW_ASSERT(ov::element::f16 == type);
         return ov::npuw::util::to_f16(tensor.eval());
+    }
+    void read_weight(std::istream& stream) {
+        tensor.read_weight(stream);
     }
     ov::Tensor eval(std::istream& stream) const {
         NPUW_ASSERT(ov::element::f16 == type);
@@ -310,6 +332,7 @@ public:
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<LazyTensorImpl> deserialize(std::istream& stream);
     ov::Tensor eval(std::istream& stream) const;
+    void read_weight(std::istream& stream);
 
     Transform m_transform;
     std::size_t m_hash = 0;
@@ -372,6 +395,13 @@ ov::Tensor LazyTensorImpl::eval(std::istream& stream) const {
                           return op.eval(stream);
                       }},
                       m_transform);
+}
+
+void LazyTensorImpl::read_weight(std::istream& stream) {
+    std::visit(overloaded{[&stream](auto& op) {
+                   return op.read_weight(stream);
+               }},
+               m_transform);
 }
 
 std::size_t LazyTensorImpl::get_hash() const {
@@ -495,6 +525,12 @@ ov::Tensor LazyTensor::eval(std::istream& stream) const {
         return ov::Tensor();
     }
     return m_impl->eval(stream);
+}
+
+void LazyTensor::read_weight(std::istream& stream) {
+    if (m_impl) {
+        m_impl->read_weight(stream);
+    }
 }
 
 std::size_t LazyTensor::get_hash() const {

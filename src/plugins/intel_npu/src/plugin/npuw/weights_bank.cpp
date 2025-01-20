@@ -117,6 +117,7 @@ void Bank::evaluate_and_allocate() {
                 return;
             }
 
+            // FIXME: ideally we would want to allocate memory sequentially - in order of UID
             ov::SoPtr<ov::ITensor> remote_tensor;
             ov::Tensor allocated_tensor;
 
@@ -153,6 +154,9 @@ void Bank::evaluate_and_allocate(std::ifstream& weights_stream) {
             // Add non-allocated tensors for furter evaluation and allocation
             if (!el.second.tensor) {
                 vec.push_back(el.second.lt);
+                // First, read weights from file sequentially
+                // FIXME: suboptimal - find a way not to read same offset + size several times
+                vec.back().read_weight(weights_stream);
             }
         }
         storage_guard.unlock();
@@ -170,20 +174,18 @@ void Bank::evaluate_and_allocate(std::ifstream& weights_stream) {
             dev_guard.unlock();
 
             // Allocation and/or evaluation needed
-            // Evaluate concurrently, lock the device
+            // Second, evaluate concurrently, lock the device
             // mutex only to update the device bank (& allocate on-device memory, if needed)
             const auto& transformed_tensor = lt.eval(weights_stream);
 
             std::unique_lock<std::mutex> guard(device_bank.mutex);
             if (device_for_alloc == "CPU") {
                 // No allocation needed
-                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor =
-                    ov::Tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
-                // FIXME: is this copy needed?
-                transformed_tensor.copy_to(device_bank.storage[device_bank.registered_tensors.at(lt)].tensor);
+                device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
                 return;
             }
 
+            // FIXME: ideally we would want to allocate memory sequentially - in order of UID
             ov::SoPtr<ov::ITensor> remote_tensor;
             ov::Tensor allocated_tensor;
 
@@ -195,11 +197,7 @@ void Bank::evaluate_and_allocate(std::ifstream& weights_stream) {
             guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
             transformed_tensor.copy_to(allocated_tensor);
-
-            // Detach the evaluated LazyTensor from its memory here - when it is 100%
-            // not needed anymore (transformations, if any, and copies are done)
-            // Note: this is the non-CPU path!
-            const_cast<LazyTensor&>(lt).detach();
+            // Note: no detach needed since we aren't operating with Constants
         });
     }
 }
