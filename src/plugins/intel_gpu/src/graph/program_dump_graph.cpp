@@ -139,7 +139,6 @@ void close_stream(std::ofstream& graph) { graph.close(); }
 std::string get_node_id(const program_node* ptr) { return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr)); }
 
 void dump_full_node(std::ofstream& out, const program_node* node) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     try {
         out << node->type()->to_string(*node);
     } catch(const std::exception& e) {

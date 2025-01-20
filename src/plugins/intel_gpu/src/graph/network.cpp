@@ -60,7 +60,7 @@ namespace cldnn {
 namespace {
 
 #ifdef GPU_DEBUG_CONFIG
-void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
     auto layouts_to_str = [](const std::vector<layout>& layouts) -> std::string {
         std::stringstream s;
         for (size_t i = 0; i < layouts.size(); i++) {
@@ -71,7 +71,6 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
         return s.str();
     };
 
-    const bool per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
     const std::string perf_raw_csv_header = per_iter_mode ? "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iter,time_usec\n"
                                                           : "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
     std::ofstream of(dump_path);
@@ -139,13 +138,12 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
     }
 }
 
-void wait_for_the_turn() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
+void wait_for_the_turn(const std::vector<std::string>& pids) {
     bool need_to_wait;
     do {
         need_to_wait = false;
         struct stat buffer;
-        for (auto pid : debug_config->after_proc) {
+        for (auto pid : pids) {
             auto path = "/proc/" + pid;
             std::cout << "check " + path << std::endl;
             if (stat(path.c_str(), &buffer) == 0) {
@@ -158,8 +156,8 @@ void wait_for_the_turn() {
 }
 
 #else
-void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-void wait_for_the_turn() {}
+void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
+void wait_for_the_turn(const std::vector<std::string>& pids) {}
 #endif
 }  // namespace
 
@@ -177,30 +175,19 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     , _config(program->get_config())
     , _engine(program->get_engine())
     , _stream(stream)
-    , _memory_pool(new memory_pool(program->get_engine()))
+    , _memory_pool(new memory_pool(program->get_engine(), program->get_config()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
     , _enable_profiling(program->get_config().get_enable_profiling())
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_buffers_preallocation_ratio())) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_shape_predictor_settings())) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->after_proc.size() != 0) {
-        wait_for_the_turn();
+    GPU_DEBUG_IF(get_config().get_start_after_processes().size() != 0) {
+        wait_for_the_turn(get_config().get_start_after_processes());
     }
-
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        auto& mem_preallocation_params = debug_config->mem_preallocation_params;
-        _shape_predictor.reset(new ShapePredictor(&program->get_engine(),
-                                                  mem_preallocation_params.next_iters_preallocation_count,
-                                                  mem_preallocation_params.max_per_iter_size,
-                                                  mem_preallocation_params.max_per_dim_diff,
-                                                  mem_preallocation_params.buffers_preallocation_ratio));
-    }
-
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
@@ -239,7 +226,7 @@ network::~network() {
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
     GPU_DEBUG_IF(!_config.get_dump_profiling_data_path().empty()) {
-        dump_perf_data_raw(_config.get_dump_profiling_data_path() + "/perf_raw" + std::to_string(net_id) + ".csv", _exec_order);
+        dump_perf_data_raw(_config.get_dump_profiling_data_path() + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
     }
 }
 

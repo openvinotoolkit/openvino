@@ -221,7 +221,6 @@ program::~program() {
 }
 
 void program::init_program() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -606,7 +605,6 @@ void program::post_optimize_graph(bool is_internal) {
 
     auto partial_build = _config.get_partial_build_program();
 #ifdef GPU_DEBUG_CONFIG
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     if (!is_internal && (!partial_build || !_config.get_dry_run_path().empty())) {
 #else
     if (!is_internal && !partial_build) {
@@ -1650,7 +1648,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     auto max_alloc_size = get_engine().get_device_info().max_alloc_mem_size;
-    memory_pool pool(get_engine());
+    memory_pool pool(get_engine(), get_config());
     int64_t const_sum = 0;
 
 #ifdef __unix__
