@@ -113,9 +113,9 @@ public:
         if (group_norm_gamma_present)
             group_norm_gamma_vals = test::utils::generateVector<T_gn_gamma_elem_t>(shape_size(group_norm_gamma_shape));
 
-        auto group_norm_beta_vals = std::vector<T_in_beta_store_t>();
+        auto group_norm_beta_vals = std::vector<T_gn_beta_store_t>();
         if (group_norm_beta_present)
-            group_norm_beta_vals = test::utils::generateVector<T_in_beta_elem_t>(shape_size(group_norm_beta_shape));
+            group_norm_beta_vals = test::utils::generateVector<T_gn_beta_elem_t>(shape_size(group_norm_beta_shape));
 
         std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
         {
