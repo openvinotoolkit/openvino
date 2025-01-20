@@ -242,8 +242,7 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
-          $python_exec pip install wheel
-          $python_exec pip install rpm-py-installer
+          $python_exec pip install rpm
           cmake -UTBB* -UPython* -U_Python* -UPYTHON* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
