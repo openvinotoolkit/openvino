@@ -25,7 +25,6 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
     const std::shared_ptr<opset1::Multiply>& multiply,
     const std::shared_ptr<ov::opset1::Constant>& multiplyConstant) :
-    channelDimIndex(1ul),
     data(data),
     convert(convert),
     subtract(subtract),
