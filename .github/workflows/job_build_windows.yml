@@ -269,7 +269,7 @@ jobs:
       - name: Pack JS Artifacts
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
-          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR }}"
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR_JS }}"
           $compress = @{
             Path = $file
             CompressionLevel = "Optimal"
