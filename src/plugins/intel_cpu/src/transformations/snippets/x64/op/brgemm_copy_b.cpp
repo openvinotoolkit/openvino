@@ -70,7 +70,7 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<
     const auto planar_pshape = snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_input);
     // data repacking output
     set_output_type(0, element_type, planar_pshape);
-    // If compensations are needed, they are provided in 2nd output (which is used in BrgemmCPU)
+    // If compensations are needed, they are provided in 2nd output (which is used in GemmCPU)
     if (with_compensations(m_type)) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
