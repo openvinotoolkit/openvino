@@ -336,7 +336,6 @@ TEST(mark_shape_of_subgraphs, broadcast_not_existed_after_shapeof) {
     topology.add(convolution("convolution", input_info("reshape"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -363,7 +362,6 @@ TEST(mark_shape_of_subgraphs, broadcast_w_data_and_direct_shapeof_no_mark) {
     topology.add(convolution("convolution", input_info("broadcast"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -389,7 +387,6 @@ TEST(mark_shape_of_subgraphs, broadcast_w_data_and_indirect_shapeof) {
     topology.add(broadcast("broadcast", input_info("data_0"), input_info("gather"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -414,7 +411,6 @@ TEST(mark_shape_of_subgraphs, broadcast_w_direct_shapeof_and_data) {
     topology.add(reshape("reshape", input_info("input"), input_info("broadcast"), false, ov::PartialShape{4, 4, 1, 1}));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 

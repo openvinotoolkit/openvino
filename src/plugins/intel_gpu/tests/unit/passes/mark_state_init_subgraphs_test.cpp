@@ -44,7 +44,6 @@ public:
     void test_cross_attn_key_state_init_subgraphs(bool is_caching_test) {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         auto input_k_layout_dynamic = layout{ov::PartialShape{-1, -1, 512}, data_types::f16, format::bfyx};
@@ -89,7 +88,6 @@ public:
     void test_cross_attn_value_state_init_subgraphs(bool is_caching_test) {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         auto input_v_layout_dynamic = layout{ov::PartialShape{-1, -1, 512}, data_types::f16, format::bfyx};
@@ -147,7 +145,6 @@ public:
     void test_cross_attn_multiple_state_init_subgraphs(bool is_caching_test) {
         auto& engine = get_test_engine();
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         auto param_layout_dynamic = layout{ov::PartialShape{-1, -1, 512}, data_types::f16, format::bfyx};

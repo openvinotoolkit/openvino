@@ -929,8 +929,7 @@ public:
                                  -1,
                                  swiglu_length,
                                  ov::op::internal::GLU::GluType::Swish,
-                                 0,
-                                 tensor()),
+                                 0),
                           reorder("reorder_bfyx", input_info("swiglu"), p.default_format, data_types::f32));
 
         tolerance = 1.0f;
