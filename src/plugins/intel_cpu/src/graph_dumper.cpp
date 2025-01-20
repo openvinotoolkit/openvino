@@ -225,8 +225,9 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 void serialize(const Graph& graph) {
     const std::string& path = graph.getConfig().debugCaps.execGraphPath;
 
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
 
     if (path == "cout") {
         serializeToCout(graph);
@@ -240,8 +241,9 @@ void serialize(const Graph& graph) {
 }
 
 void serializeToXML(const Graph& graph, const std::string& path) {
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
 
     std::string binPath;
     ov::pass::Manager manager;
@@ -275,8 +277,9 @@ void summary_perf(const Graph& graph) {
     }
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
-    if (summaryPerf.empty() || !std::stoi(summaryPerf))
+    if (summaryPerf.empty() || !std::stoi(summaryPerf)) {
         return;
+    }
 
     std::map<std::string, double> perf_by_type;
     std::map<NodePtr, double> perf_by_node;
@@ -290,19 +293,22 @@ void summary_perf(const Graph& graph) {
         total += node->PerfCounter().count() * avg;
         total_avg += avg;
 
-        if (perf_by_type.count(type))
+        if (perf_by_type.count(type)) {
             perf_by_type[type] += avg;
-        else
+        } else {
             perf_by_type[type] = avg;
+        }
 
-        if (perf_by_node.count(node))
+        if (perf_by_node.count(node)) {
             perf_by_node[node] += avg;
-        else
+        } else {
             perf_by_node[node] = avg;
+        }
     }
 
-    if (total_avg < 1)
+    if (total_avg < 1) {
         return;
+    }
 
     std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << std::endl;
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
@@ -313,8 +319,9 @@ void summary_perf(const Graph& graph) {
         std::cout << " perf_by_type:" << std::endl;
         std::vector<std::pair<std::string, double>> A;
         A.reserve(perf_by_type.size());
-        for (auto& it : perf_by_type)
+        for (auto& it : perf_by_type) {
             A.push_back(it);
+        }
         sort(A.begin(), A.end(), [](std::pair<std::string, double>& a, std::pair<std::string, double>& b) {
             return a.second > b.second;
         });
@@ -322,8 +329,9 @@ void summary_perf(const Graph& graph) {
         for (auto& it : A) {
             std::stringstream ss;
             int percentage = static_cast<int>(it.second * 100 / total_avg);
-            if (percentage == 0)
+            if (percentage == 0) {
                 break;
+            }
             ss << std::setw(10) << std::right << percentage << " % :  " << std::setw(8) << std::right << it.second
                << "(us)  " << it.first << std::endl;
             std::cout << ss.str();
@@ -333,8 +341,9 @@ void summary_perf(const Graph& graph) {
         std::cout << " perf_by_node:" << std::endl;
         std::vector<std::pair<NodePtr, double>> A;
         A.reserve(perf_by_node.size());
-        for (auto& it : perf_by_node)
+        for (auto& it : perf_by_node) {
             A.push_back(it);
+        }
         sort(A.begin(), A.end(), [](std::pair<NodePtr, double>& a, std::pair<NodePtr, double>& b) {
             return a.second > b.second;
         });
@@ -343,10 +352,12 @@ void summary_perf(const Graph& graph) {
             std::stringstream ss;
             auto percentage = it.second * 100 / total_avg;
             auto node = it.first;
-            if (node->PerfCounter().count() == 0)
+            if (node->PerfCounter().count() == 0) {
                 continue;
-            if (node->PerfCounter().avg() < 1)
+            }
+            if (node->PerfCounter().avg() < 1) {
                 continue;
+            }
             ss << std::setw(10) << std::right << std::fixed << std::setprecision(2) << percentage << " %  "
                << std::setw(8) << std::right << node->PerfCounter().avg() << "(us)x" << node->PerfCounter().count()
                << " #" << node->getExecIndex() << " " << node->getName() << " "
@@ -371,8 +382,9 @@ void average_counters(const Graph& graph) {
 
     const std::string& path = graph.getConfig().debugCaps.averageCountersPath;
 
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
 
     static int graphIndex = 0;
     std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
@@ -404,8 +416,9 @@ void average_counters(const Graph& graph) {
     };
 
     for (auto& node : graph.GetNodes()) {
-        if (node->isConstant())
+        if (node->isConstant()) {
             continue;
+        }
 
         total += printAverageCounter(node);
     }

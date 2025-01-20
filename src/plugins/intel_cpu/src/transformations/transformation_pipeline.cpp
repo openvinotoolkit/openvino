@@ -388,8 +388,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
-    if (useLpt)
+    if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantization, defaultPrecisions);
+    }
 
     auto get_convert_precisions = [&]() {
         precisions_map map = {{ov::element::i64, ov::element::i32},

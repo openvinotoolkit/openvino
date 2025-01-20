@@ -1904,8 +1904,9 @@ void Graph::EnforceInferencePrecision() {
             continue;
         }
 #ifdef CPU_DEBUG_CAPS
-        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers()))
+        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName(), node->getOriginalLayers())) {
             continue;
+        }
 #endif
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
