@@ -90,6 +90,8 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
+#include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -108,6 +110,7 @@
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_slicescatter.hpp"
@@ -565,8 +568,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertSequenceToTensorIterator);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertOpSet3ToOpSet2);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertOpSet2ToOpSet1);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertShapeOf3);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LSTMCellDecomposition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GRUCellDecomposition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RNNCellDecomposition);
@@ -786,11 +789,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertCompressedOnlyToLegacy);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::EyeDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGELU);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertShuffleChannels3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::Gelu7Downgrade);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::SoftPlusDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertMod);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertShuffleChannels3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::WeightsDequantizeToFakeQuantize);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SimplifyCTCGreedyDecoderSeqLen);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather7ToGather1);
@@ -804,7 +804,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign9To3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SoftSignDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::UniqueDecomposition);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
@@ -996,6 +995,7 @@ void Transformations::PostLpt() {
 
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
     CPU_SET_CALLBACK_COMMON(
