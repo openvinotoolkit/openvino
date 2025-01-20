@@ -103,6 +103,9 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DENABLE_WHEEL=ON \
+            -DENABLE_GPU=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
