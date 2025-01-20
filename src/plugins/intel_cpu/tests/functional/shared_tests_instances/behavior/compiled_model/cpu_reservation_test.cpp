@@ -20,6 +20,7 @@ using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
 
+#if (defined(__linux__) || defined(__WIN32))
 TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
@@ -72,19 +73,34 @@ TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
     EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
 }
 
-#if defined(__linux__)
 TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
     models.emplace_back(ov::test::utils::make_2_input_subtract());
+    bool cpu_pinning = false;
+
+#if defined(__linux__)
+    cpu_pinning = true;
+#elif defined(_WIN32)
+    USHORT highestNodeNumber = 0;
+    if (!GetNumaHighestNodeNumber(&highestNodeNumber)) {
+        std::cout << "Error getting highest NUMA node number: " << GetLastError() << std::endl;
+        return;
+    }
+    if (highestNodeNumber > 0) {
+        cpu_pinning = false;
+    } else {
+        cpu_pinning = true;
+    }
+#endif
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     core->set_property(target_device, config);
     ov::AnyMap property_config = {{ov::inference_num_threads.name(), 1},
                                   {ov::hint::enable_cpu_reservation.name(), true}};
     auto compiled_model = core->compile_model(models[0], target_device, property_config);
-    auto cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning.name());
-    ASSERT_EQ(cpu_pinning, true);
+    auto res_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning.name());
+    ASSERT_EQ(res_cpu_pinning, cpu_pinning);
 }
 #endif
