@@ -75,8 +75,3 @@ runs:
         $pipVersion = python3 -c "import pip; print(pip.__version__)"
         Write-Host "Using pip version: $pipVersion"
         "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/$pipVersion" >> $env:GITHUB_ENV
-
-    - if: ${{ inputs.show-cache-info == 'true' }}
-      name: Get pip cache info
-      shell: bash
-      run: python3 -m pip cache info
