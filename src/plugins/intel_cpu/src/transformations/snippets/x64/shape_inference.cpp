@@ -8,6 +8,7 @@
 
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
+#include "op/gemm_cpu.hpp"
 #include "op/load_convert.hpp"
 #include "op/perf_count_rdtsc.hpp"
 #include "op/store_convert.hpp"
@@ -69,6 +70,7 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceMax, ReduceShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::ReduceSum, ReduceShapeInfer),
 #endif
+    SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::GemmCPU, BrgemmShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer),
     SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
 };
