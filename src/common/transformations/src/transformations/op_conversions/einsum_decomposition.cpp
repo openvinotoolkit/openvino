@@ -546,38 +546,46 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
                   size_t input_ind,
                   ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
-    auto num_inputs = input_nodes.size();
+    const auto num_inputs = input_nodes.size();
     OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
     OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
-    std::vector<int64_t> reduced_axes;
-    auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
-    std::string new_input_subscript = "";
-    for (size_t dim_ind = 0; dim_ind < labels.size(); ++dim_ind) {
-        const auto& label = labels[dim_ind];
+    const auto& input_node = input_nodes[input_ind];
+    const auto& input_subscript = input_subscripts[input_ind];
 
+    // compute output shape and axes to reduce
+    std::set<int64_t> reduced_axes;
+    const auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
+    auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
+    std::string new_input_subscript = "";
+
+    for (const auto& label : labels) {
         // check if the current label is met in the other input subscripts
         // or the output subscript
-        bool is_dim_reduced = is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
+        const bool is_dim_reduced = is_dimension_reduced(input_subscripts, output_subscript, label, {input_ind});
+
+        OPENVINO_ASSERT(label_dim_map.find(label) != label_dim_map.end());
+        const auto& label_dims = label_dim_map[label];
 
         // if label is not met, dimension corresponding to the label is to reduce
         if (is_dim_reduced) {
-            reduced_axes.push_back(dim_ind);
+            reduced_axes.insert(label_dims.begin(), label_dims.end());
         } else {
             new_input_subscript += label;
         }
     }
 
-    if (reduced_axes.size() == 0) {
+    if (reduced_axes.empty()) {
         // there is no axis to reduce
         return;
     }
 
     // reduce by summed up elements along dimension for which label is met just once
-    const auto& input_node = input_nodes[input_ind];
-    auto axes_const =
-        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{reduced_axes.size()}, reduced_axes);
-    auto reduce_sum = einsum_decompose_ptr->register_new_node<ov::op::v1::ReduceSum>(input_node, axes_const, false);
+    const std::vector<int64_t> reduced_axes_vec{reduced_axes.cbegin(), reduced_axes.cend()};
+    const auto axes_const =
+        ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{reduced_axes.size()}, reduced_axes_vec);
+    const auto reduce_sum =
+        einsum_decompose_ptr->register_new_node<ov::op::v1::ReduceSum>(input_node, axes_const, false);
 
     // update a vector of inputs and input subscripts
     input_nodes[input_ind] = reduce_sum->output(0);
