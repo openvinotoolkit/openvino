@@ -27,7 +27,7 @@ public:
     OPENVINO_RTTI("ReduceSumTransformation", "0", ReduceBaseTransformation);
     ReduceSumTransformation(const Params& params = Params());
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& reduce) const override;
 
 protected:
     void changeDequantizationValues(

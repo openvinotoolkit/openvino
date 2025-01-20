@@ -24,7 +24,7 @@ class LP_TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation : public F
 public:
     OPENVINO_RTTI("FuseMultiplyToFakeQuantizeTransformation", "0", FuseElementwiseToFakeQuantizeTransformation);
     FuseMultiplyToFakeQuantizeTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

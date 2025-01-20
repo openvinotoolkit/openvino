@@ -32,16 +32,16 @@ MultiplyPartialTransformation::MultiplyPartialTransformation(const Params& param
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MultiplyPartialTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
     auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 
@@ -168,7 +168,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
     }
 
     replace_node(multiply, newMultiply);
-    updateOutput(context, newMultiply, multiply);
+    updateOutput(newMultiply, multiply);
 
     if (fullPathIndex != -1) {
         NetworkHelper::foldDequantization(newMultiply, fullPathIndex, defaultPrecisions);
@@ -178,7 +178,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
     return true;
 }
 
-bool MultiplyPartialTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool MultiplyPartialTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 0ul);
     FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, defaultPrecisions, 1ul);
 
@@ -193,7 +193,7 @@ bool MultiplyPartialTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    return EltwiseBaseTransformation::canBeTransformed(context, layer);
+    return EltwiseBaseTransformation::canBeTransformed(layer);
 }
 
 } // namespace low_precision

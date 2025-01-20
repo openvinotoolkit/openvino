@@ -13,7 +13,7 @@ namespace low_precision {
 CleanupTransformation::CleanupTransformation(const Params& params) : LayerTransformation(params) {
 }
 
-bool CleanupTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool CleanupTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     return canBeTransformedStatic(layer);
 }
 

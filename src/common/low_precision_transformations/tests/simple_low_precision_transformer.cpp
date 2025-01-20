@@ -10,7 +10,6 @@
 #include "low_precision/markup_bias.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_quantization_granularity.hpp"
-#include "low_precision/transformation_context.hpp"
 
 // cleanup transformations
 #include "low_precision/convert.hpp"

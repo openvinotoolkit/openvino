@@ -27,7 +27,7 @@ public:
     OPENVINO_RTTI("ReduceMeanTransformation", "0", ReduceBaseTransformation);
     ReduceMeanTransformation(const Params& params = Params());
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
+    bool canBeTransformed(const std::shared_ptr<Node>& reduce) const override;
 
 protected:
     bool getUpdatePrecision(const std::shared_ptr<Node>& reduce) const override;
