@@ -31,7 +31,7 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -93,7 +93,7 @@ void PriorBoxClustered::createPrimitive() {
     }
 }
 
-void PriorBoxClustered::execute(dnnl::stream strm) {
+void PriorBoxClustered::execute(const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];

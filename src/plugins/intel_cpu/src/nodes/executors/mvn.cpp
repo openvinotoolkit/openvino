@@ -4,10 +4,12 @@
 
 #include "mvn.hpp"
 
+#include <utility>
+
 namespace ov {
 namespace intel_cpu {
 
-MVNExecutor::MVNExecutor(const ExecutorContext::CPtr context) : context(context) {}
+MVNExecutor::MVNExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
 VectorDims MVNExecutor::transformTo5DCase(const VectorDims& shape, bool initAcrossChannels) {
     switch (shape.size()) {
