@@ -466,12 +466,11 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
         // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
         if (unsupported_ops_from_tokenizers.size() > 0) {
-            exception_message
-                << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
-                   "provides conversion extension(s): "
-                << unsupported_ops_from_tokenizers
-                << ". Install OpenVINO Tokenizers, refer to the documentation: "
-                   "https://docs.openvino.ai/2024/openvino-workflow-generative/ov-tokenizers.html \n";
+            exception_message << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                                 "provides conversion extension(s): "
+                              << unsupported_ops_from_tokenizers
+                              << ". Install OpenVINO Tokenizers, refer to the documentation: "
+                                 "https://docs.openvino.ai/2024/openvino-workflow-generative/ov-tokenizers.html \n";
         }
     }
 

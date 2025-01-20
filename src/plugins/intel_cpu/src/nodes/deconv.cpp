@@ -125,16 +125,43 @@ bool DeconvKey::operator==(const DeconvKey& rhs) const {
  * input. Since in case it exists, plugin should pass the input data to the shape inference function.
  *
  */
-class DeconfolutionShapeInferFactory : public ShapeInferFactory {
+class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
     ShapeInferPtr makeShapeInfer() const override {
-        const auto port_mask = (m_op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK;
-        return make_shape_inference(m_op, port_mask);
+        return std::make_shared<DeconvolutionShapeInfer>(m_op);
     }
 
 private:
+    class DeconvolutionShapeInfer : public IShapeInfer {
+    public:
+        DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
+            : m_shape_infer(make_shape_inference(op)),
+              m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
+
+        Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+            return m_shape_infer->infer(input_shapes, data_dependency);
+        }
+
+        const ov::CoordinateDiff& get_pads_begin() override {
+            return m_shape_infer->get_pads_begin();
+        }
+
+        const ov::CoordinateDiff& get_pads_end() override {
+            return m_shape_infer->get_pads_end();
+        }
+
+        port_mask_t get_port_mask() const override {
+            return m_port_mask;
+        };
+
+    private:
+        ShapeInferPtr m_shape_infer;
+        const port_mask_t m_port_mask;
+    };
+
     std::shared_ptr<ov::Node> m_op;
 };
 }  // namespace
@@ -165,7 +192,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 }
 
 Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, DeconfolutionShapeInferFactory(op)) {
+    : Node(op, context, DeconvolutionShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

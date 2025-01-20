@@ -12,22 +12,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class ReferenceShapeInferFactory : public ShapeInferFactory {
-public:
-    ReferenceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op{std::move(op)} {}
-
-    ShapeInferPtr makeShapeInfer() const override {
-        return make_shape_inference(m_op, FULL_PORT_MASK);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
 namespace node {
 
 Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, std::string errorMessage)
-    : Node(op, context, ReferenceShapeInferFactory(op)),
+    : Node(op, context, NgraphShapeInferFactory(op)),
       ovCoreNode(op),
       additionalErrorMessage(std::move(errorMessage)) {
     if (!op->has_evaluate()) {
@@ -61,7 +49,9 @@ void Reference::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
 }
 
-void Reference::createPrimitive() {}
+void Reference::createPrimitive() {
+    hasOutputShapeDataDependency = isDynamicNode() && outputShapeDataDependency();
+}
 
 void Reference::execute(const dnnl::stream& strm) {
     auto inputs = prepareInputs();
@@ -72,6 +62,14 @@ void Reference::execute(const dnnl::stream& strm) {
 }
 
 void Reference::executeDynamicImpl(const dnnl::stream& strm) {
+    if (!hasOutputShapeDataDependency) {
+        // if there is no data dependency for the output shape, we can execute the operation as is, similar to the
+        // static case, since the shapes are already calculated
+        execute(strm);
+        return;
+    }
+
+    // if there is data dependency, we need to perform shape inference first
     auto inputs = prepareInputs();
     ov::TensorVector outputs;
     auto result = Node::shapeInfer();
@@ -125,7 +123,9 @@ bool Reference::created() const {
 }
 
 bool Reference::needShapeInfer() const {
-    return false;
+    // If there is data dependency for the output shape, let's assume the node has internal dynamism (in general case),
+    // so we postpone the shape inference until the actual execution
+    return !hasOutputShapeDataDependency && Node::needShapeInfer();
 }
 
 ov::TensorVector Reference::prepareInputs() const {

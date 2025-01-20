@@ -32,6 +32,5 @@ public:
 };
 
 std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node> op);
-ShapeInferPtr make_shape_inference(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask);
 }  // namespace intel_cpu
 }  // namespace ov
