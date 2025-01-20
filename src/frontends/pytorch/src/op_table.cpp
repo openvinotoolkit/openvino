@@ -116,7 +116,7 @@ OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
 OP_CONVERTER(translate_index_copy_);
 OP_CONVERTER(translate_index_fill_);
-OP_CONVERTER(translate_index_put_);
+OP_CONVERTER(translate_index_put);
 OP_CONVERTER(translate_index_select);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
@@ -464,6 +464,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::empty", op::translate_empty},
         {"aten::empty_like", op::translate_empty_like},
         {"aten::eq", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
+        {"aten::equal", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
         {"aten::erf", op::translate_erf},
         {"aten::erfc", op::translate_erfc},
         {"aten::exp", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Exp>, 1>},
@@ -507,7 +508,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::index - Supported in limited set of patterns
         {"aten::index_copy_", op::inplace_op<op::translate_index_copy_>},
         {"aten::index_fill_", op::inplace_op<op::translate_index_fill_>},
-        {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
+        {"aten::index_put", op::translate_index_put},
         {"aten::index_add", op::translate_index_add},
         {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
@@ -550,6 +551,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log2_", op::inplace_op<op::translate_log2>},
         {"aten::log10", op::optional_out<op::translate_log10, 1>},
         {"aten::log10_", op::inplace_op<op::translate_log10>},
+        {"aten::logsumexp", op::translate_logsumexp},
         {"aten::lstm", op::translate_lstm},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
@@ -714,6 +716,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear},
+        {"prim::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
         // prim::DictConstruct - Supported in limited set of patterns
