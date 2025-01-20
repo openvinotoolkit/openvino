@@ -197,12 +197,12 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: openvino_[js]*
-          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+          path: ${{ env.OPENVINO_JS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
         run: Expand-Archive openvino_js_package.zip -DestinationPath .
-        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
