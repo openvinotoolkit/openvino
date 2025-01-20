@@ -142,7 +142,6 @@ std::shared_ptr<op::Subgraph> wrap_nodes_as_subgraph(const NodeVector& ordered_o
             target_input.replace_source_output(subgraph->output(i));
         }
     }
-    update_out_tensor_name(subgraph);
 
     subgraph->validate_and_infer_types();
 
@@ -151,7 +150,7 @@ std::shared_ptr<op::Subgraph> wrap_nodes_as_subgraph(const NodeVector& ordered_o
         act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
     }
     subgraph->get_rt_info()["originalLayersNames"] = fused_names;
-    ov::snippets::utils::update_out_tensor_name(subgraph);
+    update_out_tensor_name(subgraph);
     return subgraph;
 }
 
