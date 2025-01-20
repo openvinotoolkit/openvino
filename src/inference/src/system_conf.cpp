@@ -319,7 +319,7 @@ int get_number_of_blocked_cores() {
 
 bool is_cpu_map_available() {
     CPU& cpu = cpu_info();
-    return cpu._proc_type_table.size() > 0;
+    return cpu._cpu_mapping_table.size() > 0;
 }
 
 int get_current_socket_id() {
