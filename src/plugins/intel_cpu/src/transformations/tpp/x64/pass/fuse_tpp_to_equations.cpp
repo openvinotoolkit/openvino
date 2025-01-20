@@ -3,25 +3,25 @@
 //
 #include "fuse_tpp_to_equations.hpp"
 
-#include "transformations/tpp/x64/op/eltwise.hpp"
-#include "transformations/tpp/x64/op/equation.hpp"
-#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/x64/op/eltwise.hpp"
+#include "transformations/tpp/x64/op/equation.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace tpp {
 namespace pass {
-using snippets::lowered::ExpressionPtr;
 using snippets::lowered::ExpressionPort;
+using snippets::lowered::ExpressionPtr;
 using NodePtr = std::shared_ptr<Node>;
 
 bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_ptr<ov::Model>& m) {
     using snippets::lowered::PortDescriptorUtils;
     OutputVector eq_ivals;
     std::vector<op::OpDescTPP> op_descs;
-    std::unordered_map<NodePtr , NodePtr> node_replace_map;
+    std::unordered_map<NodePtr, NodePtr> node_replace_map;
     // Only ops with one out are supported due to Equations restrictions
     auto supported_num_out = [](const Output<ov::Node>& out) {
         const auto& n = out.get_node_shared_ptr();
@@ -30,10 +30,10 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
     auto get_tpp_op = [](const NodePtr& n) {
         auto tpp = std::dynamic_pointer_cast<op::EltwiseTPP>(n);
         bool not_supported_op =
-                // ticket: 152532
-                ov::is_type<ov::snippets::op::ReduceBase>(n) ||
-                // ticket: 152510
-                ov::is_type<ov::op::v0::Relu>(n);
+            // ticket: 152532
+            ov::is_type<ov::snippets::op::ReduceBase>(n) ||
+            // ticket: 152510
+            ov::is_type<ov::op::v0::Relu>(n);
         return not_supported_op ? nullptr : tpp;
     };
 
@@ -78,7 +78,6 @@ bool FuseTPPToEquations::fuse_from_root(const NodePtr& root, const std::shared_p
         }
     }
 
-
     auto equation = std::make_shared<op::EquationTPP>(eq_ivals, op_descs);
 
     for (auto& kv : node_replace_map)
@@ -110,8 +109,7 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return modified;
 }
 
-
-} // namespace pass
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov
