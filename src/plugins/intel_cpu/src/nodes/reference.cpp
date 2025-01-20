@@ -65,7 +65,7 @@ void Reference::executeDynamicImpl(const dnnl::stream& strm) {
     if (!hasOutputShapeDataDependency) {
         // if there is no data dependency for the output shape, we can execute the operation as is, similar to the
         // static case, since the shapes are already calculated
-        execute(std::move(strm));
+        execute(strm);
         return;
     }
 
