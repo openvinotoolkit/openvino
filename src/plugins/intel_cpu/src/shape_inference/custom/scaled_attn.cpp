@@ -4,6 +4,8 @@
 
 #include "scaled_attn.hpp"
 
+#include <utility>
+
 #include "shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
@@ -14,7 +16,7 @@ namespace node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
-    SDPAShapeInfer(const ScaledDotProductAttentionWithKVCache::Config& config) : m_config(config) {}
+    SDPAShapeInfer(ScaledDotProductAttentionWithKVCache::Config config) : m_config(std::move(config)) {}
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
