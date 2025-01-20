@@ -689,10 +689,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, is_weightless, weights_path);
     compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, is_weightless, weights_path);
 
+    // Deserialize weights bank name
+    std::string bank_name;
+    read(stream, bank_name);
+
     if (!is_weightless) {
-        // Deserialize weights bank (if required)
-        std::string bank_name;
-        read(stream, bank_name);
         auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
 
         compiled->m_kvcache_compiled->m_weights_bank = bank;
@@ -702,10 +703,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         compiled->m_kvcache_compiled->reconstruct_closure();
         compiled->m_prefill_compiled->reconstruct_closure();
     } else {
-        // Deserialize just bank name and create an empty bank
-        std::string bank_name;
-        read(stream, bank_name);
-
         auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
         compiled->m_kvcache_compiled->m_weights_bank = bank;
