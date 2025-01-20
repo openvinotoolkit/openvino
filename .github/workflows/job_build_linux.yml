@@ -208,6 +208,8 @@ jobs:
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           $python_exec -m pip install rpm
+          rpm --version
+          $python_exec -m pip install rpm-py-installer
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
