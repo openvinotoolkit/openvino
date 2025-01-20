@@ -189,14 +189,18 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
             if (ov::shape_size(constants[0]->get_shape()) == 1) {
                 const auto ref_value = constants[0]->cast_vector<float>();
                 if (std::all_of(constants.cbegin() + 1, constants.cend(), [&ref_value](const auto& constant) {
-                        return constant->cast_vector<float>() == ref_value;
+                        return constant->template cast_vector<float>() == ref_value;
                     })) {
                     return constants[0];
                 }
             }
             OPENVINO_THROW("in case of dynamic concatenation dim all constants must be scalar and equal");
         }
-        return ov::pass::low_precision::fold<ov::opset1::Concat>(constants, axis);
+        ov::OutputVector concatInputs;
+        std::transform(constants.begin(), constants.end(), std::back_inserter(concatInputs), [](const auto& constant) {
+            return constant->output(0);
+        });
+        return fold<ov::opset1::Concat>(concatInputs, axis);
     };
 
     if (!subConstants.empty()) {
