@@ -9,8 +9,8 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -41,7 +41,7 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
     const auto consumers = out.get_connected_ports();
 
     for (const auto& consumer : consumers) {
-        auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(consumer.get_expr()->get_node());
+        auto brgemm = ov::as_type_ptr<ov::intel_cpu::GemmCPU>(consumer.get_expr()->get_node());
         if (brgemm && brgemm_utils::with_repacking(brgemm->get_type()) && consumer.get_index() == 1) {
             const auto src_prc = brgemm->get_input_element_type(0);
             const auto wei_prc = brgemm->get_input_element_type(1);

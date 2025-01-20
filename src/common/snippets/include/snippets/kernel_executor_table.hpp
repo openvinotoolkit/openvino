@@ -61,11 +61,11 @@ public:
 private:
     KernelExecutorBase() = default;
     template<typename Conf, typename KernelType,
-            typename std::enable_if<std::is_base_of<GenericConfig, Conf>::value, bool>::type> friend class KernelExecutor;
+            typename std::enable_if_t<std::is_base_of_v<GenericConfig, Conf>, bool>> friend class KernelExecutor;
 };
 
 template<typename Conf, typename KernelType,
-         typename std::enable_if<std::is_base_of<KernelExecutorBase::GenericConfig, Conf>::value, bool>::type = true>
+         typename std::enable_if_t<std::is_base_of_v<KernelExecutorBase::GenericConfig, Conf>, bool> = true>
 class KernelExecutor : public KernelExecutorBase {
 public:
     explicit KernelExecutor(Conf c) : KernelExecutorBase(), m_config{std::move(c)} {}

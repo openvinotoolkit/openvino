@@ -10,8 +10,8 @@
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {
 using LinearIR = snippets::lowered::LinearIR;
@@ -21,16 +21,16 @@ using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
 
-bool BrgemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool GemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     return true;
 }
-std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(
+std::shared_ptr<snippets::lowered::pass::PassBase> GemmCPUBlocking::DummyPass::merge(
     const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
     return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
 }
 
-LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir,
-                                                                const LinearIR::constExprIt& brgemm_it) {
+LinearIR::constExprIt GemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir,
+                                                              const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(wsp_expr);
@@ -43,14 +43,14 @@ LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear
     return std::prev(brgemm_it);
 }
 
-size_t BrgemmCPUBlocking::get_default_n_blk(size_t n) const {
+size_t GemmCPUBlocking::get_default_n_blk(size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
+std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::GemmCPU>(brgemm_expr->get_node());
+    OPENVINO_ASSERT(brgemm, "GemmCPU is expected!");
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
@@ -60,25 +60,25 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const auto precision = brgemm_expr->get_node()->get_input_element_type(1);
     if (with_repacking(brgemm->get_type()) && precision != element::f32) {
         n_blk = get_full_dim_value();
-        k_blk = get_full_dim_value();
+        // k_blk = get_full_dim_value();
     }
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
 
-SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
+SpecificIterationHandlers GemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
     SpecificIterationHandlers handlers =
         ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
     handlers.register_pass<SpecificLoopIterType::FIRST_ITER, DummyPass>();
     return handlers;
 }
 
-bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
-                                            const LinearIR::constExprIt& brgemm_it,
-                                            size_t m_block,
-                                            size_t n_block,
-                                            size_t k_block) {
+bool GemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
+                                          const LinearIR::constExprIt& brgemm_it,
+                                          size_t m_block,
+                                          size_t n_block,
+                                          size_t k_block) {
     const auto& brgemm_expr = *brgemm_it;
-    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::GemmCPU>(brgemm_expr->get_node());
     const auto type = brgemm->get_type();
 
     auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,

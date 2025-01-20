@@ -5,18 +5,18 @@
 #pragma once
 
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {
 
 /**
- * @interface BrgemmCPUBlocking
- * @brief Covers BrgemmCPU with blocking loops
+ * @interface GemmCPUBlocking
+ * @brief Covers GemmCPU with blocking loops
  * @ingroup snippets
  */
-class BrgemmCPUBlocking : public ov::snippets::lowered::pass::BrgemmBlocking<BrgemmCPU> {
+class GemmCPUBlocking : public ov::snippets::lowered::pass::BrgemmBlocking<GemmCPU> {
 public:
-    OPENVINO_RTTI("BrgemmCPUBlocking", "", BrgemmBlocking)
+    OPENVINO_RTTI("GemmCPUBlocking", "", BrgemmBlocking)
 
     /**
      * @interface DummyPass

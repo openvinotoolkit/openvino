@@ -8,6 +8,7 @@
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
 #define PRINT(X)      ss << #X << " = " << (X) << "\n"
@@ -94,11 +95,20 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
     auto LDB = snippets::utils::get_dim_stride(expr->get_input_port(1));
 
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
-    // In case of data repacking LDB is chosen in accordance with repacking buffer size
-    if (with_repacking(brgemm_node->get_type())) {
-        LDB = brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1));
+    if (is_type<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
+        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+        // In case of data repacking LDB is chosen in accordance with repacking buffer size
+        if (with_repacking(brgemm_node->get_type())) {
+            LDB = brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1));
+        }
+    } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
+        const auto& gemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
+        // In case of data repacking LDB is chosen in accordance with repacking buffer size
+        if (with_repacking(gemm_node->get_type())) {
+            LDB = brgemm_utils::repacking::compute_repacked_n_dim(LDB, gemm_node->get_input_element_type(1));
+        }
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(false, "Got invalid node type in update_config");
     }
 
     config.update(M, N, K, LDA, LDB, LDC, beta);
