@@ -8,7 +8,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 
 using namespace ov::intel_cpu::brgemm_utils::repacking;
 using namespace ov::snippets::lowered;
@@ -57,7 +57,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto vnni_factor = brgemm_utils::compute_vnni_factor(src_dt);
         const auto inner_k_blk = brgemm_utils::repacking::compute_inner_k_block(src_dt);
         OPENVINO_ASSERT(inner_k_blk > 0, "inner_k_blk cannot be zero!");
-        const auto tile_scratch_size = BrgemmCPU::SCRATCH_BYTE_SIZE;
+        const auto tile_scratch_size = GemmCPU::SCRATCH_BYTE_SIZE;
         const auto current_scratch_size = scratch_expr->get_byte_size();
         OPENVINO_ASSERT(current_scratch_size == tile_scratch_size,
                         "Tile scratchpad for BrgemmAMX should have byte size ",
@@ -80,7 +80,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& brgemm_expr = *expr_it;
-        if (const auto brgemm_cpu = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node())) {
+        if (const auto brgemm_cpu = ov::as_type_ptr<ov::intel_cpu::GemmCPU>(brgemm_expr->get_node())) {
             if (brgemm_utils::with_repacking(brgemm_cpu->get_type())) {
                 // BrgemmCopyB might be extracted from the body
                 if (const auto copy_b_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr)) {

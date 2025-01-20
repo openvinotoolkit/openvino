@@ -9,7 +9,7 @@
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak;
@@ -33,7 +33,7 @@ cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
 #define SUPPORT_TWO(X, Y, MESSAGE)      SUPPORT(X, SUPPORT_ONE(Y, MESSAGE))
 #define SUPPORT_THREE(X, Y, Z, MESSAGE) SUPPORT(X, SUPPORT_TWO(Y, Z, MESSAGE))
 
-    // Note: AMX might be not used even if it's supported by the hardware, check the BrgemmToBrgemmCPU pass for details
+    // Note: AMX might be not used even if it's supported by the hardware, check the BrgemmToGemmCPU pass for details
     if (is_with_amx) {
         if (dt_in0 == ov::element::f16) {
             SUPPORT_ONE(avx512_core_amx_fp16,
@@ -65,9 +65,9 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, bool transp
     }
 
     OPENVINO_ASSERT(element_type_a != element::bf16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16),
-                    "BrgemmCPU BF16 precision is not supported on non avx512_core_bf16 system");
+                    "GemmCPU BF16 precision is not supported on non avx512_core_bf16 system");
     OPENVINO_ASSERT(element_type_a != element::f16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16),
-                    "BrgemmCPU FP16 precision is not supported on non avx512_core_amx_fp16 system");
+                    "GemmCPU FP16 precision is not supported on non avx512_core_amx_fp16 system");
 
     if (one_of(element_type_a, element::u8, element::i8, element::bf16) &&
         dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
@@ -140,8 +140,8 @@ ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
 }
 
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
-    OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()),
-                    "get_copy_b_expr must be called only for BrgemmCPU node");
+    OPENVINO_ASSERT(ov::is_type<GemmCPU>(brgemm_expr->get_node()),
+                    "get_copy_b_expr must be called only for GemmCPU node");
     auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;

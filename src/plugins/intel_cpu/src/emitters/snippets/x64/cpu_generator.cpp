@@ -25,6 +25,7 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
@@ -260,6 +261,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 
     // Note: jit_brgemm_emitter and jit_brgemm_copy_b_emitter support runtime recompilation, so their constructor takes
     // additional arguments
+    jitters[intel_cpu::GemmCPU::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter,
+                                configurator->get_kernel_executor_table(),
+                                compiled_kernel_cache);
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_emitter,
                                 configurator->get_kernel_executor_table(),
@@ -432,7 +437,7 @@ std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
 
 ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (is_type<intel_cpu::BrgemmCPU>(op) ||
+    if (is_type<intel_cpu::GemmCPU>(op) ||
 #ifdef SNIPPETS_LIBXSMM_TPP
         std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
         is_type<intel_cpu::tpp::op::Scalar>(op) ||
