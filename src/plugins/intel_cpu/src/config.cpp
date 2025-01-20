@@ -117,11 +117,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::enable_cpu_reservation.name()) {
             try {
-#if defined(__APPLE__)
-                enableCpuReservation = false;
-#else
                 enableCpuReservation = val.as<bool>();
-#endif
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),

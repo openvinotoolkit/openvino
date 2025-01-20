@@ -15,6 +15,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
+
 using namespace testing;
 using Device = std::string;
 using Config = ov::AnyMap;
@@ -83,7 +87,7 @@ TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
 #if defined(__linux__)
     cpu_pinning = true;
 #elif defined(_WIN32)
-    USHORT highestNodeNumber = 0;
+    ULONG highestNodeNumber = 0;
     if (!GetNumaHighestNodeNumber(&highestNodeNumber)) {
         std::cout << "Error getting highest NUMA node number: " << GetLastError() << std::endl;
         return;

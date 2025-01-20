@@ -26,10 +26,11 @@ class CpuPinningTests : public ov::test::TestsCommon,
 public:
     void SetUp() override {
         auto test_data = std::get<0>(GetParam());
+        bool cpu_reservation = false;
 
         auto test_output = ov::intel_cpu::get_cpu_pinning(test_data.input_cpu_pinning,
                                                           test_data.input_changed,
-                                                          false,
+                                                          cpu_reservation,
                                                           test_data.input_proc_type_table,
                                                           test_data.input_stream_info_table);
 

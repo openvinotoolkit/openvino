@@ -72,34 +72,38 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
-                     const bool cpu_reservation,
+                     bool& cpu_reservation,
                      const std::vector<std::vector<int>>& proc_type_table,
                      const std::vector<std::vector<int>>& streams_info_table) {
     bool result_value;
 
-#if defined(__APPLE__)
-    result_value = false;
-#elif defined(_WIN32)
-    if (proc_type_table.size() == 1) {
-        result_value = input_changed ? input_value : cpu_reservation;
-    } else {
+    // Do not support cpu_pinning and cpu_reservation when cpu_map_table is not available
+    if (!is_cpu_map_available()) {
         result_value = false;
-    }
-#else
-    if (input_changed) {
-        result_value = input_value;
+        cpu_reservation = false;
     } else {
-        result_value = true;
-        // The following code disables pinning in case stream contains both Pcore and Ecore
-        if (streams_info_table.size() >= 3) {
-            if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
-                (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
-                (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
-                result_value = cpu_reservation;
+#if defined(_WIN32)
+        if (proc_type_table.size() == 1) {
+            result_value = input_changed ? input_value : cpu_reservation;
+        } else {
+            result_value = false;
+        }
+#else
+        if (input_changed) {
+            result_value = input_value;
+        } else {
+            result_value = true;
+            // The following code disables pinning in case stream contains both Pcore and Ecore
+            if (streams_info_table.size() >= 3) {
+                if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
+                    (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
+                    (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
+                    result_value = cpu_reservation;
+                }
             }
         }
-    }
 #endif
+    }
 
     input_value = result_value;
 

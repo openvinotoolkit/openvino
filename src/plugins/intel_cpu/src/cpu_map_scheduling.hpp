@@ -51,7 +51,7 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
  */
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
-                     const bool cpu_reservation,
+                     bool& cpu_reservation,
                      const std::vector<std::vector<int>>& proc_type_table,
                      const std::vector<std::vector<int>>& streams_info_table);
 

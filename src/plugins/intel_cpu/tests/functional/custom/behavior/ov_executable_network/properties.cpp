@@ -12,6 +12,10 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/properties_test.hpp"
 
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
+
 namespace {
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable) {
@@ -174,7 +178,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
 #elif defined(__linux__)
     cpu_pinning = true;
 #elif defined(_WIN32)
-    USHORT highestNodeNumber = 0;
+    ULONG highestNodeNumber = 0;
     if (!GetNumaHighestNodeNumber(&highestNodeNumber)) {
         std::cout << "Error getting highest NUMA node number: " << GetLastError() << std::endl;
         return;
