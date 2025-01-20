@@ -13,20 +13,20 @@ rng = np.random.default_rng(5402)
 
 class TestIota(JaxLayerTest):
     def _prepare_input(self):
-        return (self.input_type, self.input_shape)
+        return []
 
     def create_model(self, input_shape, input_type):
         self.input_shape = input_shape
         self.input_type = input_type
 
-        def jax_iota(dtype, size):
-            return jax.lax.iota(dtype, size)
+        def jax_iota():
+            return jax.lax.iota(input_type, input_shape)
         
         return jax_iota, None, 'iota'
         
 
-    @pytest.mark.parametrize("input_shape", [1,2,3])
-    @pytest.mark.parametrize("input_type", ["np.float32"])
+    @pytest.mark.parametrize("input_shape", [1,2,3,4,5,6,7,8,9,10])
+    @pytest.mark.parametrize("input_type", [np.int32, np.int64, np.float32, np.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
