@@ -56,15 +56,10 @@ size_t PluginGraph::export_blob(std::ostream& stream) const {
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
-    std::vector<ov::ProfilingInfo> profilingInfo;
-    const auto& blob = _blobPtr->get_blob();
-    try {
-        profilingInfo = _compiler->process_profiling_output(profData, blob, config);
-    } catch (const std::exception& ex) {
-        _logger.error(ex.what());
-    }
-    _blobPtr->release_from_memory();
-    return profilingInfo;
+    std::vector<uint8_t> blob(_blobPtr->size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()),
+                reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size());
+    return _compiler->process_profiling_output(profData, blob, config);
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {

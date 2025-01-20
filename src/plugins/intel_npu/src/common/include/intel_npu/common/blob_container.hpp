@@ -13,50 +13,50 @@ namespace intel_npu {
 
 class BlobContainer {
 public:
-    BlobContainer() = default;
+    /**
+     * @brief Returns the address at the beginning of the blob.
+     */
+    virtual const void* get_ptr() const = 0;
 
-    BlobContainer(std::vector<uint8_t> blob) : _blob(std::move(blob)) {}
+    /**
+     * @brief Size of the blob.
+     */
+    virtual size_t size() const = 0;
 
-    virtual const void* get_ptr() const {
-        return _blob.data();
+    /**
+     * @brief Returns true if the blob can be deallocated from memory, false otherwise.
+     */
+    virtual bool release_from_memory() = 0;
+
+    virtual ~BlobContainer() = default;
+};
+
+class BlobContainerVector : public BlobContainer {
+public:
+    BlobContainerVector(std::vector<uint8_t> blob) : _blob(std::move(blob)) {}
+
+    const void* get_ptr() const override {
+        return reinterpret_cast<const void*>(_blob.data());
     }
 
-    virtual size_t size() const {
+    size_t size() const override {
         return _blob.size();
     }
 
-    virtual bool release_from_memory() const {
-        if (_shouldDeallocate) {
-            _blob.clear();
-            _blob.shrink_to_fit();
-            return true;
-        }
-        _shouldDeallocate = true;
-        return false;
+    bool release_from_memory() override {
+        _blob.clear();
+        _blob.shrink_to_fit();
+        return true;
     }
-
-    virtual const std::vector<uint8_t>& get_blob() const {
-        // when unerlying blob object was accessed,
-        // prevent deallocation on next `release_from_memory` call
-        _shouldDeallocate = false;
-        return _blob;
-    }
-
-    virtual ~BlobContainer() = default;
-
-protected:
-    mutable std::vector<uint8_t> _blob;
 
 private:
-    mutable bool _shouldDeallocate = true;
+    std::vector<uint8_t> _blob;
 };
 
 class BlobContainerAlignedBuffer : public BlobContainer {
 public:
-    BlobContainerAlignedBuffer(const std::shared_ptr<ov::AlignedBuffer>& blobSO,
-                               size_t ovHeaderOffset,
-                               uint64_t blobSize)
-        : _size(blobSize),
+    BlobContainerAlignedBuffer(const std::shared_ptr<ov::AlignedBuffer>& blobSO, size_t ovHeaderOffset, uint64_t size)
+        : _size(size),
           _ovHeaderOffset(ovHeaderOffset),
           _blobSO(blobSO) {}
 
@@ -68,17 +68,8 @@ public:
         return _size;
     }
 
-    bool release_from_memory() const override {
-        BlobContainer::release_from_memory();
+    bool release_from_memory() override {
         return false;
-    }
-
-    const std::vector<uint8_t>& get_blob() const override {
-        BlobContainer::release_from_memory();
-        _blob.resize(_size);
-        _blob.assign(reinterpret_cast<const uint8_t*>(this->get_ptr()),
-                     reinterpret_cast<const uint8_t*>(this->get_ptr()) + _size);
-        return _blob;
     }
 
 private:

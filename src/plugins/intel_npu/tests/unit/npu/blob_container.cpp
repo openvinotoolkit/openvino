@@ -21,14 +21,22 @@
 
 using namespace intel_npu;
 
-using BlobContainerUnitTests = ::testing::Test;
+class BlobContainerUnitTests : public ::testing::Test {
+protected:
+    void TearDown() override {
+        ov::util::iterate_files(testCacheDir, [](const std::string& file, bool is_dir) {
+            if (!is_dir) {
+                ov::test::utils::removeFile(file);
+            }
+        });
+        ov::test::utils::removeDir(testCacheDir);
+        ov::test::utils::removeFile(testFileName);
+    }
 
-namespace {
-const char* dummyBlobHeader = "blobwillstartafterspace correctblob!";
-const char* testCacheDir = "blob_container_test_cache_dir";
-const char* testFileName = "blob_container_test.blob";
-
-}  // namespace
+    const char* dummyBlobHeader = "blobwillstartafterspace ";
+    const char* testCacheDir = "blob_container_test_cache_dir";
+    const char* testFileName = "blob_container_test.blob";
+};
 
 TEST_F(BlobContainerUnitTests, isBlobContainerCorrectlyPickedForCacheEnabled) {
     auto core = std::make_shared<ov::CoreImpl>();
@@ -59,9 +67,12 @@ TEST_F(BlobContainerUnitTests, isBlobContainerCorrectlyPickedForCacheEnabled) {
         auto inferRequest = compiledModel->create_infer_request();
         inferRequest->infer();
         OV_ASSERT_NO_THROW(auto profilingInfo = inferRequest->get_profiling_info());
-        auto outputFile =
-            std::ofstream(std::filesystem::path(testCacheDir) / testFileName, std::ios::out | std::ios::binary);
+
+        auto testCacheDirPath = ov::util::Path(testCacheDir);
+        auto outputFile = std::ofstream(testCacheDirPath / testFileName, std::ios::out | std::ios::binary);
+        std::ostringstream blobStream;
         OV_ASSERT_NO_THROW(compiledModel->export_model(outputFile));
+        OV_ASSERT_NO_THROW(compiledModel->export_model(blobStream));
 
         auto* compiledModelPtr = dynamic_cast<intel_npu::ICompiledModel*>(compiledModel._ptr.get());
         OPENVINO_ASSERT(compiledModelPtr != nullptr);
@@ -69,8 +80,13 @@ TEST_F(BlobContainerUnitTests, isBlobContainerCorrectlyPickedForCacheEnabled) {
         auto* blobContainerAlignedBufferPtr =
             dynamic_cast<const intel_npu::BlobContainerAlignedBuffer*>(&blobContainer);
         OPENVINO_ASSERT(blobContainerAlignedBufferPtr != nullptr, "Cached blob should be memory mapped!");
+
+        // Expect output stream with metadata to be larger than actual blob size
+        OPENVINO_ASSERT(outputFile.tellp() > 0 && blobContainer.size() > 0 &&
+                        static_cast<size_t>(outputFile.tellp()) > blobContainer.size());
+        OPENVINO_ASSERT(blobStream.tellp() > 0 && blobContainer.size() > 0 &&
+                        static_cast<size_t>(blobStream.tellp()) > blobContainer.size());
     }
-    ov::test::utils::removeDir(testCacheDir);
 }
 
 TEST_F(BlobContainerUnitTests, isBlobContainerCorrectlyPickedForFStream) {
@@ -104,7 +120,6 @@ TEST_F(BlobContainerUnitTests, isBlobContainerCorrectlyPickedForFStream) {
             dynamic_cast<const intel_npu::BlobContainerAlignedBuffer*>(&blobContainer);
         OPENVINO_ASSERT(blobContainerAlignedBufferPtr == nullptr, "Cannot have memory mapped blob for std::fstream!");
     }
-    ov::test::utils::removeFile(testFileName);
 }
 
 TEST_F(BlobContainerUnitTests, isBlobContainerCorrectlyPickedForSStream) {
@@ -161,35 +176,42 @@ TEST_F(BlobContainerUnitTests, isBlobHeaderHandledCorrectly) {
         std::string parseDummyHeader;
         std::string blob;
         blobStream >> parseDummyHeader;
+        blobStream.get();
 
-        EXPECT_THAT(parseDummyHeader, testing::HasSubstr("blobwillstartafterspace"));
         auto compiledModel =
             core->import_model(blobStream, ov::test::utils::DEVICE_NPU, {ov::intel_npu::defer_weights_load(true)});
-        blobStream = {};
 
         auto* compiledModelPtr = dynamic_cast<intel_npu::ICompiledModel*>(compiledModel._ptr.get());
         OPENVINO_ASSERT(compiledModelPtr != nullptr);
         const auto& blobContainer = compiledModelPtr->get_graph()->get_blob_container();
         blob.assign(reinterpret_cast<const char*>(blobContainer.get_ptr()), blobContainer.size());
-        EXPECT_THAT(blob, testing::HasSubstr("correctblob!"));
+        ASSERT_EQ(blobStream.str().substr(std::strlen(dummyBlobHeader), blobContainer.size()), blob);
     }
 
     {
         std::string parseDummyHeader;
         std::string blob;
+        std::string referenceBlob;
         auto inputFile = std::ifstream(testFileName, std::ios::in | std::ios::binary);
-        blobStream >> parseDummyHeader;
+        inputFile >> parseDummyHeader;
+        inputFile.get();
 
-        EXPECT_THAT(parseDummyHeader, testing::HasSubstr("blobwillstartafterspace"));
+        std::streampos currentPos = inputFile.tellg();
+        inputFile.seekg(0, std::ios::end);
+        std::streampos endPos = inputFile.tellg();
+        inputFile.seekg(currentPos, std::ios::beg);
+        referenceBlob.resize(endPos - currentPos);
+        inputFile.read(&referenceBlob[0], referenceBlob.size());
+        inputFile.seekg(currentPos, std::ios::beg);
+
         auto compiledModel =
-            core->import_model(blobStream, ov::test::utils::DEVICE_NPU, {ov::intel_npu::defer_weights_load(true)});
+            core->import_model(inputFile, ov::test::utils::DEVICE_NPU, {ov::intel_npu::defer_weights_load(true)});
 
         auto* compiledModelPtr = dynamic_cast<intel_npu::ICompiledModel*>(compiledModel._ptr.get());
         OPENVINO_ASSERT(compiledModelPtr != nullptr);
         const auto& blobContainer = compiledModelPtr->get_graph()->get_blob_container();
         blob.assign(reinterpret_cast<const char*>(blobContainer.get_ptr()), blobContainer.size());
-        EXPECT_THAT(blob, testing::HasSubstr("correctblob!"));
+        referenceBlob.resize(blobContainer.size());  // exclude metadata
+        ASSERT_EQ(referenceBlob, blob);
     }
-
-    ov::test::utils::removeFile(testFileName);
 }
