@@ -13,7 +13,7 @@ public:
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                             const Config& config) const = 0;
     virtual std::vector<std::shared_ptr<IGraph>> compileWS(const std::shared_ptr<ov::Model>& model,
-                                                           const Config& config) const;
+                                                           const Config& config) const = 0;
     virtual std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const = 0;
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
