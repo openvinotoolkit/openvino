@@ -53,7 +53,7 @@ jobs:
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -C ${OPENVINO_JS_DIR}
+        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -C ${OPENVINO_JS_LIBS_DIR}
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
