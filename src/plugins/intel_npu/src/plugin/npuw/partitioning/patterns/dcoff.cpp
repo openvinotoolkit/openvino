@@ -890,7 +890,8 @@ CWAI3::CWAI3(CWAI3::Results scales) {
         auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
         auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
 
-        if (ov::element::i4 == matched_valueA->get_element_type() &&
+        if ((ov::element::i4 == matched_valueA->get_element_type() ||
+             ov::element::nf4 == matched_valueA->get_element_type()) &&
             (ov::element::f16 == matched_valueC->get_element_type() ||
              ov::element::f32 == matched_valueC->get_element_type())) {
             LOG_DEBUG("Matched: " << matched_valueC);
