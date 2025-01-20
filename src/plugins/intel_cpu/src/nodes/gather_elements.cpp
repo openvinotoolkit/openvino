@@ -38,19 +38,19 @@ GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphC
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        THROW_CPU_NODE_ERR(" has invalid number of input/output edges.");
+        THROW_CPU_NODE_ERR("has invalid number of input/output edges.");
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
     if (dataRank != indicesRank)
-        THROW_CPU_NODE_ERR(" has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
+        THROW_CPU_NODE_ERR("has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
 
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0)
         axis += dataRank;
     if (axis < 0 || axis >= static_cast<int>(dataRank))
-        THROW_CPU_NODE_ERR(" has invalid axis attribute: ", axis);
+        THROW_CPU_NODE_ERR("has invalid axis attribute: ", axis);
     axis_ = axis;
 }
 
@@ -78,12 +78,12 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
-        THROW_CPU_NODE_ERR(" has unsupported 'inputData' input precision: ", inDataPrecision);
+        THROW_CPU_NODE_ERR("has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
     if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
-        THROW_CPU_NODE_ERR(" has unsupported 'indices' input precision: ", indicesPrecision);
+        THROW_CPU_NODE_ERR("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     dataTypeSize_ = inDataPrecision.size();

@@ -12,8 +12,6 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils/bfloat16.hpp"
 
-#define THROW_ERROR(...) OPENVINO_THROW(NameFromType(getType()), " node with name '", getName(), "' ", __VA_ARGS__)
-
 namespace ov {
 namespace intel_cpu {
 namespace node {

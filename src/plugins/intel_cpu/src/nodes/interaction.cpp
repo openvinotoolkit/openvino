@@ -28,8 +28,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
-
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
@@ -346,7 +344,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     } else {
-        THROW_ERROR("cannot create jit eltwise kernel");
+        THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {
