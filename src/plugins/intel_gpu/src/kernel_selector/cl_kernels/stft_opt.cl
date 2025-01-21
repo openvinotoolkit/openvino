@@ -37,7 +37,21 @@ KERNEL(stft_ref)(
     const INPUT0_TYPE* restrict signal_for_this_frame = signal + batch*INPUT0_SIZE_X + frame_id*frame_step + start_offset;
 
     // Preload into shared mem:
-    for(size_t i = get_local_linear_id(); i < window_size; i+= block_size) {
+    for(size_t i = get_local_linear_id()*4; i < window_size; i+= block_size*4) {
+        // NOTE: Vectorization by internal unrolling loop, in order to compiler to 
+        // decide it if can use vectorized vectorized instructions,
+        // which may depend on data type, pointer alignment etc).
+        #pragma unroll
+        for(size_t j = 0; j < 4; ++j) {
+            const float signal_val = (float)signal_for_this_frame[i+j];
+            const float window_val = (float)window[i+j];
+            x_i_shared[i+j] = signal_val*window_val;
+        }
+    }
+
+    // Handle leftovers:
+    const size_t leftovers_start = window_size%(block_size*4);
+    for(size_t i = leftovers_start + get_local_linear_id(); i < window_size; i+= block_size*4) {
         const float signal_val = (float)signal_for_this_frame[i];
         const float window_val = (float)window[i];
         x_i_shared[i] = signal_val*window_val;
@@ -47,22 +61,22 @@ KERNEL(stft_ref)(
 
     const size_t max_freq_for_this_block = min(freq_start + FREQ_PER_BLOCK, FREQS);
 
-    // Currently each sub group calcs 4 freq_id at the same time
+    // Currently each sub group calcs 4 freq_id at the same time.
     for(size_t freq_id = get_sub_group_id()*FREQS_PER_THREAD + freq_start; freq_id < max_freq_for_this_block; freq_id += get_num_sub_groups()*FREQS_PER_THREAD) {
 
         float4 freq_val_real = 0.0f;
         float4 freq_val_img = 0.0f;
 
-        // // dft_power = 2*PI*(k/N) from dft def.
+        // dft_power = 2*PI*(k/N) from dft def.
         float4 dft_power = 2.0f * M_PI_F / (float)frame_size;
         dft_power.s0 *= (float)(freq_id + 0);
         dft_power.s1 *= (float)(freq_id + 1);
         dft_power.s2 *= (float)(freq_id + 2);
         dft_power.s3 *= (float)(freq_id + 3);
 
-        // sin cos bound(?): Probably there is some external unit to calc sin cos 
-        // which is overloaded with commands(each thread issues 8 such instructions)
-        // TODO: Implement fft.
+        // For bigger window_size kernel is sin cos bound: Probably there is some external 
+        // unit to calc sin cos, which is overloaded with commands(each thread issues 8 such instructions).
+        // TODO: Implement fft for those cases.
         for(int i = get_sub_group_local_id(); i < window_size; i+= get_sub_group_size()) {
             const float x_i = x_i_shared[i];
 
