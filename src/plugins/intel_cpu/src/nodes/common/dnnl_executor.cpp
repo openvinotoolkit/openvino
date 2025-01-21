@@ -25,11 +25,11 @@ DnnlExecutor::IntermReorder::IntermReorder(const dnnl::memory::desc& descSrc,
     m_reorder = dnnl::reorder(reorderPd);
 }
 
-void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm) {
+void DnnlExecutor::IntermReorder::exec(dnnl::memory& memSrc, dnnl::memory& memDst, const dnnl::stream& strm) {
     m_reorder.execute(strm, memSrc, memDst);
 }
 
-void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm) {
+void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) {
     if (inputReorders.empty() && outputReorders.empty()) {
         execPrim.execute(strm, primArgs);
     } else {
@@ -37,7 +37,7 @@ void DnnlExecutor::exec(const std::unordered_map<int, dnnl::memory>& primArgs, d
     }
 }
 
-void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
+void DnnlExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm) {
     for (auto& inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());

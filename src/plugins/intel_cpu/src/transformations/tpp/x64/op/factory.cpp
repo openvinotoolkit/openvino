@@ -3,10 +3,11 @@
 //
 
 #include "factory.hpp"
+
 #include "eltwise.hpp"
-#include "reduce.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "reduce.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -38,36 +39,38 @@ struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
     }
 };
 
-} // namespace
-#define CREATE_UNARY_TPP_NODE(tpp_node_type) \
-    [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> { \
+}  // namespace
+#define CREATE_UNARY_TPP_NODE(tpp_node_type)                                      \
+    [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {      \
         return std::make_shared<tpp_node_type>(node->get_input_source_output(0)); \
     }
 
-#define CREATE_BINARY_TPP_NODE(tpp_node_type) \
-    [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> { \
-        return std::make_shared<tpp_node_type>(node->get_input_source_output(0), node->get_input_source_output(1), node->get_autob()); \
+#define CREATE_BINARY_TPP_NODE(tpp_node_type)                                    \
+    [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {     \
+        return std::make_shared<tpp_node_type>(node->get_input_source_output(0), \
+                                               node->get_input_source_output(1), \
+                                               node->get_autob());               \
     }
 
-#define CREATE_REDUCE_TPP_NODE(tpp_node_type) \
-    [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> { \
-        const auto& reduce = ov::as_type_ptr<snippets::op::ReduceBase>(node); \
-        OPENVINO_ASSERT(reduce, "Attempt to create TPP Reduce from invalid node"); \
+#define CREATE_REDUCE_TPP_NODE(tpp_node_type)                                                           \
+    [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {                            \
+        const auto& reduce = ov::as_type_ptr<snippets::op::ReduceBase>(node);                           \
+        OPENVINO_ASSERT(reduce, "Attempt to create TPP Reduce from invalid node");                      \
         return std::make_shared<tpp_node_type>(reduce->get_input_source_output(0), reduce->get_axis()); \
     }
 
-std::unordered_map<ov::DiscreteTypeInfo, NodeFactory::tpp_builder> NodeFactory::m_direct_mapping {
+std::unordered_map<ov::DiscreteTypeInfo, NodeFactory::tpp_builder> NodeFactory::m_direct_mapping{
     {ov::op::v1::Add::get_type_info_static(), CREATE_BINARY_TPP_NODE(Add)},
     {ov::op::v1::Subtract::get_type_info_static(), CREATE_BINARY_TPP_NODE(Subtract)},
     {ov::op::v1::Multiply::get_type_info_static(), CREATE_BINARY_TPP_NODE(Multiply)},
     {ov::op::v1::Divide::get_type_info_static(), CREATE_BINARY_TPP_NODE(Divide)},
     {ov::op::v0::Exp::get_type_info_static(), CREATE_UNARY_TPP_NODE(Exp)},
     {ov::op::v0::Relu::get_type_info_static(), CREATE_UNARY_TPP_NODE(Relu)},
-    // Note that we don't support conversion from ngraph ops here, since they have a broader semantics (e.g. multiple axis provided at a secont input)
+    // Note that we don't support conversion from ngraph ops here, since they have a broader semantics (e.g. multiple
+    // axis provided at a secont input)
     {ov::snippets::op::ReduceMax::get_type_info_static(), CREATE_REDUCE_TPP_NODE(ReduceMax)},
     {ov::snippets::op::ReduceSum::get_type_info_static(), CREATE_REDUCE_TPP_NODE(ReduceSum)},
 };
-
 
 std::vector<NodeFactory::TPPCustomBuilder> NodeFactory::m_custom_mapping{CustomPowerStaticBuilder()};
 
@@ -95,13 +98,16 @@ bool NodeFactory::is_supported(const std::shared_ptr<ov::Node>& n) {
     // Note: verify that TypeRelaxed property is maintained (mismatched input precisions)
     // after low precisions are enabled (ticket: 132328)
     const auto& ins = n->inputs();
-    auto is_fp32_input = [](const ov::Input<ov::Node>& in){ return in.get_element_type() == element::f32; };
+    auto is_fp32_input = [](const ov::Input<ov::Node>& in) {
+        return in.get_element_type() == element::f32;
+    };
     const bool all_inputs_fp32 = std::all_of(ins.begin(), ins.end(), is_fp32_input);
     return (m_direct_mapping.count(n->get_type_info()) ||
-           std::any_of(m_custom_mapping.begin(), m_custom_mapping.end(), matches)) && all_inputs_fp32;
+            std::any_of(m_custom_mapping.begin(), m_custom_mapping.end(), matches)) &&
+           all_inputs_fp32;
 }
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

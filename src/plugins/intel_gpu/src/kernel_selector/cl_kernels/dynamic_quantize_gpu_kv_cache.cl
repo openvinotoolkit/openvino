@@ -87,12 +87,14 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 #if ASYMMETRIC_QUANTIZATION
     min_value = work_group_reduce_min(min_value);
     max_value = work_group_reduce_max(max_value);
+
     // If the range of input data is zero, it is adjusted to the minimum value(0.001).
-    half diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
+    ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
-    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) - CHAR_MAX;
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
+
 #else
     max_value = work_group_reduce_max(max_value);
     OUTPUT1_TYPE scale = 127.0h / max_value;
@@ -120,7 +122,13 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 #if GROUP_SCALES_WITH_ZP
         output_scale[scale_idx + 1] = zp;
 #else
+
+    #if OUTPUT2_IS_FP
+        output_zp[scale_idx] = zp;
+    #else
         output_zp[scale_idx] = convert_char_rte(zp);
+    #endif
+
 #endif
 #else
         output_scale[scale_idx] = 1.0h / scale;
