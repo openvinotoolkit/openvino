@@ -26,10 +26,6 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 
-// //TODO: remove wrap type
-// #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-
 namespace ov {
 namespace op {
 namespace util {
@@ -502,4 +498,3 @@ bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Nod
 }  // namespace util
 }  // namespace op
 }  // namespace ov
-

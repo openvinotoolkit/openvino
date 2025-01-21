@@ -130,8 +130,8 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
     OPENVINO_DEBUG_EMPTY(this, level_string(this->level));
-    OPENVINO_DEBUG_EMPTY(this, level_string(this->level), "┌─ MATCHING PATTERN NODE: ", node_with_arguments(pattern_value.get_node_shared_ptr()));
-    OPENVINO_DEBUG_EMPTY(this, level_string(this->level), "├─ AGAINST  GRAPH   NODE: ", node_with_arguments(graph_value.get_node_shared_ptr()));
+    OPENVINO_DEBUG_EMPTY(this, level_string(this->level), "┌─ MATCHING PATTERN NODE: ", ov::node_with_arguments(pattern_value.get_node_shared_ptr()));
+    OPENVINO_DEBUG_EMPTY(this, level_string(this->level), "├─ AGAINST  GRAPH   NODE: ", ov::node_with_arguments(graph_value.get_node_shared_ptr()));
 
     return pattern_node->match_value(this, pattern_value, graph_value);
 }
