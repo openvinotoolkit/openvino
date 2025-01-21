@@ -289,7 +289,6 @@ void jit_equal_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000, true);
 }
 
-
 /// ELU ///
 jit_elu_emitter::jit_elu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                  dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
