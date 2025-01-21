@@ -132,7 +132,7 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
-    
+
 set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
 add_custom_command(OUTPUT "${fdupes_report}"
     COMMAND ${CMAKE_COMMAND}
@@ -147,7 +147,7 @@ add_custom_command(OUTPUT "${fdupes_report}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
     VERBATIM)
-    
+
 add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 
 add_custom_command(
