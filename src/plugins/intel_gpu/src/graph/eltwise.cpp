@@ -396,9 +396,6 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
         bool use_new_shape_infer = network.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         auto input0_pshape = node.get_input_pshape(0);
 
-        if (!use_new_shape_infer && input0_pshape.size() < 4)
-            input0_pshape.insert(input0_pshape.end(), 4 - input0_pshape.size(), 1);
-
         for (size_t i = 1; i < inputs_count; ++i) {
             auto input_pshape = node.get_input_pshape(i);
 

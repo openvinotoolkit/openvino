@@ -10,9 +10,11 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 #include "eltwise_inst.h"
+#include "reshape_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -3442,7 +3444,7 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4) {
 TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4_new_shape_infer_false) {
     auto& engine = get_test_engine();
 
-    ov::Shape in2_shape = {1, 4, 1, 1};
+    ov::Shape in2_shape = {1, 1, 4, 1};
     auto input2 = engine.allocate_memory({ ov::PartialShape(in2_shape), data_types::f32, format::bfyx });
 
     std::vector<float> const_input = {
@@ -3457,18 +3459,18 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4_new_shape_infer_false) {
     });
 
     float answers[16] = {
-        1.5, 0.5, 7.5, 4,
-        2.5, 0.5, 8.5, 7.7,
-        3.5, 1, 9.5, 14.5,
-        4.5, 0, 10.5, 10.5
+        1.5, 2.5, 5.5, 4,
+        2.5, 2.5, 6.5, 7.7,
+        3.5, 3, 7.5, 14.5,
+        4.5, 2, 8.5, 10.5
     };
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
 
-    // in1:dim3, int2:dim4
+    // Eltwise in1:dim3, int2:dim4
     {
-        ov::Shape in1_shape = {2, 4, 2};
+        ov::Shape in1_shape = {1, 2, 2, 4};
 
         auto input = engine.allocate_memory({ ov::PartialShape(in1_shape), data_types::f32, format::bfyx });
         set_values(input, const_input);
@@ -3476,7 +3478,8 @@ TEST(eltwise_gpu_f32, broadcast_test_dim3_dim4_new_shape_infer_false) {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(input_layout("input2", input2->get_layout()));
-        topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::sum));
+        topology.add(reshape("reshape_input1", input_info("input"), false, {}, ov::PartialShape({2, 2, 4})));
+        topology.add(eltwise("eltwise", { input_info("reshape_input1"), input_info("input2") }, eltwise_mode::sum));
 
         network network(engine, topology, config);
 
