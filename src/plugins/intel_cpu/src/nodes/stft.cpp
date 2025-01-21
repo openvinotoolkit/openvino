@@ -100,7 +100,7 @@ static void transpose_out4d(const uint8_t* in,
 }
 }  // namespace
 
-void STFT::execute(dnnl::stream strm) {
+void STFT::execute(const dnnl::stream& strm) {
     const float* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
     const float* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
     float* rdft_result = getDstDataAtPortAs<float>(0);
@@ -168,7 +168,7 @@ void STFT::execute(dnnl::stream strm) {
     }
 }
 
-void STFT::executeDynamicImpl(dnnl::stream strm) {
+void STFT::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

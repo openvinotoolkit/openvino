@@ -140,7 +140,9 @@ CPU::CPU() {
             }
             std::string cache_info;
             std::getline(cache_file, cache_info);
-            node_info_table.emplace_back(std::move(cache_info));
+            if (cache_info.size() > 0) {
+                node_info_table.emplace_back(std::move(cache_info));
+            }
             node_index++;
         }
     };
@@ -319,11 +321,6 @@ CPU::CPU() {
     if (check_valid_cpu() < 0) {
         OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
     };
-
-    if (_proc_type_table.size() > 1) {
-        int cur_processor_id = sched_getcpu();
-        sort_table_by_cpu_id(cur_processor_id, _proc_type_table, _cpu_mapping_table);
-    }
 
     _org_proc_type_table = _proc_type_table;
 
