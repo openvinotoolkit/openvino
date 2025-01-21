@@ -204,6 +204,19 @@ std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_decomposed_tra
     return get_rank_equivalent_order({1, 2, 0}, rank);
 }
 
+bool ov::snippets::pass::TokenizeMHASnippets::is_internally_supported_transpose(const std::shared_ptr<opset1::Transpose>& transpose) {
+    const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    const auto& rank = order->get_output_partial_shape(0).rank();
+    // Note: only orders with rank 3 and above are supported
+    if (!order || rank.get_length() < 3)
+        return false;
+    const auto order_value = order->cast_vector<int>();
+    const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
+    const auto is_brgemm_case = ov::is_type<opset1::MatMul>(transpose_child.get_node()->shared_from_this());
+    return (is_brgemm_case && get_fusion_transpose_order(order_value.size()) == order_value) ||
+           (get_decomposed_transpose_order(order_value.size()) == order_value);
+}
+
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
     if (!matmul || matmul->get_output_target_inputs(0).size() != 1 || matmul->get_transpose_a() ||
         !is_supported_tensor(matmul->get_input_tensor(0)) || !is_supported_tensor(matmul->get_input_tensor(1)))
