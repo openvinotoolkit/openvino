@@ -150,7 +150,7 @@ public:
               _cpu_pinning{cpu_pinning},
               _cores_limit{cores_limit},
               _streams_info_table{std::move(streams_info_table)},
-              _rank{rank},
+              _rank{std::move(rank)},
               _add_lock(add_lock) {
             update_executor_config(_add_lock);
         }
