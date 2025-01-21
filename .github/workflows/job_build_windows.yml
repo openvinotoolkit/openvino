@@ -80,7 +80,6 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-          show-cache-info: 'true'
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -265,6 +264,17 @@ jobs:
                 -DENABLE_WHEEL=OFF
           cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
+          
+      - name: Pack JS Artifacts
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        run: |
+          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR_JS }}"
+          $compress = @{
+            Path = $file
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
+          }
+          Compress-Archive @compress
 
       #
       # Upload build artifacts and logs
@@ -297,7 +307,7 @@ jobs:
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
+          path: ${{ env.BUILD_DIR }}/openvino_js_package.zip
           if-no-files-found: 'error'
 
       - name: Store artifacts to a shared drive
@@ -309,8 +319,10 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_package.zip
             ${{ env.BUILD_DIR }}/openvino_tests.zip
             ${{ env.MANIFEST_PATH }}
+            ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
         env:
           STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
+          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}

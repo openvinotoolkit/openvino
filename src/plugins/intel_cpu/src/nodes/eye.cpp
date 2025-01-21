@@ -12,8 +12,6 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils/bfloat16.hpp"
 
-#define THROW_ERROR(...) OPENVINO_THROW(NameFromType(getType()), " node with name '", getName(), "' ", __VA_ARGS__)
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -31,22 +29,8 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-namespace {
-class EyeShapeInferFactory : public ShapeInferFactory {
-public:
-    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return (m_op->get_input_size() == 4) ? make_shape_inference(m_op)
-                                             : make_shape_inference(m_op, PortMask(Eye::ROWS_NUM, Eye::COLS_NUM));
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-}  // namespace
-
 Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, EyeShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
