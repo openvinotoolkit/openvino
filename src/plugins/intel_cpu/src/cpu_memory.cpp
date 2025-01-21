@@ -9,6 +9,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
+#include "utils/bfloat16.hpp"
 #include "utils/debug_capabilities.h"
 #if defined(__linux__)
 #    include <sys/syscall.h> /* Definition of SYS_* constants */
@@ -37,9 +38,11 @@ inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool 
         if (ftz && ((u32data[i] & (0xFF << 23)) == 0)) {
             u32data[i] = 0;
         } else if (bf16saturation && !std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-            floatdata[i] = (floatdata[i] < -3.3895313899137927e38f)  ? -3.3895313899137927e38f
-                           : (floatdata[i] > 3.3895313899137927e38f) ? 3.3895313899137927e38f
-                                                                     : floatdata[i];
+            floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
+                               ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
+                           : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
+                               ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
+                               : floatdata[i];
         }
     }
 }

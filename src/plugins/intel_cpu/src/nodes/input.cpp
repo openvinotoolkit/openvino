@@ -21,8 +21,8 @@ namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
-struct jit_subnormals_bf16saturation_check_base : public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_subnormals_bf16saturation_check_base)
+struct jit_has_special_value_base : public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
     typedef struct {
         const float* src;
@@ -32,7 +32,7 @@ struct jit_subnormals_bf16saturation_check_base : public jit_generator {
 
     typedef void (*fn_t)(const args_t*);
 
-    jit_subnormals_bf16saturation_check_base() : jit_generator(jit_name()) {
+    jit_has_special_value_base() : jit_generator(jit_name()) {
         jit_ker_ = nullptr;
     }
 
@@ -150,31 +150,31 @@ protected:
     static const float bf16_min_mask_data[8];
 };
 
-const uint32_t jit_subnormals_bf16saturation_check_base::exponent_mask_data[8] =
+const uint32_t jit_has_special_value_base::exponent_mask_data[8] =
     {0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000, 0x7f800000};
 
-const uint32_t jit_subnormals_bf16saturation_check_base::mantissa_mask_data[8] =
+const uint32_t jit_has_special_value_base::mantissa_mask_data[8] =
     {0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff, 0x007fffff};
 
-const float jit_subnormals_bf16saturation_check_base::bf16_max_mask_data[8] = {3.38953139e+38f,
-                                                                               3.38953139e+38f,
-                                                                               3.38953139e+38f,
-                                                                               3.38953139e+38f,
-                                                                               3.38953139e+38f,
-                                                                               3.38953139e+38f,
-                                                                               3.38953139e+38f,
-                                                                               3.38953139e+38f};
+const float jit_has_special_value_base::bf16_max_mask_data[8] = {std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max(),
+                                                                 std::numeric_limits<ov::bfloat16>::max()};
 
-const float jit_subnormals_bf16saturation_check_base::bf16_min_mask_data[8] = {-3.38953139e+38f,
-                                                                               -3.38953139e+38f,
-                                                                               -3.38953139e+38f,
-                                                                               -3.38953139e+38f,
-                                                                               -3.38953139e+38f,
-                                                                               -3.38953139e+38f,
-                                                                               -3.38953139e+38f,
-                                                                               -3.38953139e+38f};
+const float jit_has_special_value_base::bf16_min_mask_data[8] = {std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest(),
+                                                                 std::numeric_limits<ov::bfloat16>::lowest()};
 template <cpu_isa_t isa>
-struct jit_has_subnormals : public jit_subnormals_bf16saturation_check_base {
+struct jit_has_subnormals : public jit_has_special_value_base {
     using Vmm = typename dnnl::impl::utils::conditional<isa == sse41, Xbyak::Xmm, Xbyak::Ymm>::type;
 
     const Vmm rmm4 = Vmm(4);
@@ -248,7 +248,7 @@ struct jit_has_subnormals : public jit_subnormals_bf16saturation_check_base {
     }
 };
 template <cpu_isa_t isa>
-struct jit_has_bf16_overflows : public jit_subnormals_bf16saturation_check_base {
+struct jit_has_bf16_overflows : public jit_has_special_value_base {
     using Vmm = typename dnnl::impl::utils::conditional<isa == sse41, Xbyak::Xmm, Xbyak::Ymm>::type;
 
     const Vmm rmm4 = Vmm(4);
@@ -321,7 +321,7 @@ struct jit_has_bf16_overflows : public jit_subnormals_bf16saturation_check_base 
         postamble();
     }
 };
-jit_subnormals_bf16saturation_check_base::fn_t jit_has_subnormals_function() {
+jit_has_special_value_base::fn_t jit_has_subnormals_function() {
     if (mayiuse(cpu_isa_t::avx2)) {
         static jit_has_subnormals<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
@@ -333,7 +333,7 @@ jit_subnormals_bf16saturation_check_base::fn_t jit_has_subnormals_function() {
     }
     return nullptr;
 }
-jit_subnormals_bf16saturation_check_base::fn_t jit_has_bf16_overflows_function() {
+jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
     if (mayiuse(cpu_isa_t::avx2)) {
         static jit_has_bf16_overflows<cpu_isa_t::avx2> generator;
         static auto fn = generator.get();
@@ -413,24 +413,25 @@ void Input::cloneBlobIfRequired() {
 
                 volatile bool has_subnormals_local = false;
                 volatile bool has_bf16_overflows_local = false;
+                if (needFlushDenormalsToZero) {
+                    parallel_for(iterations_num, [&](int n) {
+                        auto ptr = u32data + n * batch_size;
+                        const jit_has_special_value_base::args_t args1 = {
+                            reinterpret_cast<float const*>(ptr),
+                            std::min(batch_size, (size_t)(u32data + size - ptr)),
+                            false};
 
-                parallel_for(iterations_num, [&](int n) {
-                    auto ptr = u32data + n * batch_size;
-                    const jit_subnormals_bf16saturation_check_base::args_t args1 = {
-                        reinterpret_cast<float const*>(ptr),
-                        std::min(batch_size, (size_t)(u32data + size - ptr)),
-                        false};
+                        fn(&args1);
 
-                    fn(&args1);
-
-                    if (args1.hasTargetValues)
-                        has_subnormals_local = true;
-                });
+                        if (args1.hasTargetValues)
+                            has_subnormals_local = true;
+                    });
+                }
 
                 if (do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
                         auto ptr2 = f32data + n * batch_size;
-                        const jit_subnormals_bf16saturation_check_base::args_t args2 = {
+                        const jit_has_special_value_base::args_t args2 = {
                             reinterpret_cast<float const*>(ptr2),
                             std::min(batch_size, (size_t)(f32data + size - ptr2)),
                             false};
@@ -451,19 +452,18 @@ void Input::cloneBlobIfRequired() {
 
             uint32_t mantissaMask = 0x007fffff;
             uint32_t exponentMask = 0x7f800000;
-            const float bf16_max = 3.3895313899137927e38f;
+            const float bf16_max = std::numeric_limits<ov::bfloat16>::max();
             for (size_t i = 0; i < size; ++i) {
-                if ((u32data[i] & exponentMask) == 0 && (u32data[i] & mantissaMask) != 0) {
+                if (needFlushDenormalsToZero && (u32data[i] & exponentMask) == 0 && (u32data[i] & mantissaMask) != 0) {
                     has_subnormals = true;
                 }
-                if (do_bf16_saturation_check) {
-                    if (f32data[i] < -bf16_max || f32data[i] > bf16_max) {
-                        has_bf16_overflows = true;
-                    }
-                    if (has_subnormals && has_bf16_overflows) {
-                        return;
-                    }
-                } else if (has_subnormals) {
+
+                if (do_bf16_saturation_check && (f32data[i] < -bf16_max || f32data[i] > bf16_max)) {
+                    has_bf16_overflows = true;
+                }
+
+                if ((!needFlushDenormalsToZero || has_subnormals) &&
+                    (!do_bf16_saturation_check || has_bf16_overflows)) {
                     return;
                 }
             }
@@ -507,7 +507,7 @@ void Input::cloneBlobIfRequired() {
         } else {
             ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
         }
-        ptr->load(*memory.get(), needFlushDenormalsToZero, has_bf16_overflows);
+        ptr->load(*memory.get(), has_subnormals, has_bf16_overflows);
 
         return ptr;
     };
@@ -535,7 +535,7 @@ void Input::cloneBlobIfRequired() {
         prec != element::string &&
         // IRs already have all subnormals flushed to zero, but in
         // read_model scenario with directly loaded original model still can have subnormals
-        isBlobAligned(m_constOp) && (!needFlushDenormalsToZero || !has_subnormals) && !has_bf16_overflows &&
+        isBlobAligned(m_constOp) && !has_subnormals && !has_bf16_overflows &&
         // Blob should be cloned in cache only if original weights are stored on other numa node.
         // This is possible only in multistream case on multisocket machine.
         // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where
