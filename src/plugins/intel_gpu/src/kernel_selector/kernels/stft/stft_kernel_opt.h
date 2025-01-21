@@ -16,5 +16,6 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     CommonDispatchData CalcLaunchConfig(const STFT_params& params) const override;
     ParamsKey GetSupportedKey() const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

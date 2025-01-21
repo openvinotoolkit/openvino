@@ -57,7 +57,9 @@ CommonDispatchData STFTKernelBase::CalcLaunchConfig(const STFT_params& params) c
 }
 
 KernelsData STFTKernelBase::GetCommonKernelsData(const Params& params) const {
-    assert(params.GetType() == KernelType::STFT);
+    if (!Validate(params)) {
+        return {};
+    }
 
     const auto& prim_params = static_cast<const STFT_params&>(params);
 
@@ -87,4 +89,9 @@ KernelsData STFTKernelBase::GetCommonKernelsData(const Params& params) const {
 
     return {k_data};
 }
+
+bool STFTKernelBase::Validate(const Params& p) const {
+    return p.GetType() == KernelType::STFT;
+}
+
 }  // namespace kernel_selector

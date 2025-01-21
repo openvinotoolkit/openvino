@@ -5,7 +5,7 @@
 #include "stft_kernel_opt.h"
 
 const size_t FREQ_PER_BLOCK = 256;
-const size_t X_I_MAX_BUFFER_SIZE = 2048;
+const size_t STATIC_MAX_X_I_BUFFER = 1024;
 const size_t THREADS_PER_BLOCK = 256;
 namespace kernel_selector {
 ParamsKey STFTKernelOpt::GetSupportedKey() const {
@@ -33,7 +33,10 @@ JitConstants STFTKernelOpt::GetJitConstants(const STFT_params& params) const {
     JitConstants jit = STFTKernelBase::GetJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("FREQ_PER_BLOCK", FREQ_PER_BLOCK)});
-    jit.AddConstants({MakeJitConstant("X_I_MAX_BUFFER_SIZE", X_I_MAX_BUFFER_SIZE)});
+    jit.AddConstants({MakeJitConstant("STATIC_MAX_X_I_BUFFER", STATIC_MAX_X_I_BUFFER)});
+
+    const auto xiMaxBuffer = params.is_shape_agnostic ? "STATIC_MAX_X_I_BUFFER" : "INPUT1_SIZE_X";
+    jit.AddConstants({MakeJitConstant("SHARED_X_I_BUFFER_SIZE", xiMaxBuffer)});
 
     return jit;
 }
@@ -54,7 +57,7 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
     OPENVINO_ASSERT(output.X().v == 2);
 
     const size_t freqSize = params.transpose_frames ? output.Feature().v : output.Y().v;
-    const int blocksPerFreq = (freqSize + FREQ_PER_BLOCK-1)/FREQ_PER_BLOCK;
+    const size_t blocksPerFreq = (freqSize + FREQ_PER_BLOCK - 1) / FREQ_PER_BLOCK;
 
     const size_t framesSize = params.transpose_frames ? output.Y().v : output.Feature().v;
     const size_t batchSize = output.Batch().v;
@@ -63,8 +66,21 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
     dispatchData.gws = {batchSize, framesSize * THREADS_PER_BLOCK * blocksPerFreq};
 
     std::cout << dispatchData << std::endl;
-    std::cout << "Blocks: " << dispatchData.gws[1]/dispatchData.lws[1] << std::endl;
+    std::cout << "Blocks: " << dispatchData.gws[1] / dispatchData.lws[1] << std::endl;
     return dispatchData;
+}
+
+bool STFTKernelOpt::Validate(const Params& p) const {
+    if (STFTKernelBase::Validate(p) == false)
+        return false;
+
+    const auto& params = static_cast<const STFT_params&>(p);
+    const auto windowSize = params.inputs[1].LogicalSize();
+
+    if (params.is_shape_agnostic && windowSize > STATIC_MAX_X_I_BUFFER)
+        return false;
+
+    return true;
 }
 
 }  // namespace kernel_selector

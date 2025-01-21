@@ -27,7 +27,7 @@ KERNEL(stft_ref)(
     const size_t frame_step = (size_t)frame_step_buff[0];
     const size_t window_size = INPUT1_SIZE_X;
 
-    __local float x_i_shared[X_I_MAX_BUFFER_SIZE];
+    __local float x_i_shared[SHARED_X_I_BUFFER_SIZE];
 
     const size_t block_size = get_local_size(0)*get_local_size(1)*get_local_size(2);
 

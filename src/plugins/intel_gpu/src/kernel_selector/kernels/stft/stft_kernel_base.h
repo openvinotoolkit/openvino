@@ -28,5 +28,6 @@ protected:
     virtual CommonDispatchData CalcLaunchConfig(const STFT_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector
