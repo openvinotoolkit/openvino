@@ -277,5 +277,32 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     }
 }
 
+template <typename Type>
+static inline Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
+    auto itrHandle = params.find(p.name());
+    ov::Any res = nullptr;
+    if (itrHandle == params.end()) {
+        OPENVINO_THROW("No parameter ", p.name(), " found in parameters map");
+    }
+    res = itrHandle->second;
+    return res.as<Type>();
+}
+
+static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle_t hContext, const void* ptr) {
+    ze_memory_allocation_properties_t desc = {};
+    desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
+    auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
+    if (res == ZE_RESULT_SUCCESS) {
+        if (desc.id) {
+            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 }  // namespace zeroUtils
 }  // namespace intel_npu

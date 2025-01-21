@@ -15,21 +15,6 @@
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "zero_remote_tensor.hpp"
 
-namespace {
-
-template <typename Type>
-Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
-    auto itrHandle = params.find(p.name());
-    ov::Any res = nullptr;
-    if (itrHandle == params.end()) {
-        OPENVINO_THROW("No parameter ", p.name(), " found in parameters map");
-    }
-    res = itrHandle->second;
-    return res.as<Type>();
-}
-
-}  // namespace
-
 namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
@@ -80,7 +65,7 @@ Pipeline::Pipeline(const Config& config,
                 if (remote_tensor == nullptr) {
                     data = input_tensors.at(io_index).at(i)->data();
                 } else {
-                    data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+                    data = zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
                 }
 
                 graph->set_argument_value(desc.idx, data);
@@ -94,7 +79,7 @@ Pipeline::Pipeline(const Config& config,
             if (remote_tensor == nullptr) {
                 data = input_tensors.at(io_index).at(0)->data();
             } else {
-                data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+                data = zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
 
             graph->set_argument_value(
@@ -112,7 +97,7 @@ Pipeline::Pipeline(const Config& config,
             if (remote_tensor == nullptr) {
                 data = output_tensors.at(io_index)->data();
             } else {
-                data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+                data = zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
 
             graph->set_argument_value(
