@@ -289,4 +289,96 @@ protected:
     inline static const std::string m_allowed_env_prefix = "OV_";
 };
 
+template <>
+class OPENVINO_API AttributeAdapter<ConfigOptionBase*>
+    : public DirectValueAccessor<ConfigOptionBase*> {
+public:
+    AttributeAdapter(ConfigOptionBase*& value) : DirectValueAccessor<ConfigOptionBase*>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ConfigOptionBase*>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<ov::AnyMap>
+    : public DirectValueAccessor<ov::AnyMap> {
+public:
+    AttributeAdapter(ov::AnyMap& value)  : DirectValueAccessor<ov::AnyMap>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<ov::AnyMap>");
+};
+
+template<typename OStreamType>
+class OstreamAttributeVisitor : public ov::AttributeVisitor {
+    OStreamType& os;
+
+public:
+    OstreamAttributeVisitor(OStreamType& os) : os(os) {}
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
+        os << adapter.get();
+    }
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        if (auto a = ov::as_type<ov::AttributeAdapter<ConfigOptionBase*>>(&adapter)) {
+            return handle_option(a->get());
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::AnyMap>>(&adapter)) {
+            const auto& props = a->get();
+            os << props.size();
+            for (auto& kv : props) {
+                os << kv.first << kv.second.as<std::string>();
+            }
+        } else {
+            OPENVINO_THROW("Attribute ", name, " can't be processed\n");
+        }
+    }
+
+    void handle_option(ConfigOptionBase* option) {
+        if (option->get_visibility() == OptionVisibility::RELEASE || option->get_visibility() == OptionVisibility::RELEASE_INTERNAL)
+            os << option->get_any().as<std::string>();
+    }
+};
+
+template<typename IStreamType>
+class IstreamAttributeVisitor : public ov::AttributeVisitor {
+    IStreamType& is;
+
+public:
+    IstreamAttributeVisitor(IStreamType& is) : is(is) {}
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        if (auto a = ov::as_type<ov::AttributeAdapter<ConfigOptionBase*>>(&adapter)) {
+            return handle_option(a->get());
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::AnyMap>>(&adapter)) {
+            size_t size;
+            is >> size;
+            ov::AnyMap props;
+            for (size_t i = 0; i < size; i++) {
+                std::string name, val;
+                is >> name;
+                is >> val;
+                props[name] = val;
+
+            }
+            a->set(props);
+        } else {
+            OPENVINO_THROW("Attribute ", name, " can't be processed\n");
+        }
+    }
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
+        bool val;
+        is >> val;
+        adapter.set(val);
+    }
+
+    void handle_option(ConfigOptionBase* option) {
+        if (option->get_visibility() == OptionVisibility::RELEASE || option->get_visibility() == OptionVisibility::RELEASE_INTERNAL) {
+            std::string s;
+            is >> s;
+            if (option->is_valid_value(s))
+                option->set_any(s);
+        }
+    }
+};
+
 }  // namespace ov
