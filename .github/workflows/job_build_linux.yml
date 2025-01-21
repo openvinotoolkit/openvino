@@ -243,8 +243,9 @@ jobs:
         if: ${{ inputs.build-rpm-packages }}
         run: |
           python3 -m pip install rpm
-          sed -i '1s|.*|#!/usr/bin/python3|' /usr/bin/dnf
-          cmake -UTBB* -UPython* -U_Python* -UPYTHON* \
+          sed -i '1s|.*|#!/usr/bin/python|' /usr/bin/dnf
+          sed -i '1s|.*|#!/usr/bin/python|' /usr/bin/rpmlint
+          cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
