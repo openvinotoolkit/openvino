@@ -508,7 +508,7 @@ CPUStreamsExecutor::~CPUStreamsExecutor() {
         cpu_reset();
     } catch (const ov::Exception&) {
         // Destructor should not throw - catch needed for static analysis.
-        // CPU::CPU() won't throw here as cpu_info() is called from Stream constructor.
+        OPENVINO_THROW("Reset CPU state error.");
     }
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
