@@ -17,9 +17,8 @@ namespace {
 const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
 const auto avx = CPUSpecificParams{{}, {}, {"jit_avx"}, "jit_avx"};
-const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
 
-const std::vector<CPUSpecificParams> vecCpuConfigs = {sse42, avx, avx512};
+const std::vector<CPUSpecificParams> vecCpuConfigs = {avx, avx512};
 
 const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_ref = {
         maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
@@ -50,13 +49,9 @@ const auto avx2_nwc = CPUSpecificParams{{nwc}, {nwc}, {"jit_avx2"}, "jit_avx2"};
 const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
 const auto avx2_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
 
-const auto sse42_nwc = CPUSpecificParams{{nwc}, {nwc}, {"jit_sse42"}, "jit_sse42"};
-const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
-const auto sse42_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"};
-
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_3D = {sse42_nwc, avx2_nwc, avx512_nwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_ndhwc, avx2_ndhwc, avx512_ndhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_3D = {avx2_nwc, avx512_nwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {avx2_nhwc, avx512_nhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {avx2_ndhwc, avx512_ndhwc};
 
 std::vector<fusingSpecificParams> fusingParamsSet {
     emptyFusingSpec,
