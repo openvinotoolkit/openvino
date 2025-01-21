@@ -68,6 +68,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/addon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/element_type.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/partial_shape_wrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/node_wrap.cpp
 
     ${CMAKE_JS_SRC}
 )
