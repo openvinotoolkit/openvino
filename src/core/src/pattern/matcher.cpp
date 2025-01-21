@@ -11,9 +11,6 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 
-// //TODO: remove wrap type
-// #include "openvino/pass/pattern/op/wrap_type.hpp"
-
 namespace ov {
 bool is_used(Node* node);
 

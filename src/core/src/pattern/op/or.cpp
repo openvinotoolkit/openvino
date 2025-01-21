@@ -7,9 +7,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp" //TODO: maybe remove
 
-//todo remove or handle
-#include "transformations/utils/utils.hpp"
-
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
                                             const Output<Node>& graph_value) {

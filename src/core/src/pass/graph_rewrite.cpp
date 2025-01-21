@@ -18,7 +18,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
-#include "transformations/utils/utils.hpp"
 
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)

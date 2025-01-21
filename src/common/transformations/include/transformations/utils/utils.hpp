@@ -316,4 +316,3 @@ ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(cons
         ov::op::util::constant_predicate<float>([](const std::vector<float>& value) -> bool { \
             return expression;                                                                \
         }))
-
