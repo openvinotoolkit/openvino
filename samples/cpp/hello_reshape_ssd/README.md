@@ -9,7 +9,7 @@ For more detailed information on how this sample works, check the dedicated [art
 
 | Options                     | Values                                                                                                                                   |
 | ----------------------------| -----------------------------------------------------------------------------------------------------------------------------------------|
-| Validated Models            | [person-detection-retail-0013](https://docs.openvino.ai/2024/omz_models_model_person_detection_retail_0013.html)                         |
+| Validated Models            | [person-detection-retail-0013](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/person-detection-retail-0013)  |
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                                                          |
 | Supported devices           | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)                                     |
 | Other language realization  | [Python](https://docs.openvino.ai/2024/learn-openvino/openvino-samples/hello-reshape-ssd.html)                                           |
