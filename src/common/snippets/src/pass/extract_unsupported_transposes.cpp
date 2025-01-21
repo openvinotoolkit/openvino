@@ -26,25 +26,21 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
             continue;
 
         const auto transpose = ov::as_type_ptr<opset1::Transpose>(consumers.begin()->get_node()->shared_from_this());
-        if (!transpose)
-            continue;
-
-        const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
-        OPENVINO_ASSERT(order, "ExtractUnsupportedTransposes expects Transposes with constant order");
-
-        const auto order_value = order->cast_vector<int>();
-        const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
-        const auto is_brgemm_case = ov::is_type<opset1::MatMul>(transpose_child.get_node()->shared_from_this());
         // If Transpose is supported (can be decomposed or fused into Brgemm), skip
         // [116568]: It should be covered by TransposeDecomposition::is_supported or FuseTransposeBrgemm::is_supported
-        if ((is_brgemm_case && TokenizeMHASnippets::get_fusion_transpose_order(order_value.size()) == order_value) ||
-            (TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) == order_value))
+        if (!transpose || TokenizeMHASnippets::is_internally_supported_transpose(transpose))
             continue;
 
+        const auto& transpose_consumers = transpose->get_output_target_inputs(0);
+        // Note: these are not hard limitations, but rather a validation of expected patterns
+        OPENVINO_ASSERT(transpose_consumers.size() == 1,
+                        "ExtractUnsupportedTransposes expects Transposes with one consumer");
+        OPENVINO_ASSERT(ov::is_type<opset1::Constant>(transpose->get_input_node_shared_ptr(1)),
+                        "ExtractUnsupportedTransposes expects Transposes with constant order");
         // If the transpose isn't supported - we have to extract it from Subgraph
         transpose->set_argument(0, subgraph->input_value(i));
         subgraph->set_argument(i, transpose);
-        transpose_child.replace_source_output(parameter);
+        transpose_consumers.begin()->replace_source_output(parameter);
         parameter->set_partial_shape(transpose->get_output_partial_shape(0));
         updated = true;
     }

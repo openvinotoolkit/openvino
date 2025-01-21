@@ -34,7 +34,7 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
             return false;
         }
 
-        NodeVector ordered_ops {last_matmul, last_matmul->get_input_node_shared_ptr(1)};
+        NodeVector ordered_ops {last_matmul};
         auto fuse_single_in_chain = [&ordered_ops](const std::shared_ptr<ov::Node>& start) {
             auto in = start;
             while (TokenizeSnippets::AppropriateForSubgraph(in) && in->get_input_size() == 1) {
@@ -56,8 +56,6 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
             return false;
         ordered_ops.push_back(right_not_fused);
         ordered_ops.push_back(left_not_fused);
-        ordered_ops.push_back(right_not_fused->get_input_node_shared_ptr(1));
-        ordered_ops.push_back(left_not_fused->get_input_node_shared_ptr(1));
         std::reverse(ordered_ops.begin(), ordered_ops.end());
 
         for (auto op : ordered_ops)
@@ -65,8 +63,8 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
         std::cerr << "++++++++++++++++++++++++++++++++++++++++\n";
 
         auto subgraph = utils::wrap_nodes_as_subgraph(ordered_ops);
-        ov::pass::Serialize(std::string("snsdebug_wrapped.xml"),
-                            std::string("snsdebug_wrapped.bin")).run_on_model(subgraph->body_ptr());
+//        ov::pass::Serialize(std::string("snsdebug_wrapped.xml"),
+//                            std::string("snsdebug_wrapped.bin")).run_on_model(subgraph->body_ptr());
         // todo: seems like we don't need to set this thing if subgraph is already complete
         //subgraph->set_virtual_port_count(hidden_virtual_ports_count);
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
