@@ -100,12 +100,11 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
     auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
     tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.f));
 
-    const auto matMulValid =
-        arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-                                                            aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-                                                            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-                                                            aclMemoryInfos[ACLArgs::ACL_DST].get(),
-                                                            gemmInfo);
+    auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+                                                                           aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+                                                                           aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+                                                                           aclMemoryInfos[ACLArgs::ACL_DST].get(),
+                                                                           gemmInfo);
     return matMulValid;
 }
 

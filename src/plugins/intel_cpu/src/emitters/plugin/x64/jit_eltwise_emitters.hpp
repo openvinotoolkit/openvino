@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -601,6 +601,9 @@ class jit_negative_emitter : public jit_emitter {
 public:
     jit_negative_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                         ov::element::Type exec_prc = ov::element::f32);
+    jit_negative_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                          const std::shared_ptr<ov::Node>& n,
                          ov::element::Type exec_prc = ov::element::f32);
 
@@ -609,7 +612,7 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
-    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;

@@ -4,6 +4,8 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <utility>
+
 namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
@@ -19,15 +21,15 @@ void jit_uni_eltwise_kernel::operator()(const node::jit_eltwise_call_args_ptrs* 
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(const jit_eltwise_params& jep,
-                                                      const std::vector<EltwiseData>& eltwise_data,
-                                                      const std::vector<ov::intel_cpu::Type>& ops_list,
-                                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep),
+jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep,
+                                                      std::vector<EltwiseData> eltwise_data,
+                                                      std::vector<ov::intel_cpu::Type> ops_list,
+                                                      dnnl::post_ops post_ops)
+    : jit_uni_eltwise_kernel(std::move(jep)),
       jit_generator(),
-      eltwise_data_(eltwise_data),
-      ops_list_(ops_list),
-      post_ops_(post_ops) {}
+      eltwise_data_(std::move(eltwise_data)),
+      ops_list_(std::move(ops_list)),
+      post_ops_(std::move(post_ops)) {}
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
@@ -664,9 +666,11 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseFloor, ov::intel_cpu::aarch64::jit_floor_emitter),
         OV_CASE(Algorithm::EltwiseFloorMod, ov::intel_cpu::aarch64::jit_floor_mod_emitter),
         OV_CASE(Algorithm::EltwiseCeiling, ov::intel_cpu::aarch64::jit_ceiling_emitter),
+        OV_CASE(Algorithm::EltwiseNegative, ov::intel_cpu::aarch64::jit_negative_emitter),
         OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, ov::intel_cpu::aarch64::jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, ov::intel_cpu::aarch64::jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseLess, ov::intel_cpu::aarch64::jit_less_emitter),
         OV_CASE(Algorithm::EltwiseLessEqual, ov::intel_cpu::aarch64::jit_less_equal_emitter),
         OV_CASE(Algorithm::EltwiseLogicalAnd, ov::intel_cpu::aarch64::jit_logical_and_emitter),
         OV_CASE(Algorithm::EltwiseLogicalOr, ov::intel_cpu::aarch64::jit_logical_or_emitter),
@@ -851,6 +855,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
+              OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
               OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
@@ -859,6 +864,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
               OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
               OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+              OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
               OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),

@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "descriptor.hpp"
 #include "modifiers.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/utils/utils.hpp"
-
-#include "descriptor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,17 +26,20 @@ class EltwiseTPP : public modifier::TensorProcessingPrimitive {
 public:
     static bool is_supported(const std::shared_ptr<ov::Node>& node);
     bool visit_attributes(AttributeVisitor& visitor);
-    virtual OpDescTPP get_op_desc() const  = 0;
+    virtual OpDescTPP get_op_desc() const = 0;
 };
 
 class BinaryEltwiseTPP : public EltwiseTPP {
 public:
     BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type);
-    OpDescTPP get_op_desc() const override { return OpDescTPP(m_op_type, m_flags); }
+    OpDescTPP get_op_desc() const override {
+        return OpDescTPP(m_op_type, m_flags);
+    }
 
 protected:
     static libxsmm_bitfield get_broadcasting_flags(const ov::PartialShape& pshape_0, const ov::PartialShape& pshape_1);
-    static libxsmm_bitfield get_broadcasting_flags(const snippets::VectorDims& pshape_0, const snippets::VectorDims& pshape_1);
+    static libxsmm_bitfield get_broadcasting_flags(const snippets::VectorDims& pshape_0,
+                                                   const snippets::VectorDims& pshape_1);
     libxsmm_bitfield m_flags;
     libxsmm_meltw_binary_type m_op_type;
 };
@@ -45,7 +47,10 @@ protected:
 class UnaryEltwiseTPP : public EltwiseTPP {
 public:
     UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type);
-    OpDescTPP get_op_desc() const override { return OpDescTPP(m_op_type); }
+    OpDescTPP get_op_desc() const override {
+        return OpDescTPP(m_op_type);
+    }
+
 private:
     libxsmm_meltw_unary_type m_op_type;
 };
@@ -110,7 +115,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-
 class Square : public UnaryEltwiseTPP, public ov::snippets::op::PowerStatic {
 public:
     OPENVINO_OP("Square", "TppOpset", snippets::op::PowerStatic);
@@ -127,7 +131,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

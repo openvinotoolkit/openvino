@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace py = pybind11;
 void regclass_graph_op_ReadValue(py::module m) {
     py::class_<ov::op::v6::ReadValue, std::shared_ptr<ov::op::v6::ReadValue>, ov::Node> read_value(m, "read_value");
 
-    read_value.doc() = "openvino.runtime.op.read_value wraps ov::op::v6::ReadValue";
+    read_value.doc() = "openvino.op.read_value wraps ov::op::v6::ReadValue";
 
     read_value.def(py::init<>());
 

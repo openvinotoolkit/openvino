@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
                            size_t defaultIndexIdx)
     : INDICES_IDX(indicesIdx),
       PER_SAMPLE_WEIGHTS_IDX(perSampleWeightsIdx),
-      DEFAULT_INDEX_IDX(defaultIndexIdx) {
-    _layerName = op->get_friendly_name();
+      DEFAULT_INDEX_IDX(defaultIndexIdx),
+      _layerName(op->get_friendly_name()) {
     std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1)
         OPENVINO_THROW(logPrefix, "has incorrect number of input or output edges!");

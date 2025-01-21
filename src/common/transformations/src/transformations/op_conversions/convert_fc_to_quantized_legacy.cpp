@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,8 +48,8 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
             return false;
         }
 
-        auto fc_node = std::dynamic_pointer_cast<ov::op::internal::FullyConnected>(
-            pattern_map.at(fully_connected_m).get_node_shared_ptr());
+        auto fc_node =
+            ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
 
         ov::NodeVector new_ops;
         auto zp = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});

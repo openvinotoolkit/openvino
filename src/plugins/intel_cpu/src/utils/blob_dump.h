@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <cpu_memory.h>
 
 #include <string>
+#include <utility>
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
@@ -35,7 +36,7 @@ public:
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator=(BlobDumper&&) = default;
 
-    explicit BlobDumper(const MemoryPtr& _memory) : memory(_memory) {}
+    explicit BlobDumper(MemoryPtr _memory) : memory(std::move(_memory)) {}
 
     static BlobDumper read(const std::string& file_path);
     static BlobDumper read(std::istream& stream);

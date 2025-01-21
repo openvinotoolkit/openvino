@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ Graph::~Graph() {
 }
 
 template <typename NET>
-void Graph::CreateGraph(NET& model, const GraphContext::CPtr context) {
+void Graph::CreateGraph(NET& model, const GraphContext::CPtr& context) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
     Init(model, context);
@@ -70,7 +70,7 @@ void Graph::CreateGraph(NET& model, const GraphContext::CPtr context) {
 
 void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
                         const std::vector<EdgePtr>& graphEdges,
-                        const GraphContext::CPtr context,
+                        const GraphContext::CPtr& context,
                         std::string name) {
     if (IsReady())
         ForgetGraphData();
@@ -85,7 +85,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
 
     std::size_t parameter_index = 0;
     std::size_t result_index = 0;
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
             inputNodesMap[parameter_index] = node;
             parameter_index++;
@@ -100,7 +100,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     Activate();
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
+template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr&);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
                       const std::vector<node::Input::InputConfig>& inputConfigs,
@@ -116,8 +116,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     // Will be stored as fake output separately.
     std::deque<ov::Output<ov::Node>> unusedOutputs;
 
-    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp,
-                                  const std::shared_ptr<ov::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node>& childOp,
+                                  const std::shared_ptr<ov::Node>& parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -128,10 +128,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         return -1;
     };
 
-    auto createNode = [&](std::shared_ptr<ov::Node> op) -> NodePtr {
+    auto createNode = [&](const std::shared_ptr<ov::Node>& op) -> NodePtr {
         // special handling for Parameters and Results
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
+            auto input_index = model->get_parameter_index(ov::as_type_ptr<op::v0::Parameter>(op));
             OPENVINO_ASSERT(input_index >= 0,
                             "CPU plugin cannot find op: ",
                             op->get_friendly_name(),
@@ -150,7 +150,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
+            auto output_index = model->get_result_index(ov::as_type_ptr<op::v0::Result>(op));
             OPENVINO_ASSERT(output_index >= 0,
                             "CPU plugin cannot find op: ",
                             op->get_friendly_name(),
@@ -313,7 +313,7 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
 }
 
 void Graph::Init(const std::shared_ptr<const ov::Model>& model,
-                 const GraphContext::CPtr context,
+                 const GraphContext::CPtr& context,
                  const std::vector<node::Input::InputConfig>& inputConfigs,
                  const std::vector<node::Input::OutputConfig>& outputConfigs) {
     if (IsReady())
@@ -640,7 +640,7 @@ static std::unordered_set<std::string> getUniqueLayerNames(const std::vector<Nod
     std::unordered_set<std::string> uniqueLayerNames;
     uniqueLayerNames.reserve(graphNodes.size());
 
-    for (auto node : graphNodes) {
+    for (const auto& node : graphNodes) {
         uniqueLayerNames.insert(node->getName());
     }
 
@@ -704,13 +704,13 @@ void Graph::ResolveComplexInplaceConflicts() {
         if (portChildEdges.size() > 1) {
             if (auto modifyingNode = edge->modifiedInPlace()) {
                 auto execIndex = modifyingNode->getExecIndex();
-                for (auto pEdgePeer : portChildEdges) {
+                for (const auto& pEdgePeer : portChildEdges) {
                     if (pEdgePeer == edge)
                         continue;
                     std::vector<NodePtr> vecConsumers;
                     pEdgePeer->collectConsumers(vecConsumers);
 
-                    for (auto node : vecConsumers) {
+                    for (const auto& node : vecConsumers) {
                         if (node->getExecIndex() >= execIndex ||
                             one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
                             return true;
@@ -731,7 +731,7 @@ void Graph::ResolveComplexInplaceConflicts() {
     }
 }
 
-static inline bool isConstOutput(EdgePtr edge) {
+static inline bool isConstOutput(const EdgePtr& edge) {
     return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
 }
 
@@ -1506,7 +1506,7 @@ void Graph::SortTopologically() {
         int execIndexCnt = -1;
 
         std::function<void(const NodePtr)> visit;
-        visit = [&execIndexCnt, &sorted, &visit](const NodePtr node) {
+        visit = [&execIndexCnt, &sorted, &visit](const NodePtr& node) {
             if (node->execIndex >= 0)
                 return;  // already visited
 
@@ -1563,7 +1563,6 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
         [&](std::vector<ov::ProfilingInfo>& perfMap, const NodePtr& node) {
             ov::ProfilingInfo pc;
             pc.node_name = node->getName();
-            // pc.execution_index = i++;
             uint64_t avg_time = node->PerfCounter().avg();
             pc.cpu_time = pc.real_time = std::chrono::microseconds(avg_time);
             pc.status = avg_time > 0 ? ov::ProfilingInfo::Status::EXECUTED : ov::ProfilingInfo::Status::NOT_RUN;
@@ -1571,11 +1570,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             pc.node_type = node->typeStr;
             perfMap.emplace_back(pc);
 
-            for (auto& fusedNode : node->fusedWith) {
+            for (const auto& fusedNode : node->fusedWith) {
                 getPerfMapFor(perfMap, fusedNode);
             }
 
-            for (auto& mergedWith : node->mergedWith) {
+            for (const auto& mergedWith : node->mergedWith) {
                 getPerfMapFor(perfMap, mergedWith);
             }
         };
@@ -1604,7 +1603,7 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
     graphEdges.erase(std::remove(graphEdges.begin(), graphEdges.end(), edge), graphEdges.end());
 }
 
-void Graph::AddNode(NodePtr node) {
+void Graph::AddNode(const NodePtr& node) {
     assert(node);
     assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
 
@@ -1716,8 +1715,8 @@ void Graph::RemoveDroppedEdges() {
                      graphEdges.end());
 }
 
-NodePtr Graph::InsertReorder(EdgePtr edge,
-                             std::string layerName,
+NodePtr Graph::InsertReorder(const EdgePtr& edge,
+                             const std::string& layerName,
                              const MemoryDesc& inDesc,
                              const MemoryDesc& outDesc,
                              bool isOptimized,
@@ -1751,7 +1750,7 @@ NodePtr Graph::InsertReorder(EdgePtr edge,
     return reorder;
 }
 
-bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
+bool Graph::InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
     if (iIndex < 0 || oIndex < 0)
@@ -1768,7 +1767,12 @@ bool Graph::InsertNode(EdgePtr edge, NodePtr node, bool initNode) {
     return InsertNode(edge->getParent(), edge->getChild(), node, iIndex, oIndex, initNode);
 }
 
-bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode) {
+bool Graph::InsertNode(const NodePtr& parent,
+                       const NodePtr& child,
+                       const NodePtr& node,
+                       int parentPort,
+                       int childPort,
+                       bool initNode) {
     CreateEdge(parent, node, parentPort, 0);
     CreateEdge(node, child, 0, childPort);
     AddNode(node);

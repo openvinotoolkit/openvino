@@ -70,12 +70,12 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
@@ -92,9 +92,9 @@ Prerequisites
 .. code:: ipython3
 
     import os
-    
+
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-    
+
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install --pre -Uq "openvino>=2024.5.0" openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
@@ -131,20 +131,20 @@ creating custom tools.
 .. code:: ipython3
 
     from langchain_core.tools import tool
-    
-    
+
+
     @tool
     def multiply(first_int: int, second_int: int) -> int:
         """Multiply two integers together."""
         return first_int * second_int
-    
-    
+
+
     @tool
     def add(first_int: int, second_int: int) -> int:
         "Add two integers."
         return first_int + second_int
-    
-    
+
+
     @tool
     def exponentiate(base: int, exponent: int) -> int:
         "Exponentiate the base to the exponent power."
@@ -213,22 +213,22 @@ previous agent tool invocations and the corresponding tool outputs.
 .. code:: ipython3
 
     PREFIX = """Respond to the human as helpfully and accurately as possible. You have access to the following tools:"""
-    
+
     FORMAT_INSTRUCTIONS = """Use a json blob to specify a tool by providing an action key (tool name) and an action_input key (tool input).
-    
+
     Valid "action" values: "Final Answer" or {tool_names}
-    
+
     Provide only ONE action per $JSON_BLOB, as shown:
-    
+
     ```
     {{{{
       "action": $TOOL_NAME,
       "action_input": $INPUT
     }}}}
     ```
-    
+
     Follow this format:
-    
+
     Question: input question to answer
     Thought: consider previous and subsequent steps
     Action:
@@ -245,10 +245,10 @@ previous agent tool invocations and the corresponding tool outputs.
       "action_input": "Final response to human"
     }}}}
     ```"""
-    
+
     SUFFIX = """Begin! Reminder to ALWAYS respond with a valid json blob of a single action. Use tools if necessary. Respond directly if appropriate. Format is Action:```$JSON_BLOB```then Observation:.
     Thought:"""
-    
+
     HUMAN_MESSAGE_TEMPLATE = "{input}\n\n{agent_scratchpad}"
 
 Create LLM
@@ -294,7 +294,7 @@ select following models as LLM in agent pipeline.
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model 
+       ## login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -318,16 +318,16 @@ folder.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     llm_model_ids = ["Qwen/Qwen2.5-7B-Instruct", "Qwen/Qwen2.5-3B-Instruct", "Qwen/qwen2.5-14b-instruct", "meta-llama/Meta-Llama-3.1-8B-Instruct"]
-    
+
     llm_model_id = widgets.Dropdown(
         options=llm_model_ids,
         value=llm_model_ids[0],
         description="Model:",
         disabled=False,
     )
-    
+
     llm_model_id
 
 
@@ -342,10 +342,10 @@ folder.
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-    
+
     llm_model_path = llm_model_id.value.split("/")[-1]
     repo_name = llm_model_id.value.split("/")[0]
-    
+
     if not Path(llm_model_path).exists():
         optimum_cli(
             llm_model_id.value, llm_model_path, additional_args={"task": "text-generation-with-past", "weight-format": "int4", "group-size": "128", "ratio": "1.0"}
@@ -359,9 +359,9 @@ Select inference device for LLM
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget("CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -383,37 +383,37 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
 
     from langchain_huggingface import HuggingFacePipeline
     from transformers.generation.stopping_criteria import StoppingCriteriaList, StoppingCriteria
-    
+
     import openvino.properties as props
     import openvino.properties.hint as hints
     import openvino.properties.streams as streams
-    
-    
+
+
     class StopSequenceCriteria(StoppingCriteria):
         """
         This class can be used to stop generation whenever a sequence of tokens is encountered.
-    
+
         Args:
             stop_sequences (`str` or `List[str]`):
                 The sequence (or list of sequences) on which to stop execution.
             tokenizer:
                 The tokenizer used to decode the model outputs.
         """
-    
+
         def __init__(self, stop_sequences, tokenizer):
             if isinstance(stop_sequences, str):
                 stop_sequences = [stop_sequences]
             self.stop_sequences = stop_sequences
             self.tokenizer = tokenizer
-    
+
         def __call__(self, input_ids, scores, **kwargs) -> bool:
             decoded_output = self.tokenizer.decode(input_ids.tolist()[0])
             return any(decoded_output.endswith(stop_sequence) for stop_sequence in self.stop_sequences)
-    
-    
+
+
     ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
     stop_tokens = ["Observation:"]
-    
+
     ov_llm = HuggingFacePipeline.from_model_id(
         model_id=llm_model_path,
         task="text-generation",
@@ -425,20 +425,20 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
         },
         pipeline_kwargs={"max_new_tokens": 2048},
     )
-    
+
     tokenizer = ov_llm.pipeline.tokenizer
     ov_llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList([StopSequenceCriteria(stop_tokens, tokenizer)])
 
 .. code:: ipython3
 
     from langchain_huggingface import ChatHuggingFace
-    
+
     ov_chat = ChatHuggingFace(llm=ov_llm, verbose=True)
     ov_chat = ov_chat.bind(skip_prompt=True, stop=["Observation:"])
 
 You can get additional inference speed improvement with `Dynamic
 Quantization of activations and KV-cache quantization on
-CPU <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-hf.html#enabling-openvino-runtime-optimizations>`__.
+CPU <https://docs.openvino.ai/2024/openvino-workflow-generative/inference-with-optimum-intel.html#enabling-openvino-runtime-optimizations>`__.
 These options can be enabled with ``ov_config`` as follows:
 
 .. code:: ipython3
@@ -466,7 +466,7 @@ outputs back to the agent, and repeats.
 .. code:: ipython3
 
     from langchain.agents import AgentExecutor, StructuredChatAgent
-    
+
     agent = StructuredChatAgent.from_llm_and_tools(
         ov_chat,
         tools,
@@ -494,11 +494,11 @@ prompt template.
 
 .. parsed-literal::
 
-    
-    
+
+
     > Entering new AgentExecutor chain...
     Thought: First, we need to take 3 to the fifth power. Then we will find the sum of twelve and three. After that, we multiply the first result by the second result. Finally, we'll square the whole result.
-    
+
     Action:
     ```
     {
@@ -512,7 +512,7 @@ prompt template.
     Observation:
     Observation: 243
     Thought:Next, let's find the sum of twelve and three.
-    
+
     Action:
     ```
     {
@@ -526,7 +526,7 @@ prompt template.
     Observation:
     Observation: 15
     Thought:Now, we will multiply the result of \(3^5\) (which is 243) by the sum of 12 and 3 (which is 15).
-    
+
     Action:
     ```
     {
@@ -539,8 +539,8 @@ prompt template.
     ```
     Observation:
     Observation: 3645
-    Thought:Thought: Now, we need to square the result of the multiplication (3645). 
-    
+    Thought:Thought: Now, we need to square the result of the multiplication (3645).
+
     Action:
     ```
     {
@@ -553,7 +553,7 @@ prompt template.
     ```
     Observation: 13286025
     Thought:Thought: I know what to respond
-    
+
     Action:
     ```
     {
@@ -561,7 +561,7 @@ prompt template.
       "action_input": "The final result is 13286025."
     }
     ```
-    
+
     > Finished chain.
 
 
@@ -598,10 +598,10 @@ words generated by agent.
     from langchain_community.utilities import WikipediaAPIWrapper
     from langchain_core.callbacks import CallbackManagerForToolRun
     from typing import Optional
-    
+
     from pydantic import BaseModel, Field
-    
-    
+
+
     class WikipediaQueryRunWrapper(WikipediaQueryRun):
         def _run(
             self,
@@ -610,17 +610,17 @@ words generated by agent.
         ) -> str:
             """Use the Wikipedia tool."""
             return self.api_wrapper.run(text)
-    
-    
+
+
     api_wrapper = WikipediaAPIWrapper(top_k_results=2, doc_content_chars_max=1000)
-    
-    
+
+
     class WikiInputs(BaseModel):
         """inputs to the wikipedia tool."""
-    
+
         text: str = Field(description="query to look up on wikipedia.")
-    
-    
+
+
     wikipedia = WikipediaQueryRunWrapper(
         description="A wrapper around Wikipedia. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects. Input should be a search query.",
         args_schema=WikiInputs,
@@ -652,8 +652,8 @@ In this examples, we will create 2 customized tools for
 
     import urllib.parse
     import json5
-    
-    
+
+
     @tool
     def painting(prompt: str) -> str:
         """
@@ -661,8 +661,8 @@ In this examples, we will create 2 customized tools for
         """
         prompt = urllib.parse.quote(prompt)
         return json5.dumps({"image_url": f"https://image.pollinations.ai/prompt/{prompt}"}, ensure_ascii=False)
-    
-    
+
+
     painting.invoke({"prompt": "a cat"})
 
 
@@ -683,10 +683,10 @@ In this examples, we will create 2 customized tools for
         """
         Get the current weather for `city_name`
         """
-    
+
         if not isinstance(city_name, str):
             raise TypeError("City name must be a string")
-    
+
         key_selection = {
             "current_condition": [
                 "temp_C",
@@ -697,15 +697,15 @@ In this examples, we will create 2 customized tools for
             ],
         }
         import requests
-    
+
         resp = requests.get(f"https://wttr.in/{city_name}?format=j1")
         resp.raise_for_status()
         resp = resp.json()
         ret = {k: {_v: resp[k][0][_v] for _v in v} for k, v in key_selection.items()}
-    
+
         return str(ret)
-    
-    
+
+
     weather.invoke({"city_name": "London"})
 
 
@@ -725,7 +725,7 @@ Create AI agent demo with Gradio UI
 .. code:: ipython3
 
     tools = [wikipedia, painting, weather]
-    
+
     agent = StructuredChatAgent.from_llm_and_tools(
         ov_chat,
         tools,
@@ -741,28 +741,28 @@ Create AI agent demo with Gradio UI
     def partial_text_processor(partial_text, new_text):
         """
         helper for updating partially generated answer, used by default
-    
+
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-    
+
         """
         partial_text += new_text
         return partial_text
-    
-    
+
+
     def run_chatbot(history):
         """
         callback function for running chatbot on submit button click
-    
+
         Params:
           history: conversation history
-    
+
         """
         partial_text = ""
-    
+
         for new_text in agent_executor.stream(
             {"input": history[-1][0]},
         ):
@@ -770,8 +770,8 @@ Create AI agent demo with Gradio UI
                 partial_text = partial_text_processor(partial_text, new_text["output"])
                 history[-1][1] = partial_text
                 yield history
-    
-    
+
+
     def request_cancel():
         ov_chat.llm.pipeline.model.request.cancel()
 
@@ -780,11 +780,11 @@ Create AI agent demo with Gradio UI
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-agent-react/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel)
-    
+
     try:
         demo.launch()
     except Exception:

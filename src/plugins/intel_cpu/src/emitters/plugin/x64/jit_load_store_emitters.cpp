@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_load_store_emitters.hpp"
+
+#include <utility>
 
 #include "utils/bfloat16.hpp"
 
@@ -102,14 +104,14 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                    emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),
       name_("unknown"),
+      v_len_elt_(get_vec_length() / exec_prc.size()),
       load_num_(load_num),
+      load_size_(load_num * src_prc.size()),
       src_prc_(src_prc),
       dst_prc_(dst_prc),
       is_fill_(is_fill),
-      fill_value_(fill_value) {
+      fill_value_(std::move(fill_value)) {
     prepare_table();
-    load_size_ = load_num * src_prc.size();
-    v_len_elt_ = get_vec_length() / exec_prc.size();
 }
 
 size_t jit_load_emitter::get_inputs_num() const {
@@ -630,7 +632,7 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
 }
 
 template <typename Vmm>
-void jit_load_emitter::fill_with_default(const Vmm& vmm, std::string fill_value, const int& load_num) const {
+void jit_load_emitter::fill_with_default(const Vmm& vmm, const std::string& fill_value, const int& load_num) const {
     constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
     constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
     constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
@@ -671,13 +673,13 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                      emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),
       name_("unknown"),
+      v_len_elt_(get_vec_length() / exec_prc.size()),
       store_num_(store_num),
+      store_size_(store_num * dst_prc.size()),
       src_prc_(src_prc),
       dst_prc_(dst_prc),
       mode_(mode) {
     prepare_table();
-    v_len_elt_ = get_vec_length() / exec_prc.size();
-    store_size_ = store_num * dst_prc.size();
     uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
 }
 
