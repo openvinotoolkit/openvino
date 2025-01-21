@@ -55,6 +55,10 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+
+# Fix dnf and rpmlint to work with venv Python
+RUN sed -i '1s|.*|#!/usr/bin/python|' /usr/bin/dnf
+RUN sed -i '1s|.*|#!/usr/bin/python|' /usr/bin/rpmlint
     
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
