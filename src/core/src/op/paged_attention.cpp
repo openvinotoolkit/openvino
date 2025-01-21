@@ -179,7 +179,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               get_input_element_type(15).is_dynamic() || get_input_element_type(15) == element::f32 ||
                                   get_input_element_type(15) == element::f16,
-                              "Element type of `rotation_trig_lut` input should be f32, but it is ",
+                              "Element type of `rotation_trig_lut` input should be f32 or f16, but it is ",
                               get_input_element_type(15),
                               ".");
     }

@@ -5,6 +5,7 @@
 #include "llm_mlp.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/bfloat16.hpp"
@@ -339,12 +340,11 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     Executor(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad)
         : m_pnode(pnode),
           m_config(config),
-          m_scrachPad(scrachPad) {
+          m_scrachPad(std::move(scrachPad)),
+          m_rt_prec_f16(std::is_same<T, ov::float16>::value) {
         PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
         PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
         PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
-
-        m_rt_prec_f16 = std::is_same<T, ov::float16>::value;
 
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
         auto K = w_gate.size(1);
@@ -491,12 +491,12 @@ private:
 #else
 template <typename T>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
-    Executor(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad) {}
+    Executor(LLMMLP*, const LLMMLPNode::Config&, const DnnlScratchPadPtr&) {}
     void execute() {}
 };
 #endif
 
-LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     const auto& config = context->getConfig();
@@ -589,7 +589,7 @@ void LLMMLP::createPrimitive() {
     }
 }
 
-void LLMMLP::execute(dnnl::stream strm) {
+void LLMMLP::execute(const dnnl::stream& strm) {
     MAYBE_UNUSED(strm);
     m_executor->execute();
 }

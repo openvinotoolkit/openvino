@@ -31,28 +31,26 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
-
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix_, " has invalid number of input/output edges.");
+        THROW_CPU_NODE_ERR("has invalid number of input/output edges.");
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
     if (dataRank != indicesRank)
-        OPENVINO_THROW(errorPrefix_, " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
+        THROW_CPU_NODE_ERR("has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
 
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0)
         axis += dataRank;
     if (axis < 0 || axis >= static_cast<int>(dataRank))
-        OPENVINO_THROW(errorPrefix_, " has invalid axis attribute: ", axis);
+        THROW_CPU_NODE_ERR("has invalid axis attribute: ", axis);
     axis_ = axis;
 }
 
@@ -80,12 +78,12 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
-        OPENVINO_THROW(errorPrefix_, " has unsupported 'inputData' input precision: ", inDataPrecision);
+        THROW_CPU_NODE_ERR("has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
     if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
-        OPENVINO_THROW(errorPrefix_, " has unsupported 'indices' input precision: ", indicesPrecision);
+        THROW_CPU_NODE_ERR("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     dataTypeSize_ = inDataPrecision.size();
@@ -95,7 +93,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherElements::executeDynamicImpl(dnnl::stream strm) {
+void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -132,7 +130,7 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(dnnl::stream strm) {
+void GatherElements::execute(const dnnl::stream& strm) {
     switch (dataTypeSize_) {
     case sizeof(element_type_traits<ov::element::i32>::value_type):
         return directExecution<element_type_traits<ov::element::i32>::value_type>();

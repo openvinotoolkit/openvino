@@ -32,7 +32,7 @@ public:
         std::vector<size_t> order_HS;      // Reshape[B,L,H*S]->B,L,H,S], H,S are fixed value, when input_BLHxS is true.
     };
 
-    ScaledDotProductAttentionWithKVCache(const OutputVector& args, const Config& cfg);
+    ScaledDotProductAttentionWithKVCache(const OutputVector& args, Config cfg);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -57,7 +57,7 @@ public:
 
     SDPAWithTransposeReshape() = default;
 
-    SDPAWithTransposeReshape(const OutputVector& args, const Config& cfg);
+    SDPAWithTransposeReshape(const OutputVector& args, Config cfg);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
