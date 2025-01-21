@@ -15,6 +15,7 @@ OV_CONFIG_RELEASE_OPTION(ov::hint, performance_mode, ov::hint::PerformanceMode::
 OV_CONFIG_RELEASE_OPTION(ov::hint, execution_mode, ov::hint::ExecutionMode::PERFORMANCE, "High-level hint that defines the most important metric for the model. Performance mode allows unsafe optimizations that may reduce the model accuracy")
 OV_CONFIG_RELEASE_OPTION(ov::hint, num_requests, 0, "Hint that provides number of requests populated by the application")
 OV_CONFIG_RELEASE_OPTION(ov::hint, enable_cpu_pinning, false, "Controls if CPU threads are pinned to the cores or not")
+OV_CONFIG_RELEASE_OPTION(ov::hint, enable_cpu_reservation, false, "Cpu Reservation means reserve cpus which will not be used by other plugin or compiled model")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, host_task_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls core types used for host tasks")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM, "Low-level hint that controls the queue throttle level")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
