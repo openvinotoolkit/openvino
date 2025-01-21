@@ -31,6 +31,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
 
@@ -615,4 +616,85 @@ TEST_F(TransformationTestsF, SDPAToPA_TotalSequenceLengthPatternQwen) {
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_result_friendly_names_check();
     disable_rt_info_check();
+}
+
+TEST_F(TransformationTestsF, SDPAToPA_TotalSequenceLengthPatternQwen_DEBUG) {
+    {
+        // Inputs to SDPA transformer:
+        auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto attention_mask = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        ParameterVector params = nodes_to_params({position_ids, input_ids, attention_mask, beam_idx});
+
+        beam_idx->output(0).add_names({"beam_idx"});
+        position_ids->output(0).add_names({"position_ids"});
+        attention_mask->output(0).add_names({"attention_mask"});
+        input_ids->output(0).add_names({"input_ids"});
+
+        // Embeddings processing:
+        auto embeddings = Qwen7bChatSDPA::gen_embeddings(input_ids);
+        auto qkv_proj = Qwen7bChatSDPA::gen_qkv_proj(embeddings);
+
+        // KV cache:
+        auto k_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "K_cache");
+        auto v_cache = Qwen7bChatSDPA::gen_cache(input_ids, beam_idx, "V_cache");
+
+        // Current/past/total Seq lengths calculation:
+        auto current_seq_len = Qwen7bChatSDPA::gen_current_len(input_ids);
+        auto past_seq_len = Qwen7bChatSDPA::gen_past_len(k_cache);
+        auto total_seq_len = Qwen7bChatSDPA::gen_total_len(current_seq_len, past_seq_len);
+
+        // RoPE emb sin/cos init:
+        auto neg_cur_seq_len = Qwen7bChatSDPA::neg_mul(current_seq_len);
+        auto head_size = shared_ptr<Node>();
+        auto rope_emb_sin = Qwen7bChatSDPA::gen_rope_emb_sin(total_seq_len, neg_cur_seq_len, head_size);
+        auto rope_emb_cos = Qwen7bChatSDPA::gen_rope_emb_cos(total_seq_len, neg_cur_seq_len);
+
+        // RoPE for Q,K inputs:
+        auto rope_q = Qwen7bChatSDPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+        auto rope_k = Qwen7bChatSDPA::gen_rope(QKV::K, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
+
+        // Lengths:
+        auto total_seq_len_2 = Qwen7bChatSDPA::gen_total_seq_len_2(past_seq_len, rope_k);
+        auto past_seq_len_2 = Qwen7bChatSDPA::gen_past_seq_len_2(total_seq_len_2, rope_q);
+
+        // Q, K, V:
+        auto Q = Qwen7bChatSDPA::gen_Q(past_seq_len_2, total_seq_len_2, rope_q);
+        auto K = Qwen7bChatSDPA::gen_K(k_cache, rope_k);
+        auto V = Qwen7bChatSDPA::gen_V(v_cache, qkv_proj);
+
+        // Attention mask:
+        auto attention_mask_to_sdpa = Qwen7bChatSDPA::gen_attention_mask(Q, attention_mask, total_seq_len_2);
+
+        // auto scale = std::shared_ptr<v0::Parameter>();
+
+        // SDPA:
+        auto sdpa = makeOP<v13::ScaledDotProductAttention>({Q, K, V, attention_mask_to_sdpa}, {{"causal", false}});
+        // auto sdpa = makeOP<v13::ScaledDotProductAttention>({Q, K, V}, {{"causal", false}});
+        auto result = std::make_shared<v0::Result>(sdpa);
+
+        ParameterVector kv_parameters;
+        ParameterVector model_remaining_params;
+        auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        ParameterVector params_to_remove;
+        int i = 0;
+        auto max_context_len = makeOP<v0::Parameter>({}, {{"shape", PartialShape{}}, el_type_i32});
+        ParameterVector block_indices_inputs;
+        ResultVector score_results;
+
+        model = std::make_shared<ov::Model>(ResultVector{result}, params);
+        manager.register_pass<pass::StateManagementPattern>(kv_parameters,
+                                                            model_remaining_params,
+                                                            sliding_window,
+                                                            params_to_remove,
+                                                            i,
+                                                            max_context_len,
+                                                            block_indices_inputs,
+                                                            score_results,
+                                                            true,
+                                                            true);
+        // manager.register_pass<pass::PrevSequenceLengthPattern>(aligned_input_ids, max_context_len, position_ids);
+        // manager.register_pass<pass::TotalSequenceLengthPatternQwen>(max_context_len);
+    }
 }

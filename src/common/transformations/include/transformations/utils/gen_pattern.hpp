@@ -35,6 +35,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+#include "openvino/util/log.hpp"
 namespace ov {
 namespace gen_pattern {
 
@@ -811,6 +812,8 @@ public:
                          pattern_value.get_index(),
                          "!=",
                          graph_value.get_index());
+            // node_version_type_str(graph_value.get_node_shared_ptr());
+            // OPENVINO_DEBUG_EMPTY(level_string(matcher->level), "├─ TYPE and PREDICATE MATCHED. CHECKING ", get_input_size(), " PATTERN ARGUMENTS: ");
             return false;
         }
 

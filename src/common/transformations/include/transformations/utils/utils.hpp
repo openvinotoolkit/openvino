@@ -317,6 +317,3 @@ ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(cons
             return expression;                                                                \
         }))
 
-
-std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node);
-std::string node_with_arguments(const std::shared_ptr<ov::Node>& node);

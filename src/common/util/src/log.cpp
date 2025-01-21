@@ -16,15 +16,13 @@ void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
 }
 
-// std::string ov::util::LogHelper::level_string(int level) {
-//     std::string level_string;
-//     level_string.reserve(level * 4); //TODO: think how much to reserve
-//     for (int i = 0; i < level; ++i) {
-//         level_string += "│  ";
-//     }
-//     return level_string;
-//     // return ""; //for now
-// }
+// This function prints the string only if its length greater than 0
+// (made to avoid unnecessary newlines)
+void ov::util::default_logger_handler_func_length(const std::string& s) {
+    if (s.length() != 0) {
+        std::cout << s << std::endl;
+    }
+}
 
 ov::util::LogHelper::LogHelper(LOG_TYPE type,
                                const char* file,
@@ -45,7 +43,6 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
         m_stream << "[DEBUG] ";
         break;
     case LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY:
-        m_stream << ""; // NO printing at all?
         break;
     }
 

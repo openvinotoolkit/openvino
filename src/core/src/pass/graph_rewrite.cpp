@@ -283,25 +283,25 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_property(property, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
-        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] START: trying to start pattern matching with ", node_version_type_name_str(node));
+        OPENVINO_DEBUG_EMPTY(m, "┌─ [", m->get_name(), "] START: trying to start pattern matching with ", node_version_type_name_str(node));
         if (m->match(node->output(0))) {
             OV_PASS_CALLBACK(m);
 
             try {
                 const bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
-                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "]");
-                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: PATTERN MATCHED, CALLBACK ", (status ? "SUCCEDED" : "FAILED"), "\n");
                 m->clear_state();
+                OPENVINO_DEBUG_EMPTY(m, "│");
+                OPENVINO_DEBUG_EMPTY(m, "└─ [", m->get_name(), "] END: PATTERN MATCHED, CALLBACK ", (status ? "SUCCEDED" : "FAILED"), "\n");
                 return status;
             } catch (const std::exception& exp) {
-                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "]");
-                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: PATTERN MATCHED, CALLBACK HAS THROWN: ", exp.what());
+                OPENVINO_DEBUG_EMPTY(m, "│");
+                OPENVINO_DEBUG_EMPTY(m, "└─ [", m->get_name(), "] END: PATTERN MATCHED, CALLBACK HAS THROWN: ", exp.what());
                 OPENVINO_THROW("[", m->get_name(), "] END: node: ", node_version_type_name_str(node), " CALLBACK HAS THROWN: ", exp.what(), "\n");
             }
         }
-        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "]");
-        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END: PATTERN DIDN'T MATCH\n");
+        OPENVINO_DEBUG_EMPTY(m, "│");
+        OPENVINO_DEBUG_EMPTY(m, "└─ [", m->get_name(), "] END: PATTERN DIDN'T MATCH\n");
         m->clear_state();
         return false;
     };
