@@ -8,6 +8,8 @@
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/type_validation.hpp"
+#include "model_wrap.h"
+#include "node_wrap.h"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -203,4 +205,13 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
+}
+
+Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
+    std::vector<ov::Node*> ops = this->model_->get_ops();
+    Napi::Array result = Napi::Array::New(info.Env(), ops.size());
+    for (size_t i = 0; i < ops.size(); i++) {
+        result[i] = NodeWrap::New(info.Env(), ops[i]);
+    }
+    return result;
 }
