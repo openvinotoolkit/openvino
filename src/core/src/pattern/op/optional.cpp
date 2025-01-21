@@ -30,19 +30,19 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     auto or_node = is_empty_in_values ? std::static_pointer_cast<Pattern>(wrap_node)
                                       : std::static_pointer_cast<Pattern>(std::make_shared<Or>(
                                             ov::OutputVector{wrap_node, input_values_to_optional[0]}));
-    // OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level++),
-    //                      (or_node == wrap_node ? "├─ LEAVING OPTIONAL AS WRAP TYPE AND TRYING TO MATCH: "
-    //                                            : "├─ UNFOLDING OPTIONAL INTO OR AND TRYING TO MATCH "), get_name());
+    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level++),
+                         (or_node == wrap_node ? "├─ LEAVING OPTIONAL AS WRAP TYPE AND TRYING TO MATCH: "
+                                               : "├─ UNFOLDING OPTIONAL INTO OR AND TRYING TO MATCH "), get_name());
     if (matcher->match_value(or_node, graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         if (pattern_map.count(wrap_node)) {
             pattern_map[shared_from_this()] = graph_value;
         }
-        // OPENVINO_DEBUG_EMPTY(matcher, level_string(--matcher->level), "│");
-        // OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OPTIONAL MATCHED");
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(--matcher->level), "│");
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OPTIONAL MATCHED");
         return true;
     }
-    // OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
-    // OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OPTIONAL DIDN'T MATCH");
+    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
+    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OPTIONAL DIDN'T MATCH");
     return false;
 }
