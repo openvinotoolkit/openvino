@@ -24,34 +24,28 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_quantile(const NodeContext& context) {
-    // aten::quantile(Tensor self, Tensor q, int? dim=None, bool keepdim=False) -> Tensor
     num_inputs_check(context, 2, 4);
 
     auto input = context.get_input(0);
     auto quantiles = context.get_input(1);
 
-    // Handle optional inputs
     auto dim = context.input_is_none(2) ? -1 : context.get_input<int64_t>(2);
     auto keepdim = context.input_is_none(3) ? false : context.get_input<bool>(3);
 
-    // If dim is -1 (not specified), flatten the tensor
     if (dim == -1) {
         input = context.mark_node(std::make_shared<v0::Reshape>(
             input, context.mark_node(v0::Constant::create(element::i64, {1}, {-1})), true));
-        dim = 0;  // Set the dimension to 0 for the flattened tensor
+        dim = 0;
     }
 
-    // Sort the tensor along the specified dimension
     auto sort_result = context.mark_node(std::make_shared<v0::Sort>(input, dim, true));
     auto sorted_tensor = sort_result->output(0);
 
-    // Get the size of the specified dimension
     auto input_shape = context.mark_node(std::make_shared<v0::ShapeOf>(input));
     auto dim_size = context.mark_node(std::make_shared<v0::Gather>(
         input_shape, context.mark_node(v0::Constant::create(element::i64, {}, {dim})),
         v0::Constant::create(element::i64, {}, {0})));
 
-    // Compute quantile indices: q * (dim_size - 1)
     auto scaled_q = context.mark_node(std::make_shared<v1::Multiply>(
         quantiles, context.mark_node(std::make_shared<v1::Subtract>(
                        dim_size, v0::Constant::create(element::i64, {}, {1})))));
@@ -59,25 +53,20 @@ OutputVector translate_quantile(const NodeContext& context) {
     auto upper_indices = context.mark_node(std::make_shared<v1::Add>(
         lower_indices, v0::Constant::create(element::i64, {}, {1})));
 
-    // Clamp indices to valid range
     lower_indices = context.mark_node(std::make_shared<v1::Maximum>(
         lower_indices, v0::Constant::create(element::i64, {}, {0})));
     upper_indices = context.mark_node(std::make_shared<v1::Minimum>(
         upper_indices, context.mark_node(std::make_shared<v1::Subtract>(
                            dim_size, v0::Constant::create(element::i64, {}, {1})))));
 
-    // Gather values at the indices
     auto lower_values = context.mark_node(std::make_shared<v1::Gather>(sorted_tensor, lower_indices, dim));
     auto upper_values = context.mark_node(std::make_shared<v1::Gather>(sorted_tensor, upper_indices, dim));
 
-    // Compute interpolation weights
     auto weights = context.mark_node(std::make_shared<v1::Subtract>(scaled_q, lower_indices));
 
-    // Interpolate between lower and upper values
     auto result = context.mark_node(std::make_shared<v1::Add>(
         lower_values, context.mark_node(std::make_shared<v1::Multiply>(weights, context.mark_node(std::make_shared<v1::Subtract>(upper_values, lower_values))))));
 
-    // Reshape if keepdim is false
     if (!keepdim) {
         auto input_shape = context.mark_node(std::make_shared<v0::ShapeOf>(input));
         auto output_shape = context.mark_node(std::make_shared<v1::Gather>(
