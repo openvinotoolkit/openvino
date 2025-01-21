@@ -5,7 +5,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/util/log.hpp" //TODO: maybe remove
+#include "openvino/util/log.hpp"
 
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,

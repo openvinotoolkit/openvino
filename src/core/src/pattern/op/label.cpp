@@ -7,7 +7,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
-#include "openvino/util/log.hpp" //TODO: maybe remove
+#include "openvino/util/log.hpp"
 
 ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
     switch (wrapped_values.size()) {
