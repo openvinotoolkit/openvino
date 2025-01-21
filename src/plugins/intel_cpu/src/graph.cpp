@@ -284,12 +284,16 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::unordered_map<size_t, size_t> graphIdToExecutableId;
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
-        const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && graphNode->isExecutable()) ||  // non-constant executable or
-            (graphNode->isDynamicNode() &&
-             !one_of(graphNode->getType(), Type::Input, Type::Output))) {  // dynamic, except inputs / outputs
+        const auto& node = graphNodes[i];
+        const bool staticZeroDims = !node->isDynamicNode() && !node->isExecutable() && !node->isInPlace();
+        const bool dynamicNonInputOutput = node->isDynamicNode() && !one_of(node->getType(), Type::Input, Type::Output);
+
+        if (!node->isConstant() &&  // constants are executed once in scope of compile_model
+            !staticZeroDims &&      // never execute static nodes with zero dim input / output tensors
+            (CPU_DEBUG_CAPS_ALWAYS_TRUE(node->isExecutable()) ||  // execute all executable nodes
+             dynamicNonInputOutput)) {                            // plus dynamic ones, except inputs / outputs
             graphIdToExecutableId[i] = executableGraphNodes.size();
-            executableGraphNodes.emplace_back(graphNode);
+            executableGraphNodes.emplace_back(node);
         }
     }
 
