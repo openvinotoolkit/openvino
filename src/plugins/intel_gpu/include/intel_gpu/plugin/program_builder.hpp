@@ -155,8 +155,6 @@ private:
     std::shared_ptr<cldnn::topology> m_topology;
     CustomLayerMap m_custom_layers;
 
-    bool allow_new_shape_infer = false;
-
     bool queryMode;
 
     std::shared_ptr<ov::threading::IStreamsExecutor> m_task_executor;
