@@ -325,7 +325,7 @@ void cpu_pinning_available(bool& cpu_pinning,
     CPU& cpu = cpu_info();
     if (cpu._cpu_mapping_table.size() == 0) {
         cpu_pinning = false;
-        cpu_reservation = false
+        cpu_reservation = false;
     }
 }
 
