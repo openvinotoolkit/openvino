@@ -264,7 +264,7 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
         }
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_property(ov::hint::kv_cache_precision) == ov::element::undefined) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision)) {
         if (info.supports_immad) {  // MFDNN-11755
             set_property(ov::hint::kv_cache_precision(get_property(ov::hint::inference_precision)));
         } else {
@@ -274,7 +274,8 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     }
 
     // Enable dynamic quantization by default for non-systolic platforms
-    if (get_property(ov::hint::dynamic_quantization_group_size) == 0 && !info.supports_immad) {
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) &&
+         get_property(ov::hint::dynamic_quantization_group_size) == 0 && !info.supports_immad) {
         set_property(ov::hint::dynamic_quantization_group_size(32));
     }
 
