@@ -26,21 +26,21 @@ static inline bool is_i8_supported_by_brgemm() {
 
 static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {
     std::vector<std::vector<element::Type>> prc;
-    prc.emplace_back(std::vector<element::Type>(count, element::f32));
+    prc.emplace_back(count, element::f32);
     return prc;
 }
 
 static inline std::vector<std::vector<element::Type>> precision_bf16_if_supported(size_t count) {
     std::vector<std::vector<element::Type>> prc;
     if (is_bf16_supported_by_brgemm())
-        prc.emplace_back(std::vector<element::Type>(count, element::bf16));
+        prc.emplace_back(count, element::bf16);
     return prc;
 }
 
 static inline std::vector<std::vector<element::Type>> precision_fp16_if_supported(size_t count) {
     std::vector<std::vector<element::Type>> prc;
     if (is_fp16_supported_by_brgemm())
-        prc.emplace_back(std::vector<element::Type>(count, element::f16));
+        prc.emplace_back(count, element::f16);
     return prc;
 }
 

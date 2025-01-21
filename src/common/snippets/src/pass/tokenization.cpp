@@ -95,13 +95,14 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // 1. It has higher priority than other tokenization passes
     // 2. It changes the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
+//    manager.register_pass<ov::pass::Serialize>(std::string("snsdebug_ngraph.xml"), std::string("snsdebug_ngraph.bin"));
+    manager.register_pass<TokenizeMLPSnippets>(m_config);
+
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
     tokenization_passes->add_matcher<TokenizeGNSnippets>();
-    tokenization_passes->add_matcher<TokenizeMLPSnippets>(m_config);
     tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
     tokenization_passes->add_matcher<TokenizeSnippets>(m_config);
-//    manager.register_pass<ov::pass::Serialize>("snsdebug_ngraph.xml", "snsdebug_ngraph.bin");
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
 

@@ -39,9 +39,9 @@ void MLP::SetUp() {
 
     function = mlp->getOriginal();
     inType = outType = elem_type;
-//    if (!configuration.count("SNIPPETS_MODE")) {
-//        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-//    }
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
 }
 
 TEST_P(MLP, CompareWithRefImpl) {

@@ -252,6 +252,9 @@ public:
                          const ov::element::Type& precision)
                          : SnippetsFunctionBase(inputShapes, precision) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(inputShapes[0].rank().get_length() >= 3, "Shape of rank 3 or higher is expected");
+        // Note: otherwise weights can't be constant
+        OPENVINO_ASSERT(inputShapes[0].rbegin()->is_static(), "The last dimension must be static");
         // todo: add shape validation
         //ov::PartialShape allowed_shape {"1, -1, 4096"};
         //OPENVINO_ASSERT(allowed_shape.same_scheme(inputShapes[0]), "Got incompatible input shapes");

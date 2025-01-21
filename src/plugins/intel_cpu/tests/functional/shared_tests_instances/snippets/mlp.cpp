@@ -8,53 +8,28 @@
 #include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-#define STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 namespace {
 
-static inline bool is_bf16_supported() {
-    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
+std::vector<std::vector<InputShape>> get_shapes_3D() {
+    auto shapes = SNIPPETS_TESTS_STATIC_SHAPES(
+            {{1, 128, 4096}},
+            {{2, 43, 123}}
+    );
+    shapes.push_back({{PartialShape{2, -1, 300}, {{2, 128, 300},  {2, 70, 300}}}});
+    shapes.push_back({{PartialShape{-1, -1, 31}, {{2, 13, 31}, {3, 49, 31}}}});
+    return shapes;
 }
-
-static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {
-    std::vector<std::vector<element::Type>> prc;
-    prc.emplace_back(std::vector<element::Type>(count, element::f32));
-    return prc;
-}
-
-static inline std::vector<std::vector<element::Type>> precision_bf16(size_t count) {
-    std::vector<std::vector<element::Type>> prc;
-    if (is_bf16_supported())
-        prc.emplace_back(std::vector<element::Type>(count, element::bf16));
-    return prc;
-}
-
-const auto& inputShapes_3D_static = STATIC_SHAPES(
-        {{1, 128, 4096}});
-
-//INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_3D_static,
-//                         MLP,
-//                         ::testing::Combine(::testing::ValuesIn(inputShapes_3D_static),
-//                                            ::testing::Values(ov::element::f32),
-//                                            ::testing::Values(1),
-//                                            ::testing::Values(1),
-//                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                         MLP::getTestCaseName);
-
-std::vector<std::vector<ov::test::InputShape>> inputShapes_3D{
-        {
-            {PartialShape{1, -1, 4096}, {{1, 128, 4096}}},
-        },
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_3D,
                          MLP,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes_3D),
-                                            ::testing::Values(ov::element::f32),
+                         ::testing::Combine(::testing::ValuesIn(get_shapes_3D()),
+                                            ::testing::ValuesIn(precision_f32(1)[0]),
                                             ::testing::Values(1),
                                             ::testing::Values(1),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
