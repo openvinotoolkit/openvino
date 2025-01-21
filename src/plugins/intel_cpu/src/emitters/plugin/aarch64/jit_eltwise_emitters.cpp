@@ -291,20 +291,20 @@ void jit_equal_emitter::register_table_entries() {
 
 /// NOTEQUAL ///
 jit_not_equal_emitter::jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
-                                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const std::shared_ptr<ov::Node>& node)
-                                     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+                                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                             const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 
 jit_not_equal_emitter::jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
-                                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const ov::element::Type exec_prc)
-                                     : jit_emitter(host, host_isa, exec_prc) {
+                                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                             const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
-size_t jit_not_equal_emitter::get_inputs_count() const { 
+size_t jit_not_equal_emitter::get_inputs_count() const {
     return 2;
 }
 
