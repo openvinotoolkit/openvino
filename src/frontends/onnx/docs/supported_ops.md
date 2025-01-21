@@ -46,7 +46,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |CumSum                                                  |1                       |                                |
 |                        |DFT                                                     |1                       |                                |
 |                        |DepthToSpace                                            |1                       |                                |
-|                        |DequantizeLinear                                        |13, 1                   |                                |
+|                        |DequantizeLinear                                        |21, 19, 13, 1           |                                |
 |                        |Div                                                     |7, 1                    |                                |
 |                        |Dropout                                                 |12, 7, 1                |                                |
 |                        |DynamicQuantizeLinear                                   |1                       |                                |
@@ -182,15 +182,26 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |Attention                                               |1                       |                                |
 |com.microsoft           |BiasGelu                                                |1                       |                                |
 |com.microsoft           |DequantizeLinear                                        |1                       |                                |
+|com.microsoft           |DynamicQuantizeMatMul                                   |1                       |                                |
 |com.microsoft           |EmbedLayerNormalization                                 |1                       |                                |
 |com.microsoft           |FusedConv                                               |1                       |                                |
 |com.microsoft           |FusedGemm                                               |1                       |                                |
+|com.microsoft           |FusedMatMul                                             |1                       |                                |
 |com.microsoft           |GatherND                                                |1                       |                                |
 |com.microsoft           |Gelu                                                    |1                       |                                |
+|com.microsoft           |MatMulIntegerToFloat                                    |1                       |                                |
 |com.microsoft           |MatMulNBits                                             |1                       |                                |
 |com.microsoft           |Pad                                                     |1                       |                                |
+|com.microsoft           |QLinearAdd                                              |1                       |                                |
+|com.microsoft           |QLinearLeakyRelu                                        |1                       |                                |
+|com.microsoft           |QLinearMul                                              |1                       |                                |
+|com.microsoft           |QLinearSigmoid                                          |1                       |                                |
 |com.microsoft           |QuantizeLinear                                          |1                       |                                |
+|com.microsoft           |QuickGelu                                               |1                       |                                |
+|com.microsoft           |Range                                                   |1                       |                                |
+|com.microsoft           |SimplifiedLayerNormalization                            |1                       |                                |
 |com.microsoft           |SkipLayerNormalization                                  |1                       |                                |
+|com.microsoft           |SkipSimplifiedLayerNormalization                        |1                       |                                |
 |com.microsoft           |Trilu                                                   |1                       |                                |
 |org.openvinotoolkit     |DeformableConv2D                                        |1                       |                                |
 |org.openvinotoolkit     |DetectionOutput                                         |1                       |                                |
