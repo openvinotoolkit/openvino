@@ -32,8 +32,9 @@ potential of OpenVINO™. Check the following list for components used in your w
     for details.
 
 | **OpenVINO GenAI Dependencies**
-|   OpenVINO GenAI is a flavor of OpenVINO, aiming to simplify running generative
-    AI models. For information on the dependencies required to use OpenVINO GenAI, see the
+|   OpenVINO GenAI is a tool based on the OpenVNO Runtime but simplifying the process of
+    running generative AI models. For information on the dependencies required to use
+    OpenVINO GenAI, see the
     :doc:`guide on OpenVINO GenAI Dependencies <configurations/genai-dependencies>`.
 
 | **Open Computer Vision Library**
