@@ -159,7 +159,7 @@ private:
 };
 }  // namespace
 
-TEST_F(stft_benchmark, benchmarks) {
+TEST_F(stft_benchmark, DISABLED_benchmarks) {
     RunBenchmark<ov::element::Type_t::f32>({10000}, 1000, 2, true);
     RunBenchmark<ov::element::Type_t::f32>({10000}, 1000, 2, false);
 

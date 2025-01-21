@@ -5,7 +5,7 @@
 #include "stft_kernel_opt.h"
 
 const size_t FREQ_PER_BLOCK = 256;
-const size_t STATIC_MAX_X_I_BUFFER = 1024;
+const size_t STATIC_MAX_X_I_BUFFER = 2048;
 const size_t THREADS_PER_BLOCK = 256;
 namespace kernel_selector {
 ParamsKey STFTKernelOpt::GetSupportedKey() const {
@@ -65,8 +65,6 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
     dispatchData.lws = {1, THREADS_PER_BLOCK};
     dispatchData.gws = {batchSize, framesSize * THREADS_PER_BLOCK * blocksPerFreq};
 
-    std::cout << dispatchData << std::endl;
-    std::cout << "Blocks: " << dispatchData.gws[1] / dispatchData.lws[1] << std::endl;
     return dispatchData;
 }
 
