@@ -36,7 +36,6 @@ public:
     virtual ~IGraph() = default;
 
     const NetworkMetadata& get_metadata() const;
-    const BlobContainer& get_blob_container() const;
     ze_graph_handle_t get_handle() const;
 
     void update_network_name(std::string_view name);

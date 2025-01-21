@@ -27,10 +27,6 @@ const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
 }
 
-const BlobContainer& IGraph::get_blob_container() const {
-    return *_blobPtr;
-}
-
 ze_graph_handle_t IGraph::get_handle() const {
     return _handle;
 }
