@@ -86,6 +86,8 @@ else()
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # 4244 conversion from 'XXX' to 'YYY', possible loss of data
         ov_add_compiler_flags(/wd4244)
+        # 4267 conversion from 'size_t' to 'int', possible loss of data
+        ov_add_compiler_flags(/wd4244)
         # '<': signed/unsigned mismatch
         ov_add_compiler_flags(/wd4018)
     endif()
