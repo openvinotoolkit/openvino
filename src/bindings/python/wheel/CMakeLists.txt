@@ -133,22 +133,26 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
-set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
-add_custom_command(OUTPUT "${fdupes_report}"
-    COMMAND ${CMAKE_COMMAND}
-        -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
-        -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
-        -D WHEEL_VERSION=${WHEEL_VERSION}
-        -D PACKAGE_FILE=${openvino_wheel_path}
-        -D REPORT_FILE=${fdupes_report}
-        -D CMAKE_SHARED_LIBRARY_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
-    DEPENDS "${openvino_wheel_path}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
-    VERBATIM)
+add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
 
-add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
+if(NOT CMAKE_HOST_WIN32)
+    set(fdupes_report ${CMAKE_CURRENT_BINARY_DIR}/fdupes_report.txt)
+    add_custom_command(OUTPUT "${fdupes_report}"
+        COMMAND ${CMAKE_COMMAND}
+            -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
+            -D WORKING_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
+            -D WHEEL_VERSION=${WHEEL_VERSION}
+            -D PACKAGE_FILE=${openvino_wheel_path}
+            -D REPORT_FILE=${fdupes_report}
+            -D CMAKE_SHARED_LIBRARY_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/fdupes_check.cmake"
+        DEPENDS "${openvino_wheel_path}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Run 'fdupes' checks for wheel ${openvino_wheel_name}"
+        VERBATIM)
+    add_custom_target(fdupes_report_target DEPENDS ${fdupes_report})
+    add_dependencies(ie_wheel fdupes_report_target)
+endif()
 
 add_custom_command(
     TARGET ie_wheel
