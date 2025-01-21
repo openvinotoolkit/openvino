@@ -593,11 +593,12 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
     NPUW_ASSERT(model.get() != nullptr);
     for (auto node : model->get_ordered_ops()) {
-        for (auto& output : node->outputs()) {
+        for (size_t i = 0; i < node->outputs().size(); ++i) {
+            auto& output = node->output(i);
             const auto& tensor_names = output.get_tensor().get_names();
             if (tensor_names.size() > 32) {
                 output.get_tensor().set_names({});
-                LOG_INFO("Removed " << node->get_friendly_name() << " output tensor names for " << model->get_friendly_name());
+                LOG_INFO("Removed " << node->get_friendly_name() << " output tensor " << i << " names for " << model->get_friendly_name());
                 LOG_BLOCK();
             }
         }
