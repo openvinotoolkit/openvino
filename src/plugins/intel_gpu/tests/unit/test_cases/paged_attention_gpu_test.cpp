@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -305,6 +306,12 @@ struct PagedAttentionManager {
         auto mem = get_memory_from_vec(rotation_trig_lut);
         auto layout = mem->get_layout();
         layout.set_partial_shape(ov::PartialShape{ max_context_len[0], head_size });
+
+        if (rotated_block_indices.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{ 0, head_size });
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
 
         return test_engine.reinterpret_buffer(*mem, layout);
     }
@@ -741,7 +748,7 @@ public:
         if (p.rotation_config.apply_rotation) {
             pa_inputs.push_back(input_info("rotated_block_indices"));
             pa_inputs.push_back(input_info("rotation_deltas"));
-            pa_inputs.push_back(input_info("rotation_trig_lut"));
+            pa_inputs.push_back(input_info("rotation_trig_lut_modified"));
         }
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -782,6 +789,9 @@ public:
             topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
             topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
             topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+
+            // add dummy activation operation to simulate an empty PA `rotation_trig_lut` buffer for shapes like [0, head_size]
+            topology.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
