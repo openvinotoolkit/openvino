@@ -50,7 +50,7 @@ class TestMultinomial(PytorchLayerTest):
     @pytest.mark.precommit
     def test_bernoulli(self, input, input_type, out, seed, ie_device, precision, ir_version):
         if input_type == np.float64:
-            pytest.skip("156027: Incorrect specification or reference for RandonUniform for fp64 output type")
+            pytest.skip("156027: Incorrect specification or reference for RandomUniform for fp64 output type")
         self._test(*self.create_model(out, seed),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input": input,
