@@ -95,23 +95,9 @@ void propagate_constants::run(program& p) {
             }
         }
 
-        auto is_reorder_with_only_dtype_change = [&](program_node& dst) {
-            if (!in_layout) {
-                return false;
-            }
-            auto& dst_layout = dst.get_output_layout();
-            if (in_layout->data_type == dst_layout.data_type) {
-                return false;
-            }
-
-            auto aux_layout = dst_layout;
-            aux_layout.data_type = in_layout->data_type;
-            return aux_layout == *in_layout.get();
-        };
-        if (is_reorder_with_only_dtype_change(new_node)) {
-            new_node.as<data>().get_primitive()->cache_info->set_new_dtype(new_node.get_output_layout().data_type);
-        } else {
-            new_node.as<data>().get_primitive()->cache_info->invalidate();
+        if (*in_layout.get() != new_node.get_output_layout()) {
+            new_node.as<data>().get_primitive()->cache_info->apply_reorder(*in_layout.get(),
+                                                                           new_node.get_output_layout());
         }
 
         curr_node.dependencies.clear();

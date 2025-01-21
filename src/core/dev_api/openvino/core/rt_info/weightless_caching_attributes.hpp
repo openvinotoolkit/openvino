@@ -7,8 +7,11 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
+
+TRANSFORMATIONS_API void copy_weightless_cache_attr(const std::shared_ptr<Node>& from, const std::shared_ptr<Node>& to);
 
 /**
  * @brief Holds weightless caching attributes of a single constant.
