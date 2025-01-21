@@ -123,13 +123,9 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
 }
 
 bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
-    for (const auto& prop : m_user_properties) {
-        auto val = prop.second.as<std::string>();
-        visitor.on_attribute(prop.first + "__user", val);
-    }
-    for (const auto& prop : m_options_map) {
-        auto val = prop.second->get_any().as<std::string>();
-        visitor.on_attribute(prop.first + "__internal", val);
+    visitor.on_attribute("m_user_properties", m_user_properties);
+    for (auto& prop : m_options_map) {
+        visitor.on_attribute(prop.first + "__internal", prop.second);
     }
     visitor.on_attribute("is_finalized", m_is_finalized);
 
