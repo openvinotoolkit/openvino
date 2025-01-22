@@ -174,6 +174,7 @@
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
+    static_assert(std::has_virtual_destructor_v<T>);
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
         if (op->input(0).get_partial_shape()[0].is_static()) {
             bool fp16_batch_not_1 = op->get_element_type() == ov::element::f16 && op->input(0).get_partial_shape()[0] != 1;

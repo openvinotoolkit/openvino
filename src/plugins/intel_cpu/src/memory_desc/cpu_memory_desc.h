@@ -139,6 +139,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
     T* as() {
+        static_assert(std::has_virtual_destructor_v<T>);
         T* casted = dynamic_cast<T*>(this);
         if (!casted)
             OPENVINO_THROW("Cannot dynamically cast MemoryDesc");

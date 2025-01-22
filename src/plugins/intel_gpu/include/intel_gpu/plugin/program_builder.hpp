@@ -42,6 +42,7 @@ void __register ## _ ## op_name ## _ ## op_version();                           
 void __register ## _ ## op_name ## _ ## op_version() {                                              \
     ProgramBuilder::RegisterFactory<ov::op::op_version::op_name>(                                   \
     [](ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {                                    \
+        static_assert(std::has_virtual_destructor_v<ov::op::op_version::op_name>);
         auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);                \
         OPENVINO_ASSERT(op_casted, "[GPU] Invalid ov Node type passed into ", __PRETTY_FUNCTION__); \
         Create##op_name##Op(p, op_casted);                                                          \

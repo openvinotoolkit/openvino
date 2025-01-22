@@ -9,6 +9,7 @@
 template <class T>
 ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_reduce() {
     return [&](ov::pass::pattern::Matcher& m) {
+        static_assert(std::has_virtual_destructor_v<T>);
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
         if (!reduce || reduce->get_keep_dims()) {
             return false;

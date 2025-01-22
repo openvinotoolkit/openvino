@@ -704,6 +704,7 @@ shared_ptr<T> check_all_inputs(const shared_ptr<ov::op::v0::Concat>& concat) {
     const auto concat_in_values = concat->input_values();
     size_t idx = 0;
     for (const auto& in_to_concat : concat_in_values) {
+        static_assert(std::has_virtual_destructor_v<T>);
         const auto& cast_to_split = dynamic_pointer_cast<T>(in_to_concat.get_node_shared_ptr());
         // There is a special case with (GRU/RNN/LSTM)Sequence ops:
         //

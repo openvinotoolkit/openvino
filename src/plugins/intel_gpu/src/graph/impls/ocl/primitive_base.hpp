@@ -173,6 +173,7 @@ protected:
     template<typename ImplType, typename KernelParamsType>
     static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
         auto prim_impl = make_unique<ImplType>(impl_ocl);
+        static_assert(std::has_virtual_destructor_v<KernelParamsType>);
         KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>((*prim_impl)._kernel_data.params.get());
         if (params_ptr != nullptr) {
             (*prim_impl)._kernel_data.params = make_unique<KernelParamsType>(*params_ptr);

@@ -13,6 +13,7 @@
 template <class Conv>
 ov::matcher_pass_callback ov::intel_cpu::ConvertConv1DBase::convert_conv1d_to_conv2d() {
     return [&](ov::pass::pattern::Matcher& m) {
+        static_assert(std::has_virtual_destructor_v<Conv>);
         auto conv = std::dynamic_pointer_cast<Conv>(m.get_match_root());
         if (!conv) {
             return false;

@@ -634,6 +634,7 @@ struct fused_operation_desc {
     KernelType GetType() const { return op_params->GetType(); }
     template<typename T>
     std::shared_ptr<T> GetOpParams() const {
+        static_assert(std::has_virtual_destructor_v<T>);
         auto p = std::dynamic_pointer_cast<T>(op_params);
         if (!p)
             throw std::runtime_error("Invalid dynamic cast of fused operation parameters");

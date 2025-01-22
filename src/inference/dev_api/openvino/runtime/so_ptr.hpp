@@ -64,6 +64,7 @@ struct SoPtr {
     template <typename U>
     SoPtr(const SoPtr<U>& that) : _ptr{std::dynamic_pointer_cast<T>(that._ptr)},
                                   _so{that._so} {
+        static_assert(std::has_virtual_destructor_v<T>);
         OPENVINO_ASSERT(_ptr != nullptr);
     }
 

@@ -20,6 +20,7 @@ public:
 
     template <class T>
     operator std::vector<T>&() const {
+        static_assert(std::has_virtual_destructor_v<T>);
         auto impl = std::dynamic_pointer_cast<VectorTensorImpl<T>>(m_tensor);
         OPENVINO_ASSERT(impl, "Cannot get vector. Type is incorrect!");
         return impl->get();
