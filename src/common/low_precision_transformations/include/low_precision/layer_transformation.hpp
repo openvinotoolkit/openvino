@@ -288,7 +288,6 @@ public:
     };
 
     LayerTransformation(const Params& params);
-    virtual ~LayerTransformation() = default;
     virtual bool transform(ov::pass::pattern::Matcher &m) = 0;
 
     virtual bool canBeTransformed(const std::shared_ptr<Node>& layer) const;

@@ -45,6 +45,8 @@ struct DefaultAllocator {
     }
 };
 
+Allocator::Base::~Base() = default;
+
 Allocator::Allocator() : Allocator{DefaultAllocator{}} {}
 
 Allocator::~Allocator() {

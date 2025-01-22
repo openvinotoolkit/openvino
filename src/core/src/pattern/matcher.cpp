@@ -37,6 +37,8 @@ Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name)
 Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name, bool strict_mode)
     : Matcher(make_node_output(pattern_node), name, strict_mode) {}
 
+Matcher::~Matcher() = default;
+
 MatcherState::~MatcherState() {
     if (m_restore) {
         if (!m_matcher->m_matched_list.empty()) {

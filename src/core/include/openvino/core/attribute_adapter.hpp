@@ -34,7 +34,7 @@ public:
     /// \brief type info enables identification of the value accessor, as well as is_type and
     /// as_type.
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
-    virtual ~ValueAccessor() = default;
+    virtual ~ValueAccessor();
     virtual void set_as_any(const ov::Any& x) {
         OPENVINO_NOT_IMPLEMENTED;
     }
