@@ -810,6 +810,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     std::shared_ptr<ov::AlignedBuffer> modelBuffer;
+    // ov::internal::cached_model_buffer has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
     if (npu_plugin_properties.count(ov::internal::cached_model_buffer.name())) {
         modelBuffer =
             npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
