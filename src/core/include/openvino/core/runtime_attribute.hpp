@@ -28,7 +28,7 @@ public:
     }
     using Ptr = std::shared_ptr<RuntimeAttribute>;
     using Base = std::tuple<::ov::RuntimeAttribute>;
-    virtual ~RuntimeAttribute() = default;
+    virtual ~RuntimeAttribute();
     virtual bool is_copyable() const;
     virtual bool is_copyable(const std::shared_ptr<Node>& to) const;
     virtual Any init(const std::shared_ptr<Node>& node) const;
