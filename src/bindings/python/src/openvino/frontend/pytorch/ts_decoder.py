@@ -449,6 +449,9 @@ class TorchScriptPythonDecoder(Decoder):
             return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
+        if isinstance(pt_type, torch._C.Type) and pt_type.annotation_str == "Generator":
+            gen = pt_value.toIValue()
+            return ivalue_to_constant(gen.initial_seed(), shared_memory=self._shared_memory)
         const = ivalue_to_constant(
             pt_value.toIValue(), shared_memory=self._shared_memory)
         if len(const) > 0:
