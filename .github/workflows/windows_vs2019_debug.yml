@@ -1,4 +1,4 @@
-name: Windows (VS 2019, Python 3.11, Debug)
+name: Windows (VS 2022, Python 3.11, Debug)
 on:
   workflow_dispatch:
   merge_group:
@@ -9,7 +9,7 @@ on:
       - 'releases/**'
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-vs2019-debug
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-vs2022-debug
   cancel-in-progress: true
 
 permissions: read-all
@@ -77,7 +77,7 @@ jobs:
     with:
       runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: 'windows_2019'
+      os: 'windows_2022'
       build-type: 'Debug'
       timeout-minutes: 60
       
