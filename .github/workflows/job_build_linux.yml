@@ -154,6 +154,10 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+          
+          # For rpm build
+          python3 -m pip install rpm
+
 
       #
       # Build
@@ -200,7 +204,7 @@ jobs:
         run: |
           # Ubuntu 24 does not allow using the system Python directly so 
           # we have to use Python from the virtual environment created in Docker
-          [[ ${{ inputs.os }} == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          [[ ${{ inputs.os }} == "ubuntu_22_04" ]] && python_exec=/usr/bin/python3 || python_exec=/venv/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
@@ -272,7 +276,7 @@ jobs:
           if-no-files-found: 'error'
           
       - name: Upload openvino wheels
-        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        if: ${{ !cancelled() && inputs.os != 'debian_10' && inputs.arch != 'arm' }}
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_wheels
@@ -304,7 +308,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino debian packages
-        if: ${{ inputs.build-debian-packages }}
+        if: ${{ !cancelled() && inputs.build-debian-packages }}
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_debian_packages
