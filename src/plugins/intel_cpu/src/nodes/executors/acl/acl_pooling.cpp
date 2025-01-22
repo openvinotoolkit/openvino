@@ -89,7 +89,11 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         pool_info->pool_type = pool_type;
         pool_info->exclude_padding = exclude_padding;
         if (dstDescsSize > 1) {
-            TensorInfo indTensorInfo = TensorInfo(shapeCast(*indDims), 1, arm_compute::DataType::U32, dataLayout);
+            auto indShape = shapeCast(*indDims);
+            if (dataLayout == arm_compute::DataLayout::NHWC) {
+                changeLayoutToNH_C({&indShape});
+            }
+            TensorInfo indTensorInfo = TensorInfo(indShape, 1, arm_compute::DataType::U32, dataLayout);
             arm_compute::Status s =
                 arm_compute::NEPoolingLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool_info, &indTensorInfo);
             if (!s) {
@@ -176,9 +180,13 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                              nullptr))
                 return false;
             auto indDims = dstDescs[1]->getShape().getStaticDims();
-            TensorInfo indTensorInfo = TensorInfo(shapeCast(indDims),
+            auto indShape = shapeCast(indDims);
+            if (dstTensorInfo.data_layout() == arm_compute::DataLayout::NHWC) {
+                changeLayoutToNH_C({&indShape});
+            }
+            TensorInfo indTensorInfo = TensorInfo(indShape,
                                                   1,
-                                                  precisionToAclDataType(dstDescs[1]->getPrecision()),
+                                                  arm_compute::DataType::U32,
                                                   getAclDataLayoutByMemoryDesc(dstDescs[1]));
             indTensor.allocator()->init(indTensorInfo);
             exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
