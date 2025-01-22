@@ -344,10 +344,8 @@ const auto convParams_ExplicitPadding_1D = ::testing::Combine(
 );
 
 const std::vector<CPUSpecificParams> CPUParams_1D_f32 = {
-        conv_sse42_1D,
         conv_avx2_1D,
         conv_avx512_1D,
-        conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
         conv_avx2_1D_nspc_brgconv,
         conv_avx512_1D_nspc,
@@ -356,10 +354,8 @@ const std::vector<CPUSpecificParams> CPUParams_1D_f32 = {
 
 //Current avx2 I8 fall back on JIT avx2 implement when having src zero point.Not enabling conv_avx2_1D_nspc_brgconv for I8 precision.
 const std::vector<CPUSpecificParams> CPUParams_1D_I8 = {
-        conv_sse42_1D,
         conv_avx2_1D,
         conv_avx512_1D,
-        conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
         conv_avx512_1D_nspc,
         conv_avx512_1D_nspc_brgconv
@@ -424,7 +420,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_I8, ConvolutionLayerCPUTest,
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams_1D_plain_to_blocked = {
-        conv_sse42_plain_to_blocked_1D,
         conv_avx2_plain_to_blocked_1D,
         conv_avx512_plain_to_blocked_1D,
 };
@@ -630,7 +625,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_FP16, ConvolutionLayerCPUTest,
 /* ============= Jit Planar ============= */
 /* ============= Convolution planar params (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams_Jit_Planar_2D = {
-        // sse42 is not supported
         conv_avx2_planar_2D,
         conv_avx512_planar_2D,
 };
