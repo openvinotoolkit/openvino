@@ -106,6 +106,17 @@ static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
+
+    const size_t megabytes = 50;
+    size_t bytes = megabytes * 1024 * 1024;
+    std::shared_ptr<char> memoryBlock(new char[bytes], [](char* ptr) {
+        delete[] ptr;
+    });
+    std::fill(memoryBlock.get(), memoryBlock.get() + bytes, 1);
+    for (size_t i = 0; i < bytes; ++i) {
+        memoryBlock.get()[i] = static_cast<char>(i % 256);
+    }
+
     // To avoid issues with dynamism we make ov::Model dynamic and after we apply all
     // transformations we restore original shapes to the ov::Model back
     std::unordered_map<ov::op::v0::Parameter*, PartialShape> input_shapes;
