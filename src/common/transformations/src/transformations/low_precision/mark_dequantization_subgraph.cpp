@@ -72,6 +72,7 @@ bool swap_nodes(const PatternValueMap& pt_map,
 ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
                                                  const bool fold_subtract_const,
                                                  const bool fold_multiply_const) {
+#if 0
     MATCHER_SCOPE(MarkDequantization);
 
     // data input:
@@ -131,11 +132,13 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDequantization");
     this->register_matcher(m, callback);
+#endif
 }
 
 ov::pass::KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
                                                    bool fold_subtract_const,
                                                    bool fold_multiply_const) {
+#if 0
     MATCHER_SCOPE(KeepConstsPrecision);
 
     // data input:
@@ -182,4 +185,5 @@ ov::pass::KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& pr
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepConstsPrecision");
     this->register_matcher(m, callback);
+#endif
 }
