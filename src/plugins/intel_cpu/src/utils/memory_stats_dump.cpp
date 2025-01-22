@@ -63,16 +63,15 @@ static void dumpStatisticsCSV(std::ofstream& os,
         for (auto&& stat : statistics) {
             os << "Memory control ID: " << stat.first << ";;;;;;" << std::endl;
             os << "Record name;"
-                << "Total regions [-];"
-                << "Total unique blocks [-];"
-                << "Total size [bytes];"
-                << "Optimal total size [bytes];"
-                << "Max region size [bytes];" << std::endl;
+               << "Total regions [-];"
+               << "Total unique blocks [-];"
+               << "Total size [bytes];"
+               << "Optimal total size [bytes];"
+               << "Max region size [bytes];" << std::endl;
 
             for (auto&& item : stat.second) {
-                os << item.id << ";" << item.total_regions << ";" << item.total_unique_blocks << ";"
-                    << item.total_size << ";" << item.optimal_total_size << ";" << item.max_region_size << ";"
-                    << std::endl;
+                os << item.id << ";" << item.total_regions << ";" << item.total_unique_blocks << ";" << item.total_size
+                   << ";" << item.optimal_total_size << ";" << item.max_region_size << ";" << std::endl;
             }
         }
         os << ";;;;;;" << std::endl;
@@ -89,17 +88,17 @@ static void dumpStatisticsCSV(std::ofstream& os,
     if (!weights_statistics.empty()) {
         os << ";;;;;;" << std::endl;
         os << "Weights cache statistics"
-            << ";;;;;;" << std::endl;
+           << ";;;;;;" << std::endl;
         os << "Socket ID;"
-            << "Total size [bytes];"
-            << "Total memory objects [-];"
-                ";;;"
-            << std::endl;
+           << "Total size [bytes];"
+           << "Total memory objects [-];"
+              ";;;"
+           << std::endl;
     }
 
     for (auto&& item : weights_statistics) {
         os << item.first << ";" << item.second.total_size << ";" << item.second.total_memory_objects << ";;;;;"
-            << std::endl;
+           << std::endl;
     }
 }
 
@@ -131,8 +130,7 @@ void dumpMemoryStats(const DebugCapsConfig& conf,
 
         dumpStatisticsCSV(csv_output, network_name, graphs, weights_cache);
     } else {
-        OPENVINO_THROW("Unsupported memory stats output. Should be '*.csv' or 'cout'. Got ",
-                       file_path.filename());
+        OPENVINO_THROW("Unsupported memory stats output. Should be '*.csv' or 'cout'. Got ", file_path.filename());
     }
 }
 
