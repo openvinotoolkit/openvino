@@ -621,7 +621,7 @@ Two types of map entries are possible: descriptor and container.
 Descriptor sets the expected structure and possible parameter values of the map.
 
 For possible low-level properties and their description, refer to the header file:
-`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
+`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2025/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
 
 Examples
 ###########################################################

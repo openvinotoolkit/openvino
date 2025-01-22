@@ -30,6 +30,8 @@ bool util::equal(std::type_index lhs, std::type_index rhs) {
     return result;
 }
 
+Any::Base::~Base() = default;
+
 bool Any::Base::is(const std::type_info& other) const {
     return util::equal(type_info(), other);
 }

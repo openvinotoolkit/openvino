@@ -109,8 +109,8 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     return primitive;
 }
 
-DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                                  const DnnlMemoryDescPtr dstDesc,
+DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                  const DnnlMemoryDescPtr& dstDesc,
                                                                   bool weightsNonTransposed) {
     if (!weightsNonTransposed)
         return srcDesc;
@@ -143,8 +143,8 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
 }
 
 static bool useDynamicQuantizationImpl(size_t dqGroupSize,
-                                       const MemoryDescPtr srcDesc,
-                                       const MemoryDescPtr weightsDesc,
+                                       const MemoryDescPtr& srcDesc,
+                                       const MemoryDescPtr& weightsDesc,
                                        const MemoryArgs& memory,
                                        bool needTranspose) {
     if (dqGroupSize == 0)
@@ -207,7 +207,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                                const PostOps& postOps,
                                                const MemoryArgs& memory,
-                                               ExecutorContext::CPtr context,
+                                               const ExecutorContext::CPtr& context,
                                                bool useDynamicQuantization) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -376,7 +376,7 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
                                                                   const PostOps& postOps,
                                                                   const MemoryArgs& memory,
-                                                                  const ExecutorContext::CPtr context,
+                                                                  const ExecutorContext::CPtr& context,
                                                                   const bool cacheWeights) {
     DEBUG_LOG("Creating shape agnostic data");
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
@@ -439,7 +439,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }
 
-static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc primDesc) {
+static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {
     const auto implType = parse_impl_name(primDesc.impl_info_str());
     if (implType == ov::intel_cpu::brgemm_avx512_amx &&
         primDesc.weights_desc().get_format_kind() == memory::format_kind::sparsed) {

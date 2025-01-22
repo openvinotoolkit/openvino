@@ -585,10 +585,17 @@ void Plugin::reset_supported_properties() const {
 }
 
 void Plugin::reset_compiler_dependent_properties() const {
+    uint32_t active_compiler_version = 0;
     // get active compiler version
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
-    uint32_t active_compiler_version = dummyCompiler->get_version();
+    try {
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
+        active_compiler_version = dummyCompiler->get_version();
+    } catch (...) {
+        _logger.warning(
+            "No available compiler. Can not determine version > compiler dependent properties remain hidden");
+        return;
+    }
 
     // NPU_COMPILER_DYNAMIC_QUANTIZATION
     // unpublish if compiler version requirement is not met
