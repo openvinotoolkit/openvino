@@ -176,9 +176,9 @@ inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
  * @param[in]  path  The file name
  * @return     file size
  */
-[[deprecated(
-    "This function is deprecated use file_size(const ov::util::Path& path) instead. Will be removed in 2026.0")]]
-inline int64_t file_size(const char* path) {
+[[deprecated("This function is deprecated use file_size(const ov::util::Path& path) instead. Will be removed in "
+             "2026.0")]] inline int64_t
+file_size(const char* path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* file_name = widefilename.c_str();
