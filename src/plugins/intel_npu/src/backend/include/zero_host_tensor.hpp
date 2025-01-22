@@ -33,7 +33,7 @@ public:
     std::shared_ptr<ZeroRemoteTensor> get_impl() const;
 
 private:
-    std::shared_ptr<ZeroRemoteTensor> m_impl;
+    std::shared_ptr<ZeroRemoteTensor> _impl;
 };
 
 }  // namespace intel_npu
