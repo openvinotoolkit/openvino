@@ -48,7 +48,7 @@ SegmentMax-16 has no attributes.
 
 **Outputs**
 
-* **1**: The output tensor of type *T* and the same shape as the ``input`` tensor with the exception for the first dimension, which is equal to the count of unique segment IDs.
+* **1**: The output tensor of type *T* and almost the same shape as the ``data`` input tensor with the exception for the first dimension, which is equal to the count of unique segment IDs (calculated as ``max(segment_ids) + 1``).
 
 **Types**
 
