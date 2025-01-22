@@ -33,10 +33,15 @@ ACCURACY_THRESHOLDS = {
     "INT4": 0.05,
 }
 
-tmp_dir = tempfile.mkdtemp()
+@pytest.fixture(scope="module")
+def temp_dir():
+    tmp_dir = tempfile.mkdtemp()
+    yield tmp_dir
+    shutil.rmtree(tmp_dir)
+    logger.info(f"Removed temporary directory: {tmp_dir}")
 
 
-def init_test_scope():
+def init_test_scope(tmp_dir):
     test_scope = []
 
     for model_id in MODEL_IDS:
@@ -84,19 +89,11 @@ def init_test_scope():
 
     return test_scope
 
-
-def teardown_module():
-    logger.info("Remove models")
-    shutil.rmtree(tmp_dir)
-
-
-test_scope = init_test_scope()
-
-
 @pytest.mark.parametrize(
     ("model_path", "model_type", "precision", "gt_data", "device"),
-    test_scope,
+    init_test_scope(temp_dir()),
 )
+
 def test_accuracy_conformance(model_path, model_type, precision, gt_data, device):
     target_model = OVModelForCausalLM.from_pretrained(model_path, device=device, ov_config={"KV_CACHE_PRECISION": "f16"})
     tokenizer = AutoTokenizer.from_pretrained(model_path)
