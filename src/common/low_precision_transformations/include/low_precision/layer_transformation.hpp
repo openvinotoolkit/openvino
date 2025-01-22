@@ -300,7 +300,7 @@ public:
     };
 
     LayerTransformation(const Params& params);
-    virtual ~LayerTransformation() = default;
+    virtual ~LayerTransformation();
     virtual bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) = 0;
 
     void setContext(TransformationContext* context) noexcept;
