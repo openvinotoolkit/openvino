@@ -168,4 +168,8 @@ void ZeroRemoteTensor::update_properties() {
     }
 }
 
+void* ZeroRemoteTensor::get_original_memory() const {
+    return _data;
+}
+
 }  // namespace intel_npu
