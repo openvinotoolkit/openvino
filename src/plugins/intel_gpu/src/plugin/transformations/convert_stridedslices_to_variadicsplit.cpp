@@ -31,7 +31,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                 return false;
             user_count++;
         }
-        return (user_count == num_users_to_fuse) && consumers_count(num_users_to_fuse);
+        return (user_count == num_users_to_fuse) && consumers_count(num_users_to_fuse)(output);
     };
 
     auto data_m = any_input();
