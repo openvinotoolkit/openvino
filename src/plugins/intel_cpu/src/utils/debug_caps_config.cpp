@@ -67,11 +67,9 @@ void DebugCapsConfig::readProperties() {
     if ((envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS")))
         averageCountersPath = envVarValue;
 
-    if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_LEVEL")))
-        memoryStatisticsDumpLevel = std::stoi(envVarValue);
-
-    if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH")))
+    if ((envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH"))) {
         memoryStatisticsDumpPath = envVarValue;
+    }
 }
 
 }  // namespace intel_cpu
