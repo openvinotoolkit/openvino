@@ -770,10 +770,6 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
 
             return PrecisionsRestriction::PrecisionsByPorts{{{0}, input0LowPrecisionList}, {{1}, {ov::element::i8}}};
         }),
-        PrecisionsRestriction::create<ov::opset1::Multiply>({
-            {{0}, {ov::element::u8}},
-            {{1}, {ov::element::i8}},
-        }),
         PrecisionsRestriction::create<ov::opset1::MatMul>(
             {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::opset5::LSTMSequence>({{{0, 1}, {ov::element::u8}}}),
@@ -791,13 +787,6 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
-    CPU_SET_CALLBACK_COMMON(
-        lptManager,
-        [](const_node_ptr& node) -> bool {
-            return ov::is_type<ov::opset1::Multiply>(node) &&
-                   !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(node);
-        },
-        MarkupPrecisions);
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [&defaultPrecisions](const_node_ptr& node) -> bool {
