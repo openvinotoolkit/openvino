@@ -85,6 +85,15 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         do_runtime_buffer_fusing = false;
     }
 
+    if (concat_node.get_preferred_impl_type() == cldnn::impl_types::onednn) {
+        // Check if any dependency is constant
+        for (auto& dependency : concat_node.get_dependencies()) {
+            if (dependency.first->is_constant()) {
+                return false;
+            }
+        }
+    }
+
     auto concat_axis = concat_params.typed_desc<concatenation>()->axis;
     size_t concat_axis_index = concat_axis < 0 ? concat_axis + concat_params.get_output_layout().get_rank() : concat_axis;
     auto def_fmt = format::get_default_format(concat_params.get_output_layout().get_rank());
