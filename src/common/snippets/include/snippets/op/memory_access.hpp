@@ -79,7 +79,7 @@ protected:
     explicit MemoryAccess(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports);
     explicit MemoryAccess(const PortMap& input_ports, const PortMap& output_ports);
     MemoryAccess() = default;
-    ~MemoryAccess() = default;
+    virtual ~MemoryAccess() = default;
 
     // This method can be called only in ctors
     void ctor_initialize(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports);
