@@ -48,7 +48,7 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
     static const auto splitter = std::regex(R"((?:[^\\,\n]|\\.)+)");
 
     auto output_names = std::unordered_set<std::string>();
-    std::transform(std::cregex_token_iterator{tensor_names.begin(), tensor_names.end(), splitter},
+    std::transform(std::cregex_token_iterator{tensor_names.data(), tensor_names.data() + tensor_names.size(), splitter},
                    std::cregex_token_iterator{},
                    std::inserter(output_names, output_names.end()),
                    [](const auto& token) {
