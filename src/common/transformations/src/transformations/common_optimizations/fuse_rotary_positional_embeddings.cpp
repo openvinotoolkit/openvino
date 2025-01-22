@@ -468,14 +468,14 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         op::internal::RoPE::Config config;
         OutputVector new_args;
         NodeVector rt_from = {pattern_map.at(varsplit).get_node_shared_ptr(),
-                    pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
-                    pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
-                    pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
-                    pattern_map.at(stack_1182).get_node_shared_ptr(),
-                    pattern_map.at(mul_cos).get_node_shared_ptr(),
-                    pattern_map.at(mul_sin).get_node_shared_ptr(),
-                    pattern_map.at(rotary_emb).get_node_shared_ptr(),
-                    pattern_map.at(cat_Concat_1211).get_node_shared_ptr()};
+                              pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
+                              pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
+                              pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
+                              pattern_map.at(stack_1182).get_node_shared_ptr(),
+                              pattern_map.at(mul_cos).get_node_shared_ptr(),
+                              pattern_map.at(mul_sin).get_node_shared_ptr(),
+                              pattern_map.at(rotary_emb).get_node_shared_ptr(),
+                              pattern_map.at(cat_Concat_1211).get_node_shared_ptr()};
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
 
         // Fuse output transpose to Rope.
