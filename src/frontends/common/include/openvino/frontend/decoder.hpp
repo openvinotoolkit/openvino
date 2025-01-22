@@ -49,9 +49,9 @@ struct Union;
 }  // namespace type
 
 /// Plays a role of node, block and module decoder
-class IDecoder {
+class FRONTEND_API IDecoder {
 public:
-    virtual ~IDecoder() = default;
+    virtual ~IDecoder();
 };
 
 class FRONTEND_API DecoderBase : public IDecoder {
@@ -82,9 +82,6 @@ public:
 
     /// \brief Get node name
     virtual const std::string& get_op_name() const = 0;
-
-    /// \brief Destructor
-    virtual ~DecoderBase();
 };
 
 }  // namespace frontend
