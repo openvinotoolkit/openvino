@@ -74,7 +74,7 @@ public:
     constexpr Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
     explicit Type(const std::string& type);
-    Type& operator=(const Type&) = default;
+    constexpr Type& operator=(const Type&) = default;
     std::string c_type_string() const;
     size_t size() const;
     size_t hash() const;
