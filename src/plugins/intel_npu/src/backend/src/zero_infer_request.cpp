@@ -264,8 +264,7 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
                                               const bool isInput) {
     OV_ITT_TASK_CHAIN(ZERO_SET_REMOTE_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_remote_tensor_data");
 
-    auto l0_context = reinterpret_cast<ze_context_handle_t>(
-        zeroUtils::extract_object(tensor->get_context()->get_property(), ov::intel_npu::l0_context));
+    auto l0_context = tensor->get_zero_context_handle();
     if (_initStructs->getContext() != l0_context) {
         OPENVINO_THROW("Using different context for creating the tensor is not supported");
     }
@@ -276,7 +275,7 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
     if (_pipelineIsCreated) {
         _logger.debug("ZeroInferRequest::infer_async - update command list");
 
-        auto data = zeroUtils::extract_object(tensor->get_properties(), ov::intel_npu::mem_handle);
+        auto data = tensor->get_original_memory();
         OPENVINO_ASSERT(data, "Empty buffer");
 
         OV_ITT_TASK_NEXT(ZERO_SET_REMOTE_TENSOR, "updateCommandList");
@@ -388,7 +387,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 } else {
                     _logger.debug("ZeroInferRequest::set_tensors - remote tensor is used");
 
-                    data = zeroUtils::extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                    data = remoteTensor->get_original_memory();
 
                     get_level_zero_input(foundPort.idx, i) = tensors.at(i)._ptr;
                 }
@@ -530,9 +529,7 @@ void ZeroInferRequest::update_states_if_memory_changed() {
             if (zeroState->zero_tensor_should_be_updated()) {
                 auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(zeroState->get_state()._ptr);
 
-                void* userBuffer = !remoteTensor ? zeroState->get_state()->data()
-                                                 : zeroUtils::extract_object(remoteTensor->get_properties(),
-                                                                             ov::intel_npu::mem_handle);
+                void* userBuffer = !remoteTensor ? zeroState->get_state()->data() : remoteTensor->get_original_memory();
 
                 _pipeline->updateCommandList(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                              userBuffer,
@@ -609,10 +606,8 @@ void ZeroInferRequest::infer_async() {
 
                         auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
 
-                        void* userBuffer = !userBatchRemoteTensor
-                                               ? userTensor.at(i)->data()
-                                               : zeroUtils::extract_object(userBatchRemoteTensor->get_properties(),
-                                                                           ov::intel_npu::mem_handle);
+                        void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
+                                                                  : userBatchRemoteTensor->get_original_memory();
 
                         if (userBuffer != levelZeroBuffer) {
                             if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
@@ -634,10 +629,8 @@ void ZeroInferRequest::infer_async() {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
 
-                    void* userBuffer = !userBatchRemoteTensor
-                                           ? userTensor.at(i)->data()
-                                           : zeroUtils::extract_object(userBatchRemoteTensor->get_properties(),
-                                                                       ov::intel_npu::mem_handle);
+                    void* userBuffer = !userBatchRemoteTensor ? userTensor.at(i)->data()
+                                                              : userBatchRemoteTensor->get_original_memory();
 
                     std::memcpy(static_cast<unsigned char*>(levelZeroBuffer) + (i * userTensor.at(i)->get_byte_size()),
                                 userBuffer,
@@ -650,9 +643,8 @@ void ZeroInferRequest::infer_async() {
         }
 
         auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr);
-        void* userBuffer = !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data()
-                                             : zeroUtils::extract_object(userRemoteTensor->get_properties(),
-                                                                         ov::intel_npu::mem_handle);
+        void* userBuffer =
+            !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data() : userRemoteTensor->get_original_memory();
 
         const auto& levelZeroTensor = get_level_zero_input(inputIndex);
         if (!is_remote_tensor(levelZeroTensor)) {
@@ -701,9 +693,7 @@ void ZeroInferRequest::get_result() {
         }
 
         auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
-        void* userBuffer = !userRemoteTensor ? userTensor->data()
-                                             : zeroUtils::extract_object(userRemoteTensor->get_properties(),
-                                                                         ov::intel_npu::mem_handle);
+        void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
 
         const std::shared_ptr<ov::ITensor>& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
         if (!is_remote_tensor(levelZeroTensor)) {
