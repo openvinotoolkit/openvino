@@ -234,7 +234,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         if (_thread_preferred_core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
             stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
             stream_info[NUMBER_OF_STREAMS] = _streams;
-            _streams_info_table.push_back(stream_info);
+            _streams_info_table.push_back(std::move(stream_info));
         } else {
             int start = proc_type_table.size() > 1 ? 1 : 0;
             std::vector<int> core_types;

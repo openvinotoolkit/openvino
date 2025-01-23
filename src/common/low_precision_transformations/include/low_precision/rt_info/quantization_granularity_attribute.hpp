@@ -27,7 +27,7 @@ public:
     };
 
     QuantizationGranularityAttribute() : granularity(Granularity::PerChannel) {}
-    QuantizationGranularityAttribute(const Granularity granularity) : granularity(granularity) {}
+    QuantizationGranularityAttribute(const Granularity& granularity) : granularity(granularity) {}
 
     bool operator==(const QuantizationGranularityAttribute& attribute) const {
         return this->granularity == attribute.granularity;

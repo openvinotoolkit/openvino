@@ -1,24 +1,26 @@
 Install OpenVINO™ GenAI
 ====================================
 
-OpenVINO GenAI is a new flavor of OpenVINO, aiming to simplify running inference of generative AI models.
-It hides the complexity of the generation process and minimizes the amount of code required.
-You can now provide a model and input context directly to OpenVINO, which performs tokenization of the
-input text, executes the generation loop on the selected device, and returns the generated text.
-For a quickstart guide, refer to the :doc:`GenAI API Guide <../../learn-openvino/llm_inference_guide/genai-guide>`.
+OpenVINO GenAI is a tool, simplifying generative AI model inference. It is based on the
+OpenVINO Runtime, hiding the complexity of the generation process and minimizing the amount of
+code required. You provide a model and the input context directly to the tool, while it
+performs tokenization of the input text, executes the generation loop on the selected device,
+and returns the generated content. For a quickstart guide, refer to the
+:doc:`GenAI API Guide <../../openvino-workflow-generative/inference-with-genai>`.
 
-To see GenAI in action, check the Jupyter notebooks:
-`LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md>`__ and
+To see OpenVINO GenAI in action, check these Jupyter notebooks:
+`LLM-powered Chatbot <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md>`__
+and
 `LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md>`__.
 
-The OpenVINO GenAI flavor is available for installation via PyPI and Archive distributions.
+OpenVINO GenAI is available for installation via PyPI and Archive distributions.
 A `detailed guide <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/3/src/docs/BUILD.md>`__
 on how to build OpenVINO GenAI is available in the OpenVINO GenAI repository.
 
 PyPI Installation
 ###############################
 
-To install the GenAI flavor of OpenVINO via PyPI, follow the standard :doc:`installation steps <install-openvino-pip>`,
+To install the GenAI package via PyPI, follow the standard :doc:`installation steps <install-openvino-pip>`,
 but use the *openvino-genai* package instead of *openvino*:
 
 .. code-block:: python
@@ -28,9 +30,9 @@ but use the *openvino-genai* package instead of *openvino*:
 Archive Installation
 ###############################
 
-The OpenVINO GenAI archive package includes the OpenVINO™ Runtime and :doc:`Tokenizers <../../learn-openvino/llm_inference_guide/ov-tokenizers>`.
-To install the GenAI flavor of OpenVINO from an archive file, follow the standard installation steps for your system
-but instead of using the vanilla package file, download the one with OpenVINO GenAI:
+The OpenVINO GenAI archive package includes the OpenVINO™ Runtime, as well as :doc:`Tokenizers <../../openvino-workflow-generative/ov-tokenizers>`.
+It installs the same way as the standard OpenVINO Runtime, so follow its installation steps,
+just use the OpenVINO GenAI package instead:
 
 Linux
 ++++++++++++++++++++++++++
