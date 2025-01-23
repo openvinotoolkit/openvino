@@ -10,7 +10,6 @@
 
 namespace ov {
 namespace frontend {
-namespace tensorflow {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 class FRONTEND_API GraphIterator : ::ov::RuntimeAttribute {
@@ -51,6 +50,5 @@ public:
     virtual std::map<std::string, std::string> get_output_names_map() const;
 };
 
-}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -402,8 +402,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                             "PyTorch Frontend doesn't support provided model type. Please provide supported model "
                             "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
+    FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<IDecoder>");
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
-    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
+    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast IDecoder to TorchDecoder");
     return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 
