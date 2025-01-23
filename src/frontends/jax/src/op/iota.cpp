@@ -15,7 +15,6 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_iota(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
     auto dtype = convert_dtype(context.const_named_param<int64_t>("dtype"));
     auto size = context.const_named_param<int64_t>("size");
     auto start = v0::Constant::create(ov::element::i64, Shape{}, {0});
