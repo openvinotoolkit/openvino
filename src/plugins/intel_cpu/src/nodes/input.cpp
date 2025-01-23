@@ -398,11 +398,12 @@ void Input::cloneBlobIfRequired() {
             uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
             float const* f32data = m_constOp->get_data_ptr<float>();
 
-            if (!size)
+            if (!size) {
                 return;
-
+            }
+            // Only LLMs scalar constant nodes with bf16 inferencePrecision need to be checked for saturation
             const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+                (context->getConfig().inferencePrecision == ov::element::bf16 && size == 1) ? true : false;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
@@ -423,8 +424,9 @@ void Input::cloneBlobIfRequired() {
 
                         fn(&args1);
 
-                        if (args1.hasTargetValues)
+                        if (args1.hasTargetValues) {
                             has_subnormals_local = true;
+                        }
                     });
                 }
 
@@ -438,8 +440,9 @@ void Input::cloneBlobIfRequired() {
 
                         fn_bf16_check(&args2);
 
-                        if (args2.hasTargetValues)
+                        if (args2.hasTargetValues) {
                             has_bf16_overflows_local = true;
+                        }
                     });
                 }
 
