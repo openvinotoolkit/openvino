@@ -287,7 +287,7 @@ public:
         if (has_indirect_inputs(impl_param))
             data_inputs_num--;
 
-        auto has_zp_input_buffers = false;
+        auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
         if (desc->is_kv_compressed) {
             data_inputs_num -= 2; // key and value compression scales are handled separately
 

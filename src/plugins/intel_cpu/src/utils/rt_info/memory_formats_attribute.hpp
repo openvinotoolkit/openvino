@@ -6,6 +6,7 @@
 
 #include <set>
 #include <string>
+#include <utility>
 
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -23,7 +24,7 @@ protected:
 
 public:
     MemoryFormats() = default;
-    explicit MemoryFormats(const std::string& _memory_format) : memory_format(_memory_format) {}
+    explicit MemoryFormats(std::string _memory_format) : memory_format(std::move(_memory_format)) {}
     std::string to_string() const override {
         return memory_format;
     };

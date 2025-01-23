@@ -16,7 +16,7 @@ public:
     ACLFullyConnectedExecutor(const FCAttrs& attrs,
                               const PostOps& postOps,
                               const MemoryArgs& memory,
-                              const ExecutorContext::CPtr context);
+                              const ExecutorContext::CPtr& context);
 
     static bool supports(const FCConfig& config);
 

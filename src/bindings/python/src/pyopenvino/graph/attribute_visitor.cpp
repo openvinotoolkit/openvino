@@ -35,7 +35,7 @@ void regclass_graph_AttributeVisitor(py::module m) {
         "on_attributes",
         [](ov::AttributeVisitor* self, py::dict& attributes) {
             py::object float_32_type = py::module_::import("numpy").attr("float32");
-            py::object model = py::module_::import("openvino.runtime").attr("Model");
+            py::object model = py::module_::import("openvino").attr("Model");
             for (const auto& attribute : attributes) {
                 if (py::isinstance<py::bool_>(attribute.second)) {
                     visit_attribute<bool>(attributes, attribute, self);

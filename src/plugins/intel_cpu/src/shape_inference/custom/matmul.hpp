@@ -4,6 +4,8 @@
 
 #include <node.h>
 
+#include <utility>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -35,7 +37,7 @@ private:
 
 class MMShapeInferFactory : public ShapeInferFactory {
 public:
-    MMShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
+    MMShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

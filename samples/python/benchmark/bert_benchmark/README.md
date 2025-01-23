@@ -1,6 +1,6 @@
 # Bert Benchmark Python Sample
 
-This sample demonstrates how to estimate performance of a Bert model using Asynchronous Inference Request API. Unlike [demos](https://docs.openvino.ai/2024/omz_demos.html) this sample doesn't have configurable command line arguments. Feel free to modify sample's source code to try out different options.
+This sample demonstrates how to estimate performance of a Bert model using Asynchronous Inference Request API. Unlike [demos](https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos) this sample doesn't have configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
 For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2024/learn-openvino/openvino-samples/bert-benchmark.html)
 
