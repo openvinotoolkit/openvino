@@ -240,10 +240,13 @@ jobs:
             -DCPACK_GENERATOR=NPM \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
-
           cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
-
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Pack openvino_js_package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR_JS }}
 
       #
       # Upload build artifacts
@@ -271,13 +274,13 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
-
+          
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
+          path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
           if-no-files-found: 'error'
 
   Samples:
