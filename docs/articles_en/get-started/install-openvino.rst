@@ -1,4 +1,4 @@
-Install OpenVINO™ 2024.6
+Install OpenVINO™ 2025.0
 ==========================
 
 
@@ -23,10 +23,10 @@ Install OpenVINO™ 2024.6
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="../_static/selector-tool/selector-15432eb.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
-OpenVINO 2024.6, described here, is not a Long-Term-Support version!
+OpenVINO 2025.0, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2024.6 (development)
+* 2025.0 (development)
 * 2023.3 (LTS)
 
 
@@ -35,8 +35,8 @@ All currently supported versions are:
    A new OpenVINO GenAI Flavor streamlines application development by providing
    LLM-specific interfaces for easy integration of language models, handling tokenization and
    text generation. For installation and usage instructions, proceed to
-   :doc:`Install OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>` and
-   :doc:`Run LLMs with OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>`.
+   :doc:`Install OpenVINO GenAI Flavor <../openvino-workflow-generative>` and
+   :doc:`Run LLMs with OpenVINO GenAI Flavor <../openvino-workflow-generative/inference-with-genai>`.
 
 .. dropdown:: Building OpenVINO from Source
 

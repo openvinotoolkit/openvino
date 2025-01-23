@@ -30,12 +30,12 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-void PluginGraph::export_blob(std::ostream& stream) const {
+size_t PluginGraph::export_blob(std::ostream& stream) const {
     stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return;
+        return 0;
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -49,6 +49,7 @@ void PluginGraph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
+    return _blob.size();
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,

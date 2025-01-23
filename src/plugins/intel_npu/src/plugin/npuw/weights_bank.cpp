@@ -71,9 +71,6 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
                 "Tensor should be registered and allocated first!");
 
-    // uid may be coming from a 2nd (3rd, ...) model
-    // detach the tensor here just in case
-    const_cast<LazyTensor&>(iter_device->second.lt).detach();
     return iter_device->second.tensor;
 }
 
@@ -222,7 +219,8 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     auto iter_device = device_bank.storage.find(uid);
 
     if (iter_device != device_bank.storage.end()) {
-        // Already allocated
+        // Shouldn't be possible
+        NPUW_ASSERT(false);
         return;
     }
 
@@ -237,6 +235,10 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     ov::Tensor allocated_tensor;
 
     // FIXME: reading not via a dedicated function
+    bool is_intialized = false;
+    read(stream, is_intialized);
+    NPUW_ASSERT(is_intialized);
+
     std::string type_str;
     read(stream, type_str);
     ov::element::Type type(type_str);

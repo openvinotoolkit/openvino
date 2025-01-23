@@ -23,7 +23,7 @@ class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation
 public:
     OPENVINO_RTTI("SubtractTransformation", "0", LayerTransformation);
     SubtractTransformation(const Params& params);
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
 };
 
 } // namespace low_precision

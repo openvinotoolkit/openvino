@@ -232,6 +232,7 @@ public:
     }
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
+    void set_shape_info_memory_subbuffer(memory::ptr addr);
 
     void add_dep_events(const std::vector<event::ptr>& events);
     void add_dep_event(event::ptr ev);

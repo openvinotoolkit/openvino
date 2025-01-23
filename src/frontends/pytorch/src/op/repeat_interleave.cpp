@@ -48,7 +48,7 @@ OutputVector translate_repeat_interleave(const NodeContext& context) {
     std::shared_ptr<ov::Node> result;
 
     auto repeats_ext_node = context.get_input_from_visible_context(1).get_node_shared_ptr();
-    auto repeats_fw_node = std::dynamic_pointer_cast<v0::Constant>(repeats_ext_node);
+    auto repeats_fw_node = ov::as_type_ptr<v0::Constant>(repeats_ext_node);
     if (repeats_fw_node && repeats_fw_node->cast_vector<int32_t>().size() > 1) {
         // repeats is Constant with more then 1 element
         auto repeats = repeats_fw_node->cast_vector<int32_t>();
