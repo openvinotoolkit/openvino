@@ -93,6 +93,7 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
             if (dataLayout == arm_compute::DataLayout::NHWC) {
                 changeLayoutToNH_C({&indShape});
             }
+            //U32 is specified since this is the only data type supported by ACL
             TensorInfo indTensorInfo = TensorInfo(indShape, 1, arm_compute::DataType::U32, dataLayout);
             arm_compute::Status s =
                 arm_compute::NEPoolingLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool_info, &indTensorInfo);
@@ -184,10 +185,9 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             if (dstTensorInfo.data_layout() == arm_compute::DataLayout::NHWC) {
                 changeLayoutToNH_C({&indShape});
             }
-            TensorInfo indTensorInfo = TensorInfo(indShape,
-                                                  1,
-                                                  arm_compute::DataType::U32,
-                                                  getAclDataLayoutByMemoryDesc(dstDescs[1]));
+            //U32 is specified since this is the only data type supported by ACL
+            TensorInfo indTensorInfo =
+                TensorInfo(indShape, 1, arm_compute::DataType::U32, getAclDataLayoutByMemoryDesc(dstDescs[1]));
             indTensor.allocator()->init(indTensorInfo);
             exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPoolingLayer>();
