@@ -13,7 +13,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-class PYTORCH_API ConversionExtension : public ConversionExtensionBase {
+class PYTORCH_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 

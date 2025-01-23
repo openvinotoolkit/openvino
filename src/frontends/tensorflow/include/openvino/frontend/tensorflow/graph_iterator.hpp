@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include "openvino/frontend/tensorflow/visibility.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-// Type which is used to express empty list without any specific type
-class TENSORFLOW_FRONTEND_API EmptyList {};
+using ov::frontend::GraphIterator;
 
 }  // namespace tensorflow
 }  // namespace frontend
