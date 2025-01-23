@@ -50,7 +50,7 @@ public:
         if (p.compressed) {
             properties.emplace(ov::hint::kv_cache_precision(ov::element::i8));
         } else {
-            properties.emplace(ov::hint::kv_cache_precision(ov::element::undefined));
+            properties.emplace(ov::hint::kv_cache_precision(ov::element::f16));
         }
 
         const size_t n_heads = 16;

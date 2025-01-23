@@ -539,7 +539,7 @@ public:
         auto core = ov::test::utils::PluginCache::get().core();
 
         ov::AnyMap properties = {
-            ov::hint::kv_cache_precision(ov::element::undefined)
+            ov::hint::kv_cache_precision(ov::element::f16)
         };
 
         const size_t n_batch = 1;
