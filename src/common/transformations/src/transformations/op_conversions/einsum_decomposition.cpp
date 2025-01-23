@@ -1079,6 +1079,61 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     // update a vector of nodes for copy_runtime_info
     subgraph_nodes.insert(subgraph_nodes.end(), {matmul});
 }
+
+/// \brief Adjusts input subscripts and nodes to handle 0-dimensional ellipsis in Einsum operations.
+///
+/// Handle ellipses labels that do not represent any dimensions:
+/// 1. If there is no ellipsis in the input subscripts, remove ellipsis from the output subscript.
+/// 2. If all ellipses in the input subscripts do not represent any dimensions, remove ellipses from all subscripts.
+/// 3. If there is at least one ellipsis that does not represent any dimensions, unsqueeze the corresponding input at
+/// ellipsis dimension.
+///
+/// \param input_nodes A vector of input nodes for the Einsum operation.
+/// \param input_subscripts A vector of input subscripts corresponding to the input nodes.
+/// \param output_subscript The output subscript for the Einsum operation.
+/// \param subgraph_nodes A vector to store nodes created during the subgraph transformation.
+void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
+                                 std::vector<std::string>& input_subscripts,
+                                 std::string& output_subscript,
+                                 ov::NodeVector& subgraph_nodes) {
+    std::vector<bool> ellipsis_inputs(input_nodes.size(), false);
+    std::vector<bool> no_ellipsis_or_empty_inputs(input_nodes.size(), false);
+    static const std::string ellipsis = "...";
+    for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
+        const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
+        ellipsis_inputs[inp_iter] = (std::find(labels.begin(), labels.end(), "...") != labels.end());
+        if (!ellipsis_inputs[inp_iter] || (input_nodes[inp_iter].get_partial_shape().rank() == (labels.size() - 1))) {
+            no_ellipsis_or_empty_inputs[inp_iter] = true;
+        }
+    }
+    if (std::none_of(ellipsis_inputs.begin(), ellipsis_inputs.end(), [](bool inp) {
+            return inp;
+        })) {
+        if (output_subscript.find("...") != std::string::npos) {
+            output_subscript.erase(output_subscript.find("..."), 3);
+        }
+    } else if (std::all_of(no_ellipsis_or_empty_inputs.begin(), no_ellipsis_or_empty_inputs.end(), [](bool inp) {
+                   return inp;
+               })) {
+        for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
+            if (input_subscripts[inp_iter].find("...") != std::string::npos) {
+                input_subscripts[inp_iter].erase(input_subscripts[inp_iter].find("..."), 3);
+            }
+        }
+        if (output_subscript.find("...") != std::string::npos) {
+            output_subscript.erase(output_subscript.find("..."), 3);
+        }
+    } else {
+        for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
+            if (ellipsis_inputs[inp_iter] && no_ellipsis_or_empty_inputs[inp_iter]) {
+                auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
+                auto ellipsis_idx_iter = std::find(labels.begin(), labels.end(), "...");
+                std::vector<int64_t> ellipsis_idx{std::distance(labels.begin(), ellipsis_idx_iter)};
+                input_nodes[inp_iter] = unsqueeze_input(input_nodes[inp_iter], ellipsis_idx, subgraph_nodes);
+            }
+        }
+    }
+}
 }  // namespace
 
 ov::pass::EinsumDecomposition::EinsumDecomposition() {
@@ -1116,44 +1171,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         auto einsum_path = compute_einsum_path(einsum_node);
 
         // fix inputs where ellipsis does not contain any dimensions
-        std::vector<bool> ellipsis_inputs(input_nodes.size(), false);
-        std::vector<bool> no_ellipsis_or_empty_inputs(input_nodes.size(), false);
-        static const std::string ellipsis = "...";
-        for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
-            const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
-            ellipsis_inputs[inp_iter] = (std::find(labels.begin(), labels.end(), "...") != labels.end());
-            if (!ellipsis_inputs[inp_iter] ||
-                (input_nodes[inp_iter].get_partial_shape().rank() == (labels.size() - 1))) {
-                no_ellipsis_or_empty_inputs[inp_iter] = true;
-            }
-        }
-        if (std::none_of(ellipsis_inputs.begin(), ellipsis_inputs.end(), [](bool inp) {
-                return inp;
-            })) {
-            if (output_subscript.find("...") != std::string::npos) {
-                output_subscript.erase(output_subscript.find("..."), 3);
-            }
-        } else if (std::all_of(no_ellipsis_or_empty_inputs.begin(), no_ellipsis_or_empty_inputs.end(), [](bool inp) {
-                       return inp;
-                   })) {
-            for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
-                if (input_subscripts[inp_iter].find("...") != std::string::npos) {
-                    input_subscripts[inp_iter].erase(input_subscripts[inp_iter].find("..."), 3);
-                }
-            }
-            if (output_subscript.find("...") != std::string::npos) {
-                output_subscript.erase(output_subscript.find("..."), 3);
-            }
-        } else {
-            for (size_t inp_iter = 0; inp_iter < input_nodes.size(); inp_iter++) {
-                if (ellipsis_inputs[inp_iter] && no_ellipsis_or_empty_inputs[inp_iter]) {
-                    auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[inp_iter]);
-                    auto ellipsis_idx_iter = std::find(labels.begin(), labels.end(), "...");
-                    std::vector<int64_t> ellipsis_idx{std::distance(labels.begin(), ellipsis_idx_iter)};
-                    input_nodes[inp_iter] = unsqueeze_input(input_nodes[inp_iter], ellipsis_idx, subgraph_nodes);
-                }
-            }
-        }
+        fix_inputs_with_0d_ellipsis(input_nodes, input_subscripts, output_subscript, subgraph_nodes);
 
         // contract inputs by Einsum until just one is remained
         for (auto const& inds_pair : einsum_path) {
