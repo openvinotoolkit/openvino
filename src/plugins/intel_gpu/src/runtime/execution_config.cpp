@@ -211,7 +211,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 }
 
 void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
-    if (m_help) {
+    GPU_DEBUG_IF(m_help) {
         print_help();
         exit(-1);
     }

@@ -113,9 +113,8 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 }
 
 Graph::~Graph() {
-    GPU_DEBUG_IF(m_config.get_host_time_profiling()) {
-        const auto log_level = m_config.get_host_time_profiling();
-
+    auto log_level = GPU_DEBUG_VALUE_OR(m_config.get_host_time_profiling(), 0);
+    GPU_DEBUG_IF(log_level) {
         auto get_time_str = [](int64_t time_mcs, int64_t iters_num = 1) {
             double time = static_cast<double>(time_mcs);
             time /= iters_num;
@@ -183,17 +182,19 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
-    GPU_DEBUG_IF(!m_config.get_dry_run_path().empty()) {
-        ov::pass::Serialize(m_config.get_dry_run_path(), "").run_on_model(get_runtime_model());
+    std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
+    std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");
+    GPU_DEBUG_IF(!dry_run_path.empty()) {
+        ov::pass::Serialize(dry_run_path, "").run_on_model(get_runtime_model());
         exit(0);
     }
 
-    GPU_DEBUG_IF(!m_config.get_dump_graphs_path().empty() && m_stream_id == 0) {
+    GPU_DEBUG_IF(!dump_graphs_path.empty() && m_stream_id == 0) {
         static int net_id = 0;
         auto steps_info = get_network()->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
-            auto xml_path = m_config.get_dump_graphs_path() + std::to_string(net_id) + "_" + std::to_string(step_idx) + "_" + step.first + "_graph.xml";
+            auto xml_path = dump_graphs_path + std::to_string(net_id) + "_" + std::to_string(step_idx) + "_" + step.first + "_graph.xml";
             ov::pass::Serialize(xml_path, "").run_on_model(get_runtime_model(step.second, true));
             step_idx++;
         }

@@ -157,7 +157,6 @@ void wait_for_the_turn(const std::vector<std::string>& pids) {
 
 #else
 void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
-void wait_for_the_turn(const std::vector<std::string>& pids) {}
 #endif
 }  // namespace
 
@@ -185,9 +184,10 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
         net_id = get_unique_net_id();
     }
 
-    GPU_DEBUG_IF(get_config().get_start_after_processes().size() != 0) {
-        wait_for_the_turn(get_config().get_start_after_processes());
-    }
+    GPU_DEBUG_CODE(
+        if (get_config().get_start_after_processes().size() != 0) {
+            wait_for_the_turn(get_config().get_start_after_processes());
+    });
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
@@ -225,8 +225,9 @@ network::~network() {
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
-    GPU_DEBUG_IF(!_config.get_dump_profiling_data_path().empty()) {
-        dump_perf_data_raw(_config.get_dump_profiling_data_path() + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
+    std::string dump_path = GPU_DEBUG_VALUE_OR(_config.get_dump_profiling_data_path(), "");
+    GPU_DEBUG_IF(!dump_path.empty()) {
+        dump_perf_data_raw(dump_path + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
     }
 }
 

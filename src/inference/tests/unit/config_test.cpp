@@ -239,6 +239,7 @@ TEST(plugin_config, visibility_is_correct) {
     ASSERT_EQ(cfg.get_option_ptr(int_property.name())->get_visibility(), OptionVisibility::RELEASE);
 }
 
+#ifdef ENABLE_DEBUG_CAPS
 TEST(plugin_config, can_get_global_property) {
     NotEmptyTestConfig cfg;
     ASSERT_EQ(cfg.get_debug_global_property(), 4);
@@ -247,7 +248,6 @@ TEST(plugin_config, can_get_global_property) {
 TEST(plugin_config, global_property_read_env_on_each_call) {
     NotEmptyTestConfig cfg;
     ASSERT_EQ(cfg.get_debug_global_property(), 4);
-#ifdef ENABLE_DEBUG_CAPS
     std::string env_var1 = "OV_DEBUG_GLOBAL_PROPERTY=10";
     ::putenv(env_var1.data());
     ASSERT_EQ(cfg.get_debug_global_property(), 10);
@@ -255,9 +255,5 @@ TEST(plugin_config, global_property_read_env_on_each_call) {
     std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
     ::putenv(env_var2.data());
     ASSERT_EQ(cfg.get_debug_global_property(), 20);
-#else
-    std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
-    ::putenv(env_var2.data());
-    ASSERT_EQ(cfg.get_debug_global_property(), 4); // no effect for build w/o debug caps
-#endif
 }
+#endif

@@ -63,21 +63,6 @@
         } \
     }
 
-#ifdef ENABLE_DEBUG_CAPS
-#define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
-    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
-        auto v = read_env(PropertyNamespace::PropertyVar.name(), m_allowed_env_prefix, &m_ ## PropertyVar); \
-        if (v.empty()) \
-            return m_ ## PropertyVar.value; \
-        return v.as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
-    }
-#else
-#define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
-    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
-        return m_ ## PropertyVar.value; \
-    }
-#endif
-
 #define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
         m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
 
@@ -90,12 +75,24 @@
 #define OV_CONFIG_RELEASE_INTERNAL_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
 
+#ifdef ENABLE_DEBUG_CAPS
+#define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
+    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
+        auto v = read_env(PropertyNamespace::PropertyVar.name(), m_allowed_env_prefix, &m_ ## PropertyVar); \
+        if (v.empty()) \
+            return m_ ## PropertyVar.value; \
+        return v.as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
+    }
 #define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
 
 #define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG_GLOBAL, __VA_ARGS__)
-
+#else
+#define OV_CONFIG_DEBUG_OPTION(...)
+#define OV_CONFIG_DEBUG_GLOBAL_OPTION(...)
+#define OV_CONFIG_DECLARE_GLOBAL_GETTER(...)
+#endif
 namespace ov {
 enum class OptionVisibility : uint8_t {
     RELEASE = 1 << 0,            // Option can be set for any build type via public interface, environment and config file

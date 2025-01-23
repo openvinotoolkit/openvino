@@ -53,6 +53,7 @@ static constexpr const char reset[]     = "\033[0m";
 static constexpr const char prefix[] = "GPU_Debug: ";
 
 #define GPU_DEBUG_IF(cond) if (cond)
+#define GPU_DEBUG_VALUE_OR(debug_value, release_value) debug_value
 #define GPU_DEBUG_CODE(...) __VA_ARGS__
 
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
@@ -84,6 +85,7 @@ static constexpr const char prefix[] = "GPU_Debug: ";
     GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
 #else
 #define GPU_DEBUG_IF(cond) if (0)
+#define GPU_DEBUG_VALUE_OR(debug_value, release_value) release_value
 #define GPU_DEBUG_CODE(...)
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage)
 #define GPU_DEBUG_PROFILED_STAGE(stage)

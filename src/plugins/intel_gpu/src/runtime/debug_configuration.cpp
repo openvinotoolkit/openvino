@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef GPU_DEBUG_CONFIG
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include <iostream>
 #include <fstream>
 
 namespace ov::intel_gpu {
-
 std::ostream& get_verbose_stream() {
     if (ExecutionConfig::get_log_to_file().length() > 0) {
         static std::ofstream fout;
@@ -19,5 +19,6 @@ std::ostream& get_verbose_stream() {
         return std::cout;
     }
 }
-
 }  // namespace ov::intel_gpu
+
+#endif

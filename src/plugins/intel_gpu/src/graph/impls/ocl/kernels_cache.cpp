@@ -238,10 +238,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             b.hash_value = std::hash<std::string>()(full_code);
 
-            std::string dump_sources_dir = "";
-            GPU_DEBUG_IF(!_config.get_dump_sources_path().empty()) {
-                dump_sources_dir = _config.get_dump_sources_path();
-            }
+            std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
@@ -297,10 +294,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     auto& cl_build_device = dynamic_cast<const ocl::ocl_device&>(*_device);
 
     bool dump_sources = batch.dump_custom_program;
-    std::string dump_sources_dir = "";
-    GPU_DEBUG_IF(!_config.get_dump_sources_path().empty()) {
+    std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
+    GPU_DEBUG_IF(!dump_sources_dir.empty()) {
         dump_sources = true;
-        dump_sources_dir = _config.get_dump_sources_path();
     }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
