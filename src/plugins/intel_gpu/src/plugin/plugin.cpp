@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -28,12 +27,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/paged_attention.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -42,8 +36,6 @@
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/common_util.hpp"
-#include "ov_ops/dynamic_quantize.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -60,106 +52,6 @@ using Time = std::chrono::high_resolution_clock;
 
 namespace ov::intel_gpu {
 
-namespace {
-
-ov::RTMap get_rt_info(const ov::Model& model) {
-    ov::RTMap rt_info;
-    if (model.has_rt_info("runtime_options"))
-        rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
-
-    if (model.has_rt_info("__weights_path")) {
-        rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
-    }
-    return rt_info;
-}
-
-bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
-    if (op->is_dynamic()) {
-        return true;
-    }
-
-    // HACK: SearchSorted has specific shape requirements.
-    // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
-    // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
-    // Similar case for STFT.
-    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
-        return true;
-
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
-        return true;
-
-    if (ov::is_type<ov::op::v5::Loop>(op)) {
-        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
-            return true;
-    }
-
-    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
-        return true;
-    }
-    // When input node has dynamic shape with 4 dimension, this function return false
-    // because op.is_dynamic() which only checks input shapes return false.
-    // So, in the case of input data, we need to check output shape.
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    return false;
-}
-
-void set_model_properties(const ov::Model& model, ExecutionConfig& config) {
-    const auto& ops = model.get_ordered_ops();
-    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
-    // So, do not check allow_new_shape_infer for inner program build
-    for (const auto& op : ops) {
-        if (requires_new_shape_infer(op)) {
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            break;
-        }
-    }
-    bool is_dynamic = false;
-    for (const auto& op : ops) {
-        if (op->is_dynamic()) {
-            is_dynamic = true;
-            break;
-        }
-    }
-    bool has_lstm = false;
-    for (const auto& op : ops) {
-        if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
-            has_lstm = true;
-            break;
-        }
-    }
-
-    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
-    // smaller # of kernels are built compared to static models.
-    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
-    if (is_dynamic) {
-        config.set_property(ov::intel_gpu::max_kernels_per_batch(4));
-    } else {
-        config.set_property(ov::intel_gpu::max_kernels_per_batch(8));
-    }
-
-    config.set_property(ov::intel_gpu::optimize_data(true));
-
-    if (has_lstm)
-        config.set_property(ov::intel_gpu::use_onednn(true));
-}
-
-}  // namespace
-
 #define FACTORY_DECLARATION(op_version, op_name) \
     void __register ## _ ## op_name ## _ ## op_version();
 
@@ -169,33 +61,6 @@ void set_model_properties(const ov::Model& model, ExecutionConfig& config) {
 #define REGISTER_FACTORY(op_version, op_name) FACTORY_DECLARATION(op_version, op_name)
 #include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
-
-const auto is_llm = [](const std::shared_ptr<const ov::Model>& model) -> bool {
-    using namespace ov::pass::pattern;
-
-    auto past = wrap_type<ov::op::v6::ReadValue>();
-    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
-    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
-    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
-    auto present = wrap_type<ov::op::v6::Assign>({present_input});
-
-    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
-
-    for (auto& op : model->get_ordered_ops()) {
-        if (kvcache_matcher->match(op) ||
-            ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            return true;
-        }
-    }
-
-    return false;
-};
 
 void Plugin::register_primitives() const {
     #define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
@@ -237,12 +102,24 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     auto cloned_model = model->clone();
     OPENVINO_ASSERT(cloned_model != nullptr, "[GPU] Failed to clone model!");
 
-    GPU_DEBUG_IF(!config.get_dump_graphs_path().empty()) {
-        auto path_base = config.get_dump_graphs_path() + "/" + cloned_model->get_name();
+    // Here we create a copy of the config to finalize it and ensure that transformation pipe can use correct options values
+    // This is manily needed to correctly update lower level properties when higher level option is set by user
+    // For example, transformation use inference_precision hint which may be updated by execution_mode property.
+    // Update itself will happen on finalization stage, so we must call it to have correct passes flow.
+    // The reason why we can't do finalization once and then just run all graph transformations is that
+    // part of the tranformations may actually impact some properties. For example, LSTMSequence op presense
+    // impacts value of use_onednn property. But in order to understand if there's an op of this type we have to run
+    // common optimizations which may do subgraph fusion to LSTMSequence op. So basically, final value of use_onednn
+    // property can be computed for transformed model only.
+    auto config_copy = config;
+    config_copy.finalize(context.get(), model.get());
+
+    GPU_DEBUG_IF(!config_copy.get_dump_graphs_path().empty()) {
+        auto path_base = config_copy.get_dump_graphs_path() + "/" + cloned_model->get_name();
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
-    transform_model(cloned_model, config, context);
+    transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
     auto new_results = cloned_model->get_results();
@@ -257,8 +134,8 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         new_res->set_friendly_name(old_res->get_friendly_name());
     }
 
-    GPU_DEBUG_IF(!config.get_dump_graphs_path().empty()) {
-        auto path_base = config.get_dump_graphs_path() + "/" + cloned_model->get_name() + "_" +  "transformed_func";
+    GPU_DEBUG_IF(!config_copy.get_dump_graphs_path().empty()) {
+        auto path_base = config_copy.get_dump_graphs_path() + "/" + cloned_model->get_name() + "_" +  "transformed_func";
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
     return cloned_model;
@@ -307,10 +184,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
-    set_model_properties(*model, config);
-    config.finalize(context, get_rt_info(*model));
 
     auto transformed_model = clone_and_transform_model(model, config, context);
+
+    config.finalize(context.get(), transformed_model.get());
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
@@ -326,10 +203,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    set_model_properties(*model, config);
-    config.finalize(context_impl, get_rt_info(*model));
+    config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
+
+    config.finalize(context_impl.get(), transformed_model.get());
+
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
 }
 
@@ -393,8 +272,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
-    set_model_properties(*model, config);
-    config.finalize(ctx, get_rt_info(*model));
+    config.finalize(ctx.get(), model.get());
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
@@ -449,7 +327,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
-    config.finalize(context_impl, {});
 
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
@@ -768,7 +645,6 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     const auto& device_info = context->get_engine().get_device_info();
     auto config = m_configs_map.at(device_id);
     config.set_property(ov::intel_gpu::partial_build_program(true));
-    config.finalize(context, {});
     uint32_t n_streams = static_cast<uint32_t>(config.get_num_streams());
     uint64_t occupied_device_mem = 0;
     auto statistic_result = get_metric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
@@ -820,6 +696,8 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     } else {
         OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
     }
+
+    config.finalize(context.get(), model.get());
 
     size_t base_batch_size = 16; // empirically decided for DG1
 

@@ -121,7 +121,7 @@ void select_preferred_formats::run(program& p) {
                     optimize_conv_permute(*n);
                 }
             } catch (std::exception& exception) {
-                GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
+                GPU_DEBUG_LOG << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
             }
             print_selected_formats(*n);
         }

@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/any.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 
 #include <gtest/gtest.h>
@@ -18,7 +21,7 @@ static constexpr Property<std::string, PropertyMutability::RW> high_level_proper
 static constexpr Property<std::string, PropertyMutability::RW> low_level_property{"LOW_LEVEL_PROPERTY"};
 static constexpr Property<uint8_t, PropertyMutability::RW> release_internal_property{"RELEASE_INTERNAL_PROPERTY"};
 static constexpr Property<uint8_t, PropertyMutability::RW> debug_property{"DEBUG_PROPERTY"};
-static constexpr Property<uint8_t, PropertyMutability::RW> debug_global_property{"DEBUG_GLOBAL_PROPERTY"};
+static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property{"DEBUG_GLOBAL_PROPERTY"};
 
 
 struct EmptyTestConfig : public ov::PluginConfig {
@@ -73,14 +76,14 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         return supported_properties;
     }
 
-    void finalize_impl(std::shared_ptr<IRemoteContext> context) override {
+    void finalize_impl(const IRemoteContext* context) override {
         if (!is_set_by_user(low_level_property)) {
             m_low_level_property.value = m_high_level_property.value;
         }
     }
 
-    void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) override {
-        apply_rt_info_property(high_level_property, rt_info);
+    void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override {
+        apply_rt_info_property(high_level_property, model.get_rt_info<ov::AnyMap>("runtime_options"));
     }
 
     using ov::PluginConfig::get_option_ptr;
@@ -185,12 +188,17 @@ TEST(plugin_config, can_set_property_from_rt_info) {
         {int_property.name(), 10} // int_property is not applied from rt info
     };
 
+    auto p1 = std::make_shared<ov::op::v0::Parameter>();
+    auto r1 = std::make_shared<ov::op::v0::Result>(p1);
+    ov::Model m(ov::OutputVector{r1}, ov::ParameterVector{p1});
+    m.set_rt_info(rt_info, {"runtime_options"});
+
     // default values
     ASSERT_EQ(cfg.m_high_level_property.value, "");
     ASSERT_EQ(cfg.m_low_level_property.value, "");
     ASSERT_EQ(cfg.m_int_property.value, -1);
 
-    cfg.finalize(nullptr, rt_info);
+    cfg.finalize(nullptr, &m);
 
     ASSERT_EQ(cfg.m_high_level_property.value, "value1");
     ASSERT_EQ(cfg.m_low_level_property.value, "value1"); // dependant is updated too
@@ -234,4 +242,22 @@ TEST(plugin_config, visibility_is_correct) {
 TEST(plugin_config, can_get_global_property) {
     NotEmptyTestConfig cfg;
     ASSERT_EQ(cfg.get_debug_global_property(), 4);
+}
+
+TEST(plugin_config, global_property_read_env_on_each_call) {
+    NotEmptyTestConfig cfg;
+    ASSERT_EQ(cfg.get_debug_global_property(), 4);
+#ifdef ENABLE_DEBUG_CAPS
+    std::string env_var1 = "OV_DEBUG_GLOBAL_PROPERTY=10";
+    ::putenv(env_var1.data());
+    ASSERT_EQ(cfg.get_debug_global_property(), 10);
+
+    std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
+    ::putenv(env_var2.data());
+    ASSERT_EQ(cfg.get_debug_global_property(), 20);
+#else
+    std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
+    ::putenv(env_var2.data());
+    ASSERT_EQ(cfg.get_debug_global_property(), 4); // no effect for build w/o debug caps
+#endif
 }

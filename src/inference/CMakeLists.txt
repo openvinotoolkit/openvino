@@ -76,6 +76,10 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_OPENVINO_RUNTIME_API
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>)
 
+if(ENABLE_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC ENABLE_DEBUG_CAPS)
+endif()
+
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>)

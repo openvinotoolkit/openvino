@@ -5,6 +5,20 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/search_sorted.hpp"
+#include "openvino/op/stft.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
@@ -12,6 +26,93 @@
 
 
 namespace ov::intel_gpu {
+
+namespace {
+
+ov::RTMap get_rt_info(const ov::Model& model) {
+    ov::RTMap rt_info;
+    if (model.has_rt_info("runtime_options"))
+        rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
+
+    if (model.has_rt_info("__weights_path")) {
+        rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
+    }
+    return rt_info;
+}
+
+
+bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
+    if (op->is_dynamic()) {
+        return true;
+    }
+
+    // HACK: SearchSorted has specific shape requirements.
+    // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
+    // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
+    // Similar case for STFT.
+    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
+        return true;
+
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
+        return true;
+
+    if (ov::is_type<ov::op::v5::Loop>(op)) {
+        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
+        if (body_function->is_dynamic())
+            return true;
+    }
+
+    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+        return true;
+    }
+    // When input node has dynamic shape with 4 dimension, this function return false
+    // because op.is_dynamic() which only checks input shapes return false.
+    // So, in the case of input data, we need to check output shape.
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).is_dynamic())
+            return true;
+    }
+
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).size() > 6)
+            return true;
+    }
+
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        if (op->get_input_partial_shape(i).size() > 6)
+            return true;
+    }
+
+    return false;
+}
+
+bool is_llm(const ov::Model& model) {
+    using namespace ov::pass::pattern;
+
+    auto past = wrap_type<ov::op::v6::ReadValue>();
+    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
+    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
+    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
+    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
+    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
+    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
+    auto present = wrap_type<ov::op::v6::Assign>({present_input});
+
+    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
+
+    for (auto& op : model.get_ordered_ops()) {
+        if (kvcache_matcher->match(op) || ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+} // namespace
 
 #define OV_CONFIG_LOCAL_OPTION(...)
 #define OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
@@ -49,15 +150,17 @@ ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
 
 void ExecutionConfig::finalize(cldnn::engine& engine) {
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
-    PluginConfig::finalize(ctx, {});
+    PluginConfig::finalize(ctx.get(), nullptr);
 }
 
-void ExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
-    const auto& info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
+void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm) {
+    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
-        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
+    if (!info.supports_immad || !is_llm)
+        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
+
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
@@ -68,15 +171,54 @@ void ExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, con
     }
 }
 
-void ExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context) {
+void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
+    apply_rt_info(context, get_rt_info(model), is_llm(model));
+
+    const auto& ops = model.get_ops();
+
+    auto process_op = [this](std::shared_ptr<Node> op) {
+        if (requires_new_shape_infer(op)) {
+            m_allow_new_shape_infer = true;
+        }
+        // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
+        // smaller # of kernels are built compared to static models.
+        // So having smaller batch size is even better for dynamic model as we can do more parallel build.
+        if (op->is_dynamic()) {
+            m_max_kernels_per_batch = 4;
+        }
+
+        // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
+        if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
+            m_use_onednn = true;
+        }
+    };
+
+    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
+    // So, do not check allow_new_shape_infer for inner program build
+    for (const auto& op : ops) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                for (auto& sub_op : sub_graph->get_ops()) {
+                    process_op(sub_op);
+                }
+            }
+        } else {
+            process_op(op);
+        }
+    }
+
+    m_optimize_data = true;
+}
+
+void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (m_help) {
         print_help();
         exit(-1);
     }
 
-    const auto& info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
+    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
     apply_hints(info);
-    if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
+    if (!is_set_by_user(ov::internal::enable_lp_transformations)) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
