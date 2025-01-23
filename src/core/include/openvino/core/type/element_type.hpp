@@ -283,12 +283,12 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<std::string> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
-    AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
+    constexpr AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
 
-    operator ov::element::Type&() {
+    constexpr operator ov::element::Type&() {
         return m_ref;
     }
 
