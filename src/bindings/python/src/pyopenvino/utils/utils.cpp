@@ -231,6 +231,14 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(luid_stream.str());
     } else if (any.is<ov::device::PCIInfo>()) {
         return py::cast(any.as<ov::device::PCIInfo>());
+    }
+    // Check for ov::cache_encryption_callbacks
+    else if (any.is<ov::EncryptionCallbacks>()) {
+        ov::EncryptionCallbacks encryption_callbacks = any.as<ov::EncryptionCallbacks>();
+        PyObject* list = PyList_New(2);
+        PyList_Append(list, py::cpp_function(encryption_callbacks.encrypt).ptr());
+        PyList_Append(list, py::cpp_function(encryption_callbacks.decrypt).ptr());
+        return py::cast<py::object>(list);
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
