@@ -503,7 +503,7 @@ namespace {
 
 const auto testParams2D_FP16_2_smoke =
     ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{2, 3}, {2, 3}, {3, 4}})),
-                       ::testing::Values(std::pair<bool, bool>{false, true}),
+                       ::testing::Values(std::pair<bool, bool>{false, true}, std::pair<bool, bool>{true, false}),
                        ::testing::Values(ElementType::f16),
                        ::testing::Values(emptyConfig),
                        ::testing::ValuesIn(filter_specific_params(false)));
