@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,19 +35,20 @@ size_t get_terminal_width() {
     } else {
         return default_width;
     }
-#else
+#elif __linux__
     struct winsize w;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
         return w.ws_col;
     } else {
         return default_width;
     }
-#endif  // _WIN32
+#else
+    return default_width;
+#endif
 }
 }
 
 namespace ov {
-
 
 ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility allowed_visibility) const {
     if (m_user_properties.find(name) != m_user_properties.end()) {
@@ -55,9 +56,7 @@ ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility all
     }
 
     auto option = get_option_ptr(name);
-     if ((allowed_visibility & option->get_visibility()) != option->get_visibility()) {
-        OPENVINO_THROW("Couldn't get unknown property: ", name);
-    }
+    OPENVINO_ASSERT((allowed_visibility & option->get_visibility()) == option->get_visibility(), "Couldn't get unknown property: ", name);
 
     return option->get_any();
 }
@@ -98,11 +97,13 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility 
     }
 }
 
-void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
+void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* model) {
     if (m_is_finalized)
         return;
 
-    apply_rt_info(context, rt_info);
+    if (model)
+        apply_model_specific_options(context, *model);
+
     apply_debug_options(context);
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
@@ -132,7 +133,7 @@ bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) {
+void PluginConfig::apply_debug_options(const IRemoteContext* context) {
     const bool throw_on_error = false;
 
     if (context) {

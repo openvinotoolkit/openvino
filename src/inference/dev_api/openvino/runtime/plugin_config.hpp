@@ -1,10 +1,9 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
 #include <map>
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -64,6 +63,7 @@
         } \
     }
 
+#ifdef ENABLE_DEBUG_CAPS
 #define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
     static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
         auto v = read_env(PropertyNamespace::PropertyVar.name(), m_allowed_env_prefix, &m_ ## PropertyVar); \
@@ -71,6 +71,12 @@
             return m_ ## PropertyVar.value; \
         return v.as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
     }
+#else
+#define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
+    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
+        return m_ ## PropertyVar.value; \
+    }
+#endif
 
 #define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
         m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
@@ -91,16 +97,15 @@
     OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG_GLOBAL, __VA_ARGS__)
 
 namespace ov {
-#define ENABLE_DEBUG_CAPS
 enum class OptionVisibility : uint8_t {
     RELEASE = 1 << 0,            // Option can be set for any build type via public interface, environment and config file
     RELEASE_INTERNAL = 1 << 1,   // Option can be set for any build type via environment and config file only
     DEBUG = 1 << 2,              // Option can be set for debug builds only via environment and config file
     DEBUG_GLOBAL = 1 << 3,       // Global option can be set for debug builds only via environment and config file
 #ifdef ENABLE_DEBUG_CAPS
-    ANY = 0x0F,                  // Any visibility is valid including DEBUG
+    ANY = 0x0F,                  // Any visibility is valid including DEBUG & DEBUG_GLOBAL
 #else
-    ANY = 0x03,                  // Any visibility is valid excluding DEBUG
+    ANY = 0x03,                  // Any visibility is valid excluding DEBUG & DEBUG_GLOBAL
 #endif
 };
 
@@ -235,14 +240,14 @@ public:
 
     std::string to_string() const;
 
-    void finalize(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info);
+    void finalize(const IRemoteContext* context, const ov::Model* model);
 
     bool visit_attributes(ov::AttributeVisitor& visitor);
 
 protected:
-    virtual void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {}
-    virtual void apply_debug_options(std::shared_ptr<IRemoteContext> context);
-    virtual void finalize_impl(std::shared_ptr<IRemoteContext> context) {}
+    virtual void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {}
+    virtual void apply_debug_options(const IRemoteContext* context);
+    virtual void finalize_impl(const IRemoteContext* context) {}
 
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {

@@ -31,9 +31,9 @@ OV_CONFIG_RELEASE_OPTION(ov::hint, kv_cache_precision, ov::element::undefined, "
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_kernels_reuse, false, "")
 OV_CONFIG_RELEASE_OPTION(ov, weights_path, "", "Path to the model weights file used for weightless caching")
 OV_CONFIG_RELEASE_OPTION(ov::hint, activations_scale_factor, 0.f, "Scalar floating point value that is used for runtime activation tensor scaling with fp16 inference precision")
+OV_CONFIG_RELEASE_OPTION(ov::internal, enable_lp_transformations, false, "Enable/Disable Low precision transformations set")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, config_file, "", "Path to custom layers config file")
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_lp_transformations, false, "Enable/Disable Low precision transformations set")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, optimize_data, false, "Enable/Disable data flow optimizations for cldnn::program")
@@ -49,7 +49,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Con
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
-OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose_color, false, "Enable coloring for verbose logs")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose_color, true, "Enable coloring for verbose logs")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, disable_usm, false, "Disable USM memory allocations and use only cl_mem")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, usm_policy, 0, "0: default, 1: use usm_host, 2: do not use usm_host")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_batch_limit, std::numeric_limits<int32_t>::max(), "Max number of batch elements to dump")

@@ -83,7 +83,6 @@ static constexpr Property<bool, PropertyMutability::RW> allow_new_shape_infer{"G
 static constexpr Property<std::vector<std::string>, PropertyMutability::RW> custom_outputs{"GPU_CUSTOM_OUTPUTS"};
 static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};
 static constexpr Property<std::string, PropertyMutability::RW> config_file{"CONFIG_FILE"};
-static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_ratio{"GPU_BUFFERS_PREALLOCATION_RATIO"};
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"USE_ONEDNN"};
