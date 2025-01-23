@@ -28,6 +28,7 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -84,7 +85,8 @@ const auto is_llm = [](const std::shared_ptr<const ov::Model>& model) -> bool {
     auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
     for (auto& op : model->get_ordered_ops()) {
-        if (kvcache_matcher->match(op)) {
+        if (kvcache_matcher->match(op) ||
+            ov::is_type<ov::op::PagedAttentionExtension>(op)) {
             return true;
         }
     }
