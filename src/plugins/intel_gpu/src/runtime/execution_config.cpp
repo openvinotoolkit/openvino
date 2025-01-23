@@ -276,7 +276,7 @@ void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RT
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
-    if (!info.supports_immad || !is_llm)
+    if (!is_llm)
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 }
