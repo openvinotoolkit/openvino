@@ -33,8 +33,8 @@ bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) {
     return true;
 }
 
-bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!LayerTransformation::canBeTransformed(context, operation)) {
+bool EltwiseBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!LayerTransformation::canBeTransformed(operation)) {
         return false;
     }
 
