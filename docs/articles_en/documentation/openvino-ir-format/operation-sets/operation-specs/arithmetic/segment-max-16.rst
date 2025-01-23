@@ -26,7 +26,7 @@ For example ``segments_ids`` with value ``[0,0,0,1,1,3,5,5]`` defines 4 non-empt
 
 When there are no values in a segment, ``output[segment]`` is defined by ``empty_segment_value`` input.
 
-In that case, the output would be ``[max(Segment_0), max(Segment_1), 0, max(Segment_3), 0, max(Segment_5)]``.
+For ``empty_segment_value`` equal to 0, the operator output would be ``[max(Segment_0), max(Segment_1), 0, max(Segment_3), 0, max(Segment_5)]``.
 
 **Attributes**:
 
