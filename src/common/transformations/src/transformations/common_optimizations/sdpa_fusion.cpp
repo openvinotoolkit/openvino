@@ -17,6 +17,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 
 namespace ov {
 namespace pass {
@@ -27,129 +28,56 @@ SDPAFusion::SDPAFusion() {
 
     auto q_base = makePattern(ov::Rank(4));
     auto q_shape = ov::pass::pattern::any_input();
-    auto q_reshaped= ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({q_base, q_shape});
-    auto q = q_reshaped;
-
-    auto q_slice_start= ov::pass::pattern::any_input();
-    auto q_slice_stop = ov::pass::pattern::any_input();
-    auto q_slice_step = ov::pass::pattern::any_input();
-    auto q_slice_axes = ov::pass::pattern::any_input();
-    auto q_reshaped_sliced = 
-    ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({q_reshaped, q_slice_start, q_slice_stop, q_slice_step});
-
-    auto q_slice_shape = ov::pass::pattern::any_input();
-    auto q_reshaped_sliced_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({q_reshaped_sliced, q_slice_shape});
-    auto q_reshaped_opt_sliced_reshaped = q_reshaped_sliced_reshaped | q_reshaped;
-
-
+    auto q = optional<ov::op::v1::Reshape>({q_base, q_shape});
 
     auto k_base = makePattern(ov::Rank(4));
     auto k_shape = ov::pass::pattern::any_input();
-    auto k_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({k_base, k_shape});
-    auto k = k_reshaped;
+    auto k = optional<ov::op::v1::Reshape>({k_base, k_shape});
 
-    auto k_slice_start= ov::pass::pattern::any_input();
-    auto k_slice_stop = ov::pass::pattern::any_input();
-    auto k_slice_step = ov::pass::pattern::any_input();
-    auto k_slice_axes = ov::pass::pattern::any_input();
-    auto k_reshaped_sliced = 
-    ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({k_reshaped, k_slice_start, k_slice_stop, k_slice_step});
-
-    auto k_slice_shape = ov::pass::pattern::any_input();
-    auto k_reshaped_sliced_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({k_reshaped_sliced, k_slice_shape});
-    auto k_reshaped_opt_sliced_reshaped = k_reshaped_sliced_reshaped | k_reshaped;
     // Optional k scale
     auto attn_scale = ov::pass::pattern::any_input();
-    auto k_scaled = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({k_reshaped_opt_sliced_reshaped, attn_scale});
-    auto k_opt_scaled = k_scaled | k_reshaped_opt_sliced_reshaped;
-    // Optional k transpose + scale
+    auto k_opt_scaled = optional<ov::op::v1::Multiply>({k, attn_scale});
+    // K transpose + optional scale
     auto k_trans_dims = ov::pass::pattern::any_input();
-    auto k_transposed =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({k_reshaped_opt_sliced_reshaped, k_trans_dims});
-    auto k_transposed_scaled =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(ov::OutputVector{k_transposed, attn_scale});
-    auto k_transposed_opt_scaled = k_transposed | k_transposed_scaled;
-    auto k_opt_transposed_opt_scaled = k_opt_scaled | k_transposed_opt_scaled;
+    auto k_transposed = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({k, k_trans_dims});
+    auto k_transposed_opt_scaled = optional<ov::op::v1::Multiply>({k_transposed, attn_scale});
+    auto k_opt_transposed_opt_scaled = k_transposed_opt_scaled | k_opt_scaled;
     
     auto v_base = makePattern(ov::Rank(4));
     auto v_proj_shape_m = ov::pass::pattern::any_input();
-    auto v_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
-    auto v = v_reshaped;
-
-    auto v_slice_start = ov::pass::pattern::any_input();
-    auto v_slice_stop = ov::pass::pattern::any_input();
-    auto v_slice_step = ov::pass::pattern::any_input();
-    auto v_slice_axes = ov::pass::pattern::any_input();
-    auto v_reshaped_sliced = 
-    ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({v_reshaped, v_slice_start, v_slice_stop, v_slice_step});
-
-    auto v_slice_shape = ov::pass::pattern::any_input();
-    auto v_reshaped_sliced_reshaped =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({v_reshaped_sliced, v_slice_shape});
-    auto v_reshaped_opt_sliced_reshaped = v_reshaped_sliced_reshaped | v_reshaped;
-
-    auto v_trans_dims = ov::pass::pattern::any_input();
-    auto v_proj_transposed_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>(
-        {v_reshaped_opt_sliced_reshaped, v_trans_dims});
-    auto v_opt_transposed = v_reshaped_opt_sliced_reshaped | v_proj_transposed_m;
-
-    auto mask = makePattern();
+    auto v = optional<ov::op::v1::Reshape>({v_base, v_proj_shape_m});
 
     // No transpose check here, there are scenarios where k is not transposed and that uses equation (A*B)^T = B^T * A^T
-    auto qk = makePattern<ov::op::v0::MatMul>({q_reshaped_opt_sliced_reshaped, k_opt_transposed_opt_scaled});
+    auto qk = makePattern<ov::op::v0::MatMul>({q, k_opt_transposed_opt_scaled});
 
     auto unsqueeze_axis = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
-    auto qk_opt_unsqueeze = qk_unsqueeze | qk;
-    auto qk_opt_unsqueeze_concat =
-        ov::pass::pattern::wrap_type<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
-    auto qk_opt_unsqueeze_opt_concat = qk_opt_unsqueeze_concat | qk_opt_unsqueeze;
-    
+    auto qk_opt_unsqueeze = optional<ov::op::v1::Reshape>({qk, unsqueeze_axis});
+    auto qk_opt_unsqueeze_opt_concat =optional<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
 
-    auto qk_scaled = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({qk_opt_unsqueeze_opt_concat, attn_scale});
-    auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze_opt_concat;
+    auto qk_opt_scaled = optional<ov::op::v1::Multiply>({qk_opt_unsqueeze_opt_concat, attn_scale});
+    // auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze_opt_concat;
 
-    // auto attn_bias_m = ov::pass::pattern::any_input();
-    
+    // optional mask add, there are patterns where before or/and after mask add buffer is reshaped
+    auto mask = makePattern();
+    // Optional reshape befor adding mask
     auto qk_opt_scaled_pre_bias_shape = ov::pass::pattern::any_input();
-    auto qk_opt_scaled_pre_bias_reshaped =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_bias_shape});
-    auto qk_opt_scaled_pre_bias_opt_reshaped = qk_opt_scaled_pre_bias_reshaped | qk_opt_scaled;
-   
+    auto qk_opt_scaled_pre_bias_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_bias_shape});
+    // Optional mask add
     auto qk_opt_scaled_biased =
         ov::pass::pattern::wrap_type<ov::op::v1::Add>({qk_opt_scaled_pre_bias_opt_reshaped, mask});
-    
-
     auto qk_opt_scaled_opt_biased = qk_opt_scaled_biased | qk_opt_scaled_pre_bias_opt_reshaped;
+    // Optional reshape after adding mask
     auto qk_post_bias_shape = ov::pass::pattern::any_input();
-    auto qk_post_bias_reshaped =
-        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled_opt_biased, qk_post_bias_shape});
-    auto qk_post_bias_opt_reshaped = qk_post_bias_reshaped | qk_opt_scaled_opt_biased;
+    auto qk_post_bias_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled_opt_biased, qk_post_bias_shape});
 
-    // auto optional_add_mask = optional<ov::op::v1::Add>({qk, mask});
     auto softmax = makePattern<ov::op::v8::Softmax>({qk_post_bias_opt_reshaped}, {{"axis", "-1"}});
     auto softmax_shape = ov::pass::pattern::any_input();
-    auto softmax_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({softmax, softmax_shape});
+    auto softmax_opt_reshaped = optional<ov::op::v1::Reshape>({softmax, softmax_shape});
 
-    auto softmax_opt_reshaped = softmax_reshaped | softmax;
-
-    auto softmax_slice_start= ov::pass::pattern::any_input();
-    auto softmax_slice_stop = ov::pass::pattern::any_input();
-    auto softmax_slice_step = ov::pass::pattern::any_input();
-    auto softmax_slice_axes = ov::pass::pattern::any_input();
-    auto softmax_reshaped_sliced = 
-    ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>({softmax_opt_reshaped, softmax_slice_start, softmax_slice_stop, softmax_slice_step});
-
-
-    auto softmax_slice_shape = ov::pass::pattern::any_input();
-    auto softmax_reshaped_sliced_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({softmax_reshaped_sliced, softmax_slice_shape});
-    auto softmax_reshaped_opt_sliced_reshaped = softmax_reshaped_sliced_reshaped | softmax_opt_reshaped;
-
-
-    auto qkv_base = makePattern<ov::op::v0::MatMul>({softmax_reshaped_opt_sliced_reshaped, v_opt_transposed}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto qkv_base = makePattern<ov::op::v0::MatMul>({softmax_opt_reshaped, v}, {{"transpose_a", false}, {"transpose_b", false}});
     auto qkv_shape = ov::pass::pattern::any_input();
-    auto qkv_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qkv_base, qkv_shape});
-    auto qkv = qkv_reshaped | qkv_base;
+    auto qkv = optional<ov::op::v1::Reshape>({qkv_base, qkv_shape});
+    // auto qkv = qkv_reshaped | qkv_base;
 
     auto valid_qk_shapes = [](const std::shared_ptr<ov::op::v0::MatMul>& qk_matmul) {
         auto q_pshape = qk_matmul->get_input_partial_shape(0);
@@ -176,12 +104,24 @@ SDPAFusion::SDPAFusion() {
 
         auto q_node = pattern_map.at(q_base);
         auto q_node_ps = q_node.get_partial_shape();
+        // if (q_node_ps.is_dynamic())
+        //     return false;
+        if (q_node_ps.size() < 3)
+            return false;
 
         auto k_node = pattern_map.at(k_base);
         auto k_node_ps = k_node.get_partial_shape();
+        // if (k_node_ps.is_dynamic())
+        //     return false;
+        if (k_node_ps.size() < 3)
+            return false;
 
         auto v_node = pattern_map.at(v_base);
         auto v_node_ps = v_node.get_partial_shape();
+        // if (v_node_ps.is_dynamic())
+        //     return false;
+        if (v_node_ps.size() < 3)
+            return false;
 
         if (v_node_ps[-2] != k_node_ps[-2]) {
                 if(k_node_ps.size() == 4){
@@ -196,6 +136,35 @@ SDPAFusion::SDPAFusion() {
                 }
             }
 
+        // get all important dims from shapes:
+        auto N = q_node_ps[0];  // batch size
+        // auto Hq = q_node_ps[-3];   // number of heads of query
+        auto H = k_node_ps[-3];    // number of heads of key and value
+        auto S = k_node_ps[-2];   // source sequence length
+        auto L = q_node_ps[-2];   // target sequence length
+        auto E = q_node_ps[-1];   // embedding dimension of query and key
+        auto Ev = k_node_ps[-1];  // embedding dimension of value
+    
+        auto T = q_node.get_element_type();
+
+        // make sure that all inputs to SDPA (query, key and value) have the same batch
+        if (k_node_ps[0] != N)
+            return false;
+        if (k_node_ps[0] != N)
+            return false;
+        
+        // make sure that number of heads of value is the same as for key
+        if (v_node_ps[-3] != H)
+            return false;
+
+        // make sure that source sequence length of value is the same as for key
+        if (v_node_ps[-2] != S)
+            return false;
+
+        // make sure that embedding dimension of key is the same as for query
+        if (v_node_ps[-1] != E)
+            return false;
+        
         if (!valid_qk_shapes(ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(qk).get_node_shared_ptr()))) {
             return false;
         }
@@ -217,7 +186,6 @@ SDPAFusion::SDPAFusion() {
             mask_value = ov::op::v0::Constant::create(q_node.get_element_type(), ov::Shape{}, std::vector<float>{0});
         }
            
-
         if (mask_value.get_partial_shape().size() > 4) {
             return false;
         }
@@ -235,6 +203,25 @@ SDPAFusion::SDPAFusion() {
 
         std::shared_ptr<ov::Node> scale_node =
             ov::op::v0::Constant::create(q_node.get_element_type(), ov::Shape{}, std::vector<float>{1.0f});
+
+        // if (pattern_map.count(attn_scale) > 0) {
+        //     attn_scale_out = pattern_map.at(attn_scale);
+        //     auto attn_scale_out_ps = attn_scale_out.get_partial_shape();
+        //     if (attn_scale_out_ps.is_dynamic())
+        //         return false;
+        //     // attn_scale layer should have only single output scalar value
+        //     if (ov::shape_size(attn_scale_out_ps.get_shape()) != 1)
+        //         return false;
+        //     // we need to be able to cast attn_scale layer to Constant layer
+        //     // in order to read actual scale value
+        //     auto attn_scale_const_m = ov::as_type_ptr<ov::op::v0::Constant>(attn_scale_out.get_node_shared_ptr());
+        //     if (!attn_scale_const_m)
+        //         return false;
+        //     auto attn_scale_val_ptr = static_cast<const void*>(attn_scale_const_m->get_data_ptr());
+        //     attn_scale_out = ov::op::v0::Constant::create(T, ov::Shape{}, attn_scale_val_ptr);
+        // } else {
+        //     attn_scale_out = ov::op::v0::Constant::create(T, ov::Shape{}, {1.0});
+        // }
 
         std::shared_ptr<ov::Node> sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_node,
                                                                                                   k_node,
