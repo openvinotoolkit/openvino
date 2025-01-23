@@ -240,10 +240,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto context_impl = get_context_impl(context);
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
-    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
+    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(context_impl->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"), is_llm(model));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     set_cache_info(model, config);
