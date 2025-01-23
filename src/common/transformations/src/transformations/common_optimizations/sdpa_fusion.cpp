@@ -51,8 +51,11 @@ SDPAFusion::SDPAFusion() {
     auto qk = makePattern<ov::op::v0::MatMul>({q, k_opt_transposed_opt_scaled});
 
     auto unsqueeze_axis = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto qk_opt_unsqueeze = optional<ov::op::v1::Reshape>({qk, unsqueeze_axis});
-    auto qk_opt_unsqueeze_opt_concat =optional<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
+    auto qk_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk, unsqueeze_axis});
+    auto qk_opt_unsqueeze = qk_unsqueeze | qk;
+
+    auto qk_opt_unsqueeze_concat = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(ov::OutputVector{qk_opt_unsqueeze}, 0);
+    auto qk_opt_unsqueeze_opt_concat = qk_opt_unsqueeze_concat | qk_opt_unsqueeze;
 
     auto qk_opt_scaled = optional<ov::op::v1::Multiply>({qk_opt_unsqueeze_opt_concat, attn_scale});
     // auto qk_opt_scaled = qk_scaled | qk_opt_unsqueeze_opt_concat;
@@ -61,7 +64,8 @@ SDPAFusion::SDPAFusion() {
     auto mask = makePattern();
     // Optional reshape befor adding mask
     auto qk_opt_scaled_pre_bias_shape = ov::pass::pattern::any_input();
-    auto qk_opt_scaled_pre_bias_opt_reshaped = optional<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_bias_shape});
+    auto qk_opt_scaled_pre_bias_reshaped = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({qk_opt_scaled, qk_opt_scaled_pre_bias_shape});
+    auto qk_opt_scaled_pre_bias_opt_reshaped = qk_opt_scaled_pre_bias_reshaped | qk_opt_scaled;
     // Optional mask add
     auto qk_opt_scaled_biased =
         ov::pass::pattern::wrap_type<ov::op::v1::Add>({qk_opt_scaled_pre_bias_opt_reshaped, mask});
