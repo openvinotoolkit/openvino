@@ -80,8 +80,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
     bool do_runtime_buffer_fusing = true;
-    const auto& config = concat_node.get_config();
-    GPU_DEBUG_IF(config.get_disable_runtime_buffer_fusing()) {
+    GPU_DEBUG_IF(concat_node.get_config().get_disable_runtime_buffer_fusing()) {
         do_runtime_buffer_fusing = false;
     }
 

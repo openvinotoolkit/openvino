@@ -91,6 +91,8 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
 
     IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
     m_config.visit_attributes(visitor);
+    m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
+    m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
     imported_prog->load(ib);
