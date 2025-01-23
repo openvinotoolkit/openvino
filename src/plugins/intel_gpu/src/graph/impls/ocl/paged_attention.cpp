@@ -346,7 +346,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         std::vector<event::ptr> res_events;
         std::vector<event::ptr> dep_events = events;
-        if (has_rotated_blocks) {
+        if (has_rotated_blocks && !_kernels_data[Stage::KV_CACHE_ROTATE].kernels[0].skip_execution) {
             execute_stage(dep_events, instance, res_events, Stage::KV_CACHE_ROTATE, is_mixed_mode);
             dep_events = res_events;
         }
