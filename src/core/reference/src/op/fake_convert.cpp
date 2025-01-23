@@ -47,7 +47,8 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
             // 101, 110, 111 - round up > 0x0080
             val_bit_repr += (((rnmask > 0x0080) || (rnmask_tie == rne_tie)) << lshift);
         }
-        val_bit_repr &= mask_mant; /* truncation */
+        val_bit_repr &= mask_mant;                                         /* truncation */
+        val_bit_repr -= (((val_bit_repr & 0x7F00) == fp16_inf) << lshift); /* clamp */
         out_u[i] = val_bit_repr;
     }
 }
