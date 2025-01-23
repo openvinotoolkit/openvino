@@ -3,6 +3,7 @@
 //
 
 #include "program_dump_graph.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "to_string_utils.h"
 #include "data_inst.h"
 #include "condition_inst.h"
@@ -156,7 +157,7 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
 }  // namespace
 
 std::string get_dir_path(const ExecutionConfig& config) {
-    auto path = config.get_dump_graphs_path();
+    std::string path = GPU_DEBUG_VALUE_OR(config.get_dump_graphs_path(), "");
     if (path.empty()) {
         return {};
     }
