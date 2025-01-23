@@ -1,22 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "brgemm_to_brgemm_tpp.hpp"
 
-#include "snippets/utils/utils.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-
 #include "cpu_shape.h"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
 #include "utils/general_utils.h"
-
 
 namespace ov {
 namespace intel_cpu {
@@ -27,13 +23,15 @@ using namespace snippets::lowered;
 
 bool BrgemmToBrgemmTPP::is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
                                                           const ov::element::TypeVector& precisions) {
-    OPENVINO_ASSERT(layouts.size() == 3 && precisions.size() == 3, "snippets::op::Brgemm must have 2 inputs and 1 output");
+    OPENVINO_ASSERT(layouts.size() == 3 && precisions.size() == 3,
+                    "snippets::op::Brgemm must have 2 inputs and 1 output");
     const bool supported_layouts = std::all_of(layouts.begin(), layouts.end(), [](const std::vector<size_t>& layout) {
         return layout.empty() || layout.back() == layout.size() - 1;
     });
-    const bool supported_precisions = std::all_of(precisions.begin(), precisions.end(), [](const ov::element::Type& et) {
-        return et == ov::element::f32;
-    });
+    const bool supported_precisions =
+        std::all_of(precisions.begin(), precisions.end(), [](const ov::element::Type& et) {
+            return et == ov::element::f32;
+        });
     return supported_layouts && supported_precisions;
 }
 
@@ -79,17 +77,28 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         if (precision_a == ov::element::f32) {
             brgemm_tpp = std::make_shared<tpp::op::BrgemmTPP>(brgemm->input_value(0),
                                                               brgemm->input_value(1),
-                                                              offset_a, offset_b, offset_c,
-                                                              layout_a, layout_b, layout_c);
+                                                              offset_a,
+                                                              offset_b,
+                                                              offset_c,
+                                                              layout_a,
+                                                              layout_b,
+                                                              layout_c);
         }
         OPENVINO_ASSERT(brgemm_tpp, "Failed to create BrgemmTPP node in the BrgemmToBrgemmTPP pass");
         brgemm_tpp->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_tpp);
 
-        // Set FULL_DIM tensors on ports to avoid automatic loop markup (blocked loops will be inserted in a separate transformation)
-        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->input(0), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
-        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->input(1), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
-        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->output(0), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
+        // Set FULL_DIM tensors on ports to avoid automatic loop markup (blocked loops will be inserted in a separate
+        // transformation)
+        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->input(0),
+                                                 brgemm_in0_desc->get_subtensor(),
+                                                 brgemm_in0_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->input(1),
+                                                 brgemm_in1_desc->get_subtensor(),
+                                                 brgemm_in1_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->output(0),
+                                                 brgemm_out_desc->get_subtensor(),
+                                                 brgemm_out_desc->get_layout());
 
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
@@ -101,7 +110,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
     register_matcher(m, callback);
 }
-} // namespace pass
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov
