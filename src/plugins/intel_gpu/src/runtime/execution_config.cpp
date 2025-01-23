@@ -264,7 +264,7 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
         }
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision)) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_property(ov::hint::kv_cache_precision) == ov::element::undefined) {
         if (info.supports_immad) {  // MFDNN-11755
             set_property(ov::hint::kv_cache_precision(get_property(ov::hint::inference_precision)));
         } else {
