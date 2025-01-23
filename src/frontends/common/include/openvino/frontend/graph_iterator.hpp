@@ -45,14 +45,10 @@ public:
     virtual std::vector<std::string> get_output_names() const = 0;
 
     /// \brief Returns a map from internal tensor name to (user-defined) external name for inputs
-    virtual std::map<std::string, std::string> get_input_names_map() const {
-        return {};
-    }
+    virtual std::map<std::string, std::string> get_input_names_map() const;
 
     /// \brief Returns a map from internal tensor name to (user-defined) external name for outputs
-    virtual std::map<std::string, std::string> get_output_names_map() const {
-        return {};
-    }
+    virtual std::map<std::string, std::string> get_output_names_map() const;
 };
 
 }  // namespace tensorflow
