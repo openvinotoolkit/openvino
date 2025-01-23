@@ -402,8 +402,9 @@ void Input::cloneBlobIfRequired() {
             if (!size)
                 return;
 
+            // Only LLMs scalar constant nodes with bf16 inferencePrecision need to be checked for saturation
             const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+                (context->getConfig().inferencePrecision == ov::element::bf16 && size == 1) ? true : false;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
