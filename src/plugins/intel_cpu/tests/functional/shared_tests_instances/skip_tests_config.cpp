@@ -175,6 +175,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
+        // Issue: 123320
+        // Input precision bf16 is converted to fp32 by logic in core_config.cpp during ngraph reference test.
+        R"(.*FakeConvertLayerTest.*dataPrecision=bf16.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
