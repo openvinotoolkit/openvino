@@ -3,14 +3,21 @@
 #
 
 import openvino as ov
+from ov_custom_op import Identity
 
 #! [py_frontend_extension_ThresholdedReLU_header]
-import openvino.runtime.opset12 as ops
+import openvino.runtime.opset14 as ops
 from openvino.frontend import ConversionExtension
 #! [py_frontend_extension_ThresholdedReLU_header]
 
 #! [add_extension]
-# Not implemented
+core = ov.Core()
+
+# Use operation type to add operation extension
+core.add_extension(Identity)
+
+# or you can add operation extension object which is equivalent form
+core.add_extension(ov.OpExtension(Identity))
 #! [add_extension]
 
 #! [add_frontend_extension]
