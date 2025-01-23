@@ -4,7 +4,7 @@
 
 #include "openvino/frontend/graph_iterator.hpp"
 
-using namespace ov::frontend::tensorflow;
+using namespace ov::frontend;
 
 std::map<std::string, std::string> GraphIterator::get_input_names_map() const {
     return {};
