@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/util/pp.hpp"
 #include "utils/general_utils.h"
-
-#define THROW_ERROR(...) OPENVINO_THROW("SpaceToDepth layer with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -69,18 +67,18 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        THROW_ERROR("has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
     if (!spaceToDepth)
-        THROW_ERROR("supports only opset1");
+        THROW_CPU_NODE_ERR("supports only opset1");
 
     const auto modeNgraph = spaceToDepth->get_mode();
     if (modeNgraph == ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
@@ -88,21 +86,21 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
     } else if (modeNgraph == ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
-        THROW_ERROR("doesn't support mode: ", ov::as_string(modeNgraph));
+        THROW_CPU_NODE_ERR("doesn't support mode: ", ov::as_string(modeNgraph));
     }
 
     attrs.blockSize = spaceToDepth->get_block_size();
     if (attrs.blockSize == 0)
-        THROW_ERROR("has incorrect block_size parameter is zero!");
+        THROW_CPU_NODE_ERR("has incorrect block_size parameter is zero!");
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
     if (srcRank < 3)
-        THROW_ERROR("has incorrect number of input dimensions");
+        THROW_CPU_NODE_ERR("has incorrect number of input dimensions");
     if (srcRank > 5)
-        THROW_ERROR("doesn't support dimensions with rank greater than 5");
+        THROW_CPU_NODE_ERR("doesn't support dimensions with rank greater than 5");
     if (srcRank != dstRank)
-        THROW_ERROR("has incorrect number of input/output dimensions");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions");
     attrs.nSpatialDims = srcRank - 2;
     attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, attrs.nSpatialDims));
 }
@@ -164,11 +162,11 @@ void SpaceToDepth::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr)
-        THROW_ERROR("has null destination memory");
+        THROW_CPU_NODE_ERR("has null destination memory");
     if (!srcMemPtr)
-        THROW_ERROR("has null input memory");
+        THROW_CPU_NODE_ERR("has null input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR("has unidentified preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
@@ -299,9 +297,9 @@ void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* d
     permuteKernel->execute(srcData, dstData, MB);
 }
 
-void SpaceToDepth::execute(dnnl::stream strm) {
+void SpaceToDepth::execute(const dnnl::stream& strm) {
     if (!execPtr) {
-        THROW_ERROR("doesn't have a compiled executor.");
+        THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
     const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
@@ -309,7 +307,7 @@ void SpaceToDepth::execute(dnnl::stream strm) {
     execPtr->exec(srcData, dstData, MB);
 }
 
-void SpaceToDepth::executeDynamicImpl(dnnl::stream strm) {
+void SpaceToDepth::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

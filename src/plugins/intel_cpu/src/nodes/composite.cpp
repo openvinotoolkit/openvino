@@ -46,7 +46,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
         inConfs.emplace_back(desc);
-        graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        graphInputConfig.emplace_back(node::Input::InputConfig{std::move(desc), true});
     }
 
     std::vector<Input::OutputConfig> graphOutputConfig;
@@ -65,7 +65,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
         outConfs.emplace_back(desc);
     }
 
-    const NodeConfig config(inConfs, outConfs);
+    const NodeConfig config(std::move(inConfs), std::move(outConfs));
 
     supportedPrimitiveDescriptors.clear();
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
@@ -94,11 +94,11 @@ void Composite::createPrimitive() {
     m_graph.Activate(inputMemory, outputMemory);
 }
 
-void Composite::execute(dnnl::stream) {
+void Composite::execute(const dnnl::stream&) {
     m_graph.Infer();
 }
 
-void Composite::executeDynamicImpl(dnnl::stream strm) {
+void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
     // since the shape inference is not performed for the composite node

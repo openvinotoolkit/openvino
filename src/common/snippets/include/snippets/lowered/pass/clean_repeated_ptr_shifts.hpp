@@ -23,7 +23,7 @@ namespace pass {
  */
 class CleanRepeatedDataPointerShifts: public RangedPass {
 public:
-    OPENVINO_RTTI("CleanRepeatedDataPointerShifts", "RangedPass")
+    OPENVINO_RTTI("CleanRepeatedDataPointerShifts", "", RangedPass)
     CleanRepeatedDataPointerShifts() = default;
 
     bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;

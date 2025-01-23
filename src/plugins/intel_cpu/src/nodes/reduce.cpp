@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,8 +142,12 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector =
-                std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                           alg_kind::eltwise_exp,
+                                                                           0.f,
+                                                                           0.f,
+                                                                           1.f,
+                                                                           data_type::f32);
         }
 
         if (mayiuse(avx512_core))
@@ -244,7 +248,7 @@ private:
     Xbyak::Label l_table;
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
-    std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
+    std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
 
     inline void reduce_main() {
         // ================================================================
@@ -1206,11 +1210,12 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this,
-                                                                                                post_op.eltwise.alg,
-                                                                                                post_op.eltwise.alpha,
-                                                                                                post_op.eltwise.beta,
-                                                                                                post_op.eltwise.scale));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                                            post_op.eltwise.alg,
+                                                                                            post_op.eltwise.alpha,
+                                                                                            post_op.eltwise.beta,
+                                                                                            post_op.eltwise.scale,
+                                                                                            data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -1224,8 +1229,12 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         }
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            log_injector =
-                std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f);
+            log_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                           alg_kind::eltwise_log,
+                                                                           0.f,
+                                                                           0.f,
+                                                                           1.f,
+                                                                           data_type::f32);
         }
 
         if (mayiuse(avx512_core))
@@ -1336,9 +1345,9 @@ private:
     Vmm vmm_d_bias = Vmm(8);
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
-    std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> log_injector;
+    std::shared_ptr<jit_uni_eltwise_injector<isa>> log_injector;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
@@ -1914,23 +1923,23 @@ Reduce::getInitializers() {
 
 bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
-            std::dynamic_pointer_cast<const ov::op::util::LogicalReductionKeepDims>(op) == nullptr) {
+        if (ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
+            ov::as_type_ptr<const ov::op::util::LogicalReductionKeepDims>(op) == nullptr) {
             errorMessage = "Reduce node with name " + op->get_friendly_name() +
                            " is not derived from ArithmeticReductionKeepDims or LogicalReductionKeepDims";
             return false;
         }
-        if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(op)) {
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(
-                reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+        if (const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(op)) {
+            auto reduceConst =
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
             }
         }
-        if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::LogicalReductionKeepDims>(op)) {
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(
-                reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+        if (const auto reduce = ov::as_type_ptr<const ov::op::util::LogicalReductionKeepDims>(op)) {
+            auto reduceConst =
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -1940,7 +1949,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Doesn't support Reduce algorithm: " + std::string(op->get_type_info().name);
             return false;
         }
-        if (std::dynamic_pointer_cast<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
@@ -1950,25 +1959,24 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "Reduce node with name '" + getName() + "'";
         getInitializers().at(op->get_type_info())(op, *this);
-        if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(op)) {
+        if (const auto reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(
-                reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst =
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
-                OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
+                THROW_CPU_NODE_ERR("second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
-        } else if (const auto reduce = std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(op)) {
+        } else if (const auto reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            auto reduceConst = std::dynamic_pointer_cast<const ov::opset1::Constant>(
-                reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            auto reduceConst =
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst)
-                OPENVINO_THROW(errorPrefix, " second tensor is not constant!");
+                THROW_CPU_NODE_ERR("second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         }
         set_use_aux_kernel = false;
@@ -1984,24 +1992,24 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
 void Reduce::getSupportedDescriptors() {
     if (getParentEdges().size() != 2)
-        OPENVINO_THROW(errorPrefix, " gets incorrect number of input edges!");
+        THROW_CPU_NODE_ERR("gets incorrect number of input edges!");
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " gets incorrect number of output edges!");
+        THROW_CPU_NODE_ERR("gets incorrect number of output edges!");
 
     if (getInputShapeAtPort(REDUCE_INDEXES).getRank() != 1) {
-        OPENVINO_THROW(errorPrefix, " gets incorrect index vector dimension! Index vector should be 1 dimension.");
+        THROW_CPU_NODE_ERR("gets incorrect index vector dimension! Index vector should be 1 dimension.");
     }
 
     if (keep_dims) {
         if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank())
-            OPENVINO_THROW(errorPrefix, " gets incorrect number of input/output dimensions!");
+            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d =
             getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
         if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d)
-            OPENVINO_THROW(errorPrefix, "gets incorrect number of input/output dimensions!");
+            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
     }
 }
 
@@ -2243,7 +2251,7 @@ void Reduce::prepareParams() {
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
-            OPENVINO_THROW(errorPrefix, " has not found jit_uni_reduce_post_kernel_f32.");
+            THROW_CPU_NODE_ERR("has not found jit_uni_reduce_post_kernel_f32.");
         }
 
         reduce_post_kernel = result.first;
@@ -2262,11 +2270,11 @@ void Reduce::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
     if (!dstMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null destination memory.");
+        THROW_CPU_NODE_ERR("has null destination memory.");
     if (!srcMemPtr)
-        OPENVINO_THROW(errorPrefix, " has null input memory.");
+        THROW_CPU_NODE_ERR("has null input memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW(errorPrefix, " has nullable preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
 
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
@@ -2354,11 +2362,11 @@ void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel
     jit_mode = jit_mode && kernel;
 }
 
-void Reduce::executeDynamicImpl(dnnl::stream strm) {
+void Reduce::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reduce::execute(dnnl::stream strm) {
+void Reduce::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 
@@ -2401,7 +2409,7 @@ void Reduce::execute(dnnl::stream strm) {
             auto out_ptr = reinterpret_cast<float*>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            OPENVINO_THROW(errorPrefix, " supports only plain layout on machine w/o sse42.");
+            THROW_CPU_NODE_ERR("supports only plain layout on machine w/o sse42.");
         }
     }
 }
@@ -3273,7 +3281,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         }
         break;
     default:
-        OPENVINO_THROW(errorPrefix, " gets unsupported reduce mode.");
+        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
     }
 }
 
@@ -3336,7 +3344,7 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         if (axis < 0)
             axis += src_dims.size();
         if (static_cast<size_t>(axis) > src_dims.size())
-            OPENVINO_THROW(errorPrefix, " exceeds data tensor dimension on index to reduce");
+            THROW_CPU_NODE_ERR("exceeds data tensor dimension on index to reduce");
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -3360,11 +3368,11 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
     if (jit_mode && jit_beyond_5D) {
         if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
             std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
-            OPENVINO_THROW(errorPrefix, "gets incorrect number of output dimensions!");
+            THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
             if (out_dims[i] != dst_dims[i])
-                OPENVINO_THROW(errorPrefix, "gets incorrect number of output dimensions!");
+                THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
         }
     }
 }
@@ -3509,7 +3517,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         });
         break;
     default:
-        OPENVINO_THROW(errorPrefix, "gets unsupported reduce mode.");
+        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
     }
 }
 
@@ -3600,7 +3608,7 @@ inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_
         });
         break;
     default:
-        OPENVINO_THROW(errorPrefix, "gets unsupported reduce mode.");
+        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
     }
 }
 

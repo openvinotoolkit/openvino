@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "async_infer_request.h"
+#include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "infer_request.h"
 #include "itt.h"
@@ -44,34 +45,34 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const Config& cfg,
+                             Config cfg,
                              const bool loaded_from_cache,
-                             const std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                             std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
-      m_cfg{cfg},
+      m_cfg{std::move(cfg)},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache),
-      m_sub_memory_manager(sub_memory_manager) {
+      m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
-    IStreamsExecutor::Config executor_confg;
-    if (cfg.exclusiveAsyncRequests) {
+    IStreamsExecutor::Config executor_config;
+    if (m_cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        executor_confg = m_cfg.numSubStreams > 0 ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
-                                                                            1,
-                                                                            1,
-                                                                            ov::hint::SchedulingCoreType::ANY_CORE,
-                                                                            false,
-                                                                            true}
-                                                 : m_cfg.streamExecutorConfig;
-        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
+        executor_config = m_cfg.numSubStreams > 0 ? IStreamsExecutor::Config{"CPUMainStreamExecutor",
+                                                                             1,
+                                                                             1,
+                                                                             ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                             false,
+                                                                             true}
+                                                  : m_cfg.streamExecutorConfig;
+        m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_config);
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -85,11 +86,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, executor_confg.get_streams());
+    int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (executor_confg.get_streams() != 0) {
+    if (executor_config.get_streams() != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -132,7 +133,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                                     false,
                                                                     true,
-                                                                    sub_streams_table,
+                                                                    true,
+                                                                    std::move(sub_streams_table),
                                                                     sub_cfg.streamsRankTable[i]};
             m_sub_compiled_models.push_back(
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
@@ -195,7 +197,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                             get_callback_executor());
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
-        for (auto model : m_sub_compiled_models) {
+        requests.reserve(m_sub_compiled_models.size());
+        for (const auto& model : m_sub_compiled_models) {
             requests.push_back(model->create_infer_request());
         }
         async_infer_request->setSubInferRequest(requests);
@@ -247,6 +250,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::execution_mode.name()),
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::hint::enable_cpu_pinning.name()),
+            RO_property(ov::hint::enable_cpu_reservation.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
@@ -256,11 +260,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
+            RO_property(ov::key_cache_precision.name()),
+            RO_property(ov::value_cache_precision.name()),
+            RO_property(ov::key_cache_group_size.name()),
+            RO_property(ov::value_cache_group_size.name()),
         };
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ro_properties.insert(ro_properties.end(), RO_property(ov::affinity.name()));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         return ro_properties;
     }
@@ -277,21 +281,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == ov::affinity) {
-        const auto affinity = config.threadBindingType;
-        switch (affinity) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-        return ov::Affinity::NONE;
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig.get_threads();
         return decltype(ov::inference_num_threads)::value_type(num_threads);
@@ -307,6 +296,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
+    } else if (name == ov::hint::enable_cpu_reservation.name()) {
+        const bool use_reserve = config.enableCpuReservation;
+        return decltype(ov::hint::enable_cpu_reservation)::value_type(use_reserve);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
@@ -332,6 +324,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::hint::dynamic_quantization_group_size)::value_type(config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(config.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(config.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(config.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(config.valueCacheGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }

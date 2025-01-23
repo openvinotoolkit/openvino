@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
             errorMessage = "Node is not an instance of the Proposal from the operations set v0 or v4.";
             return false;
         }
-        auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
+        auto proposalOp = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
         if (proposalOp->get_attrs().framework != "tensorflow" && !proposalOp->get_attrs().framework.empty()) {
             errorMessage = "Unsupported framework attribute: " + proposalOp->get_attrs().framework;
             return false;
@@ -92,14 +92,14 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto proposalOp = std::dynamic_pointer_cast<const ov::op::v0::Proposal>(op);
+    auto proposalOp = ov::as_type_ptr<const ov::op::v0::Proposal>(op);
     auto proposalAttrs = proposalOp->get_attrs();
 
     conf.feat_stride_ = proposalAttrs.feat_stride;
@@ -156,11 +156,11 @@ void Proposal::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Proposal::executeDynamicImpl(dnnl::stream strm) {
+void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Proposal::execute(dnnl::stream strm) {
+void Proposal::execute(const dnnl::stream& strm) {
     try {
         const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
         const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);

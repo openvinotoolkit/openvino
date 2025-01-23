@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "weights_cache.hpp"
 
 #include <memory>
+#include <utility>
 
 #include "openvino/runtime/system_conf.hpp"
 
@@ -12,11 +13,11 @@ namespace ov {
 namespace intel_cpu {
 
 WeightsSharing::SharedMemory::SharedMemory(std::unique_lock<std::mutex>&& lock,
-                                           const MemoryInfo::Ptr& memory,
+                                           MemoryInfo::Ptr memory,
                                            MemoryPtr newPtr)
     : lock(std::move(lock)),
-      memory(memory),
-      newPtr(newPtr) {}
+      memory(std::move(memory)),
+      newPtr(std::move(newPtr)) {}
 
 WeightsSharing::SharedMemory::operator MemoryPtr() const {
     return memory->sharedMemory.lock();
@@ -31,7 +32,7 @@ void WeightsSharing::SharedMemory::valid(bool b) {
 }
 
 WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string& key,
-                                                               std::function<MemoryPtr(void)> create,
+                                                               const std::function<MemoryPtr(void)>& create,
                                                                bool valid) {
     MemoryInfo::Ptr ptr;
     MemoryPtr newPtr;

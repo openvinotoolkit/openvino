@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
@@ -197,12 +197,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
         {"Ceiling", Type::Eltwise},
+        {"Negative", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
         {"HardSigmoid", Type::Math},
         {"If", Type::If},
-        {"Neg", Type::Math},
         {"Reciprocal", Type::Math},
         {"Selu", Type::Math},
         {"Sign", Type::Math},
@@ -425,6 +425,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseFloor);
         CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
+        CASE(EltwiseNegative);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);
         CASE(EltwiseMinimum);

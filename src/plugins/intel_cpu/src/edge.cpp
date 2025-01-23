@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
             auto vecChildEdges = getChild()->getChildEdgesAtPort(peerInPlacePort);
-            for (auto childEdge : vecChildEdges) {
+            for (const auto& childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
             }
         }
@@ -256,7 +256,7 @@ Edge::ReorderStatus Edge::needReorder() {
 
 void Edge::reuse(MemoryPtr ptr) {
     OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse initialized memory in ", *this);
-    memoryPtr = ptr;
+    memoryPtr = std::move(ptr);
     changeStatus(Status::Allocated);
 
     DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
@@ -298,9 +298,9 @@ void Edge::allocate(MemoryBlockPtr memBlock) {
         OPENVINO_THROW("Unexpected: Memory block ptr is NULL");
     }
 
-    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [this, block = std::move(memBlock)](const MemoryDesc& inputDesc) mutable -> MemoryPtr {
         auto parentPtr = getParent();
-        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memBlock);
+        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, std::move(block));
     };
 
     allocateCommon(allocateFunc);
@@ -316,7 +316,7 @@ std::string Edge::hash() const {
            std::to_string(child_port);
 }
 
-void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
+void Edge::externalAllocate(const WeightsSharing::Ptr& weightsCache) {
     if (status != Status::NeedAllocation)
         return;
 

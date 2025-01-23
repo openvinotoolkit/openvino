@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <utility>
 
 #include "jit_bf16_emitters.hpp"
 #include "jit_emitter.hpp"
@@ -20,7 +22,7 @@ struct load_emitter_params : public emitter_params {
           dst_prc_(dst_prc),
           load_num_(load_num),
           is_fill_(is_fill),
-          fill_value_(fill_value) {}
+          fill_value_(std::move(fill_value)) {}
 
     size_t hash() const override;
 
@@ -99,7 +101,7 @@ private:
                                        int load_size) const;
 
     template <typename Vmm>
-    void fill_with_default(const Vmm& vmm, std::string fill_value, const int& load_num) const;
+    void fill_with_default(const Vmm& vmm, const std::string& fill_value, const int& load_num) const;
 
     void register_table_entries() override;
 

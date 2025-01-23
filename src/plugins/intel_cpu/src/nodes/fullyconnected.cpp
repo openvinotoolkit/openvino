@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #endif
 }
 
-void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) {
+void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
     if (context->getCPUStreamExecutor()) {
         if (!context->getCPUStreamExecutor()->get_rank().empty()) {
             // init tp_cfg.w_rank and tp_cfg.w_size
@@ -167,9 +167,8 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
     }
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, FCShapeInferFactory(op)),
-      errorPrefix("FullyConnected node with name '" + getName() + "'") {
+FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, FCShapeInferFactory(op)) {
     std::string errorMessage;
     initTensorParallelConfig(context);
     if (!isSupportedOperation(op, errorMessage))
@@ -220,7 +219,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         };
 
         int dim = -1;
-        auto dst_shape = dstMemoryBuffer->getShape();
+        const auto& dst_shape = dstMemoryBuffer->getShape();
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
@@ -357,7 +356,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute(dnnl::stream strm) {
+void FullyConnected::execute(const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
@@ -365,7 +364,7 @@ void FullyConnected::execute(dnnl::stream strm) {
     execTensorParallelSync();
 }
 
-void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
+void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -580,14 +579,13 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         // wgt
         // split N direction
         tp_cfg.cached_splited_weight =
-            attrs.weightsNonTransposed
-                ? split_vertical(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size)
-                : split_horizontal(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size);
+            attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                                       : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = tp_cfg.cached_splited_weight;
         // bias
         if (attrs.withBias) {
             auto bias = getSrcMemoryAtPort(BIAS);
-            auto select_bias = split_horizontal(context->getEngine(), std::move(bias), 0, tp_cfg.w_rank, tp_cfg.w_size);
+            auto select_bias = split_horizontal(context->getEngine(), bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
             tp_cfg.cached_splited_bias = std::move(select_bias);
         } else {
             tp_cfg.cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
@@ -595,8 +593,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_BIAS] = tp_cfg.cached_splited_bias;
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
-        tp_cfg.cached_dst =
-            split_horizontal(context->getEngine(), std::move(dst), -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+        tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
         memory[ARG_DST | ARG_ATTR_SCALES] =
             split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
@@ -625,7 +622,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 1. weight shape is dynamic
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
-        auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
+        const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
         if (shape.isDynamic()) {
             tp_cfg.enable_tensor_parallel = false;
         } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {

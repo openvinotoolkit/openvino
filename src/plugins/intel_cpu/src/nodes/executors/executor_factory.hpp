@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "executor.hpp"
 #include "nodes/executors/executor_config.hpp"
@@ -27,12 +28,12 @@ public:
 
     ExecutorFactory(const Attrs& attrs,
                     const PostOps& postOps,
-                    const ExecutorContext::CPtr context,
+                    ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,
                     const std::string& implementationPriority = {})
         : m_attrs(attrs),
           m_postOps(postOps),
-          m_context(context),
+          m_context(std::move(context)),
           m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)) {}
 
     /**

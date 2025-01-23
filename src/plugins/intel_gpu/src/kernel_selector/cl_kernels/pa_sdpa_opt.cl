@@ -62,7 +62,10 @@ KERNEL(pa_sdpa_opt)(
     // past_lens: [sequences_num]
     // subsequence_begins: [sequences_num + 1]
     // block_indices: [used_blocks_num]
-    // block_indices: [sequences_num + 1]
+    // block_indices_begins: [sequences_num + 1]
+    // rotated_block_indices: [num_rotated_blocks ]
+    // rotation_deltas [num_rotated_blocks, 1 || PAGED_ATTENTION_BLOCK_SIZE ]
+    // rotation_trig_lut [MAX_CONTEXT_LEN, HEAD_SIZE]
     //
     // Output shapes:
     // output: [sequences_num, HEADS_NUM * HEAD_SIZE]

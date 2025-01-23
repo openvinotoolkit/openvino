@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
         index_map[order[i]] = i;
     for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shared_node_optimization(sub_graph) || rewritten;
@@ -168,7 +168,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shape_of_upgrade(sub_graph) || rewritten;

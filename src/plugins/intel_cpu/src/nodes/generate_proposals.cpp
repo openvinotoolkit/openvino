@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -304,7 +304,7 @@ bool GenerateProposals::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -338,11 +338,11 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
+void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void GenerateProposals::execute(dnnl::stream strm) {
+void GenerateProposals::execute(const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
             OPENVINO_THROW("Incorrect number of input or output edges!");

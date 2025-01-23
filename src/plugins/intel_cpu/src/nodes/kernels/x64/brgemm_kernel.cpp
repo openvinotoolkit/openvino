@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type inType,
                            bool b_accumulate)
     : M(M),
+      M_blk(matmulOptimalM),
+      M_tail(M % M_blk),
       K(K),
       N(N),
       lda(lda),
@@ -36,10 +38,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
       b_transposed(b_transposed),
       inType(inType),
       b_accumulate(b_accumulate) {
-    // blocking M
-    M_blk = matmulOptimalM;
-    M_tail = M % M_blk;
-
     if (!one_of(inType, ov::element::bf16, ov::element::f16, ov::element::f32))
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
     bool is_f32 = inType == ov::element::f32;
@@ -289,7 +287,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
-    brgCopyKernelConf.orig_wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag = transpose ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;

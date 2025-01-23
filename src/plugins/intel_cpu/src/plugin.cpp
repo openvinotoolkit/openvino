@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,7 +241,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto config = orig_config;
+    const auto& config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
@@ -320,21 +320,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == ov::affinity) {
-        const auto affinity = engConfig.threadBindingType;
-        switch (affinity) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-        return ov::Affinity::NONE;
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (name == ov::device::id.name()) {
         return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
@@ -350,6 +335,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::enable_cpu_pinning) {
         const bool pin_value = engConfig.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
+    } else if (name == ov::hint::enable_cpu_reservation) {
+        const bool reserve_value = engConfig.enableCpuReservation;
+        return decltype(ov::hint::enable_cpu_reservation)::value_type(reserve_value);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
@@ -392,6 +380,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
+    } else if (name == ov::key_cache_precision) {
+        return decltype(ov::key_cache_precision)::value_type(engConfig.keyCachePrecision);
+    } else if (name == ov::value_cache_precision) {
+        return decltype(ov::value_cache_precision)::value_type(engConfig.valueCachePrecision);
+    } else if (name == ov::key_cache_group_size) {
+        return decltype(ov::key_cache_group_size)::value_type(engConfig.keyCacheGroupSize);
+    } else if (name == ov::value_cache_group_size) {
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
@@ -426,6 +422,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::execution_mode.name()),
             RW_property(ov::hint::num_requests.name()),
             RW_property(ov::hint::enable_cpu_pinning.name()),
+            RW_property(ov::hint::enable_cpu_reservation.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
             RW_property(ov::hint::model_distribution_policy.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),
@@ -435,11 +432,11 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
+            RW_property(ov::key_cache_precision.name()),
+            RW_property(ov::value_cache_precision.name()),
+            RW_property(ov::key_cache_group_size.name()),
+            RW_property(ov::value_cache_group_size.name()),
         };
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        rwProperties.insert(rwProperties.end(), RW_property(ov::affinity.name()));
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -563,7 +560,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
-        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }

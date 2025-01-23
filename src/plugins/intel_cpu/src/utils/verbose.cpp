@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "utils/general_utils.h"
@@ -107,7 +107,7 @@ void Verbose::printInfo() {
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str(desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        std::string fmt_str = dnnl::impl::md2fmt_str("", desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");

@@ -24,7 +24,7 @@ namespace pass {
  */
 class InsertSpecificIterations : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertSpecificIterations", "RangedPass")
+    OPENVINO_RTTI("InsertSpecificIterations", "", RangedPass);
     InsertSpecificIterations() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 

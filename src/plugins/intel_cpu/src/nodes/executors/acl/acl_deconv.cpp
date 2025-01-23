@@ -91,7 +91,7 @@ ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
     return ACLDeconvTensorInfo{srcTensorInfo, weiTensorInfo, biasTensorInfo, dstTensorInfo, deconv_info};
 }
 
-AclDeconvExecutor::AclDeconvExecutor(const ExecutorContext::CPtr context) : DeconvExecutor(context) {}
+AclDeconvExecutor::AclDeconvExecutor(ExecutorContext::CPtr context) : DeconvExecutor(std::move(context)) {}
 
 bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,

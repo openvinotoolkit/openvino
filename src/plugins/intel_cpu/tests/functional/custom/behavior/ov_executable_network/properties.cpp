@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/properties.hpp"
+
 #include <gtest/gtest.h>
 
-#include "utils/properties_test.hpp"
-#include "openvino/runtime/system_conf.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "utils/properties_test.hpp"
 
 namespace {
 
@@ -24,7 +25,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::model_name.name()),
         RO_property(ov::optimal_number_of_infer_requests.name()),
         RO_property(ov::num_streams.name()),
-        RO_property(ov::affinity.name()),
         RO_property(ov::inference_num_threads.name()),
         RO_property(ov::enable_profiling.name()),
         RO_property(ov::hint::inference_precision.name()),
@@ -32,6 +32,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::hint::execution_mode.name()),
         RO_property(ov::hint::num_requests.name()),
         RO_property(ov::hint::enable_cpu_pinning.name()),
+        RO_property(ov::hint::enable_cpu_reservation.name()),
         RO_property(ov::hint::scheduling_core_type.name()),
         RO_property(ov::hint::model_distribution_policy.name()),
         RO_property(ov::hint::enable_hyper_threading.name()),
@@ -41,6 +42,10 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
         RO_property(ov::hint::kv_cache_precision.name()),
+        RO_property(ov::key_cache_precision.name()),
+        RO_property(ov::value_cache_precision.name()),
+        RO_property(ov::key_cache_group_size.name()),
+        RO_property(ov::value_cache_group_size.name()),
     };
 
     ov::Core ie;
@@ -84,7 +89,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSetROPropertiesThrow) {
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanThroughputHint) {
     ov::Core ie;
-    int32_t streams = 1; // throughput hint should apply higher number of streams
+    int32_t streams = 1;  // throughput hint should apply higher number of streams
     int32_t value = 0;
 
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
@@ -97,7 +102,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores();  // latency hint should apply lower number of streams
     int32_t value = 0;
 
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
@@ -110,7 +115,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores();  // latency hint should apply lower number of streams
     int32_t value = 0;
 
     OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
@@ -125,7 +130,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanThroughputHint) {
     ov::Core ie;
-    int32_t streams = 1; // throughput hint should apply higher number of streams
+    int32_t streams = 1;  // throughput hint should apply higher number of streams
     int32_t value = 0;
 
     ov::AnyMap config;
@@ -183,6 +188,36 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckKVCachePrecision) {
     ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkFinetuneKVCachePrecision) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::key_cache_precision(ov::element::f16));
+    core.set_property(deviceName, ov::value_cache_precision(ov::element::u4));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    auto key_cache_precision_value = ov::element::undefined;
+    auto value_cache_precision_value = ov::element::undefined;
+    OV_ASSERT_NO_THROW(key_cache_precision_value = compiledModel.get_property(ov::key_cache_precision));
+    OV_ASSERT_NO_THROW(value_cache_precision_value = compiledModel.get_property(ov::value_cache_precision));
+    ASSERT_EQ(key_cache_precision_value, ov::element::f16);
+    ASSERT_EQ(value_cache_precision_value, ov::element::u4);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkFinetuneKVCacheGroupSize) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::key_cache_group_size(32));
+    core.set_property(deviceName, ov::value_cache_group_size(16));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    auto key_cache_group_size_value = 0;
+    auto value_cache_group_size_value = 0;
+    OV_ASSERT_NO_THROW(key_cache_group_size_value = compiledModel.get_property(ov::key_cache_group_size));
+    OV_ASSERT_NO_THROW(value_cache_group_size_value = compiledModel.get_property(ov::value_cache_group_size));
+    ASSERT_EQ(key_cache_group_size_value, 32);
+    ASSERT_EQ(value_cache_group_size_value, 16);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeDynamicQuantizationGroupSize) {
     ov::Core core;
 
@@ -226,7 +261,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableIn
     ASSERT_FALSE(model_exec_mode_it->is_mutable());
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
+TEST_F(OVClassConfigTestCPU,
+       smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
     ov::Core ie;
     auto inference_precision_value = ov::element::undefined;
 
@@ -240,7 +276,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHas
     ASSERT_EQ(inference_precision_value, bf16_if_can_be_emulated);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
+TEST_F(OVClassConfigTestCPU,
+       smoke_CpuExecNetworkCheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
     auto inference_precision_value = ov::element::undefined;
@@ -258,7 +295,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreInferencePrecisionHasH
     ASSERT_EQ(inference_precision_value, ov::element::f32);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
+TEST_F(OVClassConfigTestCPU,
+       smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
     auto inference_precision_value = ov::element::undefined;
@@ -289,14 +327,13 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckLogLevel) {
         OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
         ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
     }
-    //check set and get
-    const std::vector<ov::log::Level> logLevels = {
-        ov::log::Level::ERR,
-        ov::log::Level::NO,
-        ov::log::Level::WARNING,
-        ov::log::Level::INFO,
-        ov::log::Level::DEBUG,
-        ov::log::Level::TRACE};
+    // check set and get
+    const std::vector<ov::log::Level> logLevels = {ov::log::Level::ERR,
+                                                   ov::log::Level::NO,
+                                                   ov::log::Level::WARNING,
+                                                   ov::log::Level::INFO,
+                                                   ov::log::Level::DEBUG,
+                                                   ov::log::Level::TRACE};
 
     for (unsigned int i = 0; i < logLevels.size(); i++) {
         ov::Any value;
@@ -331,50 +368,109 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptions) {
     ov::Core ie;
     ov::Any type;
     ov::Any size;
+    ov::Any keySize;
+    ov::Any valueSize;
+    ov::Any keyCacheType;
+    ov::Any valueCacheType;
     ov::CompiledModel compiledModel;
     model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
     model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    model->set_rt_info("32", "runtime_options", ov::key_cache_group_size.name());
+    model->set_rt_info("16", "runtime_options", ov::value_cache_group_size.name());
+    model->set_rt_info("u8", "runtime_options", ov::key_cache_precision.name());
+    model->set_rt_info("u8", "runtime_options", ov::value_cache_precision.name());
     OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    OV_ASSERT_NO_THROW(keySize = compiledModel.get_property(ov::key_cache_group_size));
+    OV_ASSERT_NO_THROW(valueSize = compiledModel.get_property(ov::value_cache_group_size));
+    OV_ASSERT_NO_THROW(keyCacheType = compiledModel.get_property(ov::key_cache_precision));
+    OV_ASSERT_NO_THROW(valueCacheType = compiledModel.get_property(ov::value_cache_precision));
     ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f16);
     ASSERT_EQ(size.as<uint64_t>(), 0);
+    ASSERT_EQ(keySize.as<uint64_t>(), 32);
+    ASSERT_EQ(valueSize.as<uint64_t>(), 16);
+    ASSERT_EQ(keyCacheType.as<ov::element::Type>(), ov::element::u8);
+    ASSERT_EQ(valueCacheType.as<ov::element::Type>(), ov::element::u8);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCompileConfig) {
     ov::Core ie;
     ov::Any type;
     ov::Any size;
+    ov::Any keySize;
+    ov::Any valueSize;
+    ov::Any keyCacheType;
+    ov::Any valueCacheType;
     ov::CompiledModel compiledModel;
     model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
     model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    model->set_rt_info("0", "runtime_options", ov::key_cache_group_size.name());
+    model->set_rt_info("0", "runtime_options", ov::value_cache_group_size.name());
+    model->set_rt_info("f32", "runtime_options", ov::key_cache_precision.name());
+    model->set_rt_info("f32", "runtime_options", ov::value_cache_precision.name());
     ov::AnyMap config;
     config[ov::hint::kv_cache_precision.name()] = "u8";
     config[ov::hint::dynamic_quantization_group_size.name()] = "16";
+    // propperty has higher priority than rt_info
+    config[ov::key_cache_group_size.name()] = "32";
+    config[ov::value_cache_group_size.name()] = "16";
+    // key/value cache prec has higher priority than kvCachePrec
+    config[ov::key_cache_precision.name()] = "f16";
+    config[ov::value_cache_precision.name()] = "bf16";
     OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
     OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    OV_ASSERT_NO_THROW(keySize = compiledModel.get_property(ov::key_cache_group_size));
+    OV_ASSERT_NO_THROW(valueSize = compiledModel.get_property(ov::value_cache_group_size));
+    OV_ASSERT_NO_THROW(keyCacheType = compiledModel.get_property(ov::key_cache_precision));
+    OV_ASSERT_NO_THROW(valueCacheType = compiledModel.get_property(ov::value_cache_precision));
     ASSERT_EQ(type.as<ov::element::Type>(), ov::element::u8);
     ASSERT_EQ(size.as<uint64_t>(), 16);
+    ASSERT_EQ(keySize.as<uint64_t>(), 32);
+    ASSERT_EQ(valueSize.as<uint64_t>(), 16);
+    ASSERT_EQ(keyCacheType.as<ov::element::Type>(), ov::element::f16);
+    ASSERT_EQ(valueCacheType.as<ov::element::Type>(), ov::element::bf16);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCoreProperties) {
     ov::Core core;
     ov::Any type;
     ov::Any size;
-
+    ov::Any keySize;
+    ov::Any valueSize;
+    ov::Any keyCacheType;
+    ov::Any valueCacheType;
     core.set_property(deviceName, ov::hint::kv_cache_precision(ov::element::f32));
     core.set_property(deviceName, ov::hint::dynamic_quantization_group_size(16));
+    core.set_property(deviceName, ov::key_cache_group_size(8));
+    core.set_property(deviceName, ov::value_cache_group_size(8));
+    core.set_property(deviceName, ov::key_cache_precision(ov::element::f16));
+    core.set_property(deviceName, ov::value_cache_precision(ov::element::bf16));
 
     ov::CompiledModel compiledModel;
     model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
     model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    model->set_rt_info("32", "runtime_options", ov::key_cache_group_size.name());
+    model->set_rt_info("16", "runtime_options", ov::value_cache_group_size.name());
+    // User's setting has higher priority than rt_info
+    model->set_rt_info("f32", "runtime_options", ov::key_cache_precision.name());
+    model->set_rt_info("f32", "runtime_options", ov::value_cache_precision.name());
 
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    OV_ASSERT_NO_THROW(keySize = compiledModel.get_property(ov::key_cache_group_size));
+    OV_ASSERT_NO_THROW(valueSize = compiledModel.get_property(ov::value_cache_group_size));
+    OV_ASSERT_NO_THROW(keyCacheType = compiledModel.get_property(ov::key_cache_precision));
+    OV_ASSERT_NO_THROW(valueCacheType = compiledModel.get_property(ov::value_cache_precision));
+
     ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f32);
     ASSERT_EQ(size.as<uint64_t>(), 16);
+    ASSERT_EQ(keySize.as<uint64_t>(), 8);
+    ASSERT_EQ(valueSize.as<uint64_t>(), 8);
+    ASSERT_EQ(keyCacheType.as<ov::element::Type>(), ov::element::f16);
+    ASSERT_EQ(valueCacheType.as<ov::element::Type>(), ov::element::bf16);
 }
 
-} // namespace
+}  // namespace

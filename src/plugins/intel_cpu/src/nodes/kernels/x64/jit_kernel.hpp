@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,7 +229,7 @@ public:
     variable_base& operator=(const variable_base&) = delete;
 
     variable_base(const variable_base&);
-    variable_base(variable_base&&);
+    variable_base(variable_base&&) noexcept;
 
     reg_type& reg() const {
         return *_reg;
@@ -263,7 +263,7 @@ public:
     variable_base& operator=(const variable_base&) = delete;
 
     variable_base(const variable_base&);
-    variable_base(variable_base&&);
+    variable_base(variable_base&&) noexcept;
 
     reg_type& reg() const {
         return *_addr;
@@ -286,7 +286,7 @@ public:
     using reg_type = const typename base::reg_type;
     using arithmetic_type = typename std::conditional<std::is_pointer<T>::value, size_t, T>::type;
 
-    variable(variable&&) = default;
+    variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
@@ -491,7 +491,7 @@ public:
     using base = variable_base<type*, memory_tag>;
     using reg_type = const typename base::reg_type;
 
-    variable(variable&&) = default;
+    variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
     const variable& operator=(const variable<T, register_tag>& rhs) const;
@@ -505,7 +505,7 @@ public:
     using reg_type = const typename base::reg_type;
     constexpr static size_t length = N;
 
-    variable(variable&&) = default;
+    variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
@@ -546,7 +546,7 @@ class stack_frame {
 
 public:
     stack_frame(jit_kernel& kernel, size_t size, uint32_t alignment = 1);
-    stack_frame(stack_frame&& rhs);
+    stack_frame(stack_frame&& rhs) noexcept;
     ~stack_frame();
     const Xbyak::Reg64& pointer() const;
     void clear() const;
@@ -951,8 +951,9 @@ variable_base<T, register_tag>::variable_base(const variable_base& rhs) : _kerne
                                                                           _reg(rhs._reg) {}
 
 template <typename T>
-variable_base<T, register_tag>::variable_base(variable_base&& rhs) : _kernel(rhs._kernel),
-                                                                     _reg(std::move(rhs._reg)) {}
+variable_base<T, register_tag>::variable_base(variable_base&& rhs) noexcept
+    : _kernel(rhs._kernel),
+      _reg(std::move(rhs._reg)) {}
 
 template <typename T>
 variable_base<T, memory_tag>::variable_base(jit_kernel& krnl, const shared_reg<reg_type>& addr)
@@ -964,8 +965,9 @@ variable_base<T, memory_tag>::variable_base(const variable_base& rhs) : _kernel(
                                                                         _addr(rhs._addr) {}
 
 template <typename T>
-variable_base<T, memory_tag>::variable_base(variable_base&& rhs) : _kernel(rhs._kernel),
-                                                                   _addr(std::move(rhs._addr)) {}
+variable_base<T, memory_tag>::variable_base(variable_base&& rhs) noexcept
+    : _kernel(rhs._kernel),
+      _addr(std::move(rhs._addr)) {}
 
 template <typename T>
 variable<T, register_tag>::variable(jit_kernel& krnl)

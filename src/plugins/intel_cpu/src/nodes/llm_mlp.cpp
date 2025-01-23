@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "llm_mlp.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/bfloat16.hpp"
@@ -36,8 +37,6 @@ public:
     WeightBuffer wbuffer;
 
     LinearKsplit2() {}
-
-    ReduceAdd2bh* p_jit_reduce2bh;
 
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
@@ -201,7 +200,7 @@ public:
         bool quantized_int8 = config.gate_up_quantized;
 
         auto reg_blk_K_size = quantized_int8 ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
-        auto cache_blk_k_size = quantized_int8 ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = quantized_int8 ? sizeof(int8_t) : sizeof(ov::float16);
 
         // prepare weights, split N among threads
@@ -226,9 +225,8 @@ public:
                 blkN++;
             }
             if (blkN) {
-                auto shared_atomic = std::make_shared<std::atomic_int>(0);
                 auto& work = works[ithr];
-                work.sync_flag = shared_atomic;
+                work.sync_flag = std::make_shared<std::atomic_int>(0);
                 work.blk_K_size = cache_blk_k_size;
 
                 work.n0 = (start_blkN)*REG_BLK_N_SIZE;
@@ -342,12 +340,11 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     Executor(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad)
         : m_pnode(pnode),
           m_config(config),
-          m_scrachPad(scrachPad) {
+          m_scrachPad(std::move(scrachPad)),
+          m_rt_prec_f16(std::is_same<T, ov::float16>::value) {
         PlainTensor w_gate(pnode->getSrcMemoryAtPort(1));
         PlainTensor w_up(pnode->getSrcMemoryAtPort(2));
         PlainTensor w_down(pnode->getSrcMemoryAtPort(3));
-
-        m_rt_prec_f16 = std::is_same<T, ov::float16>::value;
 
         // [N, K] [N, K] interleave (16-16-...) into [2*N, K]
         auto K = w_gate.size(1);
@@ -494,19 +491,19 @@ private:
 #else
 template <typename T>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
-    Executor(LLMMLP* pnode, const LLMMLPNode::Config& config, DnnlScratchPadPtr scrachPad) {}
+    Executor(LLMMLP*, const LLMMLPNode::Config&, const DnnlScratchPadPtr&) {}
     void execute() {}
 };
 #endif
 
-LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     const auto& config = context->getConfig();
     if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
-    const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
+    const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
     m_mlp_config = node_mlp->get_config();
 }
 
@@ -592,7 +589,7 @@ void LLMMLP::createPrimitive() {
     }
 }
 
-void LLMMLP::execute(dnnl::stream strm) {
+void LLMMLP::execute(const dnnl::stream& strm) {
     MAYBE_UNUSED(strm);
     m_executor->execute();
 }
@@ -602,7 +599,7 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                   uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
-        const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
+        const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
         if (node_mlp) {
             auto down_proj_w_pshape = op->input_value(1).get_partial_shape();
             if (!down_proj_w_pshape.is_static()) {
