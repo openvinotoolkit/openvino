@@ -16,7 +16,9 @@
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -610,21 +612,25 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
     const auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
     const auto repeated_label_indices =
         ov::op::v0::Constant::create(ov::element::i64, {repeated_label_dims.size()}, repeated_label_dims);
+    const auto repeated_label_indices_len =
+        ov::op::v0::Constant::create(ov::element::i64, {}, {repeated_label_dims.size()});
     const auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
     const auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
     const auto repeated_dimensions = std::make_shared<ov::op::v8::Gather>(input_shape, repeated_label_indices, const_0);
     const auto reduced_dimension = std::make_shared<ov::op::v8::Gather>(repeated_dimensions, const_0, const_0);
-    const auto reduced_dimension_min_1 = std::make_shared<ov::op::v1::Subtract>(reduced_dimension, const_1);
-
-    const auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
-    const auto reduced_size_min_1 = std::make_shared<ov::op::v1::Subtract>(reduced_size, const_1);
-    const auto step_size = std::make_shared<ov::op::v1::Divide>(reduced_size_min_1, reduced_dimension_min_1);
-    const auto range = std::make_shared<ov::op::v4::Range>(const_0, reduced_dimension, const_1, ov::element::i64);
-    const auto steps = std::make_shared<ov::op::v1::Multiply>(range, step_size);
-    const auto zeros = std::make_shared<ov::op::v1::Broadcast>(const_0, reduced_size);
+    const auto range_max_val = std::make_shared<ov::op::v1::Power>(reduced_dimension, repeated_label_indices_len);
+    const auto step_numerator = std::make_shared<ov::op::v1::Subtract>(range_max_val, const_1);
+    const auto step_denominator = std::make_shared<ov::op::v1::Subtract>(reduced_dimension, const_1);
+    const auto step_denominator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_denominator, const_1);
+    const auto step_numerator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_numerator, const_1);
+    const auto step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
+    const auto eye_flattened_indices = std::make_shared<ov::op::v0::Range>(const_0, range_max_val, step);
     const auto reduced_dimension_1d = std::make_shared<ov::op::v0::Unsqueeze>(reduced_dimension, const_0);
     const auto ones = std::make_shared<ov::op::v1::Broadcast>(const_1, reduced_dimension_1d);
-    const auto eye_flattened = std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, steps, ones, const_0);
+    const auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
+    const auto zeros = std::make_shared<ov::op::v1::Broadcast>(const_0, reduced_size);
+    const auto eye_flattened =
+        std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, eye_flattened_indices, ones, const_0);
 
     const auto identity_rank = std::make_shared<ov::op::v0::ShapeOf>(input_shape);
     const auto ones_of_input_shape_rank = std::make_shared<ov::op::v1::Broadcast>(const_1, identity_rank);
@@ -632,24 +638,28 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                                                                                     repeated_label_indices,
                                                                                     repeated_dimensions,
                                                                                     const_0);
+
     const auto identity = std::make_shared<ov::op::v1::Reshape>(eye_flattened, identity_shape, false);
     const auto identity_cvt = std::make_shared<ov::op::v0::Convert>(identity, input_node.get_element_type());
     subgraph_nodes.insert(subgraph_nodes.end(),
                           {input_shape,
                            repeated_label_indices,
+                           repeated_label_indices_len,
                            const_0,
                            const_1,
                            repeated_dimensions,
                            reduced_dimension,
-                           reduced_dimension_min_1,
-                           reduced_size,
-                           reduced_size_min_1,
-                           step_size,
-                           range,
-                           steps,
-                           zeros,
+                           range_max_val,
+                           step_numerator,
+                           step_denominator,
+                           step_denominator_but_not_0,
+                           step_numerator_but_not_0,
+                           step,
+                           eye_flattened_indices,
                            reduced_dimension_1d,
                            ones,
+                           reduced_size,
+                           zeros,
                            eye_flattened,
                            identity_rank,
                            ones_of_input_shape_rank,
@@ -673,12 +683,12 @@ ov::Output<ov::Node> build_multi_identity(ov::pass::EinsumDecomposition* einsum_
     };
 
     // initially set multi-identity with identity for the first repeated label
-    const auto multi_identity = get_identity(0);
+    auto multi_identity = get_identity(0).get_node_shared_ptr();
     for (size_t label_ind = 1; label_ind < repeated_labels.size(); ++label_ind) {
         const auto identity = get_identity(label_ind);
-        const auto mul =
+        multi_identity =
             std::make_shared<ov::op::v1::Multiply>(multi_identity, identity, ov::op::AutoBroadcastType::NUMPY);
-        subgraph_nodes.insert(subgraph_nodes.end(), {mul});
+        subgraph_nodes.insert(subgraph_nodes.end(), {multi_identity});
     }
 
     return subgraph_nodes.back();
