@@ -46,9 +46,7 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
 void ZeroVariableState::reset() {
     auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(m_state._ptr);
 
-    void* userBuffer = !remoteTensor
-                           ? m_state->data()
-                           : zeroUtils::extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+    void* userBuffer = !remoteTensor ? m_state->data() : remoteTensor->get_original_memory();
 
     std::memset(userBuffer, 0, m_state->get_byte_size());
 }
