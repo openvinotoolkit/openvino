@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/any.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -31,9 +32,12 @@ struct ExecutionConfig : public ov::PluginConfig {
     #undef OV_CONFIG_LOCAL_OPTION
     #undef OV_CONFIG_GLOBAL_OPTION
 
+    const ov::AnyMap& get_user_properties() const { return m_user_properties; }
+
 protected:
-    void finalize_impl(std::shared_ptr<IRemoteContext> context) override;
-    void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) override;
+    void finalize_impl(const IRemoteContext* context) override;
+    void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
+    void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm);
     const ov::PluginConfig::OptionsDesc& get_options_desc() const override;
 
     void apply_user_properties(const cldnn::device_info& info);

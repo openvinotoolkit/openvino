@@ -168,7 +168,6 @@ private:
     void prepare_build();
     void cleanup_build();
 
-    // TODO(eunsoo): remove createTopolpgyOnly argument and add another method to create topology from ngraph function
     std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool innerProgram = false);
 
     void CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op);

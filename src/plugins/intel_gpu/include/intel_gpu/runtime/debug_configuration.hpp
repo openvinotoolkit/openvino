@@ -4,11 +4,8 @@
 
 #pragma once
 #include <cstring>
-#include <mutex>
-#include <vector>
-#include <set>
-#include <string>
 #include <iostream>
+#include <filesystem>
 
 #include "intel_gpu/runtime/execution_config.hpp"
 namespace ov::intel_gpu {
@@ -44,37 +41,47 @@ std::ostream& get_verbose_stream();
 }  // namespace ov::intel_gpu
 
 #ifdef GPU_DEBUG_CONFIG
-#if defined(_WIN32)
-#define SEPARATE '\\'
-#else
-#define SEPARATE '/'
-#endif
 
-#define GPU_PREFIX "GPU_Debug: "
+namespace color {
+static constexpr const char dark_gray[] = "\033[1;30m";
+static constexpr const char blue[]      = "\033[1;34m";
+static constexpr const char purple[]    = "\033[1;35m";
+static constexpr const char cyan[]      = "\033[1;36m";
+static constexpr const char reset[]     = "\033[0m";
+}  // namespace color
 
-#define GPU_FILENAME (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
+static constexpr const char prefix[] = "GPU_Debug: ";
+
 #define GPU_DEBUG_IF(cond) if (cond)
 #define GPU_DEBUG_CODE(...) __VA_ARGS__
+
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
     cldnn::instrumentation::mem_usage_logger mem_logger{stage, ov::intel_gpu::ExecutionConfig::get_verbose() >= 2};
-#define GPU_DEBUG_PROFILED_STAGE(stage) \
-    auto stage_prof = cldnn::instrumentation::profiled_stage<primitive_inst>(\
+
+#define GPU_DEBUG_PROFILED_STAGE(stage)                                       \
+    auto stage_prof = cldnn::instrumentation::profiled_stage<primitive_inst>( \
         !get_config().get_dump_profiling_data_path().empty(), *this, stage)
+
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info) stage_prof.add_memalloc_info(info)
 
+#define GPU_DEBUG_LOG_PREFIX ov::intel_gpu::get_verbose_stream() \
+                             << prefix \
+                             << std::filesystem::path(__FILE__).filename().generic_string() << ":" \
+                             << std::to_string(__LINE__) << ":" \
+                             << __func__ << ": "
+
+#define GPU_DEBUG_LOG_COLOR_PREFIX ov::intel_gpu::get_verbose_stream() \
+                                   << color::dark_gray << std::string(prefix) \
+                                   << color::blue << std::filesystem::path(__FILE__).filename().generic_string() << ":" \
+                                   << color::purple << std::to_string(__LINE__) << ":" \
+                                   << color::cyan << __func__ << ": " << color::reset
+
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (ov::intel_gpu::ExecutionConfig::get_verbose() >= min_verbose_level) \
-    (ov::intel_gpu::ExecutionConfig::get_verbose_color() ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
-#define GPU_DEBUG_LOG_RAW(min_verbose_level) GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
-#define GPU_DEBUG_LOG_PREFIX  \
-    ov::intel_gpu::get_verbose_stream() << GPU_PREFIX << GPU_FILENAME << ":" << __LINE__ << ":" << __func__ << ": "
-#define GPU_DEBUG_LOG_COLOR_PREFIX  ov::intel_gpu::get_verbose_stream() << DARK_GRAY << GPU_PREFIX << \
-    BLUE << GPU_FILENAME << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
-#define DARK_GRAY   "\033[1;30m"
-#define BLUE        "\033[1;34m"
-#define PURPLE      "\033[1;35m"
-#define CYAN        "\033[1;36m"
-#define RESET       "\033[0m"
+    (ov::intel_gpu::ExecutionConfig::get_verbose_color() ? GPU_DEBUG_LOG_COLOR_PREFIX : GPU_DEBUG_LOG_PREFIX)
+
+#define GPU_DEBUG_LOG_RAW(min_verbose_level) \
+    GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
 #else
 #define GPU_DEBUG_IF(cond) if (0)
 #define GPU_DEBUG_CODE(...)
@@ -82,7 +89,7 @@ std::ostream& get_verbose_stream();
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
-#define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) ov::intel_gpu::get_verbose_stream() << GPU_PREFIX
+#define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) ov::intel_gpu::get_verbose_stream()
 #endif
 
 #define GPU_DEBUG_COUT              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::DISABLED)
