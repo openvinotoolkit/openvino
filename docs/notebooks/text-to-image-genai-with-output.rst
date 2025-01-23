@@ -23,7 +23,7 @@ the Hugging Face Transformers library to the OpenVINO™ IR format. For
 more details, refer to the `Hugging Face Optimum Intel
 documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 2. Run inference using the `Text-to-Image Generation
-pipeline <https://docs.openvino.ai/2024/openvino-workflow-generative/inference-with-genai.html>`__
+pipeline <https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html>`__
 from OpenVINO GenAI.
 
 

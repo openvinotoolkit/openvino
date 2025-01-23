@@ -438,7 +438,7 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
 
 You can get additional inference speed improvement with `Dynamic
 Quantization of activations and KV-cache quantization on
-CPU <https://docs.openvino.ai/2024/openvino-workflow-generative/inference-with-optimum-intel.html#enabling-openvino-runtime-optimizations>`__.
+CPU <https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-optimum-intel.html#enabling-openvino-runtime-optimizations>`__.
 These options can be enabled with ``ov_config`` as follows:
 
 .. code:: ipython3

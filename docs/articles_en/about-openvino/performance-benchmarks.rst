@@ -132,21 +132,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.6-platform_list.pdf
+      .. button-link:: ../_static/downloads/benchmarking_OV_platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.6-system-info-detailed.xlsx
+      .. button-link:: ../_static/downloads/benchmarking_OV_system_info_detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.6-Performance-Data.xlsx
+      .. button-link:: ../_static/downloads/benchmarking_OV_performance-data.xlsx
          :color: primary
          :outline:
          :expand:

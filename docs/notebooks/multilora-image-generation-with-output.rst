@@ -144,7 +144,7 @@ saved on disk before export. For avoiding this, we will use
 ``export_from_model`` function that accepts initialized model.
 Additionally, for using model with OpenVINO GenAI, we need to export
 tokenizers to OpenVINO format using `OpenVINO
-Tokenizers <https://docs.openvino.ai/2024/openvino-workflow-generative/ov-tokenizers.html>`__
+Tokenizers <https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html>`__
 library.
 
 In this tutorial we will use `Stable Diffusion
