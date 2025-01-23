@@ -115,13 +115,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             std::shared_ptr<ov::Node> result = nullptr;
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
-                result = ov::as_type_ptr<ov::Node>(constant);
+                result = std::dynamic_pointer_cast<ov::Node>(constant);
             else if (constant->get_element_type() == ov::element::u4)
-                result = ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
             else if (weight_u8 && sub_with_convert)
-                result = ov::as_type_ptr<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+                result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
             else
-                result = ov::as_type_ptr<ov::Node>(constant);
+                result = std::dynamic_pointer_cast<ov::Node>(constant);
 
             ov::copy_weightless_cache_attr(node, result);
             return result;
