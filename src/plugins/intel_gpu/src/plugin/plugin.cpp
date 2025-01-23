@@ -114,8 +114,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     auto config_copy = config;
     config_copy.finalize(context.get(), model.get());
 
-    GPU_DEBUG_IF(!config_copy.get_dump_graphs_path().empty()) {
-        auto path_base = config_copy.get_dump_graphs_path() + "/" + cloned_model->get_name();
+    std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");
+    GPU_DEBUG_IF(!dump_path.empty()) {
+        auto path_base = dump_path + "/" + cloned_model->get_name();
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
@@ -134,8 +135,8 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         new_res->set_friendly_name(old_res->get_friendly_name());
     }
 
-    GPU_DEBUG_IF(!config_copy.get_dump_graphs_path().empty()) {
-        auto path_base = config_copy.get_dump_graphs_path() + "/" + cloned_model->get_name() + "_" +  "transformed_func";
+    GPU_DEBUG_IF(!dump_path.empty()) {
+        auto path_base = dump_path + "/" + cloned_model->get_name() + "_" +  "transformed_func";
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
     return cloned_model;

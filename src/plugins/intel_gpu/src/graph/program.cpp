@@ -1376,7 +1376,7 @@ program::primitives_info program::get_current_stage_info() const {
 }
 
 void program::save_pass_info(std::string pass_name) {
-    if (!_config.get_dump_graphs_path().empty())
+    GPU_DEBUG_IF(!_config.get_dump_graphs_path().empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
 }
 
