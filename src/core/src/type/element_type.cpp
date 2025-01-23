@@ -7,6 +7,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <string_view>
 #include <unordered_map>
 
 #include "openvino/core/type/element_type_traits.hpp"
@@ -28,56 +29,109 @@ struct TypeInfo {
     bool m_is_quantized;
     const char* m_cname;
     const char* m_type_name;
-    const std::initializer_list<const char*> m_aliases;
+    const char* const* aliases;
+    size_t alias_count;
 
     bool has_name(const std::string& type) const {
-        return type == m_type_name || std::find(m_aliases.begin(), m_aliases.end(), type) != m_aliases.end();
+        if (type == m_type_name) {
+            return true;
+        } else {
+            const auto last = aliases + alias_count;
+            return std::find(aliases, last, type) != last;
+        }
     }
 
     constexpr bool is_valid() const {
-        constexpr auto null_info = TypeInfo{};
-        return std::tie(m_cname, m_type_name) == std::tie(null_info.m_cname, null_info.m_type_name);
+        return m_cname != nullptr && m_type_name != nullptr;
     }
 };
+;
 
-static constexpr std::array<TypeInfo, enum_types_size> types_info{
-    TypeInfo{std::numeric_limits<size_t>::max(),
-             false,
-             false,
-             false,
-             "undefined",
-             "undefined",
-             {"UNSPECIFIED"}},                                                       // undefined
-    {0, false, false, false, "dynamic", "dynamic", {}},                              // dynamic
-    {8, false, true, false, "char", "boolean", {"BOOL"}},                            // boolean
-    {16, true, true, false, "bfloat16", "bf16", {"BF16"}},                           // bf16
-    {16, true, true, false, "float16", "f16", {"FP16"}},                             // f16
-    {32, true, true, false, "float", "f32", {"FP32"}},                               // f32
-    {64, true, true, false, "double", "f64", {"FP64"}},                              // f64
-    {4, false, true, true, "int4_t", "i4", {"I4"}},                                  // i4
-    {8, false, true, true, "int8_t", "i8", {"I8"}},                                  // i8
-    {16, false, true, false, "int16_t", "i16", {"I16"}},                             // i16
-    {32, false, true, true, "int32_t", "i32", {"I32"}},                              // i32
-    {64, false, true, false, "int64_t", "i64", {"I64"}},                             // i64
-    {1, false, false, false, "uint1_t", "u1", {"U1", "bin", "BIN"}},                 // u1
-    {2, false, false, false, "uint2_t", "u2", {"U2"}},                               // u2
-    {3, false, false, false, "uint3_t", "u3", {"U3"}},                               // u3
-    {4, false, false, false, "uint4_t", "u4", {"U4"}},                               // u4
-    {6, false, false, false, "uint6_t", "u6", {"U6"}},                               // u6
-    {8, false, false, true, "uint8_t", "u8", {"U8"}},                                // u8
-    {16, false, false, false, "uint16_t", "u16", {"U16"}},                           // u16
-    {32, false, false, false, "uint32_t", "u32", {"U32"}},                           // u32
-    {64, false, false, false, "uint64_t", "u64", {"U64"}},                           // u64
-    {4, false, false, true, "nfloat4", "nf4", {"NF4"}},                              // nf4
-    {8, true, true, true, "f8e4m3", "f8e4m3", {"F8E4M3"}},                           // f8e4m3
-    {8, true, true, true, "f8e5m2", "f8e5m2", {"F8E5M2"}},                           // f8e5m2
-    {8 * sizeof(std::string), false, false, false, "string", "string", {"STRING"}},  // string
-    {4, true, true, true, "f4e2m1", "f4e2m1", {"F4E2M1"}},                           // f4e2m1
-    {8, true, true, true, "f8e8m0", "f8e8m0", {"F8E8M0"}}                            // f8e8m0
+constexpr TypeInfo type_info(size_t bitwidth,
+                             bool is_real,
+                             bool is_signed,
+                             bool is_quantized,
+                             const char* cname,
+                             const char* type_name) {
+    return {bitwidth, is_real, is_signed, is_quantized, cname, type_name, nullptr, 0};
+}
+
+template <class Array>
+constexpr TypeInfo type_info(size_t bitwidth,
+                             bool is_real,
+                             bool is_signed,
+                             bool is_quantized,
+                             const char* cname,
+                             const char* type_name,
+                             const Array& aliases) {
+    return {bitwidth, is_real, is_signed, is_quantized, cname, type_name, aliases.data(), aliases.size()};
+}
+
+constexpr auto undefined_aliases = util::make_array("UNSPECIFIED");
+constexpr auto boolean_aliases = util::make_array("BOOL", "boolean", "char");
+constexpr auto bf16_aliases = util::make_array("BF16", "bfloat16");
+constexpr auto f16_aliases = util::make_array("FP16", "float16");
+constexpr auto f32_aliases = util::make_array("FP32", "float");
+constexpr auto f64_aliases = util::make_array("FP64", "double");
+constexpr auto i4_aliases = util::make_array("I4");
+constexpr auto i8_aliases = util::make_array("I8");
+constexpr auto i16_aliases = util::make_array("I16");
+constexpr auto i32_aliases = util::make_array("I32");
+constexpr auto i64_aliases = util::make_array("I64");
+constexpr auto u1_aliases = util::make_array("U1", "bin", "BIN");
+constexpr auto u2_aliases = util::make_array("U2");
+constexpr auto u3_aliases = util::make_array("U3");
+constexpr auto u4_aliases = util::make_array("U4");
+constexpr auto u6_aliases = util::make_array("U6");
+constexpr auto u8_aliases = util::make_array("U8");
+constexpr auto u16_aliases = util::make_array("U16");
+constexpr auto u32_aliases = util::make_array("U32");
+constexpr auto u64_aliases = util::make_array("U64");
+constexpr auto nf4_aliases = util::make_array("NF4");
+constexpr auto f8e4m3_aliases = util::make_array("F8E4M3");
+constexpr auto f8e5m2_aliases = util::make_array("F8E5M2");
+constexpr auto string_aliases = util::make_array("STRING");
+constexpr auto f4e2m1_aliases = util::make_array("F4E2M1");
+constexpr auto f8e8m0_aliases = util::make_array("F8E8M0");
+
+static constexpr std::array<TypeInfo, enum_types_size> types_info = {
+    type_info(std::numeric_limits<size_t>::max(),
+              false,
+              false,
+              false,
+              "undefined",
+              "undefined",
+              undefined_aliases),                                                                 // undefined
+    type_info(0, false, false, false, "dynamic", "dynamic"),                                      // dynamic
+    type_info(8, false, true, false, "char", "boolean", boolean_aliases),                         // boolean
+    type_info(16, true, true, false, "bfloat16", "bf16", bf16_aliases),                           // bf16
+    type_info(16, true, true, false, "float16", "f16", f16_aliases),                              // f16
+    type_info(32, true, true, false, "float", "f32", f32_aliases),                                // f32
+    type_info(64, true, true, false, "double", "f64", f64_aliases),                               // f64
+    type_info(4, false, true, true, "int4_t", "i4", i4_aliases),                                  // i4
+    type_info(8, false, true, true, "int8_t", "i8", i8_aliases),                                  // i8
+    type_info(16, false, true, false, "int16_t", "i16", i16_aliases),                             // i16
+    type_info(32, false, true, true, "int32_t", "i32", i32_aliases),                              // i32
+    type_info(64, false, true, false, "int64_t", "i64", i64_aliases),                             // i64
+    type_info(1, false, false, false, "uint1_t", "u1", u1_aliases),                               // u1
+    type_info(2, false, false, false, "uint2_t", "u2", u2_aliases),                               // u2
+    type_info(3, false, false, false, "uint3_t", "u3", u3_aliases),                               // u3
+    type_info(4, false, false, false, "uint4_t", "u4", u4_aliases),                               // u4
+    type_info(6, false, false, false, "uint6_t", "u6", u6_aliases),                               // u6
+    type_info(8, false, false, true, "uint8_t", "u8", u8_aliases),                                // u8
+    type_info(16, false, false, false, "uint16_t", "u16", u16_aliases),                           // u16
+    type_info(32, false, false, false, "uint32_t", "u32", u32_aliases),                           // u32
+    type_info(64, false, false, false, "uint64_t", "u64", u64_aliases),                           // u64
+    type_info(4, false, false, true, "nfloat4", "nf4", nf4_aliases),                              // nf4
+    type_info(8, true, true, true, "f8e4m3", "f8e4m3", f8e4m3_aliases),                           // f8e4m3
+    type_info(8, true, true, true, "f8e5m2", "f8e5m2", f8e5m2_aliases),                           // f8e5m2
+    type_info(8 * sizeof(std::string), false, false, false, "string", "string", string_aliases),  // string
+    type_info(4, true, true, true, "f4e2m1", "f4e2m1", f4e2m1_aliases),                           // f4e2m1
+    type_info(8, true, true, true, "f8e8m0", "f8e8m0", f8e8m0_aliases)                            // f8e8m0
 };
 
 constexpr bool validate_types_info(decltype(types_info)& info, size_t i = 0) {
-    return i >= info.size() ? true : info[i].is_valid() ? false : validate_types_info(info, i + 1);
+    return i >= info.size() ? true : info[i].is_valid() ? validate_types_info(info, i + 1) : false;
 }
 
 static_assert(validate_types_info(types_info), "Some entries of type_info  have not valid information");
