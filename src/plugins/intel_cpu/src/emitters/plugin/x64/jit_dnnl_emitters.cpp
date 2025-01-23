@@ -22,11 +22,10 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
                                    cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& node,
                                    ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
-    kind = dnnl_eltwise_tanh;
-    alpha = 0.f;
-    beta = 0.f;
-
+    : jit_emitter(host, host_isa, exec_prc),
+      kind(dnnl_eltwise_tanh),
+      alpha(0.f),
+      beta(0.f) {
     set_injector();
 }
 

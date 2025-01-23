@@ -122,6 +122,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
                                                                  streams,
                                                                  1,
                                                                  core_type,
+                                                                 false,
                                                                  enable_cpu_pinning);
 
     return task_executor_config;

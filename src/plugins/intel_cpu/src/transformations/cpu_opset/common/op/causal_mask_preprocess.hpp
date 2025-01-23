@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ public:
         std::string type;
     };
 
-    CausalMaskPreprocessNode(const OutputVector& args, const Config& cfg);
+    CausalMaskPreprocessNode(const OutputVector& args, Config cfg);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

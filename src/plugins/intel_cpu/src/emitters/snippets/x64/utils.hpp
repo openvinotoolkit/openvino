@@ -19,14 +19,6 @@ inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector
     return regs;
 }
 
-inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs) {
-    std::vector<size_t> idxs(regs.size());
-    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) {
-        return reg.idx;
-    });
-    return idxs;
-}
-
 /**
  * @brief If the passed `port` is connected to a Buffer, return its cluster ID.
  *        Otherwise returns SIZE_MAX
@@ -36,11 +28,22 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
 size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 
 /**
- * @brief Find the available register from the pool excepting: abi_param1, RSP, RBP and `used_gpr_idxs`
+ * @brief Find the available register from the pool excepting: abi_param1, abi_param2, RSP and `used_gpr_idxs`
  * @param used_gpr_idxs current used gpr register indexes
  * @return register
  */
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
+
+/**
+ * @brief Returns aux gpr register for dynamic memory access emitters. Returns a register from `aux_gpr_idxs`.
+ * If it's empty, then choose a register that is not in `mem_ptr_reg_idxs` and add it to `regs_to_spill`.
+ * @param mem_ptr_reg_idxs register indexes reserved to store memory pointers in this emitter
+ * @param aux_gpr_idxs pool of available gp register indexes
+ * @param regs_to_spill set of live registers to be spilled before ABI call
+ */
+Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
+                                        const std::vector<size_t>& aux_gpr_idxs,
+                                        std::set<snippets::Reg>& regs_to_spill);
 
 /**
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`
