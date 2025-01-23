@@ -95,7 +95,7 @@ void propagate_constants::run(program& p) {
             }
         }
 
-        if (*in_layout.get() != new_node.get_output_layout()) {
+        if (in_layout && *in_layout.get() != new_node.get_output_layout()) {
             new_node.as<data>().get_primitive()->cache_info->apply_reorder(*in_layout.get(),
                                                                            new_node.get_output_layout());
         }
