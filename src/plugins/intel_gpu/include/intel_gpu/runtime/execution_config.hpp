@@ -19,6 +19,11 @@ struct ExecutionConfig : public ov::PluginConfig {
     explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() { set_property(properties); }
     explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() { set_property(property); }
 
+    // Default operators copy config as is including finalized flag state
+    // In case if the config need updates after finalization clone() method shall be used as it resets finalized flag value.
+    // That's needed to avoid unexpected options update as we call finalization twice: in transformation pipeline
+    // and in cldnn::program c-tor (which is needed to handle unit tests mainly). So this second call may cause unwanted side effects
+    // if config is not marked as finalized, which could have easily happened if copy operator reset finalization flag
     ExecutionConfig(const ExecutionConfig& other);
     ExecutionConfig& operator=(const ExecutionConfig& other);
     ExecutionConfig clone() const;
