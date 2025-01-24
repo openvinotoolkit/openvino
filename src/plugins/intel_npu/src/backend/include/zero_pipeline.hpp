@@ -27,7 +27,7 @@ public:
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    virtual ~Pipeline() = default;
+    ~Pipeline();
 
     void push();
     void pull();
@@ -40,6 +40,9 @@ public:
     void closeCommandListIndex(size_t command_list_index);
 
 protected:
+    void getCommandQueue();
+
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;
@@ -54,14 +57,22 @@ protected:
      */
     size_t _number_of_command_lists;
 
+    CommandQueueFactory _command_queue_factory;
     std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
-    bool sync_output_with_fences_ = true;
+    bool _sync_output_with_fences = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
+
+    uint32_t _group_ordinal;
+    bool _fences_are_created = false;
+    std::mutex _mutex;
+    bool _turbo = false;
+    ze_command_queue_priority_t _ze_queue_priority;
+    std::optional<ze_command_queue_workload_type_t> _ze_workload_type = std::nullopt;
 };
 
 }  // namespace intel_npu

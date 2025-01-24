@@ -22,6 +22,8 @@ EventPool::~EventPool() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
 Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
@@ -53,6 +55,8 @@ Event::~Event() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeEventDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
 CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
@@ -107,6 +111,8 @@ CommandList::~CommandList() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
     ze_mutable_graph_argument_exp_desc_t desc = {
@@ -128,17 +134,17 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
                                 zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                            const ze_command_queue_priority_t& priority,
                            const uint32_t& group_ordinal,
                            bool turbo)
-    : _initStructs(initStructs),
+    : _init_structs(init_structs),
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
 
     if (turbo) {
-        if (_initStructs->getCommandQueueDdiTable().version()) {
+        if (_init_structs->getCommandQueueDdiTable().version()) {
             ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
             queue_desc.pNext = &turbo_cfg;
         } else {
@@ -148,7 +154,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStr
 
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
-        zeCommandQueueCreate(_initStructs->getContext(), _initStructs->getDevice(), &queue_desc, &_handle));
+        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
@@ -159,10 +165,11 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
 
-void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_initStructs->getCommandQueueDdiTable().version()) {
-        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
-                                    _initStructs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
+void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workload_type) const {
+    if (_init_structs->getCommandQueueDdiTable().version()) {
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeSetWorkloadType",
+            _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workload_type));
     } else {
         OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
     }
@@ -173,6 +180,8 @@ CommandQueue::~CommandQueue() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
 Fence::Fence(const CommandQueue& command_queue) : _log("Fence", Logger::global().level()) {
@@ -189,6 +198,47 @@ Fence::~Fence() {
     auto result = zeFenceDestroy(_handle);
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeFenceDestroy failed %#X", uint64_t(result));
+    }
+
+    _handle = nullptr;
+}
+
+CommandQueueFactory::CommandQueueFactory() : _log("CommandQueue", Logger::global().level()) {}
+std::shared_ptr<CommandQueue>& CommandQueueFactory::getCommandQueue(
+    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+    const ze_command_queue_priority_t& priority,
+    const std::optional<ze_command_queue_workload_type_t>& workloadType,
+    const uint32_t& group_ordinal,
+    bool turbo) {
+    if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                               [zeroUtils::toWorkloadEnum(workloadType)] == nullptr) {
+        _log.debug("Create new command queue");
+        _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                               [zeroUtils::toWorkloadEnum(workloadType)] =
+                                   std::make_shared<CommandQueue>(init_structs, priority, group_ordinal, turbo);
+
+        if (zeroUtils::toWorkloadEnum(workloadType) != workload::NOT_SET) {
+            _log.debug("Set workload type");
+            _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                                   [zeroUtils::toWorkloadEnum(workloadType)]
+                                       ->setWorkloadType(*workloadType);
+        }
+    }
+
+    return _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                                  [zeroUtils::toWorkloadEnum(workloadType)];
+}
+void CommandQueueFactory::freeCommandQueue(const ze_command_queue_priority_t& priority,
+                                           const std::optional<ze_command_queue_workload_type_t>& workloadType,
+                                           bool turbo) {
+    if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                               [zeroUtils::toWorkloadEnum(workloadType)]
+                                   .use_count() == 1) {
+        _log.debug("Destroy command queue");
+
+        _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                               [zeroUtils::toWorkloadEnum(workloadType)]
+                                   .reset();
     }
 }
 

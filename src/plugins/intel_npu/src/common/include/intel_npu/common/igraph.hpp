@@ -42,9 +42,8 @@ public:
 
     const std::vector<ArgumentDescriptor>& get_input_descriptors() const;
     const std::vector<ArgumentDescriptor>& get_output_descriptors() const;
-    const std::shared_ptr<CommandQueue>& get_command_queue() const;
 
-    void set_workload_type(const ov::WorkloadType workloadType) const;
+    void set_workload_type(const ov::WorkloadType workloadType);
 
     std::mutex& get_mutex();
 
@@ -56,6 +55,7 @@ public:
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
+    const std::optional<ze_command_queue_workload_type_t> get_ze_workload_type() const;
 
 protected:
     /**
@@ -83,7 +83,6 @@ protected:
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;
 
-    std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::shared_ptr<Event>> _last_submitted_event;
 
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
@@ -100,6 +99,8 @@ protected:
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
      */
     std::optional<std::size_t> _batch_size = std::nullopt;
+
+    std::optional<ze_command_queue_workload_type_t> _ze_workload_type = std::nullopt;
 
     Logger _logger;
 };
