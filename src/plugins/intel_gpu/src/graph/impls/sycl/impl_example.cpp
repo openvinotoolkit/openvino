@@ -134,7 +134,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::sycl::fully_connected_sycl_example)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<fully_connected_sycl_example>(*this);
+        return std::make_unique<fully_connected_sycl_example>(*this);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */, typed_primitive_inst<fully_connected>& instance) override {
@@ -255,7 +255,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        return cldnn::make_unique<fully_connected_sycl_example>(engine, config, get_weights_reorder(impl_params));
+        return std::make_unique<fully_connected_sycl_example>(engine, config, get_weights_reorder(impl_params));
     }
 };
 

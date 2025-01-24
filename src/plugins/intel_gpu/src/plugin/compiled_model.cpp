@@ -194,8 +194,8 @@ void CompiledModel::export_model(std::ostream& model) const {
     const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
         encryption_enabled
-            ? cldnn::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
-            : cldnn::make_unique<cldnn::BinaryOutputBuffer>(model);
+            ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
+            : std::make_unique<cldnn::BinaryOutputBuffer>(model);
     auto& ob = *ob_ptr;
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
