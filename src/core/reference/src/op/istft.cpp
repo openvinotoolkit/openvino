@@ -37,12 +37,6 @@ void istft(const float* in_data,
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
     const auto final_signal_length = length > 0 ? length : (center ? (signal_length - frame_size) : signal_length);
 
-    // auto signal_length = (num_frames - 1) * frame_step;
-    // if (!center) {
-    //     signal_length += frame_size;
-    // }
-    // const auto final_signal_length = length > 0 ? length : signal_length;
-
     std::vector<float> mid_result(batch_size * signal_length, 0);
     float* result = mid_result.data();
 
@@ -98,40 +92,11 @@ void istft(const float* in_data,
                            op::AutoBroadcastType::NUMPY);
 
             std::transform(window_sum.begin() + out_frame_start,
-                           window_sum.begin() + out_frame_start + frame_size,
+                           window_sum.begin() + out_frame_end,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
                            std::plus<float>());
-
-            // std::transform(result + out_frame_start,
-            //             result + out_frame_start + frame_size,
-            //             pad_window.begin(),
-            //             result + out_frame_start,
-            //             [](float a, float b) {
-            //                 if (b != 0.f)
-            //                     return a / b;
-            //                 else
-            //                     return 0.f;
-            //             });
-
-            // reference::multiply(result + out_frame_start,
-            //                     pad_window.data(),
-            //                     result + out_frame_start,
-            //                     frame_size_dim_shape,
-            //                     frame_size_dim_shape,
-            //                     op::AutoBroadcastType::NUMPY);
         }
-
-        // std::transform(result + batch_out_start,
-        //                result + batch_out_start + signal_length,
-        //                window_sum.begin(),
-        //                result + batch_out_start,
-        //                [](float a, float b) {
-        //                    if (b != 0.f)
-        //                        return a / (b*b);
-        //                    else
-        //                        return 0.f;
-        //                });
 
         std::transform(result + batch_out_start,
                        result + batch_out_start + signal_length,
