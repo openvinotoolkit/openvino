@@ -78,7 +78,6 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         if (auto constant = ov::util::get_constant_from_source(gather)) {
             return register_new_node(constant);
         }
-        register_new_node(shape_of);
         register_new_node(dim_to_extract_const);
         return register_new_node(gather);
     };
