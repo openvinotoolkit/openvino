@@ -29,9 +29,40 @@ std::vector<std::vector<InputShape>> get_shapes_3D() {
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_3D,
                          MLP,
                          ::testing::Combine(::testing::ValuesIn(get_shapes_3D()),
-                                            ::testing::ValuesIn(precision_f32(1)[0]),
+                                            ::testing::ValuesIn(precision_f32(1)),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(1),
                                             ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MLP::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_3D_BF16,
+                         MLP,
+                         ::testing::Combine(::testing::ValuesIn(get_shapes_3D()),
+                                            ::testing::ValuesIn(precision_bf16_if_supported(1)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(3), // MLP subgraph + input and output Convert (also subgraphs)
+                                            ::testing::Values(3),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MLP::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_3D_EnforceBF16_NoConverts,
+                         MLP,
+                         ::testing::Combine(::testing::ValuesIn(get_shapes_3D()),
+                                            ::testing::ValuesIn(precision_bf16_if_supported(1)),
+                                            ::testing::Values(ov::element::bf16),
+                                            ::testing::Values(1),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         MLP::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_3D_EnforceBF16,
+                         MLP,
+                         ::testing::Combine(::testing::ValuesIn(get_shapes_3D()),
+                                            ::testing::ValuesIn(precision_f32(1)),
+                                            ::testing::Values(ov::element::bf16),
+                                            ::testing::Values(6), // 3 Subgraphs + 3 Reorders after Constants
+                                            ::testing::Values(3), // MLP subgraph + input and output Convert (also subgraphs)
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MLP::getTestCaseName);
 

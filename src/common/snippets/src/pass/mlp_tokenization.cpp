@@ -33,7 +33,6 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
         if (transformation_callback(last_matmul)) {
             return false;
         }
-
         NodeVector ordered_ops {last_matmul};
         auto fuse_single_in_chain = [&ordered_ops](const std::shared_ptr<ov::Node>& start) {
             auto in = start;
@@ -49,22 +48,38 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
             return false;
         ordered_ops.push_back(last_not_fused);
 
-        const auto left_not_fused = fuse_single_in_chain(last_not_fused->get_input_node_shared_ptr(0));
-        const auto right_not_fused = fuse_single_in_chain(last_not_fused->get_input_node_shared_ptr(1));
+        const auto left_matmul = fuse_single_in_chain(last_not_fused->get_input_node_shared_ptr(0));
+        const auto right_matmul = fuse_single_in_chain(last_not_fused->get_input_node_shared_ptr(1));
         // Eltwise fusing chains must be interrupted by FullyConnected nodes
-        if (!m.match(left_not_fused) || !m.match(right_not_fused))
+        auto match_allowed_by_callback = [&m, this](const std::shared_ptr<Node>& n) {
+            return m.match(n) && !transformation_callback(m.get_match_root());
+        };
+        if (!match_allowed_by_callback(left_matmul) || !match_allowed_by_callback(right_matmul))
             return false;
-        ordered_ops.push_back(right_not_fused);
-        ordered_ops.push_back(left_not_fused);
+        ordered_ops.push_back(right_matmul);
+        ordered_ops.push_back(left_matmul);
+        // Note: Insert Reshape between Constant and MatMul if the rank of Constant's tensor lower than the rank of activations
+        auto reshape_constant = [](const std::shared_ptr<Node>& n) {
+            const auto& act_rank = n->get_input_partial_shape(0).rank();
+            const auto& wei_shape = n->get_input_shape(1);
+            OPENVINO_ASSERT(act_rank.is_static(), "Rank of input shapes should be static at this point");
+            const auto act_rank_len = static_cast<size_t>(act_rank.get_length());
+            const auto wei_rank_len = wei_shape.size();
+            OPENVINO_ASSERT(wei_rank_len <= act_rank_len, "Weights rank is expected to be smaller than the activation's rank");
+            if (act_rank_len == wei_rank_len)
+                return;
+            ov::Shape target_shape(act_rank_len, 1);
+            std::copy(wei_shape.rbegin(), wei_shape.rend(), target_shape.rbegin());
+            const auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{target_shape.size()}, target_shape);
+            const auto reshape = std::make_shared<ov::op::v1::Reshape>(n->get_input_source_output(1), shape_const, false);
+            n->input(1).replace_source_output(reshape->output(0));
+        };
+        reshape_constant(last_matmul);
+        reshape_constant(left_matmul);
+        reshape_constant(right_matmul);
         std::reverse(ordered_ops.begin(), ordered_ops.end());
 
-        for (auto op : ordered_ops)
-            std::cerr << op->get_friendly_name() << "\n";
-        std::cerr << "++++++++++++++++++++++++++++++++++++++++\n";
-
         auto subgraph = utils::wrap_nodes_as_subgraph(ordered_ops);
-//        ov::pass::Serialize(std::string("snsdebug_wrapped.xml"),
-//                            std::string("snsdebug_wrapped.bin")).run_on_model(subgraph->body_ptr());
         // todo: seems like we don't need to set this thing if subgraph is already complete
         //subgraph->set_virtual_port_count(hidden_virtual_ports_count);
         SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);

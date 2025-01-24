@@ -80,14 +80,6 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SnippetsTokenization);
     ov::pass::Manager manager(get_pass_config(), "Snippets:Tokenization");
     manager.set_per_pass_validation(false);
-//    ov::pass::Serialize("snsdebug_ngraph.xml", "snsdebug_ngraph.bin").run_on_model(m);
-
-    //
-    for (auto op : m->get_ordered_ops())
-        std::cerr << op->get_friendly_name() << "\n";
-    std::cerr << "==================================\n";
-    //
-
 
     manager.register_pass<EnumerateNodes>();
     manager.register_pass<ExtractReshapesFromMHA>();
@@ -95,16 +87,18 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // 1. It has higher priority than other tokenization passes
     // 2. It changes the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
-//    manager.register_pass<ov::pass::Serialize>(std::string("snsdebug_ngraph.xml"), std::string("snsdebug_ngraph.bin"));
     manager.register_pass<TokenizeMLPSnippets>(m_config);
+//    manager.register_pass<ov::pass::Serialize>(std::string("snsdebug_ngraph.xml"), std::string("snsdebug_ngraph.bin"));
 
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
     tokenization_passes->add_matcher<TokenizeGNSnippets>();
-    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
+//    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
     tokenization_passes->add_matcher<TokenizeSnippets>(m_config);
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
+
+//    ov::pass::Serialize(std::string("snsdebug_ngraph.xml"), std::string("snsdebug_ngraph.bin")).run_on_model(m);
 
     // Returning value is false because pass::Manager always apply Validation pass if function was changed.
     // But we don't need to validate the model
