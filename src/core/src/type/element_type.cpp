@@ -68,11 +68,11 @@ constexpr TypeInfo type_info(size_t bitwidth,
 }
 
 constexpr auto undefined_aliases = util::make_array("UNSPECIFIED");
-constexpr auto boolean_aliases = util::make_array("BOOL", "boolean", "char");
-constexpr auto bf16_aliases = util::make_array("BF16", "bfloat16");
-constexpr auto f16_aliases = util::make_array("FP16", "float16");
-constexpr auto f32_aliases = util::make_array("FP32", "float");
-constexpr auto f64_aliases = util::make_array("FP64", "double");
+constexpr auto boolean_aliases = util::make_array("BOOL");
+constexpr auto bf16_aliases = util::make_array("BF16");
+constexpr auto f16_aliases = util::make_array("FP16");
+constexpr auto f32_aliases = util::make_array("FP32");
+constexpr auto f64_aliases = util::make_array("FP64");
 constexpr auto i4_aliases = util::make_array("I4");
 constexpr auto i8_aliases = util::make_array("I8");
 constexpr auto i16_aliases = util::make_array("I16");
