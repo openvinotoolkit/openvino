@@ -369,7 +369,7 @@ public:
             kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
         }
 
-        return cldnn::make_unique<scaled_dot_product_attention_impl>(kernels_data);
+        return std::make_unique<scaled_dot_product_attention_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
