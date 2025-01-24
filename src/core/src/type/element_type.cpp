@@ -161,15 +161,28 @@ Type type_from_string(const std::string& type) {
     OPENVINO_ASSERT(is_valid_type_idx(type_idx), "Unsupported element type: ", type);
     return {static_cast<Type_t>(type_idx)};
 }
+
+// generate known type automatically
+static constexpr auto known_types = [] {
+    std::array<Type, enum_types_size - 1> types;
+    for (size_t idx = 1, i = 0; i < types.size(); ++idx, ++i) {
+        types[i] = Type{static_cast<Type_t>(idx)};
+    }
+    return types;
+}();
 }  // namespace
 
+template <>
 std::vector<const Type*> Type::get_known_types() {
-    // clang-format off
-    static constexpr auto known_types = ov::util::make_array(
-        &dynamic, &boolean, &bf16, &f16,    &f32,    &f64,    &i4,     &i8,    &i16,
-        &i32,     &i64,     &u1,   &u2,     &u3,     &u4,     &u6,     &u8,    &u16,
-        &u32,     &u64,     &nf4,  &f8e4m3, &f8e5m2, &string, &f4e2m1, &f8e8m0);
-    // clang-format on
+    std::vector<const Type*> result(known_types.size());
+    for (size_t i = 0; i < known_types.size(); ++i) {
+        result[i] = &known_types[i];
+    }
+    return result;
+}
+
+template <>
+std::vector<Type> Type::get_known_types() {
     return {known_types.begin(), known_types.end()};
 }
 

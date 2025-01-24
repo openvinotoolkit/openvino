@@ -95,7 +95,9 @@ public:
     // The name of this type, the enum name of this type
     std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
-    static std::vector<const Type*> get_known_types();
+
+    template <class T = Type>
+    static std::vector<T> get_known_types();
 
     /// \brief Checks whether this element type is merge-compatible with `t`.
     /// \param t The element type to compare this element type to.
@@ -132,6 +134,14 @@ public:
 private:
     Type_t m_type{Type_t::undefined};
 };
+
+template <>
+OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2026.0. Use std::vector<Type> "
+                    "ov::element::Type::get_element_types() instead")
+OPENVINO_API std::vector<const Type*> Type::get_known_types();
+
+template <>
+OPENVINO_API std::vector<Type> Type::get_known_types();
 
 using TypeVector = std::vector<Type>;
 

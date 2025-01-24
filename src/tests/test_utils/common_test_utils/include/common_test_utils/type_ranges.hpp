@@ -110,8 +110,8 @@ struct RangeByType {
     std::map<ov::element::Type, ov::test::utils::InputGenerateData> data;
 
     RangeByType() {
-        for (auto& type : ov::element::Type::get_known_types()) {
-            data[*type] = get_range_by_type(*type);
+        for (const auto& type : ov::element::Type::get_known_types()) {
+            data[type] = get_range_by_type(type);
         }
     }
 
