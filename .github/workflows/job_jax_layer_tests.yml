@@ -26,6 +26,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_SHARE_PATH_WIN: "C:\\mount\\huggingface"
 
 jobs:
   JAX_Layer_Tests:
@@ -80,8 +81,7 @@ jobs:
 
       - name: Extract OpenVINO artifacts (Windows)
         if: runner.os == 'Windows'
-        run: |
-            Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
+        run: Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions
@@ -107,6 +107,10 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
+
+      - name: Check share Windows
+        if: ${{ runner.os == 'Windows' }}
+        run: dir ${{ env.HF_SHARE_PATH_WIN }}
 
       - name: Install JAX Layer tests dependencies
         run: |
