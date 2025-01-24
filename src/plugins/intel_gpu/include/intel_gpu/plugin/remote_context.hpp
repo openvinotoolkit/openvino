@@ -19,7 +19,6 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <atomic>
 
 namespace ov::intel_gpu {
 

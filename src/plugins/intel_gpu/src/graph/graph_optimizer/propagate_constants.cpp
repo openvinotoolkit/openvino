@@ -133,7 +133,7 @@ propagate_constants::calculate(engine& engine,
     if (!has_non_trivial_constants)
         return {};
 
-    ExecutionConfig cf_config = config;
+    ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     cf_config.finalize(engine);

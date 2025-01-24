@@ -111,7 +111,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // impacts value of use_onednn property. But in order to understand if there's an op of this type we have to run
     // common optimizations which may do subgraph fusion to LSTMSequence op. So basically, final value of use_onednn
     // property can be computed for transformed model only.
-    auto config_copy = config;
+    auto config_copy = config.clone();
     config_copy.finalize(context.get(), model.get());
 
     std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");

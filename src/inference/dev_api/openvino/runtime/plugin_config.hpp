@@ -99,11 +99,7 @@ enum class OptionVisibility : uint8_t {
     RELEASE_INTERNAL = 1 << 1,   // Option can be set for any build type via environment and config file only
     DEBUG = 1 << 2,              // Option can be set for debug builds only via environment and config file
     DEBUG_GLOBAL = 1 << 3,       // Global option can be set for debug builds only via environment and config file
-#ifdef ENABLE_DEBUG_CAPS
-    ANY = 0x0F,                  // Any visibility is valid including DEBUG & DEBUG_GLOBAL
-#else
-    ANY = 0x03,                  // Any visibility is valid excluding DEBUG & DEBUG_GLOBAL
-#endif
+    ANY = 0xFF,                  // Any visibility is valid
 };
 
 inline OptionVisibility operator&(OptionVisibility a, OptionVisibility b) {
@@ -126,6 +122,8 @@ inline std::ostream& operator<<(std::ostream& os, const OptionVisibility& visibi
     case OptionVisibility::RELEASE: os << "RELEASE"; break;
     case OptionVisibility::RELEASE_INTERNAL: os << "RELEASE_INTERNAL"; break;
     case OptionVisibility::DEBUG: os << "DEBUG"; break;
+    case OptionVisibility::DEBUG_GLOBAL: os << "DEBUG_GLOBAL"; break;
+    case OptionVisibility::ANY: os << "ANY"; break;
     default: os << "UNKNOWN"; break;
     }
 
@@ -181,11 +179,13 @@ struct ConfigOption : public ConfigOptionBase {
         return *this;
     }
 
-    bool operator==(const T& val) const {
-        return value == val;
+    template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    bool operator==(const U& val) const {
+        return value == static_cast<T>(val);
     }
 
-    bool operator!=(const T& val) const {
+    template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    bool operator!=(const U& val) const {
         return !(*this == val);
     }
 

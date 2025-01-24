@@ -135,6 +135,11 @@ bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void PluginConfig::apply_debug_options(const IRemoteContext* context) {
     const bool throw_on_error = false;
+#ifdef ENABLE_DEBUG_CAPS
+    constexpr const auto allowed_visibility = OptionVisibility::ANY;
+#else
+    constexpr const auto allowed_visibility = OptionVisibility::RELEASE;
+#endif
 
     if (context) {
         ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
@@ -144,7 +149,7 @@ void PluginConfig::apply_debug_options(const IRemoteContext* context) {
             std::cout << "Non default config value for " << prop.first << " = " << prop.second.as<std::string>() << std::endl;
         }
 #endif
-        set_user_property(config_properties, OptionVisibility::ANY, throw_on_error);
+        set_user_property(config_properties, allowed_visibility, throw_on_error);
     }
 
     ov::AnyMap env_properties = read_env();
@@ -154,7 +159,7 @@ void PluginConfig::apply_debug_options(const IRemoteContext* context) {
         std::cout << "Non default env value for " << prop.first << " = " << prop.second.as<std::string>() << std::endl;
     }
 #endif
-    set_user_property(env_properties, OptionVisibility::ANY, throw_on_error);
+    set_user_property(env_properties, allowed_visibility, throw_on_error);
 }
 
 ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std::string& target_device_name) const {

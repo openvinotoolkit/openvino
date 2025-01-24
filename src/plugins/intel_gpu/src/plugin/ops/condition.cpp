@@ -21,7 +21,7 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
                     << internal_body->get_friendly_name()
                     << ", num inputs: " << op->get_input_size() << std::endl;
 
-    auto config = p.get_config();
+    auto config = p.get_config().clone();
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
     config.finalize(p.get_engine());

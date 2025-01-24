@@ -21,6 +21,7 @@ struct ExecutionConfig : public ov::PluginConfig {
 
     ExecutionConfig(const ExecutionConfig& other);
     ExecutionConfig& operator=(const ExecutionConfig& other);
+    ExecutionConfig clone() const;
 
     void finalize(cldnn::engine& engine);
     using ov::PluginConfig::finalize;

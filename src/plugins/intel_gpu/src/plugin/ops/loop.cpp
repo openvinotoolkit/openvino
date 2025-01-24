@@ -297,7 +297,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     auto output_names_vec = GetOutputNames(layerName, body_execution_condition_id, output_primitive_maps, back_edges);
 
-    auto config = p.get_config();
+    auto config = p.get_config().clone();
     config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
     config.finalize(p.get_engine());
 
