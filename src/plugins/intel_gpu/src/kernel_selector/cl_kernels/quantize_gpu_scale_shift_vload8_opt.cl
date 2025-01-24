@@ -41,15 +41,6 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 
     OUTPUT_VEC_TYPE res;
 
-    INPUT1_TYPE input_scale_val  = IN_SCALE_VAL;
-
-    INPUT1_TYPE input_shift_val  = IN_SHIFT_VAL;
-
-    INPUT1_TYPE output_scale_val = OUT_SCALE_VAL;
-
-    INPUT1_TYPE output_shift_val = OUT_SHIFT_VAL;
-
-
 #if HAS_CLAMP
 #if CAN_USE_OUTPUT_RANGE
     INPUT1_TYPE output_low_val   = OUT_LO_VAL;
@@ -67,9 +58,9 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #if CAN_USE_OUTPUT_RANGE
 
 #if HAS_PRE_SHIFT
-    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * input_scale_val + input_shift_val;
+    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * IN_SCALE_VAL + IN_SHIFT_VAL;
 #else
-    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * input_scale_val;
+    INPUT1_VEC_TYPE val = TO_VECTOR_TYPE(INPUT1_TYPE, 8)(in0) * IN_SCALE_VAL;
 #endif
 
 #if HAS_OUTPUT_RANGE_ROUND
@@ -77,11 +68,11 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_POST_SCALE
-    val *= output_scale_val;
+    val *= OUT_SCALE_VAL;
 #endif
 
 #if HAS_POST_SHIFT
-    val += output_shift_val;
+    val += OUT_SHIFT_VAL;
 #endif
 
 #if HAS_CLAMP
@@ -107,17 +98,17 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_PRE_SHIFT
-    val = round(val * input_scale_val + input_shift_val);
+    val = round(val * IN_SCALE_VAL + IN_SHIFT_VAL);
 #else
-    val = round(val * input_scale_val);
+    val = round(val * IN_SCALE_VAL);
 #endif
 
 #if HAS_POST_SCALE
-    val *= output_scale_val;
+    val *= OUT_SCALE_VAL;
 #endif
 
 #if HAS_POST_SHIFT
-    val += output_shift_val;
+    val += OUT_SHIFT_VAL;
 #endif
 
 #endif // CAN_USE_OUTPUT_RANGE
@@ -127,7 +118,7 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 // *********************************** //
 
 #if FEATURE_BLOCKED_FORMAT
-    if (of < OUTPUT_FEATURE_NUM)
+    //if (of < OUTPUT_FEATURE_NUM)
 #endif
 #if OUTPUT_IS_FP
         res = TO_VECTOR_TYPE_SAT(OUTPUT_TYPE, 8)(val);

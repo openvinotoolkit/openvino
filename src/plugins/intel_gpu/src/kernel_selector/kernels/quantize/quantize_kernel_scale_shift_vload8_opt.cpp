@@ -51,27 +51,6 @@ JitConstants QuantizeKernelScaleShift_vload8::GetJitConstants(const quantize_par
                                                               const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
-        jit.AddConstant(MakeJitConstant("FEATURE_BLOCKED_FORMAT", true));
-        jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));
-        jit.AddConstant(MakeJitConstant("GWS_FEATURE", 1));
-        jit.AddConstant(MakeJitConstant("GWS_YX", 0));
-        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
-    } else {
-        auto tensor_jits = GetTensorFriendlyWorkGroupsJit(params.outputs[0]);
-        jit.Merge(tensor_jits);
-    }
-
     auto can_use_output_range = params.per_tensor_output_range && params.out_lo < params.out_hi;
     auto has_output_range_round =
         !(params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8);
@@ -106,31 +85,25 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
         !params.per_tensor_output_scale || !params.per_tensor_output_shift ||
         (params.has_pre_shift && !params.per_tensor_input_shift))
         return false;
-    // TBD, do we really need the strick block_size checking to support blocked foramt?
-    for (size_t i = 0; i < params.inputs.size(); i++) {
-        const auto input_layout = params.inputs[i].GetLayout();
-        const auto batch_size = params.inputs[i].Batch().v;
-        const auto feature_size = params.inputs[i].Feature().v;
-        if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
-            (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
-            (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
-            (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
-            input_layout == DataLayout::fs_b_yx_fsv32 ||
-            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
-            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
+    /*auto check_blocked_format = [] (const DataTensor& dt) -> bool {
+        // if padding is there for blocked format, there will be uncessary cals introduced if directly using vec compute
+        auto feature_block_size = 16;
+        auto feature_size = dt.Feature().v;
+        if (feature_size % feature_block_size != 0)
             return false;
-    }
-    if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.outputs[0].Feature().v % 16 != 0) ||
-        (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && params.outputs[0].Feature().v % 32 != 0) ||
-        (params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.outputs[0].Feature().v % 16 != 0) ||
-        (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && params.outputs[0].Feature().v % 8 != 0) ||
-        params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-        (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-         (params.outputs[0].Feature().v % 16 != 0 || params.outputs[0].Batch().v % 32 != 0)) ||
-        (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-         (params.outputs[0].Feature().v % 32 != 0 || params.outputs[0].Batch().v % 32 != 0)))
+        if (dt.DoubleBlockedLayout()) {
+            auto batch_size = dt.Batch().v;
+            if (batch_size % feature_block_size != 0)
+                return false;
+        }
+        return true;
+    };*/
+    if (!params.outputs[0].SimpleLayout() || params.outputs[0].GetLayout() != params.inputs[0].GetLayout() || params.outputs[0].PhysicalSize() % 8 != 0)
         return false;
-    // TBD maybe need more stric check?
+    /*if (!params.outputs[0].SimpleLayout()) {
+        //return check_blocked_format(params.outputs[0]);
+        return false;
+    }*/
     return true;
 }
 
