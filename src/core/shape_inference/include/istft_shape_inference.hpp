@@ -48,63 +48,69 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
                            length_shape.rank().compatible(0),
                            "The shape of length input must be a scalar.");
 
+    const auto frame_size = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
+    const auto frame_step = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
+    const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
+
+    if (frame_size) {
+        const auto& frame_size_val = (*frame_size)[0];
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               0 < frame_size_val,
+                               "Provided frame size is ",
+                               frame_size_val,
+                               " but must be greater than zero.");
+        const bool is_win_shape_correct =
+            window_shape.is_dynamic() || (TDimVal{0} < window_shape[0].get_length() &&
+                                          window_shape[0].get_length() <= static_cast<TDimVal>(frame_size_val));
+
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               is_win_shape_correct,
+                               "Window input dimension must be in range [1, ",
+                               frame_size_val,
+                               "].");
+    }
+
+    if (frame_step) {
+        const auto& frame_step_val = (*frame_step)[0];
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               0 < frame_step_val,
+                               "Provided frame step is ",
+                               frame_step_val,
+                               " but must be greater than zero.");
+    }
+
+    // For the input with dynamic rank, output shape is also fully dynamic
     if (data_shape_rank.is_dynamic()) {
         return {data_shape};
     }
-
-    const auto frame_size = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
-    const auto frame_step = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
-
     const auto is_data_3D = data_shape.size() == 3;
-    if (!frame_size || !frame_step) {
-        if (is_data_3D) {
-            return {TRShape{TDim(ov::util::dim::inf_bound)}};
-        } else {
-            return {TRShape{data_shape[0], TDim(ov::util::dim::inf_bound)}};
-        }
-    }
-
-    const auto& frame_size_val = (*frame_size)[0];
-    const auto& frame_step_val = (*frame_step)[0];
-
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           0 < frame_size_val,
-                           "Provided frame size is ",
-                           frame_size_val,
-                           " but must be greater than zero.");
-
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           0 < frame_step_val,
-                           "Provided frame step is ",
-                           frame_step_val,
-                           " but must be greater than zero.");
-
-    const bool is_win_shape_correct =
-        window_shape.is_dynamic() || (TDimVal{0} < window_shape[0].get_length() &&
-                                      window_shape[0].get_length() <= static_cast<TDimVal>(frame_size_val));
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           is_win_shape_correct,
-                           "Window input dimension must be in range [1, ",
-                           frame_size_val,
-                           "].");
-
-    int64_t frames_axis = 1 + (is_data_3D ? 0 : 1);
-    const TDim& num_frames_dim = data_shape[frames_axis];
-    TDim signal_length = (num_frames_dim - 1) * frame_step_val;
-    if (!op->get_center()) {
-        signal_length += frame_size_val;
-    }
 
     std::vector<TRShape> output_shapes;
-    output_shapes.emplace_back(TRShape{std::move(signal_length)});
+    if (sig_len_in && (*sig_len_in)[0].is_static()) {  // Set desired length of the signal dimension, if provided
+        output_shapes.emplace_back(TRShape{(*sig_len_in)[0]});
+    } else if (frame_size && frame_step) {  // Otherwise infer the length of the signal
+        const auto& frame_size_val = (*frame_size)[0];
+        const auto& frame_step_val = (*frame_step)[0];
 
-    if (!is_data_3D) {
+        const int64_t frames_axis = 1 + (is_data_3D ? 0 : 1);
+        const TDim& num_frames_dim = data_shape[frames_axis];
+        TDim signal_length = (num_frames_dim - 1) * frame_step_val;
+        if (!op->get_center()) {
+            signal_length += frame_size_val;
+        }
+        output_shapes.emplace_back(TRShape{std::move(signal_length)});
+    } else {  // Not enough info to infer the signal lenght, set dynamic dimension
+        output_shapes.emplace_back(TRShape{TDim(ov::util::dim::inf_bound)});
+    }
+
+    if (!is_data_3D) {  // Copy batch dimension
         const auto& batch_dim = data_shape[0];
         output_shapes[0].insert(output_shapes[0].begin(), batch_dim);
     }
+
     return output_shapes;
 }
 }  // namespace v16

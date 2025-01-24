@@ -116,6 +116,7 @@ std::vector<ISTFTParams> generateISTFTParams() {
     using INT_T = typename ov::element_type_traits<IT>::value_type;
 
     const ov::Shape signal_48_shape{48};
+    const ov::Shape signal_39_shape{39};
     const ov::Shape signal_1_48_shape{1, 48};
     const ov::Shape signal_2_48_shape{2, 48};
     const ov::Shape signal_256_shape{1, 256};
@@ -149,6 +150,14 @@ std::vector<ISTFTParams> generateISTFTParams() {
                         0.9590,  0.7095,  -0.2771, -0.9758, -0.6608, 0.3406,  0.9882,  0.6092,  -0.4027, -0.9962,
                         -0.5549, 0.4629,  0.9998,  0.4981,  -0.5211, -0.9989, -0.4390, 0.5769,  0.9936,  0.3780,
                         -0.6302, -0.9838, -0.3154, 0.6806,  0.9696,  0.2513,  -0.7281, -0.9511});
+
+    reference_tests::Tensor signal_39(
+        signal_39_shape,
+        ET,
+        std::vector<VT>{-0.9511, -0.1861, 0.7722,  0.9283,  0.1200,  -0.8129, -0.9014, -0.0534, 0.8500,  0.8704,
+                        -0.0134, -0.8833, -0.8356, 0.0801,  0.9126,  0.7971,  -0.1465, -0.9379, -0.7550, 0.2123,
+                        0.9590,  0.7095,  -0.2771, -0.9758, -0.6608, 0.3406,  0.9882,  0.6092,  -0.4027, -0.9962,
+                        -0.5549, 0.4629,  0.9998,  0.4981,  -0.5211, -0.9989, -0.4390, 0.5769,  0.9936});
 
     reference_tests::Tensor signal_1_48(
         signal_1_48_shape,
@@ -336,6 +345,7 @@ std::vector<ISTFTParams> generateISTFTParams() {
 
     reference_tests::Tensor auto_length(Shape{}, IT, std::vector<INT_T>{-1});
     reference_tests::Tensor length_16(Shape{}, IT, std::vector<INT_T>{16});
+    reference_tests::Tensor length_39(Shape{}, IT, std::vector<INT_T>{39});
     reference_tests::Tensor length_48(Shape{}, IT, std::vector<INT_T>{48});
 
     std::vector<ISTFTParams> params;
@@ -420,6 +430,15 @@ std::vector<ISTFTParams> generateISTFTParams() {
                         false,
                         signal_2_48,
                         "basic_2D_transp_two_win_step_16_center");
+    params.emplace_back(output_stft_9_4_2_transp_win_two_center_norm,
+                        two_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        length_39,
+                        true,
+                        true,
+                        signal_39,
+                        "basic_1D_transp_two_win_step_16_center_norm_length_39");
 
     return params;
 }
