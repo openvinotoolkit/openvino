@@ -21,8 +21,10 @@ static constexpr Property<std::string, PropertyMutability::RW> high_level_proper
 static constexpr Property<std::string, PropertyMutability::RW> low_level_property{"LOW_LEVEL_PROPERTY"};
 static constexpr Property<uint8_t, PropertyMutability::RW> release_internal_property{"RELEASE_INTERNAL_PROPERTY"};
 static constexpr Property<uint8_t, PropertyMutability::RW> debug_property{"DEBUG_PROPERTY"};
-static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property{"DEBUG_GLOBAL_PROPERTY"};
 
+#ifdef ENABLE_DEBUG_CAPS
+static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property{"DEBUG_GLOBAL_PROPERTY"};
+#endif
 
 struct EmptyTestConfig : public ov::PluginConfig {
     std::vector<std::string> get_supported_properties() const {
