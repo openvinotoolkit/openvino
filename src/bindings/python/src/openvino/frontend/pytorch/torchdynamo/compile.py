@@ -81,6 +81,9 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None, executorch=False):
     core = Core()
 
+    if executorch:
+        model_hash_str = None
+
     device = _get_device(options)
     cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
