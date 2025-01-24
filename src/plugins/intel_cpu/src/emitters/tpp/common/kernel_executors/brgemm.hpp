@@ -4,36 +4,36 @@
 
 #pragma once
 
-#include "cpu/aarch64/cpu_isa_traits.hpp"
+#include "common/utils.hpp"
 #include "emitters/snippets/brgemm_base.hpp"
 #include "emitters/utils.hpp"
 #include "libxsmm.h"
 
 namespace ov {
 namespace intel_cpu {
-namespace aarch64 {
+namespace tpp {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
-    BrgemmKernelConfig(
-        const element::Type& in0_dtype,
-        const element::Type& in1_dtype,
-        dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa = dnnl::impl::cpu::aarch64::cpu_isa_t::isa_undef);
+    BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype);
     BrgemmKernelConfig() = delete;
 
     std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
         return std::unique_ptr<BrgemmKernelConfig>(new BrgemmKernelConfig(*this));
     }
 
-    dnnl_data_type_t get_dt_in0() const {
-        return get_static_params()->dt_in0;
+    bool operator==(const BrgemmKernelConfig& rhs) const;
+    bool operator!=(const BrgemmKernelConfig& rhs) const {
+        return !(*this == rhs);
     }
-    dnnl_data_type_t get_dt_in1() const {
-        return get_static_params()->dt_in1;
+
+    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
+
+    size_t hash() const override {
+        return m_hash;
     }
-    dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const {
-        return m_static_params->isa;
-    }
+    size_t compute_hash() const;
+
     libxsmm_bitfield get_static_compile_flags() const {
         return m_static_params->m_compile_flags;
     }
@@ -62,34 +62,45 @@ public:
     libxsmm_datatype get_type_exec() const {
         return m_static_params->m_type_exec;
     }
+#ifdef SNIPPETS_DEBUG_CAPS
+    std::string to_string() const override;
+#endif
 
 private:
-    struct StaticParams : public StaticBaseParams {
-        StaticParams(const element::Type& in0_dtype,
-                     const element::Type& in1_dtype,
-                     dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa);
+    struct StaticParams {
+        StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype);
         virtual ~StaticParams() = default;
 
         bool operator==(const StaticParams& rhs) const;
         bool operator!=(const StaticParams& rhs) const {
             return !(*this == rhs);
         }
-        size_t compute_hash(dnnl::impl::cpu::aarch64::cpu_isa_t aarch_isa);
+        size_t hash() const {
+            return m_hash;
+        }
+        size_t compute_hash();
 
-        dnnl::impl::cpu::aarch64::cpu_isa_t isa;
+#ifdef SNIPPETS_DEBUG_CAPS
+        std::string to_string() const;
+#endif
+
         libxsmm_datatype m_type_in0;
         libxsmm_datatype m_type_in1;
         libxsmm_datatype m_type_out0;
         libxsmm_datatype m_type_exec;
         libxsmm_bitfield m_compile_flags;
         bool m_prefetching_flags;
+
+        size_t m_hash{SIZE_MAX};
     };
-    std::shared_ptr<StaticBaseParams> get_static_params() const override {
+    std::shared_ptr<StaticParams> get_static_params() const {
         return m_static_params;
     }
 
     libxsmm_bitfield m_compile_flags{0};
     std::shared_ptr<StaticParams> m_static_params{nullptr};
+
+    size_t m_hash{SIZE_MAX};
 };
 
 // The `update_kernel` method verifies that a compiled kernel is not nullptr.
@@ -118,6 +129,6 @@ private:
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
 
-}  // namespace aarch64
+}  // namespace tpp
 }  // namespace intel_cpu
 }  // namespace ov

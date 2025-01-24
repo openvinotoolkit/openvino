@@ -4,17 +4,15 @@
 
 #pragma once
 
-#include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/brgemm_base.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 
 namespace ov::intel_cpu {
 
-struct BrgemmAMXKernelConfig : public BrgemmBaseKernelConfig {
+struct BrgemmAMXKernelConfig : public BrgemmBaseKernelConfig_x64 {
 public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
@@ -74,7 +72,7 @@ struct BrgemmAMXCompiledKernel {
     std::shared_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgemm_copy_a_kernel{nullptr};
 };
 
-class BrgemmAMXKernelExecutor : public BrgemmBaseKernelExecutor,
+class BrgemmAMXKernelExecutor : public BrgemmBaseKernelExecutor_x64,
                                 public CPUKernelExecutor<BrgemmAMXKernelConfig, BrgemmAMXCompiledKernel> {
 public:
     struct call_args {

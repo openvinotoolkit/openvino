@@ -54,13 +54,11 @@
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "snippets/lowered/pass/optimize_domain.hpp"
 #    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
+#    include "transformations/tpp/common/pass/lowered/brgemm_tpp_blocking.hpp"
 #    include "transformations/tpp/common/pass/lowered/set_tpp_leading_dim.hpp"
-#    if defined(OPENVINO_ARCH_ARM64)
-#        include "transformations/tpp/aarch64/pass/lowered/brgemm_tpp_blocking.hpp"
-#    else
+#    if defined(OPENVINO_ARCH_X86_64)
 #        include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
 #        include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
-#        include "transformations/tpp/x64/pass/lowered/brgemm_tpp_blocking.hpp"
 #        include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #    endif
 #endif
@@ -480,13 +478,10 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #endif  // OPENVINO_ARCH_X86_64
 
 #if defined(OPENVINO_ARCH_ARM64)
-#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_ARM64(PASS_PLACE, PASS, ...) \
-        backend_passes.emplace_back(PassPosition(PASS_PLACE), std::make_shared<PASS>(__VA_ARGS__))
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)              \
         backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
                                     std::make_shared<PASS>(__VA_ARGS__))
 #else
-#    define SNIPPETS_REGISTER_PASS_ABSOLUTE_ARM64(PASS_PLACE, PASS, ...)
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_ARM64
 
@@ -538,7 +533,6 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_COMMON
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
-#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_ARM64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
 
     return backend_passes;
@@ -594,13 +588,13 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                           ov::intel_cpu::tpp::pass::x64::BrgemmTPPBlocking);
+                                           ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::FuseLoadStoreConvert,
                                            ov::intel_cpu::tpp::pass::SetTPPLeadingDim);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::MarkLoops,
-                                          ov::intel_cpu::tpp::pass::aarch64::BrgemmTPPBlocking);
+                                          ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::InsertLoops,
                                           ov::intel_cpu::tpp::pass::SetTPPLeadingDim);

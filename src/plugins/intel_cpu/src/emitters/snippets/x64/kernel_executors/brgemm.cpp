@@ -6,7 +6,6 @@
 
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
-#include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -20,7 +19,7 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
                                        bool is_with_comp,
                                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(),
+    : BrgemmBaseKernelConfig_x64(),
       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
     m_hash = compute_hash();
 }
@@ -78,7 +77,7 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    return BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    return BrgemmBaseKernelExecutor_x64::update_config(expr, linear_ir, config);
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_args* args) {

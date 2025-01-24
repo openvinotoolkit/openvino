@@ -7,12 +7,12 @@
 #include "emitters/tpp/common/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
-using namespace Xbyak;
-using namespace dnnl::impl;
+#define PRINT(X) ss << #X << " = " << X << "\n"
+#define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
 
 namespace ov {
 namespace intel_cpu {
-namespace aarch64 {
+namespace tpp {
 #define COMPILE_BRGEMM_TPP_KERNEL(...)                                        \
     [&]() {                                                                   \
         setenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX", "1", 1);      \
@@ -23,36 +23,73 @@ namespace aarch64 {
         return res;                                                           \
     }()
 
-BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
-                                       const element::Type& in1_dtype,
-                                       dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa)
+BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
+
+bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
+    return BrgemmBaseKernelConfig::operator==(rhs) &&
+           (get_static_params() == rhs.get_static_params() ||
+            *get_static_params() == *(rhs.get_static_params()));
+}
+
+size_t BrgemmKernelConfig::compute_hash() const {
+    size_t static_seed = get_static_params()->hash();
+    size_t dynamic_seed = BrgemmBaseKernelConfig::compute_hash();
+    return dnnl::impl::hash_combine(static_seed, dynamic_seed);
+}
+
+void BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
+    BrgemmBaseKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
     m_hash = compute_hash();
 }
 
-BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
-                                               const element::Type& in1_dtype,
-                                               dnnl::impl::cpu::aarch64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype, in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t::isa_undef, compute_hash(primitive_isa)) {
+BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype) {
     m_type_in0 = tpp::ov_to_xsmm_dtype(in0_dtype);
     m_type_in1 = tpp::ov_to_xsmm_dtype(in1_dtype);
     m_type_exec = LIBXSMM_DATATYPE_F32;
     m_type_out0 = LIBXSMM_DATATYPE_F32;
     m_compile_flags = LIBXSMM_GEMM_FLAGS('N', 'N');
     m_prefetching_flags = false;
-    isa = primitive_isa;
+    m_hash = compute_hash();
 }
 
-size_t BrgemmKernelConfig::StaticParams::compute_hash(dnnl::impl::cpu::aarch64::cpu_isa_t aarch_isa) {
-    return hash_combine(0, aarch_isa);
+size_t BrgemmKernelConfig::StaticParams::compute_hash() {
+    size_t seed = 0;
+    HASH(m_type_in0);
+    HASH(m_type_in1);
+    HASH(m_type_exec);
+    HASH(m_type_out0);
+    HASH(m_compile_flags);
+    HASH(m_prefetching_flags);
+    return seed;
 }
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
-    return StaticBaseParams::operator==(rhs) && isa == rhs.isa && m_type_in0 == rhs.m_type_in0 &&
-           m_type_in1 == rhs.m_type_in1 && m_type_exec == rhs.m_type_exec && m_type_out0 == rhs.m_type_out0 &&
-           m_compile_flags == rhs.m_compile_flags && m_prefetching_flags == rhs.m_prefetching_flags;
+    return m_type_in0 == rhs.m_type_in0 && m_type_in1 == rhs.m_type_in1 && m_type_exec == rhs.m_type_exec &&
+           m_type_out0 == rhs.m_type_out0 && m_compile_flags == rhs.m_compile_flags &&
+           m_prefetching_flags == rhs.m_prefetching_flags;
 }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+std::string BrgemmKernelConfig::StaticParams::to_string() const {
+    std::stringstream ss;
+    PRINT(m_type_in0);
+    PRINT(m_type_in1);
+    PRINT(m_type_out0);
+    PRINT(m_type_exec);
+    PRINT(m_compile_flags);
+    PRINT(m_prefetching_flags);
+    return ss.str();
+}
+
+std::string BrgemmKernelConfig::to_string() const {
+    std::stringstream ss;
+    ss << get_static_params()->to_string() << "\n";
+    ss << BrgemmBaseKernelConfig::to_string() << "\n";
+    return ss.str();
+}
+#endif
 
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config)
     : CPUKernelExecutor<BrgemmKernelConfig, BrgemmTppCompiledKernel>(std::move(kernel_cache), std::move(config)) {}
@@ -74,11 +111,8 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
                                                            config.get_type_in1(),
                                                            config.get_type_out0(),
                                                            config.get_type_exec());
-    const auto& compile_flag = config.get_compile_flags();
-    auto refreshed_compile_flag =
-        config.get_beta() == 0 ? config.get_compile_flags() | LIBXSMM_GEMM_FLAG_BETA_0 : compile_flag;
     compiled_kernel->brgemm_kernel = std::make_shared<libxsmm_gemmfunction>(COMPILE_BRGEMM_TPP_KERNEL(
-        libxsmm_dispatch_gemm(m_shape, refreshed_compile_flag, config.get_prefetching_flags())));
+        libxsmm_dispatch_gemm(m_shape, config.get_compile_flags(), config.get_prefetching_flags())));
 
     return compiled_kernel;
 }
@@ -97,7 +131,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     const auto num_ins = expr->get_node()->get_input_size();
     const auto num_outs = expr->get_node()->get_output_size();
 
-    size_t io_strides[num_ins + num_outs];
+    std::vector<size_t> io_strides(num_ins + num_outs);
 
     for (size_t i = 0; i < num_ins; i++) {
         io_strides[i] =
@@ -133,6 +167,9 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, void* i
     (*(brg_kernel->brgemm_kernel))(&gemm_p);
 }
 
-}  // namespace aarch64
+#undef PRINT
+#undef HASH
+
+}  // namespace tpp
 }  // namespace intel_cpu
 }  // namespace ov
