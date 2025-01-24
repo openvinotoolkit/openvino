@@ -8,7 +8,7 @@
 
 #include "istft_shape_inference.hpp"
 #include "itt.hpp"
-// #include "openvino/reference/istft.hpp"
+#include "openvino/reference/istft.hpp"
 
 namespace ov {
 namespace op {
@@ -94,16 +94,16 @@ bool ISTFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
     const auto length = ov::get_tensor_data_as<int64_t>(inputs[4]).front();
 
-    // ov::reference::istft(inputs[0].data<const float>(),
-    //                      inputs[1].data<const float>(),
-    //                      outputs[0].data<float>(),
-    //                      inputs[0].get_shape(),
-    //                      inputs[1].get_shape(),
-    //                      frame_size,
-    //                      frame_step,
-    //                      length,
-    //                      m_normalized,
-    //                      m_center);
+    ov::reference::istft(inputs[0].data<const float>(),
+                         inputs[1].data<const float>(),
+                         outputs[0].data<float>(),
+                         inputs[0].get_shape(),
+                         inputs[1].get_shape(),
+                         frame_size,
+                         frame_step,
+                         length,
+                         m_center,
+                         m_normalized);
     return true;
 }
 
