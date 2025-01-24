@@ -45,7 +45,7 @@ void RepackedWeightsBufferExpression::init_allocation_size(
 
     const auto& precision = get_node()->get_input_element_type(0);
     // Repacking buffer shape is set in accordance to OneDNN requirements
-    const size_t N_dim = std::max(n_blk, compute_inner_n_block(precision));
+    const size_t N_dim = snippets::utils::rnd_up(n_blk, compute_inner_n_block(precision));
     if (!in_layout.empty() && in_layout.back() != in_layout.size() - 1) {
         // In case of transpose, K dimension must be rounded-up to number of elems in vector register
         // For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
@@ -88,13 +88,9 @@ void CompensationsBufferExpression::init_allocation_size(
     // Compensations are computed during repacking, so we need to round-up allocation shape according to m_inner_n_block
     // because of OneDNN implementation nuances (as in get_repacking_buffer_size).
     // However, the compensations are computed by N dimension, so K dimension doesn't affect the compensations buffer
+    const auto& precision = parent_expr->get_node()->get_input_element_type(0);
     const size_t n_blk = *ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0)).rbegin();
-    if (snippets::utils::is_dynamic_value(n_blk)) {
-        m_allocation_size = snippets::utils::get_dynamic_value<size_t>();
-    } else {
-        const auto& precision = parent_expr->get_node()->get_input_element_type(0);
-        m_allocation_size = std::max(n_blk, compute_inner_n_block(precision));
-    }
+    m_allocation_size = snippets::utils::rnd_up(n_blk, compute_inner_n_block(precision));
 }
 
 }  // namespace intel_cpu

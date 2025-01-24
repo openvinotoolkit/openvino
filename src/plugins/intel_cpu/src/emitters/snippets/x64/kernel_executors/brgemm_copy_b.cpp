@@ -227,21 +227,13 @@ void BrgemmCopyBKernel::generate() {
     size_t start_out = 0;
     size_t start_comp = 0;
 
-    auto add_ptr_increments = [&](size_t current_N) {
+    for (size_t nb = 0; nb < div_up(N_blk, wei_N_blk); nb++) {
+        const auto current_N = N_blk - nb * wei_N_blk < wei_N_blk ? wei_N_tail : wei_N_blk;
+        emit_brgemm_copy_b_kernel_call(current_N, K, start_in, start_out, start_comp);
+
         start_in += is_transpose ? K * current_N * wei_data_size : current_N * wei_data_size;
         start_out += current_N * vnni_factor * wei_data_size;
         start_comp += is_with_comp ? current_N * sizeof(int32_t) : 0;
-    };
-
-    // OneDNN requires tail handling before main iterations
-    if (wei_N_tail != 0) {
-        emit_brgemm_copy_b_kernel_call(wei_N_tail, K, start_in, start_out, start_comp);
-        add_ptr_increments(wei_N_tail);
-    }
-
-    for (auto nb = wei_N_tail; nb < N_blk; nb += wei_N_blk) {
-        emit_brgemm_copy_b_kernel_call(wei_N_blk, K, start_in, start_out, start_comp);
-        add_ptr_increments(wei_N_blk);
     }
 
     postamble();
