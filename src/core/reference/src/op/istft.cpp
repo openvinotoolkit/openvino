@@ -32,6 +32,7 @@ void istft(const float* in_data,
     const size_t frames_axis = 1 + (is_data_3D ? 0 : 1);
     const size_t batch_size = is_data_3D ? 1 : data_shape[0];
 
+    const auto sqrt_frame_size = std::sqrt(frame_size);
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
@@ -62,7 +63,6 @@ void istft(const float* in_data,
     }
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
-
     std::vector<float> window_sum(batch_size * signal_length);
 
     for (size_t batch = 0, batch_in_start = 0, batch_out_start = 0; batch < batch_size; ++batch) {
@@ -96,6 +96,15 @@ void istft(const float* in_data,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
                            std::plus<float>());
+        }
+
+        if (normalized) {
+            std::transform(result + batch_out_start,
+                           result + batch_out_start + signal_length,
+                           result + batch_out_start,
+                           [sqrt_frame_size](float a) {
+                               return a * sqrt_frame_size;
+                           });
         }
 
         std::transform(result + batch_out_start,
