@@ -22,7 +22,7 @@ namespace tensorflow_lite {
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
-class TENSORFLOW_LITE_API FrontEnd : public ov::frontend::FrontEnd {
+class TENSORFLOW_LITE_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     FrontEnd();
     /// \brief Completely convert the model
