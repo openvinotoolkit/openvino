@@ -5,17 +5,17 @@
 #include "openvino/op/slice.hpp"
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
-#include "helper_ops/complex_type_mark.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -31,8 +31,8 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     auto start = node.get_input(1);
     auto size = node.get_input(2);
-    
-    if(complex_type_mark){
+
+    if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         input = complex_type_mark->input_value(0);
 
@@ -42,7 +42,7 @@ OutputVector translate_slice_op(const NodeContext& node) {
         auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
         auto real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
         auto imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
-        
+
         // Auxiliary constants
         auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
         auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
