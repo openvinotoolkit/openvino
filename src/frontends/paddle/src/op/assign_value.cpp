@@ -31,7 +31,10 @@ NamedOutputs assign_value(const NodeContext& node) {
             const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
         } else {
             auto values = node.get_attribute<std::vector<double>>("values");
-            auto values_f32 = std::vector<float>(values.begin(), values.end());
+            std::vector<float> values_f32(values.size());
+            std::transform(values.begin(), values.end(), values_f32.begin(), [](double v) {
+                return static_cast<float>(v);
+            });
             const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values_f32)};
         }
         break;

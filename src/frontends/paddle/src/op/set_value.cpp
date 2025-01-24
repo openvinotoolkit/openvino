@@ -80,7 +80,10 @@ NamedOutputs set_value(const NodeContext& node) {
                                                               value_arrt)};
             } else {
                 auto value_arrt = node.get_attribute<std::vector<double>>("values");
-                auto fp32_value = std::vector<float>(value_arrt.begin(), value_arrt.end());
+                std::vector<float> fp32_value(value_arrt.size());
+                std::transform(value_arrt.begin(), value_arrt.end(), fp32_value.begin(), [](double v) {
+                    return static_cast<float>(v);
+                });
                 value_node = {default_opset::Constant::create(input_type,
                                                               Shape{value_shape.begin(), value_shape.end()},
                                                               fp32_value)};

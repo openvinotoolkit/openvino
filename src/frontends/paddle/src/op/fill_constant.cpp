@@ -23,13 +23,14 @@ NamedOutputs fill_constant(const NodeContext& node) {
         int32_t value = static_cast<int32_t>(node.get_attribute<float>("value"));
         value_node = opset6::Constant::create(dtype, {}, {value});
     } else if (dtype == element::f16) {
-        float value = static_cast<float16>(node.get_attribute<float>("value"));
+        float value = static_cast<ov::float16>(node.get_attribute<float>("value"));
         value_node = opset6::Constant::create(dtype, {}, {value});
     } else if (dtype == element::f32) {
         float value = node.get_attribute<float>("value");
         value_node = opset6::Constant::create(dtype, {}, {value});
     } else if (dtype == element::f64) {
-        float value = static_cast<double>(node.get_attribute<float>("value"));
+        float f32_value = node.get_attribute<float>("value");
+        double value = static_cast<double>(f32_value);
         value_node = opset6::Constant::create(dtype, {}, {value});
     } else if (dtype == element::i64) {
         int64_t value = static_cast<int64_t>(node.get_attribute<float>("value"));
