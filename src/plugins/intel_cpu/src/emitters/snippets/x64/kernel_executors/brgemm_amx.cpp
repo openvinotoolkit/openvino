@@ -23,7 +23,7 @@ namespace ov::intel_cpu {
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
                                              dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(),
+    : BrgemmBaseKernelConfig_x64(),
       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
     m_hash = compute_hash();
 }
@@ -117,7 +117,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
     const auto& cache = m_kernel_cache.lock();
     OPENVINO_ASSERT(cache, "Invalid kernel cache pointer in BrgemmAMXKernelExecutor::compile_kernel()");
 
-    auto brgemm_key = [&config](dnnl_dim_t K, dnnl_dim_t LDA, float beta) {
+    auto brgemm_key = [&config](int64_t K, int64_t LDA, float beta) {
         auto key = config;
         key.update(config.get_M(), config.get_N(), K, LDA, config.get_LDB(), config.get_LDC(), beta);
         return key;
@@ -223,7 +223,7 @@ void BrgemmAMXKernelExecutor::create_brgemm_copy_a_kernel(
 void BrgemmAMXKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                             const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                             BrgemmAMXKernelConfig& config) const {
-    return BrgemmBaseKernelExecutor::update_config(expr, linear_ir, config);
+    return BrgemmBaseKernelExecutor_x64::update_config(expr, linear_ir, config);
 }
 
 void BrgemmAMXKernelExecutor::configure_tiles_if_needed(amx_tile_config_t* config,

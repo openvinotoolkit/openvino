@@ -5,7 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
-#include "emitters/tpp/aarch64/kernel_executors/brgemm.hpp"
+#include "emitters/tpp/common/kernel_executors/brgemm.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -38,7 +38,7 @@ private:
     const uintptr_t get_execute_function_ptr() const;
     const uintptr_t get_compiled_kernel_ptr() const;
 
-    std::shared_ptr<BrgemmKernelExecutor> m_kernel_executor = nullptr;
+    std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor = nullptr;
 };
 
 }  // namespace aarch64
