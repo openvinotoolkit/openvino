@@ -530,6 +530,7 @@ void program::init_graph() {
             node->get_output_layouts();
         if (node->is_type<lstm_seq>()) {
             _config.set_property(ov::intel_gpu::use_onednn(true));
+            _config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         }
     }
     // Perform initial shape_of subgraphs markup
