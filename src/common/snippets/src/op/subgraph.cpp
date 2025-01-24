@@ -64,6 +64,10 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
+#include "openvino/pass/serialize.hpp"
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#include "snippets/lowered/pass/serialize_data_flow.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <array>
@@ -406,6 +410,9 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.register_pass<lowered::pass::ValidateBuffers>();
     validation_pipeline.register_pass<lowered::pass::Validate>();
     validation_pipeline.run(*m_linear_ir);
+
+//    snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
+//    snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
