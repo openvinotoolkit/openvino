@@ -32,10 +32,14 @@ public:
 
     void initialize(const Config& config) override;
 
+    void set_workload_type(const ov::WorkloadType workloadType) override;
+
     ~DriverGraph() override;
 
 private:
     bool release_blob(const Config& config);
+
+    void create_new_command_queue() override;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;

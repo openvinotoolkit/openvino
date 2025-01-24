@@ -94,27 +94,30 @@ void PluginGraph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
+    _zeGraphExt->initializeGraph(_handle);
+
+    // Find the corresponding command queue group.
     ze_device_properties_t deviceProperties = {};
     deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
+    _group_ordinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
-    bool turbo = false;
+    _ze_queue_priority = zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>());
+
     if (config.has<TURBO>()) {
-        turbo = config.get<TURBO>();
+        _turbo = config.get<TURBO>();
     }
-
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    groupOrdinal,
-                                                    turbo);
 
     if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
+        if (!_zeroInitStruct->getCommandQueueDdiTable().version()) {
+            OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+        }
     }
 
-    _zeGraphExt->initializeGraph(_handle, config);
+    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+
+    create_new_command_queue();
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batch_size = get_batch_size(_metadata);
@@ -127,6 +130,26 @@ void PluginGraph::initialize(const Config& config) {
     }
 
     _logger.debug("Graph initialize finish");
+}
+
+void PluginGraph::set_workload_type(const ov::WorkloadType workloadType) {
+    if (!_zeroInitStruct->getCommandQueueDdiTable().version()) {
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    }
+
+    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(workloadType);
+
+    if (_command_queue) {
+        create_new_command_queue();
+    }
+}
+
+void PluginGraph::create_new_command_queue() {
+    _command_queue = CommandQueuePool::getInstance().getCommandQueue(_zeroInitStruct,
+                                                                     _ze_queue_priority,
+                                                                     _ze_workload_type,
+                                                                     _group_ordinal,
+                                                                     _turbo);
 }
 
 PluginGraph::~PluginGraph() {

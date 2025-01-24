@@ -41,9 +41,10 @@ public:
 
     const std::vector<ArgumentDescriptor>& get_input_descriptors() const;
     const std::vector<ArgumentDescriptor>& get_output_descriptors() const;
+
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
 
-    void set_workload_type(const ov::WorkloadType workloadType) const;
+    virtual void set_workload_type(const ov::WorkloadType workloadType) = 0;
 
     std::mutex& get_mutex();
 
@@ -58,8 +59,8 @@ public:
 
 protected:
     /**
-     * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by
-     * the model will also be deduced and returned.
+     * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used
+     * by the model will also be deduced and returned.
      * @details Batching can be handled by the plugin only if:
      *  - The batch axis is the first axis.
      *  - The batch size received by the compiler takes the default value of 1.
@@ -71,10 +72,12 @@ protected:
      *
      * @param metadata Metadata containing the shape values as seen by both the compiler and IR model. These will
      * ultimately be used for determining the batch size.
-     * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
-     * the plugin.
+     * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed
+     * inside the plugin.
      */
     std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
+
+    virtual void create_new_command_queue() = 0;
 
     ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;
@@ -82,11 +85,10 @@ protected:
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;
 
-    std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::shared_ptr<Event>> _last_submitted_event;
 
-    // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
-    // first inference starts running
+    // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when
+    // the first inference starts running
     std::mutex _mutex;
 
     std::vector<uint8_t> _blob;
@@ -99,6 +101,12 @@ protected:
      * @details The attribute contains a value only if the plugin performs the batches splitting operation.
      */
     std::optional<std::size_t> _batch_size = std::nullopt;
+
+    std::shared_ptr<CommandQueue> _command_queue;
+    uint32_t _group_ordinal;
+    ze_command_queue_workload_type_t _ze_workload_type;
+    bool _turbo = false;
+    ze_command_queue_priority_t _ze_queue_priority;
 
     Logger _logger;
 };

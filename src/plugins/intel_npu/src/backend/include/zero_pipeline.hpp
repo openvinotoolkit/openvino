@@ -40,6 +40,9 @@ public:
     void closeCommandListIndex(size_t command_list_index);
 
 protected:
+    void getCommandQueue();
+
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;
@@ -59,9 +62,11 @@ protected:
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
-    bool sync_output_with_fences_ = true;
+    bool _sync_output_with_fences = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
+
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

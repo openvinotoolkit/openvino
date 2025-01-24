@@ -50,26 +50,6 @@ const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     return _command_queue;
 }
 
-void IGraph::set_workload_type(const ov::WorkloadType workloadType) const {
-    if (_command_queue == nullptr) {
-        return;
-    }
-
-    ze_command_queue_workload_type_t zeWorkloadType;
-    switch (workloadType) {
-    case ov::WorkloadType::DEFAULT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
-        break;
-    case ov::WorkloadType::EFFICIENT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
-        break;
-    default:
-        OPENVINO_THROW("Unknown value for WorkloadType!");
-    }
-
-    _command_queue->setWorkloadType(zeWorkloadType);
-}
-
 std::mutex& IGraph::get_mutex() {
     return _mutex;
 }
