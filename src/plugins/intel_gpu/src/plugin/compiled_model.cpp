@@ -5,6 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 #include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -299,7 +300,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
     }
 
-    return m_config.get_property(name);
+    return m_config.get_property(name, OptionVisibility::RELEASE);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
