@@ -21,7 +21,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -106,7 +106,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -188,7 +188,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -207,7 +207,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
             auto* x = t_src.ptr<T>(b, p, h);
             float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
             float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
-            auto* dst = t_dst.ptr<T>(b, h, p);
+            auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
 
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, x, dst, cos, sin);
@@ -238,7 +238,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
@@ -327,7 +327,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         m_rotaryKernel = createJitKernel(jcp);
     }
 
-    void execute(dnnl::stream strm,
+    void execute(const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
@@ -397,8 +397,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-    } else if (m_config.is_interleaved && m_config.output_trans0213) {
-        OPENVINO_ASSERT(m_config.input_trans0213 == false);
+    } else if (m_config.is_interleaved) {
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);
         OPENVINO_ASSERT(m_config.gather_position_arg_id == 0);
@@ -444,7 +443,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-void RoPE::execute(dnnl::stream strm) {
+void RoPE::execute(const dnnl::stream& strm) {
     std::vector<MemoryPtr> inputs(getParentEdges().size()), outputs(getChildEdges().size());
     for (size_t i = 0; i < inputs.size(); i++) {
         inputs[i] = getSrcMemoryAtPort(i);

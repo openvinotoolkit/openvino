@@ -21,8 +21,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ClampFP16Output::ClampFP16Output() {
     using namespace ov::op;
@@ -63,5 +62,4 @@ ClampFP16Output::ClampFP16Output() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

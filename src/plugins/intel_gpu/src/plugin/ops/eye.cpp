@@ -12,8 +12,7 @@
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -59,5 +58,4 @@ static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye
 
 REGISTER_FACTORY_IMPL(v9, Eye);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

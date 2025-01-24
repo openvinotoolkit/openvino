@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
 
     auto max_seq_len = Symbol("max_seq_len");
 
-    auto ShapeOf_41610 = batch_size;  // shapeOf(beamidx)
+    const auto& ShapeOf_41610 = batch_size;  // shapeOf(beamidx)
     auto ListConstruct_Concat =
         makePattern<ov::opset1::Concat>({ShapeOf_41610, {1}, {1}, {1}}, {{"axis", 0}});  //  tensor_array<i32[4]>
     auto repeat_Tile =

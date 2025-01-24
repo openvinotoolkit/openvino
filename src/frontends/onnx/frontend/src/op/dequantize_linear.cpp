@@ -255,6 +255,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
 
     if (zp.get_node_shared_ptr()) {
         broadcastable_x = std::make_shared<v1::Subtract>(x, zp);
+    } else {
+        broadcastable_x = x;
     }
 
     const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);

@@ -13,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -90,8 +91,8 @@ struct precision_of<float16> {
 #define PLAINTENSOR_RANK_MAX 8
 
 struct PlainTensor {
-    size_t m_strides[PLAINTENSOR_RANK_MAX];
-    size_t m_dims[PLAINTENSOR_RANK_MAX];
+    size_t m_strides[PLAINTENSOR_RANK_MAX] = {};
+    size_t m_dims[PLAINTENSOR_RANK_MAX] = {};
     size_t m_rank = 0;
     std::shared_ptr<uint8_t> m_ptr;
     size_t m_capacity = 0;
@@ -131,7 +132,7 @@ struct PlainTensor {
         return strides;
     }
 
-    PlainTensor(MemoryPtr mem) {
+    PlainTensor(const MemoryPtr& mem) {
         reset(mem);
     }
 
@@ -149,7 +150,7 @@ struct PlainTensor {
         return *this;
     }
 
-    void reset(MemoryPtr mem) {
+    void reset(const MemoryPtr& mem) {
         auto mem_desc = mem->getDescWithType<BlockedMemoryDesc>();
         // not support block layout
         OPENVINO_ASSERT(mem_desc && mem_desc->getOrder().size() == mem->getStaticDims().size());
@@ -177,11 +178,7 @@ struct PlainTensor {
         int step;
         int count;
         // select all
-        tensor_index() {
-            start = 0;
-            end = INT_MAX;
-            step = 1;
-        }
+        tensor_index() : start(0), end(INT_MAX), step(1) {}
         bool slice_with_squeeze() {
             return end == INT_MIN;
         }

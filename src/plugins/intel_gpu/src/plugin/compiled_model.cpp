@@ -15,8 +15,7 @@
 
 #include <sys/types.h>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -25,13 +24,17 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         // exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with
         // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
-    } else if (config.get_property(ov::hint::enable_cpu_pinning)) {
+    } else if (config.get_property(ov::hint::enable_cpu_pinning) ||
+               config.get_property(ov::hint::enable_cpu_reservation)) {
+        bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
+        bool enable_cpu_reservation = config.get_property(ov::hint::enable_cpu_reservation);
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
                                                     config.get_property(ov::num_streams),
                                                     1,
                                                     ov::hint::SchedulingCoreType::PCORE_ONLY,
-                                                    true});
+                                                    enable_cpu_reservation,
+                                                    enable_cpu_pinning});
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
@@ -191,8 +194,8 @@ void CompiledModel::export_model(std::ostream& model) const {
     const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
         encryption_enabled
-            ? cldnn::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
-            : cldnn::make_unique<cldnn::BinaryOutputBuffer>(model);
+            ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
+            : std::make_unique<cldnn::BinaryOutputBuffer>(model);
     auto& ob = *ob_ptr;
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
@@ -262,6 +265,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             // Configs
             ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::enable_cpu_reservation.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
@@ -317,5 +321,4 @@ void CompiledModel::release_memory() {
     dnnl::set_primitive_cache_capacity(capacity);
 #endif
 }
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
