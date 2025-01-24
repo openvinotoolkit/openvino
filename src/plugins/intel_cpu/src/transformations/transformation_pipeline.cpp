@@ -158,6 +158,7 @@
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/mlp_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/tokenization.hpp"
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1058,6 +1059,7 @@ void Transformations::MainSnippets(void) {
 
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
@@ -1209,6 +1211,14 @@ void Transformations::MainSnippets(void) {
                 return is_unsupported_parallel_work_amount(n, pshape);
             },
             snippets::pass::TokenizeMHASnippets);
+        CPU_SET_CALLBACK_X64(
+                snippetsManager,
+                [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    // todo: do we need any checks like is_unsupported_parallel_work_amount(n, pshape) here?
+                    // Tranformation callback is called on all three MatMuls
+                    return !is_supported_matmul(n);
+                },
+                snippets::pass::TokenizeMLPSnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {

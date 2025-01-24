@@ -34,6 +34,7 @@ void SnippetsTestsCommon::validateNumSubgraphs() {
         num_subgraphs += layerType == "Subgraph";
         num_nodes++;
     }
+    //ov::pass::Serialize(std::string("snsdebug_exec.xml"), std::string("snsdebug_exec.bin")).run_on_model(std::const_pointer_cast<ov::Model>(compiled_model));
     ASSERT_EQ(ref_num_nodes, num_nodes) << "Compiled model contains invalid number of nodes.";
     ASSERT_EQ(ref_num_subgraphs, num_subgraphs) << "Compiled model contains invalid number of subgraphs.";
 }

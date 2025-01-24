@@ -577,7 +577,7 @@ std::vector<std::string> disabledTestPatterns() {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
     // MHA FP16 precision is only supported on amx_fp16 platform
