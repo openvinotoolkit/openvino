@@ -118,7 +118,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const ze_command_queue_priority_t& priority,
                  const uint32_t& group_ordinal,
                  bool turbo = false);
@@ -129,18 +129,44 @@ public:
 
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
-    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
+    void setWorkloadType(ze_command_queue_workload_type_t workload_type) const;
     ~CommandQueue();
     inline ze_command_queue_handle_t handle() const {
         return _handle;
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
     ze_command_queue_handle_t _handle = nullptr;
+};
+
+static std::array<std::array<std::array<std::shared_ptr<CommandQueue>, workload::WORKLOAD_COUNT>, turbo::TURBO_COUNT>,
+                  priority::PRIORITY_COUNT>
+    _gloabal_command_queues;
+
+class CommandQueueFactory {
+public:
+    CommandQueueFactory();
+    CommandQueueFactory(const CommandQueueFactory& other) = delete;
+    CommandQueueFactory(CommandQueueFactory&& other) = delete;
+    void operator=(const CommandQueueFactory&) = delete;
+    void operator=(CommandQueueFactory&&) = delete;
+
+    std::shared_ptr<CommandQueue>& getCommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                                                   const ze_command_queue_priority_t& priority,
+                                                   const std::optional<ze_command_queue_workload_type_t>& workloadType,
+                                                   const uint32_t& group_ordinal,
+                                                   bool turbo);
+
+    void freeCommandQueue(const ze_command_queue_priority_t& priority,
+                          const std::optional<ze_command_queue_workload_type_t>& workloadType,
+                          bool turbo);
+
+private:
+    Logger _log;
 };
 
 }  // namespace intel_npu
