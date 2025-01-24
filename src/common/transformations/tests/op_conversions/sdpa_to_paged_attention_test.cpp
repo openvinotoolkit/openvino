@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+// #include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -69,6 +72,16 @@ ov::ParameterVector nodes_to_params(const ov::NodeVector& node_vec) {
     }
     return params;
 }
+
+static std::shared_ptr<ov::Node> make_param(const PartialShape& pshape,
+                                            element::Type element_type,
+                                            const std::string& name) {
+    auto param = makeOP<v0::Parameter>({}, {{"shape", pshape}, {"element_type", element_type}});
+    param->set_friendly_name(name);
+    param->get_output_tensor(0).set_names({name});
+    return param;
+}
+
 
 enum QKV : int { Q = 0, K = 1, V = 2 };
 vector<int> MOCK_VALUE = {1};
@@ -446,10 +459,15 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
     const auto model_precision = GetParam();
     {
         // Inputs to SDPA transformer:
-        auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
-        auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
-        auto attention_mask = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
-        auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        // auto beam_idx = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
+        // auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        // auto attention_mask = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        // auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, el_type_i64});
+        
+        auto beam_idx = make_param(PartialShape{DYN}, element::i64, "beam_idx");
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+        auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
         ParameterVector params = nodes_to_params({position_ids, input_ids, attention_mask, beam_idx});
 
         beam_idx->output(0).add_names({"beam_idx"});
@@ -638,15 +656,6 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_result_friendly_names_check();
     disable_rt_info_check();
-}
-
-static std::shared_ptr<ov::Node> make_param(const PartialShape& pshape,
-                                            element::Type element_type,
-                                            const std::string& name) {
-    auto param = makeOP<v0::Parameter>({}, {{"shape", pshape}, {"element_type", element_type}});
-    param->set_friendly_name(name);
-    param->get_output_tensor(0).set_names({name});
-    return param;
 }
 
 // TODO: split the models in blocks the way it's done for Qwen and make the code not to be such a clutter
@@ -916,3 +925,37 @@ entire SDPAToPA transformation
 const std::vector<ov::element::Type> element_types = {element::f16, element::f32};
 
 INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion, SDPAToPATest, testing::ValuesIn(element_types));
+
+// class SampleMatcher : public ov::pass::MatcherPass {
+// public:
+//     OPENVINO_MATCHER_PASS_RTTI("SampleMatcher");
+//     explicit SampleMatcher() {
+//         const std::string matcher_name = "SampleMatcher";
+
+//         auto p_p1 = ov::pass::pattern::wrap_type<op::v0::Parameter>();
+//         auto p_mm = ov::pass::pattern::wrap_type<op::v0::Abs>({p_p1});
+//         auto p_conv = ov::pass::pattern::wrap_type<op::v0::Convert>({p_mm});
+
+//         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+//             return true;
+//         };
+
+//         auto m = std::make_shared<ov::pass::pattern::Matcher>(p_conv, matcher_name);
+//         register_matcher(m, callback);
+//     }
+// };
+
+
+// TEST(TransformationsF, SampleTest) {
+//     auto input0 = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+//     auto matmul = std::make_shared<op::v0::Abs>(input0);
+//     auto conv = std::make_shared<op::v0::Convert>(matmul, element::i64);
+//     auto res = std::make_shared<op::v0::Result>(conv);
+
+//     auto model = std::make_shared<Model>(ResultVector{res}, ParameterVector{input0});
+
+//     ov::pass::Manager manager;
+//     manager.set_per_pass_validation(false);
+//     manager.register_pass<SampleMatcher>();
+//     manager.run_passes(model);
+// }
