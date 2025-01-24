@@ -11,8 +11,7 @@
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 LoRAHorizontalFusion::LoRAHorizontalFusion() {
     using namespace ov::pass::pattern;
@@ -161,5 +160,4 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
