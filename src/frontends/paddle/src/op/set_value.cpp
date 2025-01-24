@@ -62,7 +62,10 @@ NamedOutputs set_value(const NodeContext& node) {
                                                               value_arrt)};
             } else {
                 auto value_arrt = node.get_attribute<std::vector<int64_t>>("values");
-                auto int32_value = std::vector<int32_t>(value_arrt.begin(), value_arrt.end());
+                std::vector<int32_t> int32_value(value_arrt.size());
+                std::transform(value_arrt.begin(), value_arrt.end(), int32_value.begin(), [](int64_t v) {
+                    return static_cast<int32_t>(v);
+                });
                 value_node = {default_opset::Constant::create(input_type,
                                                               Shape{value_shape.begin(), value_shape.end()},
                                                               int32_value)};
