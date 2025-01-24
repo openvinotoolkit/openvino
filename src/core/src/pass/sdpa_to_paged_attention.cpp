@@ -18,8 +18,6 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-
 using namespace ov::op;
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
@@ -107,6 +105,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         // for additional work on the input here as this is done
         // for "input_ids"
         processed_input_ids = input_ids_node;
+    } else {
+        OPENVINO_ASSERT(processed_input_ids, "Counln't process neither input_ids, nor inputs_embeds.");
     }
 
     ParameterVector kv_parameters;
