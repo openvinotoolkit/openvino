@@ -396,14 +396,15 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     FRONT_END_GENERAL_CHECK(variants.size() == 1 + extra_variants_num,
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
-                            std::to_string(variants.size()),
+                            variants.size(),
                             " instead.");
     FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<IDecoder>>(),
                             "PyTorch Frontend doesn't support provided model type. Please provide supported model "
                             "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
+    FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<IDecoder>");
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
-    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
+    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast IDecoder to TorchDecoder");
     return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 

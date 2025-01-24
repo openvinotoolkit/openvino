@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/hash_table.hpp"
+#include "openvino/frontend/node_context.hpp"
 
 using namespace ov::frontend;
 
-HashTable::~HashTable() = default;
+NodeContext::~NodeContext() = default;
