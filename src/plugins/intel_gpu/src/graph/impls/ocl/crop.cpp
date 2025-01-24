@@ -55,7 +55,19 @@ public:
         }
 
         update_shapes(*_kernel_data.params, impl_param);
-        auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
+
+        // Reset input_layout padding as the offset configured by crop should affect only "data"
+        // area and shouldn't depend on input_layout paddings.
+        // For example, for an input shape like: [1, 32, 128 (pad_before=512, pad_after=0), 8]
+        // with crop_axis=2 and split_lengths = {64, 64},
+        // runtime_offset should be set in terms of [1, 32, 128, 8] shape, as the kernel reads data
+        // using "input[GET_INDEX(INPUT, order) + runtime_offset]", where GET_INDEX already reflects input
+        // data paddings.
+        // So crop.out0's runtime_offset=0 and crop.out1's runtime_offset=512.
+        auto input_layout = impl_param.get_input_layout();
+        input_layout.data_padding = padding();
+
+        auto runtime_offset = convert_data_tensor(input_layout, impl_param.input_offsets[0]).GetFirstElementOffset();
         kernel_selector::ScalarDescriptor s;
         s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
         s.v.u32 = static_cast<uint32_t>(runtime_offset);
