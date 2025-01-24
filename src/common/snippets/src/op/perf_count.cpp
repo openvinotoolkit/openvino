@@ -142,7 +142,9 @@ void PerfCountEnd::output_perf_count() {
         }
         if (brgemm_csv_path.empty()) {
             auto brgemm_csv_path_it = rt_info.find("brgemm_params_csv_path");
-            brgemm_csv_path = brgemm_csv_path_it->second.as<std::string>();
+            if (brgemm_csv_path_it != rt_info.end()) {
+                brgemm_csv_path = brgemm_csv_path_it->second.as<std::string>();
+            }
         }
         m_debug_params_map[get_friendly_name()] =
             brgemm_params_it->second.as<std::string>() + std::to_string(acc_max) + ',' + std::to_string(avg_max);

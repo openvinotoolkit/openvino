@@ -39,6 +39,7 @@ public:
         }
         static size_t seq_number = 0;
         bool modified = false;
+        auto csv_path = linear_ir.get_config().debug_config.dumpParams.csv_path;
         for (auto expr_it = begin; expr_it != end; expr_it++) {
             const auto& brgemm_expr = *expr_it;
             const auto brgemm = ov::as_type_ptr<BRGEMM_TYPE>(brgemm_expr->get_node());
@@ -56,7 +57,6 @@ public:
             perf_count_end->set_friendly_name(std::string("PerfCount_End_") + std::to_string(seq_number) +
                                               "_DebugParams");
             // Attach brgemm parameters to PerfCountEnd node
-            auto csv_path = linear_ir.get_config().debug_config.dumpParams.csv_path;
             perf_count_end->get_rt_info()["brgemm_params"] = params;
             perf_count_end->get_rt_info()["brgemm_params_csv_path"] = csv_path;
             linear_ir.insert_node(perf_count_end, empty_inputs, expr_it->get()->get_loop_ids(), false, next(expr_it));
@@ -69,7 +69,6 @@ public:
 private:
     std::string collect_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr,
                                const snippets::lowered::LinearIR& linear_ir) {
-        auto debug_config = linear_ir.get_config().debug_config;
         const auto brgemm = ov::as_type_ptr<BRGEMM_TYPE>(brgemm_expr->get_node());
         OPENVINO_ASSERT(brgemm, "Brgemm is nullptr!");
         std::stringstream ss;
