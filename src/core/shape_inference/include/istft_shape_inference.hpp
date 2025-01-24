@@ -18,13 +18,14 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     using TDim = typename TRShape::value_type;
     using TDimVal = typename TDim::value_type;
 
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 5);
+    const auto inputs_count = input_shapes.size();
+    const auto is_in_count_correct = inputs_count == 4 || inputs_count == 5;
+    NODE_VALIDATION_CHECK(op, is_in_count_correct);
 
     const auto& data_shape = input_shapes[0];
     const auto& window_shape = input_shapes[1];
     const auto& frame_size_shape = input_shapes[2];
     const auto& frame_step_shape = input_shapes[3];
-    const auto& length_shape = input_shapes[4];
 
     const auto data_shape_rank = data_shape.rank();
     NODE_SHAPE_INFER_CHECK(op,
@@ -43,14 +44,9 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
                            input_shapes,
                            frame_step_shape.rank().compatible(0),
                            "The shape of frame_step must be a scalar.");
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           length_shape.rank().compatible(0),
-                           "The shape of length input must be a scalar.");
 
     const auto frame_size = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
     const auto frame_step = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
-    const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
 
     if (frame_size) {
         const auto& frame_size_val = (*frame_size)[0];
@@ -89,8 +85,18 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     const auto is_data_3D = data_shape.size() == 3;
 
     std::vector<TRShape> output_shapes;
-    if (sig_len_in && (*sig_len_in)[0].is_static()) {  // Set desired length of the signal dimension, if provided
-        output_shapes.emplace_back(TRShape{(*sig_len_in)[0]});
+    if (inputs_count == 5) {
+        const auto& length_shape = input_shapes[4];
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               length_shape.rank().compatible(0),
+                               "The shape of length input must be a scalar.");
+        const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
+        if (sig_len_in) {  // Set desired length of the signal dimension, if provided
+            output_shapes.emplace_back(TRShape{(*sig_len_in)[0]});
+        } else {
+            output_shapes.emplace_back(TRShape{TDim(ov::util::dim::inf_bound)});
+        }
     } else if (frame_size && frame_step) {  // Otherwise infer the length of the signal
         const auto& frame_size_val = (*frame_size)[0];
         const auto& frame_step_val = (*frame_step)[0];

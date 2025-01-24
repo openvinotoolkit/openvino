@@ -16,20 +16,35 @@ public:
     OPENVINO_OP("ISTFT", "opset16");
     ISTFT() = default;
 
-    /// \brief Constructs an ISTFT operation.
+    /// \brief Constructs an ISTFT operation with signal length to be inferred
     ///
     /// \param data  Input data
     /// \param window Window values applied in STFT
     /// \param frame_size Scalar value representing the size of Fourier Transform
     /// \param frame_step The distance (number of samples) between successive window frames
-    /// \param length The length of the original signal
     /// \param center Flag signaling if the signal input has been padded before STFT
     /// \param normalized Flag signaling if the STFT result has been normalized.
     ISTFT(const Output<Node>& data,
           const Output<Node>& window,
           const Output<Node>& frame_size,
           const Output<Node>& frame_step,
-          const Output<Node>& length,
+          const bool center,
+          const bool normalized);
+
+    /// \brief Constructs an ISTFT operation with signal length provided
+    ///
+    /// \param data  Input data
+    /// \param window Window values applied in STFT
+    /// \param frame_size Scalar value representing the size of Fourier Transform
+    /// \param frame_step The distance (number of samples) between successive window frames
+    /// \param signal_length The signal length of the original signal
+    /// \param center Flag signaling if the signal input has been padded before STFT
+    /// \param normalized Flag signaling if the STFT result has been normalized.
+    ISTFT(const Output<Node>& data,
+          const Output<Node>& window,
+          const Output<Node>& frame_size,
+          const Output<Node>& frame_step,
+          const Output<Node>& signal_length,
           const bool center,
           const bool normalized);
 

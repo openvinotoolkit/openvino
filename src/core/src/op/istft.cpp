@@ -24,10 +24,22 @@ ISTFT::ISTFT(const Output<Node>& data,
              const Output<Node>& window,
              const Output<Node>& frame_size,
              const Output<Node>& frame_step,
-             const Output<Node>& length,
              const bool center,
              const bool normalized)
-    : Op({data, window, frame_size, frame_step, length}),
+    : Op({data, window, frame_size, frame_step}),
+      m_center(center),
+      m_normalized(normalized) {
+    constructor_validate_and_infer_types();
+}
+
+ISTFT::ISTFT(const Output<Node>& data,
+             const Output<Node>& window,
+             const Output<Node>& frame_size,
+             const Output<Node>& frame_step,
+             const Output<Node>& signal_length,
+             const bool center,
+             const bool normalized)
+    : Op({data, window, frame_size, frame_step, signal_length}),
       m_center(center),
       m_normalized(normalized) {
     constructor_validate_and_infer_types();
@@ -37,6 +49,14 @@ std::shared_ptr<Node> ISTFT::clone_with_new_inputs(const OutputVector& new_args)
     OV_OP_SCOPE(v16_ISTFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
+    if (new_args.size() == 4) {
+        return std::make_shared<ISTFT>(new_args.at(0),
+                                       new_args.at(1),
+                                       new_args.at(2),
+                                       new_args.at(3),
+                                       m_center,
+                                       m_normalized);
+    }
     return std::make_shared<ISTFT>(new_args.at(0),
                                    new_args.at(1),
                                    new_args.at(2),
@@ -55,35 +75,35 @@ bool ISTFT::visit_attributes(AttributeVisitor& visitor) {
 
 void ISTFT::validate_and_infer_types() {
     OV_OP_SCOPE(v16_ISTFT_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() == 5, "Expected 5 inputs to be provided.");
+    const auto input_size = get_input_size();
+    const auto is_in_count_correct = input_size == 4 || input_size == 5;
+    NODE_VALIDATION_CHECK(this, is_in_count_correct, "Expected 4 or 5 inputs to be provided.");
 
-    auto signal_type = get_input_element_type(0);
+    auto data_type = get_input_element_type(0);
     const auto& window_type = get_input_element_type(1);
 
-    const auto has_valid_signal_type = signal_type.is_dynamic() || signal_type.is_real();
-    NODE_VALIDATION_CHECK(this, has_valid_signal_type, "Expected floating point type of the 'signal' input.");
+    const auto has_valid_data_type = data_type.is_dynamic() || data_type.is_real();
+    NODE_VALIDATION_CHECK(this, has_valid_data_type, "Expected floating point type of the 'data' input.");
 
     const auto has_valid_window_type =
-        window_type.is_dynamic() ||
-        (window_type.is_real() && element::Type::merge(signal_type, window_type, signal_type));
-    NODE_VALIDATION_CHECK(this,
-                          has_valid_window_type,
-                          "Expected floating point type of the 'window' input, matching the type of `signal` input.");
+        window_type.is_dynamic() || (window_type.is_real() && element::Type::merge(data_type, window_type, data_type));
+    NODE_VALIDATION_CHECK(this, has_valid_window_type, "Expected floating point type of the 'window' input.");
 
     check_int_input_at(this, 2);
     check_int_input_at(this, 3);
-    check_int_input_at(this, 4);
+    if (input_size == 5) {
+        check_int_input_at(this, 4);
+    }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
-    set_output_type(0, signal_type, output_shapes[0]);
+    set_output_type(0, data_type, output_shapes[0]);
 }
 
 bool ISTFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v16_ISTFT_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 5);
 
     const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
     const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
@@ -92,7 +112,10 @@ bool ISTFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
     const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
-    const auto length = ov::get_tensor_data_as<int64_t>(inputs[4]).front();
+    int64_t length = -1;
+    if (inputs.size() == 5) {
+        length = ov::get_tensor_data_as<int64_t>(inputs[4]).front();
+    }
 
     ov::reference::istft(inputs[0].data<const float>(),
                          inputs[1].data<const float>(),

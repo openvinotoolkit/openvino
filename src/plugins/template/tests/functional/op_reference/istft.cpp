@@ -48,11 +48,16 @@ public:
     void SetUp() override {
         const auto& params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.signal.data,
-                     params.window.data,
-                     params.frame_size.data,
-                     params.frame_step.data,
-                     params.length.data};
+        if (shape_size(params.length.shape) == 0) {  // Ignore signal length
+            inputData = {params.signal.data, params.window.data, params.frame_size.data, params.frame_step.data};
+        } else {
+            inputData = {params.signal.data,
+                         params.window.data,
+                         params.frame_size.data,
+                         params.frame_step.data,
+                         params.length.data};
+        }
+
         refOutData = {params.expected_tensor.data};
         abs_threshold = 1e-5f;
     }
@@ -97,16 +102,28 @@ private:
             std::make_shared<ov::op::v0::Parameter>(params.frame_step.type, params.frame_step.shape);
         const auto in_length = std::make_shared<ov::op::v0::Parameter>(params.length.type, params.length.shape);
 
-        const auto ISTFT = std::make_shared<ov::op::v16::ISTFT>(in_signal,
-                                                                in_window,
-                                                                in_frame_size,
-                                                                in_frame_step,
-                                                                in_length,
-                                                                params.center,
-                                                                params.normalized);
-        return std::make_shared<ov::Model>(
-            ISTFT->outputs(),
-            ov::ParameterVector{in_signal, in_window, in_frame_size, in_frame_step, in_length});
+        std::shared_ptr<ov::op::v16::ISTFT> ISTFT;
+        if (shape_size(params.length.shape) == 0) {
+            ISTFT = std::make_shared<ov::op::v16::ISTFT>(in_signal,
+                                                         in_window,
+                                                         in_frame_size,
+                                                         in_frame_step,
+                                                         params.center,
+                                                         params.normalized);
+            return std::make_shared<ov::Model>(ISTFT->outputs(),
+                                               ov::ParameterVector{in_signal, in_window, in_frame_size, in_frame_step});
+        } else {
+            ISTFT = std::make_shared<ov::op::v16::ISTFT>(in_signal,
+                                                         in_window,
+                                                         in_frame_size,
+                                                         in_frame_step,
+                                                         in_length,
+                                                         params.center,
+                                                         params.normalized);
+            return std::make_shared<ov::Model>(
+                ISTFT->outputs(),
+                ov::ParameterVector{in_signal, in_window, in_frame_size, in_frame_step, in_length});
+        }
     }
 };
 
@@ -343,7 +360,7 @@ std::vector<ISTFTParams> generateISTFTParams() {
             2.6093e-01,  5.9605e-08, 4.1264e-01, -1.0292e-01, -2.4602e-01, 2.0872e-03,  -1.7790e-01, 7.3688e-02,
             6.4488e-02,  0.0000e+00, 4.1084e-01, 0.0000e+00,  -2.3377e-01, 0.0000e+00,  -3.6569e-01, 0.0000e+00});
 
-    reference_tests::Tensor auto_length(Shape{}, IT, std::vector<INT_T>{-1});
+    reference_tests::Tensor auto_length(Shape{0}, IT, std::vector<INT_T>{});
     reference_tests::Tensor length_16(Shape{}, IT, std::vector<INT_T>{16});
     reference_tests::Tensor length_39(Shape{}, IT, std::vector<INT_T>{39});
     reference_tests::Tensor length_48(Shape{}, IT, std::vector<INT_T>{48});
@@ -430,6 +447,15 @@ std::vector<ISTFTParams> generateISTFTParams() {
                         false,
                         signal_2_48,
                         "basic_2D_transp_two_win_step_16_center");
+    params.emplace_back(output_stft_2_9_4_2_transp_win_two_center,
+                        two_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        length_48,
+                        true,
+                        false,
+                        signal_2_48,
+                        "basic_2D_transp_two_win_step_16_center_length_48");
     params.emplace_back(output_stft_9_4_2_transp_win_two_center_norm,
                         two_window_16,
                         frame_size_16,
