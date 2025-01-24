@@ -9,8 +9,7 @@
 
 #include <thread>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ExecutionConfig::ExecutionConfig() {
     set_default();
@@ -306,5 +305,4 @@ std::string ExecutionConfig::to_string() const {
     return s.str();
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
