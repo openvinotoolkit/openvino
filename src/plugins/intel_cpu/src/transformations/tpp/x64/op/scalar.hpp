@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "modifiers.hpp"
 #include "eltwise.hpp"
+#include "modifiers.hpp"
 #include "snippets/op/reduce.hpp"
 
 namespace ov {
@@ -26,7 +26,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

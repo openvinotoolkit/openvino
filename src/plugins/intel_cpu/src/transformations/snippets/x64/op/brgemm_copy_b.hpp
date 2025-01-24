@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +31,14 @@ public:
                 const size_t offset_in = 0lu,
                 const size_t offset_out0 = 0lu,
                 const size_t offset_out1 = 0lu,
-                std::vector<size_t> layout_input = {});
+                const std::vector<size_t>& layout_input = {});
     BrgemmCopyB(const Output<Node>& x,
                 const element::Type src_type,
                 BRGEMM_TYPE type,
                 const PortDescriptor& desc_in0,
                 const PortDescriptor& desc_out0,
                 const PortDescriptor& desc_out1,
-                std::vector<size_t> layout_input = {});
+                const std::vector<size_t>& layout_input = {});
     BrgemmCopyB() = default;
 
     size_t get_offset_in() const {
@@ -75,7 +75,7 @@ public:
     static bool is_transposed(const std::vector<size_t>& layout);
 
 private:
-    void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
+    void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
     void validate_element_type(const ov::element::Type& element_type);
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;

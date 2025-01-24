@@ -122,6 +122,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
                                                                  streams,
                                                                  1,
                                                                  core_type,
+                                                                 false,
                                                                  enable_cpu_pinning);
 
     return task_executor_config;
@@ -529,6 +530,7 @@ void program::init_graph() {
             node->get_output_layouts();
         if (node->is_type<lstm_seq>()) {
             _config.set_property(ov::intel_gpu::use_onednn(true));
+            _config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         }
     }
     // Perform initial shape_of subgraphs markup
