@@ -68,10 +68,6 @@ Other Changes and Known Issues
 Jupyter Notebooks
 -----------------------------
 
-* `Visual-language assistant with GLM-Edge-V and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/glm-edge-v/glm-edge-v.ipynb>`__
-* `Local AI and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/localai/localai.ipynb>`__
-* `Multimodal understanding and generation with Janus and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/janus-multimodal-generation/janus-multimodal-generation.ipynb>`__
-
 
 
 
@@ -119,19 +115,19 @@ Discontinued in 2025
 
 * Runtime components:
 
-  * OpenVINO property Affinity API will is no longer available. It has been replaced with CPU
+  * The OpenVINO property of Affinity API will is no longer available. It has been replaced with CPU
     binding configurations (``ov::hint::enable_cpu_pinning``).
 
 * Tools:
 
-  * Intel® Streaming SIMD Extensions (Intel® SSE) are currently not enabled in the binary
-    package by default. They are still supported in the source code form.
   * The OpenVINO™ Development Tools package (pip install openvino-dev) is no longer available
     for OpenVINO releases in 2025.
-  * Model Optimizer is no longer avilable. Consider using the
+  * Model Optimizer is no longer available. Consider using the
     :doc:`new conversion methods <../openvino-workflow/model-preparation/convert-model-to-ir>`
     instead. For more details, see the
     `model conversion transition guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html>`__.
+  * Intel® Streaming SIMD Extensions (Intel® SSE) are currently not enabled in the binary
+    package by default. They are still supported in the source code form.
 
 
 Deprecated and to be removed in the future
@@ -141,7 +137,7 @@ Deprecated and to be removed in the future
   standard support.
 * The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the
   Simple PyPI nightly repo instead. More information in
-  `Release Policy <https://docs.openvino.ai/2024/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
+  `Release Policy <https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
 * “auto shape” and “auto batch size” (reshaping a model in runtime) will be removed in the
   future. OpenVINO's dynamic shape models are recommended instead.
 * MacOS x86 is no longer recommended for use due to the discontinuation of validation.
@@ -161,16 +157,12 @@ Legal Information
 +++++++++++++++++++++++++++++++++++++++++++++
 
 You may not use or facilitate the use of this document in connection with any infringement
-or other legal analysis concerning Intel products described herein.
-
-You agree to grant Intel a non-exclusive, royalty-free license to any patent claim
-thereafter drafted which includes subject matter disclosed herein.
+or other legal analysis concerning Intel products described herein. All information provided
+here is subject to change without notice. Contact your Intel representative to obtain the
+latest Intel product specifications and roadmaps.
 
 No license (express or implied, by estoppel or otherwise) to any intellectual property
 rights is granted by this document.
-
-All information provided here is subject to change without notice. Contact your Intel
-representative to obtain the latest Intel product specifications and roadmaps.
 
 The products described may contain design defects or errors known as errata which may
 cause the product to deviate from published specifications. Current characterized errata
@@ -183,10 +175,9 @@ or from the OEM or retailer.
 
 No computer system can be absolutely secure.
 
-Intel, Atom, Core, Xeon, OpenVINO, and the Intel logo are trademarks
-of Intel Corporation in the U.S. and/or other countries.
-
-Other names and brands may be claimed as the property of others.
+Intel, Atom, Core, Xeon, OpenVINO, and the Intel logo are trademarks of Intel Corporation in
+the U.S. and/or other countries. Other names and brands may be claimed as the property of
+others.
 
 Copyright © 2025, Intel Corporation. All rights reserved.
 

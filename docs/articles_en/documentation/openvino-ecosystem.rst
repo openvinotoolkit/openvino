@@ -24,7 +24,7 @@ you an overview of a whole ecosystem of tools and solutions under the OpenVINO u
 
 | **GenAI**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino.genai>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/openvino-workflow-generative/inference-with-genai.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html>`
 
 OpenVINO™ GenAI Library aims to simplify running inference of generative AI
 models. Check the LLM-powered Chatbot Jupyter notebook to see how GenAI works.
@@ -113,7 +113,7 @@ generative AI and vision models directly on your computer or edge device using O
 
 | **Tokenizers**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_tokenizers>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/openvino-workflow-generative/ov-tokenizers.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html>`
 
 OpenVINO Tokenizers add text processing operations to OpenVINO.
 
