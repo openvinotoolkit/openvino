@@ -30,7 +30,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: turn_on_str_pack_opset15_master
 
 jobs:
   Openvino_tokenizers:
@@ -82,7 +82,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
-          repository: 'openvinotoolkit/openvino_tokenizers'
+          repository: 'pavel-esir/openvino_tokenizers'
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
           ref: ${{ env.TARGET_BRANCH }}
 
