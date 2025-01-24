@@ -9,8 +9,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -71,5 +70,4 @@ void CreateRollOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v7::Roll>& op
 
 REGISTER_FACTORY_IMPL(v7, Roll);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

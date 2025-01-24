@@ -9,8 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_ptr<op::util::ScatterElementsUpdateBase>& op) {
     validate_inputs_count(op, {4});
@@ -45,5 +44,4 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
 REGISTER_FACTORY_IMPL(v3, ScatterElementsUpdate);
 REGISTER_FACTORY_IMPL(v12, ScatterElementsUpdate);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

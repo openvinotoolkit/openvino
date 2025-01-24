@@ -8,8 +8,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reverse.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateReverseOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Reverse>& op) {
     validate_inputs_count(op, {2});
@@ -25,5 +24,4 @@ static void CreateReverseOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1:
 
 REGISTER_FACTORY_IMPL(v1, Reverse);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

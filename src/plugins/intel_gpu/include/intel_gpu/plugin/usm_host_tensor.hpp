@@ -8,8 +8,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class RemoteContextImpl;
 class RemoteTensorImpl;
@@ -38,5 +37,4 @@ private:
     std::shared_ptr<RemoteTensorImpl> m_impl;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

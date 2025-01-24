@@ -107,8 +107,7 @@
         static const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& get_implementations(); \
     }
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // Global list of implementations for given primitive type
 // List must be sorted by priority of implementations
@@ -121,8 +120,7 @@ struct Registry {
     }
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 REGISTER_IMPLS(activation);
 REGISTER_IMPLS(arg_max_min);

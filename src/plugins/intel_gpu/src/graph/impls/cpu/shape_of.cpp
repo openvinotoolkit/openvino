@@ -22,7 +22,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::shape_of_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<shape_of_impl>(*this);
+        return std::make_unique<shape_of_impl>(*this);
     }
 
     shape_of_impl() : parent("shape_of_cpu_impl") {}
@@ -72,7 +72,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<shape_of_impl>();
+        return std::make_unique<shape_of_impl>();
     }
 };
 

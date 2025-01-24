@@ -12,9 +12,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 Gemm::Gemm(const ov::Output<Node>& A,
            const ov::Output<Node>& B,
@@ -113,6 +111,4 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

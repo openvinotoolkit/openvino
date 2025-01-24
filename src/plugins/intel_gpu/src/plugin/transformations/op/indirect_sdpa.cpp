@@ -5,9 +5,7 @@
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 IndirectSDPA::IndirectSDPA(const OutputVector& data_inputs,
                            const ov::Output<Node>& beam_table,
@@ -105,6 +103,4 @@ bool IndirectSDPA::visit_attributes(ov::AttributeVisitor &visitor) {
     return true;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

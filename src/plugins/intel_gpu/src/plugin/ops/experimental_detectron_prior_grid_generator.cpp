@@ -6,8 +6,7 @@
 #include <intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp>
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 namespace {
 
 static void CreateExperimentalDetectronPriorGridGeneratorOp(
@@ -36,5 +35,4 @@ static void CreateExperimentalDetectronPriorGridGeneratorOp(
 
 REGISTER_FACTORY_IMPL(v6, ExperimentalDetectronPriorGridGenerator);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

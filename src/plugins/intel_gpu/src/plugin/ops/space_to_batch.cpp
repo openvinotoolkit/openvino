@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/space_to_batch.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::SpaceToBatch>& op) {
     validate_inputs_count(op, {4});
@@ -70,5 +69,4 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
 REGISTER_FACTORY_IMPL(v1, SpaceToBatch);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

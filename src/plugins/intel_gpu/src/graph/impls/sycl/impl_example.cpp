@@ -48,7 +48,7 @@ template<> struct AccumulatorType<::sycl::half, int8_t> {
 
 template<typename AType, typename WType, typename ZPType, typename ScaleType, typename DType>
 ::sycl::event run_fc_int4_woq(::sycl::queue& queue, bool enqueue_barrier, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
-                              size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, optional_value<float> dzp_s) {
+                              size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, std::optional<float> dzp_s) {
     if (enqueue_barrier) {
         queue.submit([=](::sycl::handler& cgh) {
             cgh.ext_oneapi_barrier();
@@ -91,7 +91,7 @@ template<typename AType, typename WType, typename ZPType, typename ScaleType, ty
 
 template<typename AType, typename WType, typename ZPType, typename ScaleType, typename DType>
 ::sycl::event run_fc_int8_woq(::sycl::queue& queue, bool enqueue_barrier, const AType* a, const WType* w, const ZPType* zp, const ScaleType* s, DType* dst,
-                     size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, optional_value<float> dzp_s) {
+                     size_t M, size_t N, size_t K, size_t group_size, size_t groups_num, const ov::Shape& out_shape, std::optional<float> dzp_s) {
     if (enqueue_barrier) {
         queue.submit([=](::sycl::handler& cgh) {
             cgh.ext_oneapi_barrier();
@@ -134,7 +134,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::sycl::fully_connected_sycl_example)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<fully_connected_sycl_example>(*this);
+        return std::make_unique<fully_connected_sycl_example>(*this);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */, typed_primitive_inst<fully_connected>& instance) override {
@@ -255,7 +255,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        return cldnn::make_unique<fully_connected_sycl_example>(engine, config, get_weights_reorder(impl_params));
+        return std::make_unique<fully_connected_sycl_example>(engine, config, get_weights_reorder(impl_params));
     }
 };
 

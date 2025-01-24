@@ -10,8 +10,7 @@
     #include "impls/ocl/lstm_cell.hpp"
 #endif
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
@@ -23,5 +22,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<lstm_
     return impls;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

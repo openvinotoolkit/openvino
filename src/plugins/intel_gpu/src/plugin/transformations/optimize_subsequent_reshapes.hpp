@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * @brief This pass looks for `Reshape [ dynamic dim, n static dims] -> Reshape [dynamic dim, n static dims]` patterns
@@ -19,5 +18,4 @@ public:
     OptimizeSubsequentReshapes();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

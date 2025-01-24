@@ -43,7 +43,7 @@ struct reduction_onednn : typed_primitive_onednn_impl<reduce> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reduction_onednn>(*this);
+        return std::make_unique<reduction_onednn>(*this);
     }
 
     static std::shared_ptr<dnnl::reduction::primitive_desc> get_reduction_primitive_descriptor(const kernel_impl_params& impl_params,
@@ -153,7 +153,7 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_reduction_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<reduction_onednn>(engine, config, attr, *prim_desc);
+        return std::make_unique<reduction_onednn>(engine, config, attr, *prim_desc);
     }
 };
 

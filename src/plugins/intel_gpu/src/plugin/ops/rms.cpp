@@ -9,8 +9,7 @@
 
 using RMS = ov::op::internal::RMS;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<RMS>& op) {
     validate_inputs_count(op, {2});
@@ -27,5 +26,4 @@ static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<RMS>& op) {
 
 REGISTER_FACTORY_IMPL(internal, RMS);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

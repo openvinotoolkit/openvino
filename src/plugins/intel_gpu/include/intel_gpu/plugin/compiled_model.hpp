@@ -17,8 +17,7 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
@@ -74,5 +73,4 @@ private:
     bool m_loaded_from_cache;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

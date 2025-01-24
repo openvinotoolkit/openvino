@@ -14,8 +14,7 @@
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
     : ov::pass::MatcherPass() {
@@ -92,5 +91,4 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -25,8 +25,7 @@
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -348,5 +347,4 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_i
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

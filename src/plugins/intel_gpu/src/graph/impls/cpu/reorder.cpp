@@ -21,7 +21,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return std::make_unique<reorder_impl>(*this);
     }
 
     reorder_impl() : parent("reorder_cpu_impl") {}
@@ -81,7 +81,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<reorder_impl>();
+        return std::make_unique<reorder_impl>();
     }
 };
 

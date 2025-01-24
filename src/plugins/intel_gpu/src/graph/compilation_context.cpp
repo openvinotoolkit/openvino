@@ -90,7 +90,7 @@ private:
 };
 
 std::shared_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {
-    return cldnn::make_unique<CompilationContext>(task_executor_config);
+    return std::make_unique<CompilationContext>(task_executor_config);
 }
 
 }  // namespace cldnn

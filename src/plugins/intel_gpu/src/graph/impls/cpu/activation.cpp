@@ -61,7 +61,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::activation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<activation_impl>(*this);
+        return std::make_unique<activation_impl>(*this);
     }
 
     activation_impl() : parent("activation_cpu_impl") {}
@@ -287,7 +287,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const activation_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<activation_impl>();
+        return std::make_unique<activation_impl>();
     }
 };
 

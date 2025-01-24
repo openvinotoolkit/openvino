@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/border.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::util::PadBase>& op, bool allow_negative_pad) {
     validate_inputs_count(op, {3, 4});
@@ -78,5 +77,4 @@ static void CreatePadOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v12::Pa
 REGISTER_FACTORY_IMPL(v1, Pad);
 REGISTER_FACTORY_IMPL(v12, Pad);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

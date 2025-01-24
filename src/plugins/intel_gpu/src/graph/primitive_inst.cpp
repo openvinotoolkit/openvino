@@ -2031,7 +2031,7 @@ void primitive_inst::configure_shape_of_dependencies() {
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)
-    , _impl_params(make_unique<kernel_impl_params>())
+    , _impl_params(std::make_unique<kernel_impl_params>())
     , _impl(nullptr)
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())

@@ -38,7 +38,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::paged_attention_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<paged_attention_impl>(*this);
+        return std::make_unique<paged_attention_impl>(*this);
     }
 
     paged_attention_impl() = default;
@@ -797,7 +797,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             kernels_data.push_back(kv_cache_rotate_kernel_selector.get_best_kernel(kv_cache_rotate_kernel_params));
         }
 
-        auto impl = cldnn::make_unique<paged_attention_impl>(kernels_data);
+        auto impl = std::make_unique<paged_attention_impl>(kernels_data);
         impl->has_scores_output = desc->has_scores_output();
         impl->has_rotated_blocks = desc->has_rotated_blocks;
 

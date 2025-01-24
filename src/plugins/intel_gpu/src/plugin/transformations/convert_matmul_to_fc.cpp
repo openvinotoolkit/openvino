@@ -13,8 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
     auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
@@ -209,5 +208,4 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -18,8 +18,7 @@ using KVCacheCompressed = ov::intel_gpu::op::KVCacheCompressed;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -65,5 +64,4 @@ void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 REGISTER_FACTORY_IMPL(internal, KVCache);
 REGISTER_FACTORY_IMPL(internal, KVCacheCompressed);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

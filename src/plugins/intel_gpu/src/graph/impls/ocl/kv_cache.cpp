@@ -480,7 +480,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 kernels_data.push_back(concat_scale_zp_kernel_selector.get_best_kernel(concat_zp_kernel_params));
             }
         }
-        return cldnn::make_unique<kv_cache_impl>(kernels_data);
+        return std::make_unique<kv_cache_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

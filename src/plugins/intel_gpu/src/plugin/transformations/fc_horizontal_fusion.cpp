@@ -15,8 +15,7 @@
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
@@ -308,5 +307,4 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -6,8 +6,7 @@
 #include "intel_gpu/primitives/ctc_loss.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -27,5 +26,4 @@ void CreateCTCLossOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::CTCLos
 
 REGISTER_FACTORY_IMPL(v4, CTCLoss);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

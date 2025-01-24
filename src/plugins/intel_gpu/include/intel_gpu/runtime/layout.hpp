@@ -15,6 +15,7 @@
 #include <functional>
 #include <array>
 #include <bitset>
+#include <optional>
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -474,8 +475,8 @@ inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>&
     return os << ss.str();
 }
 
-using optional_data_type = optional_value<data_types>;
-using optional_layout = optional_value<layout>;
+using optional_data_type = std::optional<data_types>;
+using optional_layout = std::optional<layout>;
 
 /// @}
 /// @}

@@ -9,8 +9,7 @@
 #include "openvino/op/one_hot.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::OneHot>& op) {
     validate_inputs_count(op, {4});
@@ -79,5 +78,4 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
 
 REGISTER_FACTORY_IMPL(v1, OneHot);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

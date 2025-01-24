@@ -50,7 +50,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::eltwise_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<eltwise_impl>(*this);
+        return std::make_unique<eltwise_impl>(*this);
     }
 
     eltwise_impl() : parent("eltwise_cpu_impl") {}
@@ -221,7 +221,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<eltwise_impl>();
+        return std::make_unique<eltwise_impl>();
     }
 };
 

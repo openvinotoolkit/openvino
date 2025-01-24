@@ -14,8 +14,7 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::reshape::reshape_mode mode, bool special_zero = false) {
     validate_inputs_count(op, {1, 2});
@@ -105,5 +104,4 @@ REGISTER_FACTORY_IMPL(v1, Reshape);
 REGISTER_FACTORY_IMPL(v0, Squeeze);
 REGISTER_FACTORY_IMPL(v0, Unsqueeze);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
