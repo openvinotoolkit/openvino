@@ -5,7 +5,7 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.CompiledModel tests', () => {
   let testXml = null;
@@ -13,8 +13,9 @@ describe('ov.CompiledModel tests', () => {
   let compiledModel = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    const testModelFP32 = testModels.testModelFP32;
+    await isModelAvailable(testModelFP32);
+    testXml = testModelFP32.xml;
     core = new ov.Core();
   });
 

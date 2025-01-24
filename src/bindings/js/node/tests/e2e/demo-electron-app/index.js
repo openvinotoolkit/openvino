@@ -1,8 +1,9 @@
 const { app } = require('electron');
 const { addon: ov } = require('openvino-node');
+const { testModels, lengthFromShape } = require('../../utils.js');
 
 const epsilon = 0.5; // To avoid very small numbers
-const pathToModel = '../tests/unit/test_models/test_model_fp32.xml';
+const testModelFP32 = testModels.testModelFP32;
 
 main();
 
@@ -15,17 +16,17 @@ async function main() {
     const core = new ov.Core();
     console.log('Created OpenVINO Runtime Core');
 
-    const model = await core.readModel(pathToModel);
+    const model = await core.readModel(testModelFP32.xml);
     console.log('Model read successfully:', model);
     const compiledModel = await core.compileModel(model, 'CPU');
     const inferRequest = compiledModel.createInferRequest();
     console.log('Infer request created:', inferRequest);
 
     const tensorData = Float32Array.from(
-      { length: 3072 },
+      { length: lengthFromShape(testModelFP32.inputShape) },
       () => Math.random() + epsilon,
     );
-    const tensor = new ov.Tensor(ov.element.f32, [1, 3, 32, 32], tensorData);
+    const tensor = new ov.Tensor(ov.element.f32, testModelFP32.inputShape, tensorData);
     console.log('Tensor created:', tensor);
 
     const result = await inferRequest.inferAsync([tensor]);

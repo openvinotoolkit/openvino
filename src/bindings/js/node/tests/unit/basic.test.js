@@ -11,14 +11,15 @@ const { after, describe, it, before, beforeEach } = require('node:test');
 const {
   testModels,
   compareModels,
-  getModelPath,
   isModelAvailable,
   sleep,
-} = require('./utils.js');
+  lengthFromShape,
+} = require('../utils.js');
 const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
-  let testXml = null;
+  const testModelFP32 = testModels.testModelFP32
+  const testXml = testModelFP32.xml;
   let core = null;
   let model = null;
   let compiledModel = null;
@@ -27,8 +28,7 @@ describe('ov basic tests.', () => {
 
   before(async () => {
     outDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'));
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    await isModelAvailable(testModelFP32);
   });
 
   beforeEach(() => {
@@ -277,8 +277,8 @@ describe('ov basic tests.', () => {
         assert.strictEqual(obj.input().getAnyName(), 'data');
         assert.strictEqual(obj.input().anyName, 'data');
 
-        assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
-        assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
+        assert.deepStrictEqual(obj.input(0).shape, testModelFP32.inputShape);
+        assert.deepStrictEqual(obj.input(0).getShape(), testModelFP32.inputShape);
       });
     });
   });
@@ -290,7 +290,7 @@ describe('ov basic tests.', () => {
 
     before(() => {
       tensor = Float32Array.from(
-        { length: 3072 },
+        { length: lengthFromShape(testModelFP32.inputShape) },
         () => Math.random() + epsilon,
       );
       const core = new ov.Core();
