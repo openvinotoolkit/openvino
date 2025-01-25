@@ -32,7 +32,7 @@ public:
     TransposeExecutorFactory(const TransposeParams& transposeParams,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const ExecutorContext::CPtr context)
+                             const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getTransposeExecutorsList()) {
             if (desc.builder->isSupported(transposeParams, srcDescs, dstDescs)) {
