@@ -91,8 +91,8 @@ struct precision_of<float16> {
 #define PLAINTENSOR_RANK_MAX 8
 
 struct PlainTensor {
-    size_t m_strides[PLAINTENSOR_RANK_MAX];
-    size_t m_dims[PLAINTENSOR_RANK_MAX];
+    size_t m_strides[PLAINTENSOR_RANK_MAX] = {};
+    size_t m_dims[PLAINTENSOR_RANK_MAX] = {};
     size_t m_rank = 0;
     std::shared_ptr<uint8_t> m_ptr;
     size_t m_capacity = 0;
