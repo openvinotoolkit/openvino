@@ -111,8 +111,9 @@ void If::initSupportedPrimitiveDescriptors() {
 }
 
 int If::registerToAllocationContext(int offset, AllocationContext& context) {
-    offset = m_thenGraph.RegisterToAllocationContext(offset, context);
-    return m_elseGraph.RegisterToAllocationContext(offset, context);
+    const int thenOffset = m_thenGraph.RegisterToAllocationContext(offset, context);
+    const int elseOffset = m_elseGraph.RegisterToAllocationContext(thenOffset, context);
+    return m_elseGraph.RegisterToAllocationContext(elseOffset, context);
 }
 
 void If::createPrimitive() {
