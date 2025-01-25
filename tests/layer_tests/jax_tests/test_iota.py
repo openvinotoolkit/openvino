@@ -20,7 +20,7 @@ class TestIota(JaxLayerTest):
         self.input_type = input_type
 
         def jax_iota():
-            return jax.lax.iota(input_type, input_shape)
+            return jax.lax.iota(input_type,input_shape)
         
         return jax_iota, None, 'iota'
         
