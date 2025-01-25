@@ -203,7 +203,7 @@ jobs:
     name: CPU functional tests
     timeout-minutes: 30
     needs: [Smart_CI, Docker, Build]
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv_xuantie }}
       volumes:

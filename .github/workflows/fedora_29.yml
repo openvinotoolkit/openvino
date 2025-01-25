@@ -104,7 +104,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-staging
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
     env:
@@ -159,7 +159,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'fedora_29'
