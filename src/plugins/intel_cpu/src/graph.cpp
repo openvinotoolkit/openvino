@@ -903,19 +903,20 @@ int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
     ResolveInOutInPlaceEdges(graphEdges);
 
     // nodes are expected to be topologically sorted
-    for (size_t execIndex = 0, j = 0; execIndex < graphNodes.size(); execIndex++) {
+    for (size_t execIndex = 0, syncNodeIdx = 0; execIndex < graphNodes.size(); execIndex++) {
         const auto& node = graphNodes[execIndex];
         const auto inputExecIndex = offset;
+        // register local sync node idx to global allocation context as well
+        if (syncNodeIdx < syncNodesInds.size() && syncNodesInds[syncNodeIdx] == execIndex) {
+            context.syncPoints.push_back(inputExecIndex);
+            syncNodeIdx++;
+        }
+
         // an offset is the number of nodes in the internal graph minus the current node (-1)
         offset = node->registerToAllocationContext(inputExecIndex, context);
         const auto outputExecIndex = offset;
         offset++;
         context.execIndex[node] = {inputExecIndex, outputExecIndex};
-
-        if (j < syncNodesInds.size() && syncNodesInds[j] == execIndex) {
-            context.syncPoints.push_back(inputExecIndex);
-            j++;
-        }
     }
 
     context.edges.insert(context.edges.end(), graphEdges.begin(), graphEdges.end());
