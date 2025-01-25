@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,6 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
 
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -39,11 +37,9 @@ struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, publi
 
     explicit jit_mul_add_softmax_kernel(const jit_mul_add_softmax_compile_params& jcp)
         : jit_uni_mul_add_softmax_kernel(jcp),
-          jit_generator(jit_name()) {
-        exp_emitter = std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f);
-
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
-    }
+          jit_generator(jit_name()),
+          vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)),
+          exp_emitter(std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f)) {}
     virtual ~jit_mul_add_softmax_kernel() {}
 
     void create_ker() override {
@@ -384,9 +380,8 @@ struct jit_convert_reorder_kernel : public jit_uni_convert_reorder_kernel, publi
 
     explicit jit_convert_reorder_kernel(const jit_convert_reorder_compile_params& jcp)
         : jit_uni_convert_reorder_kernel(jcp),
-          jit_generator(jit_name()) {
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
-    }
+          jit_generator(jit_name()),
+          vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)) {}
     virtual ~jit_convert_reorder_kernel() {}
 
     void create_ker() override {
@@ -728,7 +723,7 @@ private:
 
 bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
+        const auto mha = ov::as_type_ptr<const MHANode>(op);
         if (!mha) {
             errorMessage = "Only MHA from CPU internal opset is supported";
             return false;
@@ -801,14 +796,14 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto mha = std::dynamic_pointer_cast<const MHANode>(op);
+    const auto mha = ov::as_type_ptr<const MHANode>(op);
     mulScales = mha->get_mul_scales();
     isMulFirst = mha->get_is_mul_first();
     fqScales0 = mha->get_fq_scales0();
@@ -882,7 +877,7 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
                                    ctx.K,
                                    &strides);
     if (status != dnnl_success) {
-        THROW_ERROR("cannot be executed due to invalid brgconv params");
+        THROW_CPU_NODE_ERR("cannot be executed due to invalid brgconv params");
     }
 
     ctx.is_with_amx = use_amx;
@@ -896,11 +891,11 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success) {
-        THROW_ERROR("cannot be executed due to invalid brgconv params");
+        THROW_CPU_NODE_ERR("cannot be executed due to invalid brgconv params");
     }
     brgKernel.reset(brgKernel_);
 #else
-    THROW_ERROR("is not supported on non-x86_64");
+    THROW_CPU_NODE_ERR("is not supported on non-x86_64");
 #endif  // OPENVINO_ARCH_X86_64
 }
 
@@ -975,7 +970,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
 #if defined(OPENVINO_ARCH_X86_64)
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
     if (ret != dnnl::impl::status_t::dnnl_success)
-        THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ", ret);
+        THROW_CPU_NODE_ERR("cannot create_brgemm_matmul_copy_b kernel, dnnl_status: ", ret);
 #endif  // OPENVINO_ARCH_X86_64
 }
 
@@ -1207,7 +1202,7 @@ void MHA::prepareParams() {
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (!mulAddSoftmaxKernel) {
-            THROW_ERROR("cannot create jit eltwise kernel");
+            THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1231,7 +1226,7 @@ void MHA::prepareParams() {
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (!convertReorderKernel) {
-            THROW_ERROR("cannot create jit eltwise kernel");
+            THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1258,7 +1253,7 @@ void MHA::prepareParams() {
 #endif  // OPENVINO_ARCH_X86_64
 
         if (!convertTransposeKernel) {
-            THROW_ERROR("cannot create jit eltwise kernel");
+            THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
         }
     }
 
@@ -1315,7 +1310,7 @@ void MHA::callBrgemm(brgemmCtx& ctx,
         brgemm_kernel_execute(brgKernel.get(), 1, pin0, pin1, nullptr, pout, wsp);
     }
 #else
-    THROW_ERROR("is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("is not supported on non-x64 platforms");
 #endif  // OPENVINO_ARCH_X86_64
 }
 
@@ -1542,7 +1537,7 @@ void MHA::mhaImpl() {
     });
 }
 
-void MHA::execute(dnnl::stream strm) {
+void MHA::execute(const dnnl::stream& strm) {
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {
@@ -1550,11 +1545,11 @@ void MHA::execute(dnnl::stream strm) {
     } else if (inputPrecisions[1] == ov::element::i8) {
         mhaImpl<int8_t>();
     } else {
-        THROW_ERROR("doesn't support provided input precisions");
+        THROW_CPU_NODE_ERR("doesn't support provided input precisions");
     }
 }
 
-void MHA::executeDynamicImpl(dnnl::stream strm) {
+void MHA::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

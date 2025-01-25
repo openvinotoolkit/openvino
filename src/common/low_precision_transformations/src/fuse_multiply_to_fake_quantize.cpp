@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,16 +25,16 @@ FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformati
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseMultiplyToFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 
@@ -86,7 +86,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
         newFakeQuantize->set_levels(intervalAlignment.as<IntervalsAlignmentAttribute>().levels);
     }
 
-    updateOutput(context, newFakeQuantize, multiply);
+    updateOutput(newFakeQuantize, multiply);
     return true;
 }
 

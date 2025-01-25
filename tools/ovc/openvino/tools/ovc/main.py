@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -17,7 +17,7 @@ from openvino.tools.ovc.utils import import_openvino_tokenizers
 import_openvino_tokenizers()
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import save_model
+from openvino import save_model
 
 
 def main():

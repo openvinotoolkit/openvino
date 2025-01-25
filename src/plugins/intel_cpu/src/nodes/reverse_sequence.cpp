@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
     try {
-        const auto revSeq = std::dynamic_pointer_cast<const ov::opset1::ReverseSequence>(op);
+        const auto revSeq = ov::as_type_ptr<const ov::opset1::ReverseSequence>(op);
         if (!revSeq) {
             errorMessage = "Only opset1 ReverseSequence operation is supported";
             return false;
@@ -28,43 +28,40 @@ bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "ReverseSequence layer with name '" + op->get_friendly_name() + "'";
-    const auto revSeq = std::dynamic_pointer_cast<const ov::opset1::ReverseSequence>(op);
+    const auto revSeq = ov::as_type_ptr<const ov::opset1::ReverseSequence>(op);
     if (revSeq == nullptr)
-        OPENVINO_THROW("Operation with name '",
-                       op->get_friendly_name(),
-                       "' is not an instance of ReverseSequence from opset1.");
+        THROW_CPU_NODE_ERR("is not an instance of ReverseSequence from opset1.");
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(REVERSESEQUENCE_DATA).getRank();
 
     if (dataRank < 2)
-        OPENVINO_THROW(errorPrefix, " 'data' rank should be greater than or equal to 2");
+        THROW_CPU_NODE_ERR("'data' rank should be greater than or equal to 2");
 
     if (getInputShapeAtPort(REVERSESEQUENCE_LENGTHS).getRank() != 1)
-        OPENVINO_THROW(errorPrefix, " 'seq_lengths' should be 1D tensor");
+        THROW_CPU_NODE_ERR("'seq_lengths' should be 1D tensor");
 
     if (dataRank != getOutputShapeAtPort(0).getRank())
-        OPENVINO_THROW(errorPrefix, " has input/output rank mismatch");
+        THROW_CPU_NODE_ERR("has input/output rank mismatch");
 
     seq_axis = revSeq->get_sequence_axis();
 
     if (seq_axis < 0 || seq_axis >= static_cast<int>(dataRank))
-        OPENVINO_THROW(errorPrefix, " has incorrect 'seq_axis' parameters dimensions and axis number!");
+        THROW_CPU_NODE_ERR("has incorrect 'seq_axis' parameters dimensions and axis number!");
 
     batch_axis = revSeq->get_batch_axis();
 
     if (batch_axis < 0 || batch_axis >= static_cast<int>(dataRank))
-        OPENVINO_THROW(errorPrefix, " has incorrect 'batch_axis' parameters dimensions and axis number!");
+        THROW_CPU_NODE_ERR("has incorrect 'batch_axis' parameters dimensions and axis number!");
 }
 
 void ReverseSequence::initSupportedPrimitiveDescriptors() {
@@ -86,13 +83,13 @@ void ReverseSequence::prepareParams() {
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
     if (!dataMemPtr || !dataMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'data'");
+        THROW_CPU_NODE_ERR("has undefined input memory of 'data'");
     if (!seqLengthsMemPtr || !seqLengthsMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'seq_lengths'");
+        THROW_CPU_NODE_ERR("has undefined input memory of 'seq_lengths'");
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " has undefined output memory");
+        THROW_CPU_NODE_ERR("has undefined output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& seqLengthsDims = seqLengthsMemPtr->getStaticDims();
@@ -101,8 +98,8 @@ void ReverseSequence::prepareParams() {
     execPtr = std::make_shared<ReverseSequenceExecutor>(dataDims, seqLengthsDims, dstDims, batch_axis, seq_axis);
 }
 
-void ReverseSequence::executeDynamicImpl(dnnl::stream strm) {
-    execute(std::move(strm));
+void ReverseSequence::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
 }
 
 ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDims& dataDims,
@@ -172,9 +169,9 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     });
 }
 
-void ReverseSequence::execute(dnnl::stream strm) {
+void ReverseSequence::execute(const dnnl::stream& strm) {
     if (!execPtr)
-        OPENVINO_THROW(errorPrefix, " has no compiled executor");
+        THROW_CPU_NODE_ERR("has no compiled executor");
 
     const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
     if (!one_of(precision, ov::element::f32, ov::element::i32))

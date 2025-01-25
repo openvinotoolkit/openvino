@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@ using namespace ov::intel_cpu::node;
 #if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu;
 #endif  // OPENVINO_ARCH_X86_64
-
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -39,7 +37,7 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -265,7 +263,7 @@ void GridSample::prepareParams() {
     });
 }
 
-void GridSample::execute(dnnl::stream strm) {
+void GridSample::execute(const dnnl::stream& strm) {
     const void* srcData = getSrcDataAtPort(IN_DATA);
     const uint8_t* gridData = getSrcDataAtPortAs<uint8_t>(IN_GRID);
     uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
@@ -308,7 +306,7 @@ void GridSample::execute(dnnl::stream strm) {
     parallel_nt(m_threads_num, threadBody);
 }
 
-void GridSample::executeDynamicImpl(dnnl::stream strm) {
+void GridSample::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

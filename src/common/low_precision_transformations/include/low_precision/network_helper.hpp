@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 #include "rt_info/precisions_attribute.hpp"
 #include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
-#include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -493,7 +493,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
         getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
 
-void Concat::execute(dnnl::stream strm) {
+void Concat::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }

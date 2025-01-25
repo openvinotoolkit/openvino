@@ -16,27 +16,22 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 using ov::pass::pattern::op::Or;
 
 UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     using namespace ov::pass::pattern;
 
-    auto unsqueeze_predicate = [](const ov::Output<ov::Node>& output) -> bool {
-        return rank_equals(5)(output) && consumers_count(1);
-    };
+    auto unsqueeze_predicate = rank_equals(5) && consumers_count(1);
 
     auto broadcast_predicate = [](const ov::Output<ov::Node>& output) -> bool {
         const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(output.get_node_shared_ptr());
         if (!broadcast || broadcast->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
             return false;
-        return rank_equals(5)(output) && consumers_count(1);
+        return rank_equals(5)(output) && consumers_count(1)(output);
     };
 
-    auto reshape_predicate = [](const ov::Output<ov::Node>& output) -> bool {
-        return rank_equals(4)(output) && consumers_count(1);
-    };
+    auto reshape_predicate = rank_equals(4) && consumers_count(1);
 
     auto input_a_m = any_input();
     auto input_attn_mask = any_input();
@@ -72,11 +67,11 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& target_shape) {
             return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
         };
-        auto broadcast_b = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_b_m).get_node_shared_ptr());
-        auto broadcast_c = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_c_m).get_node_shared_ptr());
+        auto broadcast_b = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_b_m).get_node_shared_ptr());
+        auto broadcast_c = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_c_m).get_node_shared_ptr());
 
         std::vector<int32_t> target_shape_val_b;
-        auto target_shape_constant_b = std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast_c->get_input_node_shared_ptr(1));
+        auto target_shape_constant_b = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_c->get_input_node_shared_ptr(1));
         if (target_shape_constant_b) {
             target_shape_val_b = target_shape_constant_b->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val_b)) {
@@ -85,7 +80,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         }
 
         std::vector<int32_t> target_shape_val_c;
-        auto target_shape_constant_c = std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast_b->get_input_node_shared_ptr(1));
+        auto target_shape_constant_c = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_b->get_input_node_shared_ptr(1));
         if (target_shape_constant_c) {
             target_shape_val_c = target_shape_constant_c->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val_c)) {
@@ -103,7 +98,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         data_inputs.push_back(pattern_map.at(input_b_m).get_node_shared_ptr()); // K
         data_inputs.push_back(pattern_map.at(input_c_m).get_node_shared_ptr()); // V
 
-        auto sdpa = std::dynamic_pointer_cast<op::SDPA>(m.get_match_root());
+        auto sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
         if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
             data_inputs.push_back(sdpa->get_input_source_output(3)); // attn_mask
         } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
@@ -129,5 +124,4 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

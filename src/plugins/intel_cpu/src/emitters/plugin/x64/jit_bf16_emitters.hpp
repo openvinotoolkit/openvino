@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,9 @@ public:
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc = ov::element::bf16,
                           conversion_mode mode = conversion_mode::default_mode)
-        : jit_emitter(host, host_isa, exec_prc) {
+        : jit_emitter(host, host_isa, exec_prc),
+          mode_(mode) {
         prepare_table();
-        mode_ = mode;
     }
 
     size_t get_inputs_num() const override {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateReverseSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::ReverseSequence>& op) {
     validate_inputs_count(op, {2});
@@ -30,5 +29,4 @@ static void CreateReverseSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
 REGISTER_FACTORY_IMPL(v0, ReverseSequence);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

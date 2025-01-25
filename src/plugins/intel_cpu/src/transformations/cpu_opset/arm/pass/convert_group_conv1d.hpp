@@ -61,13 +61,13 @@ protected:
 
 class ConvertConv1D : public ConvertConv1DBase {
 public:
-    OPENVINO_RTTI("ConvertConv1D", "0");
+    OPENVINO_RTTI("ConvertConv1D", "0", ConvertConv1DBase);
     ConvertConv1D();
 };
 
 class ConvertGroupConv1D : public ConvertConv1DBase {
 public:
-    OPENVINO_RTTI("ConvertGroupConv1D", "0");
+    OPENVINO_RTTI("ConvertGroupConv1D", "0", ConvertConv1DBase);
     ConvertGroupConv1D();
 };
 }  // namespace intel_cpu

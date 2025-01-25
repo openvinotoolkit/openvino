@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -243,7 +243,7 @@ private:
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
+        const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
             return false;
@@ -258,18 +258,17 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
     if (op->get_input_size() != 1 || op->get_output_size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
 
-    const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
+    const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
@@ -388,7 +387,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(dnnl::stream strm) {
+void RegionYolo::execute(const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;

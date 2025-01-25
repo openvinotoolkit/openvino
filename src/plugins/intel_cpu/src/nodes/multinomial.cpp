@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,7 +124,7 @@ bool Multinomial::created() const {
     return getType() == Type::Multinomial;
 }
 
-void Multinomial::execute(dnnl::stream strm) {
+void Multinomial::execute(const dnnl::stream& strm) {
     switch (m_probs_precision) {
     case ov::element::f32:
         return execute_probs_type<float>();
@@ -137,7 +137,7 @@ void Multinomial::execute(dnnl::stream strm) {
     }
 }
 
-void Multinomial::executeDynamicImpl(dnnl::stream strm) {
+void Multinomial::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

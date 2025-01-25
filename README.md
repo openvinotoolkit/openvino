@@ -100,7 +100,7 @@ OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2024/
 
 ## Generative AI with OpenVINO
 
-Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html) to explore the capabilities of Generative AI using OpenVINO.
+Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2024/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
 
 Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/README.md) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-question-answering/README.md).
 
@@ -127,6 +127,7 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 -   [OpenVINO Execution Provider for ONNX Runtime](https://onnxruntime.ai/docs/execution-providers/OpenVINO-ExecutionProvider.html) - use OpenVINO as a backend with your existing ONNX Runtime code.
 -   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
 -   [LangChain](https://python.langchain.com/docs/integrations/llms/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.
+-   [Keras 3](https://github.com/keras-team/keras) - Keras 3 is a multi-backend deep learning framework. Users can switch model inference to the OpenVINO backend using the Keras API.
 
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 

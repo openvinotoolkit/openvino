@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,38 +54,6 @@ public:
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
 
-private:
-    /**
-     * @brief      Sort proc_type_table by CPU ID on which application is running. The numa node containing this CPU ID
-     * will move to first row.
-     * @param[in]  _processor_id CPU ID on which application is running.
-     * @param[in] _proc_type_table summary table of number of processors per type
-     * @param[in] _cpu_mapping_table CPU mapping table for each processor
-     * @return
-     */
-    void sort_table_by_cpu_id(const int _processor_id,
-                              std::vector<std::vector<int>>& _proc_type_table,
-                              const std::vector<std::vector<int>>& _cpu_mapping_table) {
-        int current_numa_node = 0;
-        int current_socket = 0;
-
-        for (auto& row : _cpu_mapping_table) {
-            if (_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
-                current_numa_node = row[CPU_MAP_NUMA_NODE_ID];
-                current_socket = row[CPU_MAP_SOCKET_ID];
-                break;
-            }
-        }
-        for (size_t i = 1; i < _proc_type_table.size(); i++) {
-            if ((current_numa_node == _proc_type_table[i][PROC_NUMA_NODE_ID]) &&
-                (current_socket == _proc_type_table[i][PROC_SOCKET_ID])) {
-                std::rotate(_proc_type_table.begin() + 1, _proc_type_table.begin() + i, _proc_type_table.end());
-                break;
-            }
-        }
-    };
-
-    friend class LinuxSortProcTableTests;
 };
 
 CPU& cpu_info();

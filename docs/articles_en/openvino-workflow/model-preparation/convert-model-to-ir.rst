@@ -14,6 +14,7 @@ Convert to OpenVINO IR
    Convert from TensorFlow Lite <convert-model-tensorflow-lite>
    Convert from PaddlePaddle <convert-model-paddle>
    Convert from JAX/Flax <convert-model-jax>
+   Convert from Keras <convert-model-keras>
 
 
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 #include "openvino/op/variadic_split.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
-
-#define THROW_ERROR(...) OPENVINO_THROW("Split layer with name '", getName(), "' ", __VA_ARGS__)
 
 using namespace dnnl;
 
@@ -50,7 +48,7 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
     return true;
 }
 
-Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -74,7 +72,7 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank)) {
-        THROW_ERROR("Split node with name '", op->get_friendly_name(), "' has invalid value of axis parameter: ", axis);
+        THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
 }
@@ -92,14 +90,14 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto& o_Dims = outputShapes[i].getDims();
         if (dstFirstDims.size() != o_Dims.size()) {
-            THROW_ERROR("only supports output blobs with equal number of dimensions");
+            THROW_CPU_NODE_ERR("only supports output blobs with equal number of dimensions");
         }
 
         for (size_t j = 0; j < dstFirstDims.size(); j++) {
             if (j == axis)
                 continue;
             if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j]))
-                THROW_ERROR("has incorrect output dimensions");
+                THROW_CPU_NODE_ERR("has incorrect output dimensions");
         }
     }
 
@@ -256,7 +254,7 @@ void Split::createPrimitive() {
 void Split::prepareParams() {
     const auto& srcMemPtr = getSrcMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_ERROR("has undefined input memory");
+        THROW_CPU_NODE_ERR("has undefined input memory");
     }
 
     if (!constSplitLengths) {
@@ -271,7 +269,7 @@ void Split::prepareParams() {
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto& outMemPtr = this->getDstMemoryAtPort(port);
         if (!outMemPtr || !outMemPtr->isDefined()) {
-            THROW_ERROR("has undefined destination memory");
+            THROW_CPU_NODE_ERR("has undefined destination memory");
         }
 
         if (outMemPtr->getShape().hasZeroDims()) {
@@ -295,13 +293,13 @@ bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
 
-void Split::execute(dnnl::stream strm) {
+void Split::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
 
     if (dstMemPtrs.empty())
-        THROW_ERROR("Output data pointers have not been initialized.");
+        THROW_CPU_NODE_ERR("Output data pointers have not been initialized.");
 
     const auto& srcMem = getParentEdgeAt(0)->getMemory();
 
@@ -323,7 +321,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        THROW_ERROR("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
@@ -487,13 +485,13 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
         result[i] = dstMemPtrs[i].second->getDataAs<uint8_t>();
         if (!result[i]) {
-            THROW_ERROR("can't get child edge indx ", dstMemPtrs[i].first, " data.");
+            THROW_CPU_NODE_ERR("can't get child edge indx ", dstMemPtrs[i].first, " data.");
         }
     }
     return result;
 }
 
-Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc,
+Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                                       const std::vector<BlockedMemoryDescCPtr>& outDescs,
                                                       const size_t axis) {
     // find axis order position

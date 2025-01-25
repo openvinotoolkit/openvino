@@ -6,8 +6,7 @@
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class MultiTensorState : public VariableStateBase {
 public:
@@ -72,5 +71,4 @@ public:
 private:
     bool m_has_zp_state = false;
 };
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

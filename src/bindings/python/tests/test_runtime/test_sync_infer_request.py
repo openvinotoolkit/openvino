@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext as does_not_raise
@@ -10,7 +10,7 @@ import pytest
 import datetime
 import openvino.properties as props
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Core,
     CompiledModel,
@@ -22,7 +22,7 @@ from openvino import (
     Tensor,
     compile_model,
 )
-from openvino.runtime import ProfilingInfo
+from openvino import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests.utils.helpers import (
@@ -591,7 +591,7 @@ def test_convert_infer_request(device):
     res = request.infer(inputs)
     with pytest.raises(TypeError) as e:
         deepcopy(res)
-    assert "Cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
+    assert "Cannot deepcopy 'openvino.ConstOutput' object." in str(e)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
