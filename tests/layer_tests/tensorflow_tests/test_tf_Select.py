@@ -103,7 +103,3 @@ class TestComplexSelect(CommonTFLayerTest):
         self._test(*self.create_complex_select_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
-
-
-
-
