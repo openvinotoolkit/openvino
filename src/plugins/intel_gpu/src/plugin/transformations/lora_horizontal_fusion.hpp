@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // Before:
 //          ┌─────────┐                                                                  ┌─────────┐
@@ -80,9 +79,8 @@ namespace intel_gpu {
 
 class LoRAHorizontalFusion: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LoRAHorizontalFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("LoRAHorizontalFusion");
     LoRAHorizontalFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -22,7 +22,7 @@ from openvino._pyopenvino import Place
 # extensions
 from openvino._pyopenvino import DecoderTransformationExtension
 from openvino._pyopenvino import ConversionExtension
-from openvino._pyopenvino import OpExtension
+from openvino._pyopenvino.frontend import OpExtension
 from openvino._pyopenvino import ProgressReporterExtension
 from openvino._pyopenvino import TelemetryExtension
 

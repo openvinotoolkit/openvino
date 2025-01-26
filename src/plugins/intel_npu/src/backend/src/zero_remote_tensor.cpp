@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,6 +166,14 @@ void ZeroRemoteTensor::update_properties() {
     default:
         OPENVINO_THROW("Unsupported object type ", static_cast<int>(_mem_type));
     }
+}
+
+void* ZeroRemoteTensor::get_original_memory() const {
+    return _data;
+}
+
+ze_context_handle_t ZeroRemoteTensor::get_zero_context_handle() const {
+    return _init_structs->getContext();
 }
 
 }  // namespace intel_npu

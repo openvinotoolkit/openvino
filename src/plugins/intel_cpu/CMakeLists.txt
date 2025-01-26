@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -239,7 +239,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
               SOURCES ${SOURCES} ${HEADERS}
-              ADD_CLANG_FORMAT)
+              ADD_CLANG_FORMAT
+              ADD_CLANG_TIDY)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)

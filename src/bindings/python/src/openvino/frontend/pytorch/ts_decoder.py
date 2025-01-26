@@ -1,8 +1,13 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 # mypy: ignore-errors
+
+import inspect
+import logging
+import typing
+import torch
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -14,15 +19,11 @@ from openvino.frontend.pytorch.utils import (
     prepare_example_inputs_and_model,
     convert_quantized_tensor,
     graph_has_ops,
+    patch_none_example,
 )
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
-
-import inspect
-import logging
-import typing
-import torch
 
 log = logging.getLogger(__name__)
 
@@ -133,6 +134,7 @@ class TorchScriptPythonDecoder(Decoder):
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
+                pt_module, example_inputs = patch_none_example(pt_module, example_inputs)
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
@@ -447,6 +449,9 @@ class TorchScriptPythonDecoder(Decoder):
             return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
+        if isinstance(pt_type, torch._C.Type) and pt_type.annotation_str == "Generator":
+            gen = pt_value.toIValue()
+            return ivalue_to_constant(gen.initial_seed(), shared_memory=self._shared_memory)
         const = ivalue_to_constant(
             pt_value.toIValue(), shared_memory=self._shared_memory)
         if len(const) > 0:

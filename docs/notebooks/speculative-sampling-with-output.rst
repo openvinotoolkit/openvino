@@ -136,7 +136,7 @@ In case, if you want run own models, you should convert them using
 Optimum <https://huggingface.co/docs/optimum/intel/openvino/export>`__
 library accelerated by OpenVINO integration. More details about model
 preparation can be found in `OpenVINO LLM inference
-guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html#convert-hugging-face-tokenizer-and-model-to-openvino-ir-format>`__
+guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov#convert-hugging-face-tokenizer-and-model-to-openvino-ir-format>`__
 
 .. code:: ipython3
 

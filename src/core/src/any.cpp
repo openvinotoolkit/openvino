@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,8 @@ bool util::equal(std::type_index lhs, std::type_index rhs) {
 #endif
     return result;
 }
+
+Any::Base::~Base() = default;
 
 bool Any::Base::is(const std::type_info& other) const {
     return util::equal(type_info(), other);

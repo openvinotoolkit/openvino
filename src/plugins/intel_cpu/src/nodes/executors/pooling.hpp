@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ struct PoolingAttrs {
 
 class PoolingExecutor {
 public:
-    PoolingExecutor(const ExecutorContext::CPtr context);
+    PoolingExecutor(ExecutorContext::CPtr context);
     virtual bool init(const PoolingAttrs& poolingAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

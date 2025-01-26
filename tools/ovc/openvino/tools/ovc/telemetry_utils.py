@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -28,6 +28,13 @@ def is_torch_compile():
     import traceback
     for line in traceback.format_stack():
         if os.path.join("torch", "_dynamo", "backends", "registry.py") in line:
+            return True
+    return False
+
+def is_keras3():
+    import traceback
+    for line in traceback.format_stack():
+        if os.path.join("keras", "src", "backend", "openvino") in line:
             return True
     return False
 

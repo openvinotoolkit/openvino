@@ -201,10 +201,9 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
-    input_type = node->get_input_element_type(0);
-    output_type = node->get_output_element_type(0);
-}
+    : jit_emitter(host, host_isa, exec_prc),
+      input_type(node->get_input_element_type(0)),
+      output_type(node->get_output_element_type(0)) {}
 
 void jit_convert_emitter::validate_types() const {
     OV_CPU_JIT_EMITTER_ASSERT(

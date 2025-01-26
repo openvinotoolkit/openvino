@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -235,7 +235,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
     if (format == memory::format_tag::any || format == memory::format_tag::undef)
         OPENVINO_THROW("Unexpected: Can't create dnnl::desc with any or undef format");
 
-    const auto dims = shape.getDims();
+    const auto& dims = shape.getDims();
     if (format == memory::format_tag::x && shape.getRank() == 0) {
         desc = dnnl::memory::desc(dnnl::memory::dims(1, 1), dataType, format);
     } else {
@@ -456,22 +456,22 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     auto mklDims = DnnlExtensionUtils::convertToDnnlDims(dims);
     const auto offsetPadding = desc.get()->offset0;
 
-    dnnl::memory::desc newMklDesc = desc;
+    dnnl::memory::desc clonedDesc(DnnlExtensionUtils::clone_desc(desc.get()));
 
-    array_copy(newMklDesc.get()->dims, mklDims.data(), mklDims.size());
+    array_copy(clonedDesc.get()->dims, mklDims.data(), mklDims.size());
     dnnl::memory::dims perm(convert_to_vector<dnnl::memory::dim, size_t>(order.data(), mklDims.size()));
-    auto innerBlks = newMklDesc.get_inner_blks();
-    auto innerIdxs = newMklDesc.get_inner_idxs();
+    auto innerBlks = clonedDesc.get_inner_blks();
+    auto innerIdxs = clonedDesc.get_inner_idxs();
 
-    dnnl::impl::memory_desc_t& newCdesc = *newMklDesc.get();
-    auto retCode = dnnl::impl::fill_blocked(newCdesc, perm, innerBlks, innerIdxs);
+    auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlks, innerIdxs);
     if (retCode != dnnl::impl::status::success) {
         OPENVINO_THROW("Can not clone DnnlBlockedMemoryDesc with dims: ", dims2str(dims));
     }
     // dnnl::impl::fill_blocked always set offset0 to 0
     // so we need to restore actual value
-    newCdesc.offset0 = offsetPadding;
-    return newMklDesc;
+    clonedDesc.get()->offset0 = offsetPadding;
+
+    return clonedDesc;
 }
 
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include <string>
 #include <iostream>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // Verbose log levels:
 // DISABLED - silent mode (Default)
@@ -40,8 +39,7 @@ enum class LogLevel : int8_t {
     TRACE_DETAIL = 4
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 #ifdef GPU_DEBUG_CONFIG
 #if defined(_WIN32)

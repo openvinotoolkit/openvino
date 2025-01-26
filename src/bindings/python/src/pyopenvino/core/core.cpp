@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 
 #include "common.hpp"
 #include "pyopenvino/core/remote_context.hpp"
+#include "pyopenvino/graph/op_extension.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -21,7 +22,7 @@ namespace py = pybind11;
 void regclass_Core(py::module m) {
     py::class_<ov::Core, std::shared_ptr<ov::Core>> cls(m, "Core");
     cls.doc() =
-        "openvino.runtime.Core class represents OpenVINO runtime Core entity. User applications can create several "
+        "openvino.Core class represents OpenVINO runtime Core entity. User applications can create several "
         "Core class instances, but in this case, the underlying plugins are created multiple times and not shared "
         "between several Core instances. The recommended way is to have a single Core instance per application.";
 
@@ -143,13 +144,13 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model: Model acquired from read_model function.
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param device_name: Name of the device which will load the model.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
@@ -171,11 +172,11 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model: Model acquired from read_model function.
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
@@ -206,7 +207,7 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
@@ -257,7 +258,7 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
@@ -282,7 +283,7 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
@@ -357,7 +358,7 @@ void regclass_Core(py::module m) {
                 :param device_name: Device name to identify a plugin.
                 :type device_name: str
                 :return: Plugin version information.
-                :rtype: Dict[str, openvino.runtime.Version]
+                :rtype: Dict[str, openvino.Version]
             )");
 
     cls.def(
@@ -388,7 +389,7 @@ void regclass_Core(py::module m) {
             :param weights: Bytes with tensor's data.
             :type weights: bytes
             :return: A model.
-            :rtype: openvino.runtime.Model
+            :rtype: openvino.Model
         )");
 
     cls.def(
@@ -422,7 +423,7 @@ void regclass_Core(py::module m) {
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
             :type config: dict, optional
             :return: A model.
-            :rtype: openvino.runtime.Model
+            :rtype: openvino.Model
         )");
 
     cls.def(
@@ -440,9 +441,9 @@ void regclass_Core(py::module m) {
             :type model: str
             :param weights: Tensor with weights. Reading ONNX / PDPD / TF and TFLite models
                             doesn't support loading weights from weights tensors.
-            :type weights: openvino.runtime.Tensor
+            :type weights: openvino.Tensor
             :return: A model.
-            :rtype: openvino.runtime.Model
+            :rtype: openvino.Model
         )");
 
     cls.def(
@@ -509,7 +510,7 @@ void regclass_Core(py::module m) {
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
             :type config: dict, optional
             :return: A model.
-            :rtype: openvino.runtime.Model
+            :rtype: openvino.Model
         )");
 
     cls.def(
@@ -560,7 +561,7 @@ void regclass_Core(py::module m) {
             :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict, optional
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
 
             :Example:
             .. code-block:: python
@@ -663,7 +664,7 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model: Model object to query.
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param device_name: A name of a device to query.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value)
@@ -689,7 +690,7 @@ void regclass_Core(py::module m) {
                 Registers an extension to a Core object.
 
                 :param extension: Extension object.
-                :type extension: openvino.runtime.Extension
+                :type extension: openvino.Extension
             )");
 
     cls.def(
@@ -700,7 +701,20 @@ void regclass_Core(py::module m) {
             Registers extensions to a Core object.
 
             :param extensions: List of Extension objects.
-            :type extensions: list[openvino.runtime.Extension]
+            :type extensions: list[openvino.Extension]
+        )");
+
+    cls.def(
+        "add_extension",
+        [](ov::Core& self, py::object dtype) {
+            self.add_extension(PyOpExtension(dtype));
+        },
+        py::arg("custom_op"),
+        R"(
+            Registers custom Op to a Core object.
+
+            :param custom_op: type of custom Op
+            :type custom_op: openvino.Op
         )");
 
     cls.def("get_available_devices",

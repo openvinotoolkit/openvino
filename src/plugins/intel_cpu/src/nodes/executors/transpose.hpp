@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct TransposeParams {
 class TransposeExecutor : public Executor {
 public:
     static jit_permute_config_params prepareParams(const PermuteParams& params);
-    explicit TransposeExecutor(const ExecutorContext::CPtr context);
+    explicit TransposeExecutor(ExecutorContext::CPtr context);
     virtual bool init(const TransposeParams& transposeParams,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

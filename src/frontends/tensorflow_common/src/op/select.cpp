@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/select.hpp"
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -54,10 +55,25 @@ OutputVector translate_select_op(const NodeContext& node) {
     // 1. Either the same shape (in which case the select is elementwise), or
     // 2. condition must be Rank 1 and match over the first dimension, or
     // 3. condition is scalar
-    default_op_checks(node, 3, {"Select", "SELECT"});
+    default_op_checks(node, 3, {"Select", "SELECT"}, true);
     auto condition = node.get_input(0);
     auto x = node.get_input(1);
     auto y = node.get_input(2);
+    auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
+
+    auto is_complex = (complex_type_mark_x || complex_type_mark_y);
+    element::Type complex_part_type;
+
+    if (complex_type_mark_x) {
+        x = complex_type_mark_x->input_value(0);
+        complex_part_type = complex_type_mark_x->get_complex_part_type();
+    }
+
+    if (complex_type_mark_y) {
+        y = complex_type_mark_y->input_value(0);
+        complex_part_type = complex_type_mark_y->get_complex_part_type();
+    }
 
     // compute number of dimensions to unsqueeze the condition
     auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
@@ -78,7 +94,14 @@ OutputVector translate_select_op(const NodeContext& node) {
     auto const_0 = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
     prep_cond = make_shared<v0::Squeeze>(prep_cond, const_0);
 
-    return translate_select_base_op(node, prep_cond, x, y);
+    auto result = translate_select_base_op(node, prep_cond, x, y);
+    if (is_complex) {
+        auto complex_result = make_shared<ComplexTypeMark>(result[0].get_node_shared_ptr(), complex_part_type);
+        return {complex_result->output(0)};
+
+    } else {
+        return result;
+    }
 }
 }  // namespace op
 }  // namespace tensorflow

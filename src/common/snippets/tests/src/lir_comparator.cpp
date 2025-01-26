@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,9 @@ inline string to_string(const vector<T>& vec) {
 }
 
 inline string to_string(const ov::snippets::Reg& reg) {
-    return string("Reg(type = " + ov::snippets::regTypeToStr(reg.type) + ", idx = " + to_string(reg.idx) + ")");
+    stringstream ss;
+    ss << reg;
+    return ss.str();
 }
 
 inline string to_string(const ov::Node::type_info_t& info) {
