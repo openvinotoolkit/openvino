@@ -737,7 +737,9 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(const dnnl::stream& strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
+    std::cout << "[ INFO ] Node with name " << getName() << " is executed" << std::endl;
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
+    std::cout << "[ INFO ] Node with name " << getName() << " was executed successfully" << std::endl;
 }
 
 void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
