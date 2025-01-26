@@ -30,7 +30,7 @@ class PhiloxGenerator {
 public:
     PhiloxGenerator() = delete;
 
-    virtual ~PhiloxGenerator(){};
+    virtual ~PhiloxGenerator() = default;
 
     /// @brief Get a set of 4 random 32-bit unsigned integers based on the seed(s).
     /// @return A vector with a random set of 4 32-bit unsigned integers.

@@ -2,9 +2,10 @@ Inference with OpenVINO GenAI
 ==========================================
 
 .. meta::
-   :description: Learn how to use the OpenVINO GenAI flavor to execute LLM models on NPU.
+   :description: Learn how to use OpenVINO GenAI to execute LLM models on NPU.
 
-This guide will give you extra details on how to utilize NPU with the GenAI flavor.
+
+This guide will give you extra details on how to utilize NPU with OpenVINO GenAI.
 :doc:`See the installation guide <../../get-started/install-openvino/install-openvino-genai>`
 for information on how to start.
 
@@ -23,6 +24,10 @@ Install required dependencies:
 Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
 may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
 such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
+
+Make sure your model works with NPU. Some models may not be supported, for example,
+**the FLUX.1 pipeline is currently not supported by the device**.
+
 
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
