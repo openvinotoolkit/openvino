@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -232,7 +232,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             new_args.push_back(pattern_map.at(down_proj_weight_scales_per_OC));
         }
 
-        auto old_node = root;
+        const auto& old_node = root;
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info(

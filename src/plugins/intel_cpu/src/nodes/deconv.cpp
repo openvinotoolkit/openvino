@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,16 +125,43 @@ bool DeconvKey::operator==(const DeconvKey& rhs) const {
  * input. Since in case it exists, plugin should pass the input data to the shape inference function.
  *
  */
-class DeconfolutionShapeInferFactory : public ShapeInferFactory {
+class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
     ShapeInferPtr makeShapeInfer() const override {
-        const auto port_mask = (m_op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK;
-        return make_shape_inference(m_op, port_mask);
+        return std::make_shared<DeconvolutionShapeInfer>(m_op);
     }
 
 private:
+    class DeconvolutionShapeInfer : public IShapeInfer {
+    public:
+        DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
+            : m_shape_infer(make_shape_inference(op)),
+              m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
+
+        Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+            return m_shape_infer->infer(input_shapes, data_dependency);
+        }
+
+        const ov::CoordinateDiff& get_pads_begin() override {
+            return m_shape_infer->get_pads_begin();
+        }
+
+        const ov::CoordinateDiff& get_pads_end() override {
+            return m_shape_infer->get_pads_end();
+        }
+
+        port_mask_t get_port_mask() const override {
+            return m_port_mask;
+        };
+
+    private:
+        ShapeInferPtr m_shape_infer;
+        const port_mask_t m_port_mask;
+    };
+
     std::shared_ptr<ov::Node> m_op;
 };
 }  // namespace
@@ -142,8 +169,8 @@ private:
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
-        if (std::dynamic_pointer_cast<const ov::op::v1::ConvolutionBackpropData>(op) == nullptr &&
-            std::dynamic_pointer_cast<const ov::op::v1::GroupConvolutionBackpropData>(op) == nullptr) {
+        if (ov::as_type_ptr<const ov::op::v1::ConvolutionBackpropData>(op) == nullptr &&
+            ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op) == nullptr) {
             errorMessage =
                 "Only opset1 ConvolutionBackpropData and GroupConvolutionBackpropData operations are supported";
             return false;
@@ -164,16 +191,15 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, DeconfolutionShapeInferFactory(op)) {
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, DeconvolutionShapeInferFactory(op)) {
     std::string errorMessage;
-    errorPrefix = "Deconvolution node with name '" + getName() + "' ";
     if (!isSupportedOperation(op, errorMessage))
-        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 
     const auto& weightDims = getWeightDims();
 
-    if (auto convBackprop = std::dynamic_pointer_cast<const ov::op::v1::ConvolutionBackpropData>(op)) {
+    if (auto convBackprop = ov::as_type_ptr<const ov::op::v1::ConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionCommon;
 
         IC = weightDims[0];
@@ -195,7 +221,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         deconvAttrs.outputPadding = convBackprop->get_output_padding();
 
         autoPad = one_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
-    } else if (auto groupConvBackprop = std::dynamic_pointer_cast<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
+    } else if (auto groupConvBackprop = ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionGrouped;
 
         groupNum = weightDims[0];
@@ -233,9 +259,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum ||
             (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
-            OPENVINO_THROW(errorPrefix,
-                           "'output_shape' input has incorrect number of elements. Expected = ",
-                           spDimsNum);
+            THROW_CPU_NODE_ERR("'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
         }
     }
 
@@ -408,7 +432,7 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                             auto upper_bound =
                                 deconvAttrs.stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
                             if (upper_bound < 0) {
-                                OPENVINO_THROW(errorPrefix, ": paddings for dummy shapes can't be computed");
+                                THROW_CPU_NODE_ERR("paddings for dummy shapes can't be computed");
                             }
                         }
 
@@ -506,10 +530,10 @@ void Deconvolution::getSupportedDescriptors() {
             fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     if (getParentEdges().size() != (withBiases ? (biasPort + 1) : biasPort)) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
@@ -709,7 +733,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
     return std::move(result.dims.back());
 }
 
-void Deconvolution::execute(dnnl::stream strm) {
+void Deconvolution::execute(const dnnl::stream& strm) {
     if (useACL) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {

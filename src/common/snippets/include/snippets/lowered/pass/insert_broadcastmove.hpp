@@ -18,7 +18,7 @@ namespace pass {
  */
 class InsertBroadcastMove : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertBroadcastMove", "RangedPass")
+    OPENVINO_RTTI("InsertBroadcastMove", "", RangedPass);
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
     static bool is_broadcasting_supported(const std::shared_ptr<ov::Node>& n);

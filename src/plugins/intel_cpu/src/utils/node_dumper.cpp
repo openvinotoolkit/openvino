@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef CPU_DEBUG_CAPS
@@ -113,11 +113,20 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     }
 }
 
+static std::string createDumpFilePath(const std::string& blobDumpDir, const std::string& fileName, int execIndex) {
+    auto execIndexStr = std::to_string(execIndex);
+    std::string dump_file;
+    dump_file.reserve(blobDumpDir.size() + execIndexStr.size() + fileName.size() + 4);
+
+    dump_file.append(blobDumpDir).append("/#").append(execIndexStr).append("_").append(fileName);
+
+    return dump_file;
+}
+
 void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count) {
     if (!shouldBeDumped(node, config, "IN"))
         return;
 
-    auto exec_order = std::to_string(node->getExecIndex());
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -133,7 +142,8 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         if (file_name.size() > 240)
             file_name = file_name.substr(file_name.size() - 240);
 
-        auto dump_file = config.blobDumpDir + "/#" + exec_order + "_" + file_name;
+        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
         auto& desc = prEdge->getMemory().getDesc();
@@ -151,7 +161,6 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
     if (!shouldBeDumped(node, config, "OUT"))
         return;
 
-    auto exec_order = std::to_string(node->getExecIndex());
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -166,7 +175,8 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
         if (file_name.size() > 240)
             file_name = file_name.substr(file_name.size() - 240);
 
-        auto dump_file = config.blobDumpDir + "/#" + exec_order + "_" + file_name;
+        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
         auto& desc = childEdge->getMemory().getDesc();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include "op/rank_normalization.hpp"
 #include "op/perf_count.hpp"
 #include "op/reduce.hpp"
+#include "op/reg_spill.hpp"
 
 namespace ov {
 namespace snippets {

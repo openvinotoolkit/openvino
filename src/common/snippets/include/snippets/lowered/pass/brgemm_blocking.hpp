@@ -94,7 +94,7 @@ template <typename BRGEMM_TYPE,
           typename std::enable_if<std::is_base_of<ov::snippets::op::Brgemm, BRGEMM_TYPE>::value, bool>::type = true>
 class BrgemmBlocking : public snippets::lowered::pass::RangedPass, public BrgemmBlockingBase {
 public:
-    OPENVINO_RTTI("BrgemmBlocking", "RangedPass")
+    OPENVINO_RTTI("BrgemmBlocking", "", RangedPass)
 
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,

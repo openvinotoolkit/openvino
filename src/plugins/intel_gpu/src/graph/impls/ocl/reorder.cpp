@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,7 +156,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(r_params);
 
-        return make_unique<reorder_impl>(best_kernel);
+        return std::make_unique<reorder_impl>(best_kernel);
     }
 };
 

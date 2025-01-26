@@ -28,7 +28,7 @@ public:
     ReduceExecutorFactory(const ReduceAttrs& reduceAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const ExecutorContext::CPtr context)
+                          const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getReduceExecutorsList()) {
             if (desc.builder->isSupported(reduceAttrs, srcDescs, dstDescs)) {

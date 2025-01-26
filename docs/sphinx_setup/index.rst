@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2024.6
+OpenVINO 2025.0
 ============================
 
 .. meta::
@@ -28,7 +28,7 @@ hardware and environments, on-premises and on-device, in the browser or in the c
                <li id="ov-homepage-slide2" class="splide__slide">
                   <p class="ov-homepage-slide-title">New GenAI API</p>
                   <p class="ov-homepage-slide-subtitle">Generative AI in only a few lines of code!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/nightly/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/nightly/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide1" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO models on Hugging Face!</p>
@@ -194,6 +194,7 @@ Key Features
 
    GET STARTED <get-started>
    LEARN OPENVINO <learn-openvino>
-   OPENVINO WORKFLOW <openvino-workflow>
+   HOW TO USE - MAIN WORKFLOW <openvino-workflow>
+   HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
    DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

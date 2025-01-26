@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 SDPA::SDPA(const OutputVector& inputs,
            const bool is_causal,
@@ -161,7 +159,7 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
-    auto op_v13 = dynamic_cast<const ov::op::v13::ScaledDotProductAttention*>(op);
+    auto op_v13 = ov::as_type<const ov::op::v13::ScaledDotProductAttention>(op);
     OPENVINO_ASSERT(op_v13 != nullptr, "ov::op::v13::ScaledDotProductAttention*>(op) should not be nullptr.");
     auto out_shapes = ov::op::v13::shape_infer(op_v13, transposed_input_shapes);
 
@@ -172,6 +170,4 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

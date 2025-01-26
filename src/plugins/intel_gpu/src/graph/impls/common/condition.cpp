@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::condition_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<condition_impl>(*this);
+        return std::make_unique<condition_impl>(*this);
     }
 
     condition_impl() : parent() {}
@@ -146,7 +146,7 @@ struct condition_impl : typed_primitive_impl<condition> {
     }
 
     static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
-        return make_unique<condition_impl>(arg);
+        return std::make_unique<condition_impl>(arg);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

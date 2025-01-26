@@ -90,7 +90,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     // skip mark_node for broadcast node if dependency nodes are data and shape_of
     auto& dependencies = node.get_dependencies();
     if (node.is_type<broadcast>() && dependencies.size() == 2) {
-        if (dependencies[0].first->is_type<data>() && dependencies[1].first->is_type<shape_of>())
+        if (dependencies[0].first->is_type<data>() && dependencies[1].first->is_type<shape_of>() && (dependencies[1].first->get_users().size() == 1))
             return false;
     }
 

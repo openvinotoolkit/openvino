@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,7 +108,8 @@ public:
     Matcher(std::shared_ptr<Node> pattern_node, const std::string& name);
     Matcher(std::shared_ptr<Node> pattern_node, const std::string& name, bool strict_mode);
 
-    virtual ~Matcher() = default;
+    virtual ~Matcher();
+
     /// \brief Matches a pattern to \p graph_node
     ///
     /// \param graph_value is an input graph to be matched against
@@ -176,7 +177,7 @@ public:
 
     size_t add_node(Output<Node> node);
 
-    bool virtual match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value);
+    virtual bool match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value);
 
     bool is_strict_mode() {
         return m_strict_mode;

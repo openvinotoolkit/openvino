@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-AclPoolingExecutor::AclPoolingExecutor(const ExecutorContext::CPtr context) : PoolingExecutor(context) {}
+AclPoolingExecutor::AclPoolingExecutor(ExecutorContext::CPtr context) : PoolingExecutor(std::move(context)) {}
 
 bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
                                      const TensorInfo& dstTensorInfo,

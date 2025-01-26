@@ -33,10 +33,10 @@ public:
         TransformationTestsF::TearDown();
 
         auto subgraph = FunctionHelper::getSubgraph(model);
-        auto body = subgraph == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
+        auto body = subgraph == nullptr ? nullptr : ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph)->body_ptr();
 
         auto subgraph_ref = FunctionHelper::getSubgraph(model_ref);
-        auto body_ref = subgraph_ref == nullptr ? nullptr : std::dynamic_pointer_cast<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
+        auto body_ref = subgraph_ref == nullptr ? nullptr : ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph_ref)->body_ptr();
 
         if ((body != nullptr) && (body_ref != nullptr)) {
             auto res = comparator.compare(body, body_ref);

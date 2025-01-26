@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,8 @@ namespace node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
-            !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
-            !std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        if (!ov::as_type_ptr<const ov::opset1::Reshape>(op) && !ov::as_type_ptr<const ov::opset1::Squeeze>(op) &&
+            !ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -31,29 +30,27 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
-
     if (isDynamicNode()) {
-        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string opType) {
+        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
                 OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
             }
         };
 
-        if (std::dynamic_pointer_cast<const ov::opset1::Reshape>(op)) {
+        if (ov::as_type_ptr<const ov::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1)
                 OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
             checkSecondInput(op, "Squeeze");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
             OPENVINO_THROW("Unsupported operation type via reshape node");
@@ -123,11 +120,11 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void Reshape::executeDynamicImpl(dnnl::stream strm) {
+void Reshape::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reshape::execute(dnnl::stream strm) {
+void Reshape::execute(const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -328,6 +328,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_intel_npu, ov::intel_npu::device_alloc_mem_size, "device_alloc_mem_size");
     wrap_property_RO(m_intel_npu, ov::intel_npu::device_total_mem_size, "device_total_mem_size");
     wrap_property_RO(m_intel_npu, ov::intel_npu::driver_version, "driver_version");
+    wrap_property_RO(m_intel_npu, ov::intel_npu::compiler_version, "compiler_version");
 
     wrap_property_RW(m_intel_npu, ov::intel_npu::compilation_mode_params, "compilation_mode_params");
     wrap_property_RW(m_intel_npu, ov::intel_npu::turbo, "turbo");
@@ -335,4 +336,5 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
     wrap_property_RW(m_intel_npu, ov::intel_npu::bypass_umd_caching, "bypass_umd_caching");
     wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
 }

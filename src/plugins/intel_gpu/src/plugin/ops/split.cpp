@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 
 #include "intel_gpu/primitives/crop.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static bool IsDynamic(const std::shared_ptr<ov::Node>& op) {
     if (op->is_dynamic()) {
@@ -59,7 +58,7 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         }
 
         int64_t axis = -1;
-        auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto const_axis = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (const_axis) {
             axis = ov::util::try_normalize_axis(const_axis->cast_vector<int64_t>()[0],
                                                 op->get_input_partial_shape(0).rank(),
@@ -135,5 +134,4 @@ static void CreateVariadicSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 REGISTER_FACTORY_IMPL(v1, Split);
 REGISTER_FACTORY_IMPL(v1, VariadicSplit);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
