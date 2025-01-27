@@ -26,7 +26,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
-  HF_SHARE_PATH_WIN: "C:\\mount\\huggingface"
+  HF_SHARE_PATH_WIN: "C:\\mount\\caches\\huggingface"
 
 jobs:
   JAX_Layer_Tests:
