@@ -131,6 +131,11 @@ public:
 
     bool is_dynamic() const;
 
+    /**
+     * @brief Updates 'is_dynamic' state of the LIR
+     */
+    void update_is_dynamic();
+
     void enumerate_expressions() const;
 
     /* ------ Helpers for work with LinearIR ----- */

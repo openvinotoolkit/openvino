@@ -49,11 +49,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
         if (ov::is_type<ov::op::v0::Parameter>(n))
             last_param = it;
     }
-    for (const auto& param_expr : m_parameter_expressions)
-        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
-    for (const auto& result_expr : m_result_expressions)
-        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
-
+    update_is_dynamic();
     enumerate_expressions();
 }
 
@@ -120,6 +116,15 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
 
 bool LinearIR::is_dynamic() const {
     return m_is_dynamic;
+}
+
+void LinearIR::update_is_dynamic() {
+    for (const auto& param_expr : m_parameter_expressions)
+        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(param_expr->get_output_port_descriptor(0)->get_shape());
+    for (const auto& result_expr : m_result_expressions)
+        m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(result_expr->get_input_port_descriptor(0)->get_shape());
+    for (const auto& loop : m_loop_manager->get_map())
+        m_is_dynamic = m_is_dynamic || utils::is_dynamic_value(loop.second->get_work_amount());
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {
