@@ -110,7 +110,7 @@ bool is_llm(const ov::Model& model) {
     }
 
     return false;
-};
+}
 
 } // namespace
 
