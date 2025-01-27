@@ -173,7 +173,7 @@ ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std
     nlohmann::json json_config;
     try {
         ifs >> json_config;
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return config;
     }
 
