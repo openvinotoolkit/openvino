@@ -18,7 +18,7 @@ const {
 const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
-  const testModelFP32 = testModels.testModelFP32
+  const { testModelFP32 } = testModels;
   const testXml = testModelFP32.xml;
   let core = null;
   let model = null;
@@ -278,7 +278,10 @@ describe('ov basic tests.', () => {
         assert.strictEqual(obj.input().anyName, 'data');
 
         assert.deepStrictEqual(obj.input(0).shape, testModelFP32.inputShape);
-        assert.deepStrictEqual(obj.input(0).getShape(), testModelFP32.inputShape);
+        assert.deepStrictEqual(
+          obj.input(0).getShape(),
+          testModelFP32.inputShape,
+        );
       });
     });
   });

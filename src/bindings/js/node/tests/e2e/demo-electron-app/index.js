@@ -27,7 +27,11 @@ async function main() {
       { length: lengthFromShape(testModelFP32.inputShape) },
       () => Math.random() + epsilon,
     );
-    const tensor = new ov.Tensor(ov.element.f32, testModelFP32.inputShape, tensorData);
+    const tensor = new ov.Tensor(
+      ov.element.f32,
+      testModelFP32.inputShape,
+      tensorData,
+    );
     console.log('Tensor created:', tensor);
 
     const result = await inferRequest.inferAsync([tensor]);

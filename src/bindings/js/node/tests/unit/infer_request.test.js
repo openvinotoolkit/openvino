@@ -5,7 +5,11 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable, lengthFromShape } = require('../utils.js');
+const {
+  testModels,
+  isModelAvailable,
+  lengthFromShape,
+} = require('../utils.js');
 
 const epsilon = 0.5; // To avoid very small numbers
 
@@ -28,8 +32,16 @@ describe('ov.InferRequest tests', () => {
       { length: lengthFromShape(testModelFP32.inputShape) },
       () => Math.random() + epsilon,
     );
-    tensor = new ov.Tensor(ov.element.f32, testModelFP32.inputShape, tensorData);
-    resTensor = new ov.Tensor(ov.element.f32, testModelFP32.outputShape, tensorData.slice(-10));
+    tensor = new ov.Tensor(
+      ov.element.f32,
+      testModelFP32.inputShape,
+      tensorData,
+    );
+    resTensor = new ov.Tensor(
+      ov.element.f32,
+      testModelFP32.outputShape,
+      tensorData.slice(-10),
+    );
     tensorLike = [tensor, tensorData];
   });
 
@@ -43,7 +55,10 @@ describe('ov.InferRequest tests', () => {
       tensorLike.forEach((tl) => {
         const result = inferRequest.infer({ data: tl });
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, lengthFromShape(testModelFP32.outputShape));
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape)
+        );
       });
     });
 
@@ -51,7 +66,10 @@ describe('ov.InferRequest tests', () => {
       tensorLike.forEach((tl) => {
         const result = inferRequest.infer([tl]);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, lengthFromShape(testModelFP32.outputShape));
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape),
+        );
       });
     });
 
@@ -102,7 +120,10 @@ describe('ov.InferRequest tests', () => {
       inferRequest.inferAsync({ data: tensor }).then((result) => {
         assert.ok(result['fc_out'] instanceof ov.Tensor);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, lengthFromShape(testModelFP32.outputShape));
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape),
+        );
       });
     });
 
@@ -110,7 +131,10 @@ describe('ov.InferRequest tests', () => {
       inferRequest.inferAsync([tensor]).then((result) => {
         assert.ok(result['fc_out'] instanceof ov.Tensor);
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
-        assert.deepStrictEqual(result['fc_out'].data.length, lengthFromShape(testModelFP32.outputShape));
+        assert.deepStrictEqual(
+          result['fc_out'].data.length,
+          lengthFromShape(testModelFP32.outputShape),
+        );
       });
     });
 

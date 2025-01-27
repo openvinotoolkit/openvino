@@ -1,4 +1,3 @@
-const path = require('node:path');
 const https = require('node:https');
 const fs = require('node:fs/promises');
 const { createWriteStream } = require('node:fs');

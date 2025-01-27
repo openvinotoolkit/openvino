@@ -10,10 +10,15 @@ const {
 } = require('../scripts/lib/utils');
 
 const modelDir = 'tests/unit/test_models/';
+
+function getModelPath(fileName) {
+  return path.join(modelDir, fileName);
+}
+
 const testModels = {
   testModelFP32: {
-    xml: path.join(modelDir, 'test_model_fp32.xml'),
-    bin: path.join(modelDir, 'test_model_fp32.bin'),
+    xml: getModelPath('test_model_fp32.xml'),
+    bin: getModelPath('test_model_fp32.bin'),
     inputShape: [1, 3, 32, 32],
     outputShape: [1, 10],
     xmlURL:
@@ -62,7 +67,10 @@ function sleep(ms) {
 }
 
 function lengthFromShape(shape) {
-  return shape.reduce((accumulator, currentValue) => accumulator * currentValue, 1);
+  return shape.reduce(
+    (accumulator, currentValue) => accumulator * currentValue,
+    1
+  );
 }
 
 async function downloadTestModel(model) {
@@ -80,7 +88,7 @@ async function downloadTestModel(model) {
 
     const weightsExists = await checkIfPathExists(model.bin);
     if (!weightsExists) await downloadFile(model.binURL, model.bin, proxyUrl);
-    
+
   } catch(error) {
     console.error(`Failed to download the model: ${error}.`);
     throw error;
@@ -88,7 +96,6 @@ async function downloadTestModel(model) {
 }
 
 async function isModelAvailable(model) {
-  const baseArtifactsDir = './tests/unit/test_models';
   const modelExists = await checkIfPathExists(model.xml);
   if (modelExists) return;
 
