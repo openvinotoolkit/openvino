@@ -11,7 +11,7 @@ namespace frontend {
 namespace tensorflow {
 
 // Type which is used to express empty list without any specific type
-class TENSORFLOW_API EmptyList {};
+class TENSORFLOW_FRONTEND_API EmptyList {};
 
 }  // namespace tensorflow
 }  // namespace frontend
