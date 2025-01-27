@@ -139,18 +139,18 @@ Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) 
 }
 
 Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info) {
-    auto compiled_model = _infer_request.get_compiled_model().outputs();
+    auto model_outputs = _infer_request.get_compiled_model().outputs();
     auto outputs_obj = Napi::Object::New(info.Env());
 
-    for (auto& node : compiled_model) {
-        auto tensor = _infer_request.get_tensor(node);
+    for (auto& output : model_outputs) {
+        auto tensor = _infer_request.get_tensor(output);
         auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(new_tensor);
         std::string name;
-        if (node.get_names().empty()) {
-            name = node.get_node()->get_name();
+        if (output.get_names().empty()) {
+            name = output.get_node()->get_name();
         } else {
-            name = node.get_any_name();
+            name = output.get_any_name();
         }
         outputs_obj.Set(name, TensorWrap::wrap(info.Env(), new_tensor));
     }
@@ -214,18 +214,18 @@ void performInferenceThread(TsfnContext* context) {
         }
         context->_ir->infer();
 
-        auto compiled_model = context->_ir->get_compiled_model().outputs();
+        auto model_outputs = context->_ir->get_compiled_model().outputs();
         std::map<std::string, ov::Tensor> outputs;
 
-        for (auto& node : compiled_model) {
-            const auto& tensor = context->_ir->get_tensor(node);
+        for (auto& output : model_outputs) {
+            const auto& tensor = context->_ir->get_tensor(output);
             auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
             tensor.copy_to(new_tensor);
             std::string name;
-            if (node.get_names().empty()) {
-                name = node.get_node()->get_name();
+            if (output.get_names().empty()) {
+                name = output.get_node()->get_name();
             } else {
-                name = node.get_any_name();
+                name = output.get_any_name();
             }
             outputs.insert({name, new_tensor});
         }
