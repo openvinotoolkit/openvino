@@ -362,7 +362,8 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     timeout-minutes: 30
-    # env: [""]
+    env:
+      OV_CPU_SNIPPETS_SEGFAULT_DETECTOR: 1
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
