@@ -44,16 +44,16 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
 
         // Align with clamp behavior of FakeConvert in ngraph reference
         const auto lower_bound = fake_convert_node->get_destination_element_type() == ov::element::f8e4m3
-                                     ? std::numeric_limits<ov::float8_e4m3>::lowest()
-                                     : std::numeric_limits<ov::float8_e5m2>::lowest();
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::lowest());
         const auto upper_bound = fake_convert_node->get_destination_element_type() == ov::element::f8e4m3
-                                     ? std::numeric_limits<ov::float8_e4m3>::max()
-                                     : std::numeric_limits<ov::float8_e5m2>::max();
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::max());
 
         std::shared_ptr<Node> result;
         const auto scale = decomp_ops.make<ov::op::v1::Multiply>(data, input_scale);
         if (fake_convert_node->get_input_size() == 2) {
-            const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
+            const auto clamp = decomp_ops.make<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
             const auto downconvert =
                 decomp_ops.make<ov::op::v0::Convert>(clamp, fake_convert_node->get_destination_element_type());
             const auto upconvert = decomp_ops.make<ov::op::v0::Convert>(downconvert, input_type);
@@ -63,7 +63,7 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
             const Output<Node> input_shift{fake_convert_node->input_value(2)};
             const auto shift = decomp_ops.make<ov::op::v1::Subtract>(scale, input_shift);
 
-            const auto clamp = std::make_shared<ov::op::v0::Clamp>(shift, lower_bound, upper_bound);
+            const auto clamp = decomp_ops.make<ov::op::v0::Clamp>(shift, lower_bound, upper_bound);
             const auto downconvert =
                 decomp_ops.make<ov::op::v0::Convert>(clamp, fake_convert_node->get_destination_element_type());
             const auto upconvert = decomp_ops.make<ov::op::v0::Convert>(downconvert, input_type);
