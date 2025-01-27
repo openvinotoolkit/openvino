@@ -361,6 +361,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
+    timeout-minutes: 30
     # env: [""]
     with:
       runner: 'aks-linux-8-cores-32gb'
