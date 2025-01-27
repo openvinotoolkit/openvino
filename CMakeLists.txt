@@ -105,9 +105,6 @@ endif()
 if(DEFINED OPENVINO_STDLIB)
     message (STATUS "STDLIB ................................ " ${OPENVINO_STDLIB})
 endif()
-if(TBB_STATIC_CRT AND WIN32)
-    message (STATUS "TBB_STATIC_CRT ........................ " ${TBB_STATIC_CRT})
-endif()
 
 # remove file with exported targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
