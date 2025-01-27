@@ -162,13 +162,13 @@ bool directory_exists(const std::wstring& path);
 #endif
 
 inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
-    const auto& file_name_result = file_name.native();
-    const auto pos = file_name_result.find('!');
-    if (pos != std::decay_t<decltype(file_name_result)>::npos) {
-        return ov::util::Path(file_name_result.substr(0, pos));
-    }
+    const auto& file_name_native = file_name.native();
 
-    return file_name;
+    if (const auto pos = file_name_native.find('!'); pos != std::decay_t<decltype(file_name_native)>::npos) {
+        return ov::util::Path(file_name_native.substr(0, pos));
+    } else {
+        return file_name;
+    }
 }
 
 /**
