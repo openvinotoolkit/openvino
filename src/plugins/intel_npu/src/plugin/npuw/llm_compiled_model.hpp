@@ -35,7 +35,8 @@ public:
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
-                                                         const std::shared_ptr<const ov::IPlugin>& plugin);
+                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                         const ov::AnyMap& properties);
 
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 

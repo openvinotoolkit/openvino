@@ -199,6 +199,27 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
 };
 
 //
+// WEIGHTS_PATH
+//
+struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
+    static std::string_view key() {
+        return ov::weights_path.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::weights_path";
+    }
+
+    static std::string defaultValue() {
+        return "";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+//
 // ENABLE_CPU_PINNING
 //
 struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {

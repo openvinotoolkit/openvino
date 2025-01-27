@@ -581,17 +581,12 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
 
     // Identify either full flow or weightless
     bool is_weightless = false;
-    std::string weights_path;
     if (m_non_llm_props.count(ov::cache_mode.name()) &&
-        m_non_llm_props.at(ov::cache_mode.name()).as<std::string>() == "OPTIMIZE_SIZE" &&
-        m_non_llm_props.count(ov::weights_path.name())) {
-        weights_path = m_non_llm_props.at(ov::weights_path.name()).as<std::string>();
-        NPUW_ASSERT(ov::util::validate_weights_path(weights_path));
+        m_non_llm_props.at(ov::cache_mode.name()).as<std::string>() == "OPTIMIZE_SIZE") {
         LOG_INFO("Serialization will be done via weightless flow.");
         is_weightless = true;
     }
     write(stream, is_weightless);
-    write(stream, weights_path);
 
     // Serialize CompiledModels
     m_kvcache_compiled->serialize(stream, is_weightless);
@@ -613,7 +608,8 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
 
 std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
     std::istream& stream,
-    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
     LOG_INFO("Deserializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -681,9 +677,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     // Deserialize flow indicator
     bool is_weightless = false;
-    std::string weights_path;
     read(stream, is_weightless);
-    read(stream, weights_path);
+    std::string weights_path;
+    if (is_weightless) {
+        NPUW_ASSERT(properties.find(ov::weights_path.name()) != properties.end() &&
+                    "There is no WEIGHTS_PATH set in properties!");
+        weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+    }
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, is_weightless, weights_path);

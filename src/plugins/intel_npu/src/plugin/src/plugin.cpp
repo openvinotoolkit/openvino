@@ -329,6 +329,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<NUM_STREAMS>();
           }}},
+        {ov::weights_path.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<WEIGHTS_PATH>();
+          }}},
         {ov::device::uuid.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -796,8 +802,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     std::array<uint8_t, 6> serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        stream.seekg(stream_start_pos);
-        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this());
+        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 

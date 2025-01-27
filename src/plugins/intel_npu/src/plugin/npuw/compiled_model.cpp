@@ -825,7 +825,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank(std::optional<std::string> weights_path) {
-    LOG_INFO("Reconstructing weights bank...");
+    LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
