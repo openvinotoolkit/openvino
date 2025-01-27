@@ -99,6 +99,8 @@ public:
     const std::shared_ptr<ov::snippets::Generator>& get_generator() const { return m_generator; }
     std::shared_ptr<ov::snippets::Generator>& get_generator() { return m_generator; }
 
+    bool is_dynamic() const override;
+
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
     bool is_quantized() const { return config.m_is_quantized; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }

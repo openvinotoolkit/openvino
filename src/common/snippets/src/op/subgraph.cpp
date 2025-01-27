@@ -564,6 +564,11 @@ const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
     return get_runtime_configurator()->get_updated_config(m_linear_ir);
 }
 
+bool Subgraph::is_dynamic() const {
+    // Note: in some cases LIR may become dynamic (due to some optimizations) whereas the original subgraph is static
+    return Node::is_dynamic() || m_linear_ir->is_dynamic();
+}
+
 void Subgraph::print() const {
     INTERNAL_OP_SCOPE(Subgraph);
     remark(13) << "subgraph " << this->get_friendly_name() << " "
