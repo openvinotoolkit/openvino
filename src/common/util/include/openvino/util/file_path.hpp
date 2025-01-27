@@ -10,8 +10,7 @@
 #include "openvino/util/wstring_convert_util.hpp"
 //#include "openvino/util/util.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 #if defined(OPENVINO_HAS_FILESYSTEM)
 // There are known issues with usage of std::filesystem::path unicode represenataion:
@@ -63,5 +62,4 @@ inline ov::util::Path WPath(const std::wstring& wpath) {
 }
 #endif
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

@@ -8,8 +8,7 @@
 
 #include "openvino/util/util.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -27,5 +26,4 @@ std::wstring string_to_wstring(const std::string& str);
 
 #endif
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util
