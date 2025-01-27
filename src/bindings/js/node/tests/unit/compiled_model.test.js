@@ -13,7 +13,7 @@ describe('ov.CompiledModel tests', () => {
   let compiledModel = null;
 
   before(async () => {
-    const testModelFP32 = testModels.testModelFP32;
+    const { testModelFP32 } = testModels;
     await isModelAvailable(testModelFP32);
     testXml = testModelFP32.xml;
     core = new ov.Core();

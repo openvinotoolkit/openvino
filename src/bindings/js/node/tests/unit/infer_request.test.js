@@ -14,7 +14,7 @@ const {
 const epsilon = 0.5; // To avoid very small numbers
 
 describe('ov.InferRequest tests', () => {
-  const testModelFP32 = testModels.testModelFP32;
+  const { testModelFP32 } = testModels;
   let compiledModel = null;
   let tensorData = null;
   let tensor = null;

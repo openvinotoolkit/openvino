@@ -9,7 +9,7 @@ const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('Tests for reading model.', () => {
-  const testModelFP32 = testModels.testModelFP32;
+  const { testModelFP32 } = testModels;
   let modelFile = null;
   let modelStr = null;
   let weightsFile = null;
