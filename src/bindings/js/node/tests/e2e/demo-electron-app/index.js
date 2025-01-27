@@ -1,9 +1,10 @@
 const { app } = require('electron');
 const { addon: ov } = require('openvino-node');
 const { testModels, lengthFromShape } = require('../../utils.js');
+const path = require('path');
 
 const epsilon = 0.5; // To avoid very small numbers
-const testModelFP32 = testModels.testModelFP32;
+const testModelFP32 = path.join('..', testModels.testModelFP32);
 
 main();
 
