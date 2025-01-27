@@ -444,8 +444,9 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
+    const auto& lir_config = m_linear_ir->get_config();
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
+    size_t loop_depth = lir_config.m_loop_depth;
     if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
         lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
         m_linear_ir->set_loop_depth(loop_depth);
@@ -470,7 +471,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
-    pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
+    pipeline.register_pass<lowered::pass::AllocateBuffers>(lir_config.m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
     pipeline.run(*m_linear_ir);
@@ -481,7 +482,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
+    if (lir_config.debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
