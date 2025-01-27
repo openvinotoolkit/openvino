@@ -181,32 +181,76 @@ SDPAFusion::SDPAFusion() {
                                                      pattern_map.at(mask).get_partial_shape().size() > 4)) {
             return false;
         }
-
-        Output<ov::Node> mask_value;
+         ov::Output<ov::Node> scale_node;
+        // ov::Output<ov::Node> attn_bias_out;
+        
+        if (pattern_map.count(attn_scale) > 0) {
+            scale_node = pattern_map.at(attn_scale);
+            auto attn_scale_out_ps = scale_node.get_partial_shape();
+            if (attn_scale_out_ps.is_dynamic())
+                return false;
+            // attn_scale layer should have only single output scalar value
+            if (ov::shape_size(attn_scale_out_ps.get_shape()) != 1)
+                return false;
+            // we need to be able to cast attn_scale layer to Constant layer
+            // in order to read actual scale value
+            auto attn_scale_const_m = ov::as_type_ptr<ov::op::v0::Constant>(scale_node.get_node_shared_ptr());
+            if (!attn_scale_const_m)
+                return false;
+            auto attn_scale_val_ptr = static_cast<const void*>(attn_scale_const_m->get_data_ptr());
+            scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, attn_scale_val_ptr);
+        } else {
+            scale_node = ov::op::v0::Constant::create(T, ov::Shape{}, {1.0});
+        }
+        
         Output<ov::Node> mask_input;
-        if (pattern_map.find(qk_opt_scaled_biased) != pattern_map.end()) {
-            mask_value = pattern_map.at(mask);
+        if (pattern_map.count(mask) > 0) {
+            // for some reason line below doesn't work for all cases,
+            // so need to explicitly point to correct attn_weight layer
+            // auto attn_weight_out = pattern_map.at(qk_opt_scaled_pre_bias_opt_reshaped);
+            ov::Output<ov::Node> attn_weight_out;
+            if (pattern_map.count(qk_opt_scaled_pre_bias_reshaped) > 0)
+                attn_weight_out = pattern_map.at(qk_opt_scaled_pre_bias_reshaped);
+            else if (pattern_map.count(qk_opt_unsqueeze_concat) > 0)
+                attn_weight_out = pattern_map.at(qk_opt_unsqueeze_concat);
+            else if (pattern_map.count(qk_unsqueeze) > 0)
+                attn_weight_out = pattern_map.at(qk_unsqueeze);
+            else if (pattern_map.count(qk) > 0)
+                attn_weight_out = pattern_map.at(qk);
+            else
+                return false;
+
+            auto attn_weight_out_ps = attn_weight_out.get_partial_shape();
+            mask_input = pattern_map.at(mask);
+            auto mask_input_ps = mask_input.get_partial_shape();
+            //if (mask_input_ps.is_dynamic())
+               // return false;
+            
+            if (attn_weight_out_ps.size() > 4) {
+                return false;
+            }
+
+            // attn_bias should be broadcastable to attn_weight shape
+            if (mask_input_ps.rank() == attn_weight_out_ps.rank()) {
+                mask_input = mask_input;
+            } else {
+                auto attn_bias_target_ps = attn_weight_out_ps;
+                if (!ov::PartialShape::broadcast_merge_into(attn_bias_target_ps,
+                                                            mask_input_ps,
+                                                            ov::op::AutoBroadcastType::NUMPY))
+                    return false;
+
+                size_t rank_diff = attn_weight_out_ps.size() - mask_input_ps.size();
+                std::vector<int64_t> axes(rank_diff);
+                std::iota(axes.begin(), axes.end(), 0);
+                mask_input = std::make_shared<ov::op::v0::Unsqueeze>(
+                    mask_input,
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank_diff}, axes));
+                }
         } else {
-            mask_value = ov::op::v0::Constant::create(q_node.get_element_type(), ov::Shape{}, std::vector<float>{0});
-        }
-           
-        if (mask_value.get_partial_shape().size() > 4) {
-            return false;
+            mask_input = ov::op::v0::Constant::create(T, ov::Shape{}, {0});
         }
 
-        if (mask_value.get_partial_shape().rank() == 0 || mask_value.get_partial_shape().rank() == 4) {
-            mask_input = mask_value;
-        } else {
-            size_t rank_diff = q_node.get_partial_shape().size() - mask_value.get_partial_shape().size();
-            std::vector<int64_t> axes(rank_diff);
-            std::iota(axes.begin(), axes.end(), 0);
-            mask_input = std::make_shared<ov::op::v0::Unsqueeze>(
-                mask_value,
-                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank_diff}, axes));
-        }
-
-        std::shared_ptr<ov::Node> scale_node =
-            ov::op::v0::Constant::create(q_node.get_element_type(), ov::Shape{}, std::vector<float>{1.0f});
 
         // if (pattern_map.count(attn_scale) > 0) {
         //     attn_scale_out = pattern_map.at(attn_scale);
