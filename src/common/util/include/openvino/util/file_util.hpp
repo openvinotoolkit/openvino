@@ -196,14 +196,12 @@ file_size(const char* path) {
 }
 
 inline int64_t file_size(const ov::util::Path& path) {
-#if defined(__ANDROID__) || defined(ANDROID)
-    const ov::util::Path& cut_path = cut_android_path(path);
-    std::ifstream in(cut_path, std::ios_base::binary | std::ios_base::ate);
-    return in.tellg();
-#else
-    std::ifstream in(path, std::ios_base::binary | std::ios_base::ate);
-    return in.tellg();
-#endif
+    std::error_code ec;
+    if (const std::uintmax_t size = std::filesystem::file_size(path, ec); ec) {
+        return -1;
+    } else {
+        return static_cast<int64_t>(size);
+    }
 }
 
 /**
