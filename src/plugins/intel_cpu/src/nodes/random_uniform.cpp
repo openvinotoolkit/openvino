@@ -733,7 +733,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
     const auto elements_consumed_per_one_output = m_mersenne_twister_optimization_enabled ? 1 : 2;
     const auto state_regenerations_required =
         static_cast<uint64_t>(std::ceil(static_cast<double>(output_elements_count) /
-                                        static_cast<double>(MERSENNE_STATE_N / elements_consumed_per_one_output)));
+                                        (static_cast<double>(MERSENNE_STATE_N) / elements_consumed_per_one_output)));
     const auto byte_offset = MERSENNE_STATE_N * m_output_prc.size();
 
     uint32_t mersenne_state_ptr[MERSENNE_STATE_N];

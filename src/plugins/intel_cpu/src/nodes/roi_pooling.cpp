@@ -172,7 +172,7 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_max = get_acc_reg(i);
 
-            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i * src_c_off)},
+            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i) * src_c_off},
                                     {static_cast<size_t>(vmm_max.getIdx())},
                                     {},
                                     load_pool_gpr_idxs);
@@ -190,7 +190,7 @@ private:
                     Vmm vmm_src = get_src_reg(i);
 
                     load_emitter->emit_code(
-                        {static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i * src_c_off)},
+                        {static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i) * src_c_off},
                         {static_cast<size_t>(vmm_src.getIdx())},
                         {},
                         load_pool_gpr_idxs);
@@ -227,7 +227,7 @@ private:
             Vmm vmm_dst = get_acc_reg(i);
 
             store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                     {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                                     {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i) * dst_c_off},
                                      get_local_store_pool_vec_idxs(vmm_dst),
                                      store_pool_gpr_idxs);
         }
@@ -297,7 +297,7 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             store_empty_roi_emitter->emit_code(
                 {static_cast<size_t>(vmm_zero.getIdx())},
-                {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i) * dst_c_off},
                 store_pool_vec_idxs,
                 store_pool_gpr_idxs);
         }

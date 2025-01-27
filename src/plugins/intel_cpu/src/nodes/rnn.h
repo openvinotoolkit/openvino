@@ -149,7 +149,7 @@ private:
     float inputShift = 0.f;
     std::vector<float> weightsScales;
 
-    const uint64_t* m_gate_map;
+    const uint64_t* m_gate_map = nullptr;
     // Need to reorder from the initial memory descs due to limited Reorders set.
     MemoryPtr m_initial_weights[3] = {nullptr, nullptr, nullptr};
     // Need to keep cache objects. Otherwise, they will be erased from the global cache.

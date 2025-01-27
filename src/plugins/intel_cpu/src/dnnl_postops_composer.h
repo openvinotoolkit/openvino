@@ -83,7 +83,7 @@ private:
     Dim OC;
     int wei_scale_mask = -1;
     std::vector<float> wei_scale_values;
-    float dst_scale_val;
+    float dst_scale_val = 0.0f;
     dnnl::post_ops ops;
 
     void updateWeiScales();
