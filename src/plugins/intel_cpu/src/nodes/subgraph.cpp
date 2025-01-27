@@ -545,7 +545,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 #ifdef SNIPPETS_DEBUG_CAPS
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking,
-                                    ov::snippets::lowered::pass::BrgemmDebugParams<BrgemmCPU>,
+                                    ov::snippets::lowered::pass::BrgemmDebugParams,
                                     getName());
 #endif  // SNIPPETS_DEBUG_CAPS
 
