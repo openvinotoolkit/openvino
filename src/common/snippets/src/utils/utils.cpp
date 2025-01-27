@@ -372,8 +372,14 @@ std::string tensor2str(const VectorDims& tensor, const std::string& delimiter) {
     std::stringstream ss;
     for (size_t i = 0; i < tensor.size(); ++i) {
         const auto& v = tensor[i];
-        const auto v_str =
-            utils::is_full_dim_value(v) ? "FULL_DIM" : utils::is_dynamic_value(v) ? "?" : std::to_string(v);
+        std::string v_str;
+        if (utils::is_full_dim_value(v)) {
+            v_str = "FULL_DIM";
+        } else if (utils::is_dynamic_value(v)) {
+            v_str = "?";
+        } else {
+            v_str = std::to_string(v);
+        }
         const auto del = i < tensor.size() - 1 ? delimiter : "";
         ss << v_str << del;
     }

@@ -115,7 +115,6 @@ public:
     void set_accumulated_time();
 
 private:
-
     ov::threading::ThreadLocal<uint64_t> accumulation;
     ov::threading::ThreadLocal<uint32_t> iteration;
 
