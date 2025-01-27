@@ -15,7 +15,7 @@ using ov::test::NodeBuilder;
 TEST(attributes, segment_max_v16_with_num_segments) {
     NodeBuilder::opset().insert<SegmentMax>();
     const auto data = std::make_shared<Parameter>(ov::element::i32, ov::PartialShape{3, 12, 81});
-    const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::Shape{5});
+    const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::Shape{3});
     const auto num_segments = std::make_shared<Parameter>(ov::element::i64, ov::Shape{});
 
     const auto op = std::make_shared<SegmentMax>(data, segment_ids, num_segments, 0);
@@ -28,7 +28,7 @@ TEST(attributes, segment_max_v16_with_num_segments) {
 TEST(attributes, segment_max_v16_without_num_segments) {
     NodeBuilder::opset().insert<SegmentMax>();
     const auto data = std::make_shared<Parameter>(ov::element::i32, ov::PartialShape{3, 12, 81});
-    const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::Shape{5});
+    const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::Shape{3});
 
     const auto op = std::make_shared<SegmentMax>(data, segment_ids, 0);
     NodeBuilder builder(op, {data, segment_ids});
