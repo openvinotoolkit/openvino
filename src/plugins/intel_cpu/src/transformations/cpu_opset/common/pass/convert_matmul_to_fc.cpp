@@ -69,7 +69,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
          */
 
         auto get_aligned_shapes =
-            [shape_a, shape_b, rank_a, rank_b, &matmul, fc_input_a, fc_input_b]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+            [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
             for (size_t i = 0, cnt = max_size - rank_a; i < cnt; ++i) {
@@ -79,10 +79,10 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 shape_b_aligned.insert(shape_b_aligned.begin(), 1);
             }
 
-            if (matmul->get_transpose_a() && !is_type<op::v1::Transpose>(fc_input_a.get_node())) {
+            if (matmul->get_transpose_a()) {
                 std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
             }
-            if (matmul->get_transpose_b() && !is_type<op::v1::Transpose>(fc_input_b.get_node())) {
+            if (matmul->get_transpose_b()) {
                 std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
             }
 
@@ -138,12 +138,12 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         }
 
         // Weights normalization
-        if (!matmul->get_transpose_b() && !is_type<op::v1::Transpose>(fc_input_b.get_node())) {
+        if (!matmul->get_transpose_b()) {
             fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
         }
 
         // Input normalization
-        if (matmul->get_transpose_a() && !is_type<op::v1::Transpose>(fc_input_a.get_node())) {
+        if (matmul->get_transpose_a()) {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 

@@ -435,7 +435,7 @@ protected:
         if (transpA)
             transposeCount += 2;
         if (!transpB)
-            transposeCount++;
+            transposeCount += 2;
 
         if (transpA) {
             transpose_shape(inputDynamicShapes[0]);
