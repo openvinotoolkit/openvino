@@ -215,10 +215,10 @@ inline bool file_exists(const char* path) {
  * @return     file size
  */
 inline int64_t file_size(const wchar_t* path) {
-    return file_size(wstring_to_string(path));
+    return ov::util::file_size(wstring_to_string(path));
 }
 inline int64_t file_size(const std::wstring& path) {
-    return file_size(wstring_to_string(path));
+    return ov::util::file_size(ov::util::Path(path));
 }
 
 /**
