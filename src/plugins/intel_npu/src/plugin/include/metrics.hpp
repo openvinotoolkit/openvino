@@ -68,7 +68,8 @@ private:
                                                               ov::intel_npu::batch_mode.name(),
                                                               ov::hint::execution_mode.name()};
 
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name()};
+    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
+                                                                        ov::internal::caching_with_mmap.name()};
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
     const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 10u, 1u};

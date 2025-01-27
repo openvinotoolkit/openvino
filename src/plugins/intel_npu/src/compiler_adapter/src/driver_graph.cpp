@@ -15,8 +15,8 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          const Config& config,
-                         std::optional<std::vector<uint8_t>> blob)
-    : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
+                         std::unique_ptr<BlobContainer> blobPtr)
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _logger("DriverGraph", config.get<LOG_LEVEL>()) {
@@ -140,7 +140,7 @@ void DriverGraph::initialize(const Config& config) {
 }
 
 bool DriverGraph::release_blob(const Config& config) {
-    if (_blob.empty() || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    if (_blobPtr == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
@@ -153,8 +153,9 @@ bool DriverGraph::release_blob(const Config& config) {
         return false;
     }
 
-    _blob.clear();
-    _blob.shrink_to_fit();
+    if (!_blobPtr->release_from_memory()) {
+        return false;
+    }
 
     _logger.debug("Blob is released");
 
