@@ -2,7 +2,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const fs = require('node:fs');
+const fs = require('node:fs/promises');
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
@@ -338,8 +338,8 @@ describe('ov.InferRequest tests with missing outputs names', () => {
 
     const core = new ov.Core();
 
-    let modelData = fs.readFileSync(getModelPath(modelV3Small).xml, 'utf8');
-    const weights = fs.readFileSync(getModelPath(modelV3Small).bin);
+    let modelData = await fs.readFile(getModelPath(modelV3Small).xml, 'utf8');
+    const weights = await fs.readFile(getModelPath(modelV3Small).bin);
     modelData = modelData.replace(
       'names="MobilenetV3/Predictions/Softmax:0"',
       ''
