@@ -49,8 +49,7 @@ enum class eltwise_mode : int32_t;
             });                                                                                             \
     }
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 template<class T>
 struct is_smart_pointer : std::false_type {};
@@ -196,5 +195,4 @@ inline bool ends_with(const std::string& value, const std::string& suffix) {
     return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

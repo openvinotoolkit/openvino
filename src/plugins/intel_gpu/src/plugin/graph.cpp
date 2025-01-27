@@ -32,8 +32,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
@@ -838,5 +837,4 @@ std::string Graph::out_port_index_to_internal(size_t out_port_index) const {
     OPENVINO_THROW("[GPU] Unable to map output port index ", out_port_index, " to the internal primitive id");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
