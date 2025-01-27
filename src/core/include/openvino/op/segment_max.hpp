@@ -22,9 +22,7 @@ public:
     /// \param data Input tensor with data
     /// \param segment_ids Indices of segments in the data input tensor
     /// \param empty_segment_value The value assigned to segments which are empty
-    SegmentMax(const Output<Node>& data,
-           const Output<Node>& segment_ids,
-           const int64_t empty_segment_value);
+    SegmentMax(const Output<Node>& data, const Output<Node>& segment_ids, const int64_t empty_segment_value);
 
     /// \brief Constructs a SegmentMax operation.
     ///
@@ -33,9 +31,9 @@ public:
     /// \param num_segments The segments count
     /// \param empty_segment_value The value assigned to segments which are empty
     SegmentMax(const Output<Node>& data,
-           const Output<Node>& segment_ids,
-           const Output<Node>& num_segments,
-           const int64_t empty_segment_value);
+               const Output<Node>& segment_ids,
+               const Output<Node>& num_segments,
+               const int64_t empty_segment_value);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

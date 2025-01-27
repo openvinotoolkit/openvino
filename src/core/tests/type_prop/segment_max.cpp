@@ -8,17 +8,17 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_max.hpp"
-#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {
 
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
-using ov::op::v1::ReduceMax;
 using ov::op::v1::Add;
+using ov::op::v1::ReduceMax;
 using testing::HasSubstr;
 
 class TypePropSegmentMaxTest : public TypePropOpTest<op::v16::SegmentMax> {};
@@ -32,8 +32,7 @@ TEST_F(TypePropSegmentMaxTest, default_ctor) {
 
     EXPECT_EQ(op->get_empty_segment_value(), 0);
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), 12, 225}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 225}));
 }
 
 TEST_F(TypePropSegmentMaxTest, non_default_args_no_values) {
@@ -47,8 +46,7 @@ TEST_F(TypePropSegmentMaxTest, non_default_args_no_values) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 testing::ElementsAre(nullptr, data_symbols[1], data_symbols[2]));
@@ -83,7 +81,8 @@ TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
                         HasSubstr("num_segments must be a scalar input."));
     }
     {
-        const auto segment_ids_unsorted = std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{1, 0, 1});
+        const auto segment_ids_unsorted =
+            std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{1, 0, 1});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_unsorted, num_segments, 0),
                         ov::NodeValidationFailure,
                         HasSubstr("segment_ids must be sorted."));
@@ -101,8 +100,10 @@ TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
                         HasSubstr("The number of elements in segment_ids must match the first dimension of data."));
     }
     {
-        const auto num_segments_inconsistent = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int64_t>{200});
-        const auto segment_ids_const = std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{0, 1, 2});
+        const auto num_segments_inconsistent =
+            std::make_shared<Constant>(element::i32, Shape{}, std::vector<int64_t>{200});
+        const auto segment_ids_const =
+            std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{0, 1, 2});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_const, num_segments_inconsistent, 0),
                         ov::NodeValidationFailure,
                         HasSubstr("is inconsistent with number of segments given in segment_ids"));
@@ -118,8 +119,7 @@ TEST_F(TypePropSegmentMaxTest, num_segments_from_graph) {
     const auto op = make_op(data, segment_ids, num_segments, 20);
     op->validate_and_infer_types();
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{3, 12, 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 12, 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -132,8 +132,7 @@ TEST_F(TypePropSegmentMaxTest, dynamic_num_segments_from_graph) {
     const auto op = make_op(data, segment_ids, num_segments, 20);
     op->validate_and_infer_types();
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -146,8 +145,7 @@ TEST_F(TypePropSegmentMaxTest, interval_num_segments_from_graph) {
     const auto op = make_op(data, segment_ids, num_segments, 20);
     op->validate_and_infer_types();
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -160,8 +158,7 @@ TEST_F(TypePropSegmentMaxTest, all_inputs_dynamic) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape::dynamic()));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -174,8 +171,7 @@ TEST_F(TypePropSegmentMaxTest, all_inputs_interval) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), {12, 15}, {18, 300}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), {12, 15}, {18, 300}}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -188,8 +184,7 @@ TEST_F(TypePropSegmentMaxTest, data_dynamic) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape::dynamic()));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -202,8 +197,7 @@ TEST_F(TypePropSegmentMaxTest, segment_ids_dynamic) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -216,8 +210,7 @@ TEST_F(TypePropSegmentMaxTest, num_segments_dynamic) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -230,8 +223,7 @@ TEST_F(TypePropSegmentMaxTest, dynamic_dimensions) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 
@@ -244,8 +236,7 @@ TEST_F(TypePropSegmentMaxTest, dynamic_num_segments_const_segment_ids) {
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{3, Dimension::dynamic(), 81}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, Dimension::dynamic(), 81}));
     EXPECT_EQ(op->get_empty_segment_value(), 20);
 }
 }  // namespace test
