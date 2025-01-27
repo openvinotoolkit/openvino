@@ -21,7 +21,7 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
+class TENSORFLOW_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
     FrontEnd();
