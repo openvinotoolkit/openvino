@@ -32,8 +32,8 @@ Pipeline::Pipeline(const Config& config,
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _event_pool{
-          std::make_shared<EventPool>(init_structs->getDevice(),
-                                      init_structs->getContext(),
+          std::make_shared<EventPool>(_init_structs->getDevice(),
+                                      _init_structs->getContext(),
                                       _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()),
@@ -57,9 +57,9 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs,
+            std::make_unique<CommandList>(_init_structs,
                                           group_ordinal,
-                                          init_structs->getMutableCommandListVersion() ? true : false));
+                                          _init_structs->getMutableCommandListVersion() ? true : false));
         _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
     }
 
@@ -158,7 +158,7 @@ void Pipeline::getCommandQueue() {
     _logger.debug("Pipeline - getCommandQueue() started");
     std::lock_guard<std::mutex> lock(_mutex);
 
-    _command_queue = _command_queue_factory.getCommandQueue(_init_structs,
+    _command_queue = _command_queue_manager.getCommandQueue(_init_structs,
                                                             _ze_queue_priority,
                                                             _graph->get_ze_workload_type(),
                                                             _group_ordinal,
@@ -170,28 +170,26 @@ void Pipeline::getCommandQueue() {
             if (_sync_output_with_fences) {
                 _logger.debug("Pipeline - getCommandQueue() - destroy old fences");
                 for (size_t i = 0; i < _number_of_command_lists; i++) {
-                    _fences[i].reset();
+                    if (_fences[i] != nullptr) {
+                        _fences[i].reset();
+                    }
                 }
             }
 
             _logger.debug("Pipeline - getCommandQueue() - free command queue");
-            _command_queue_factory.freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
-
-            _fences_are_created = false;
+            _command_queue_manager.freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
         }
 
         _ze_workload_type = _graph->get_ze_workload_type();
     }
 
-    if (!_fences_are_created) {
-        if (_sync_output_with_fences) {
-            _logger.debug("Pipeline - getCommandQueue() - create new fences");
-            for (size_t i = 0; i < _number_of_command_lists; i++) {
+    if (_sync_output_with_fences) {
+        _logger.debug("Pipeline - getCommandQueue() - create new fences");
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            if (_fences[i] == nullptr) {
                 _fences[i] = std::make_unique<Fence>(*_command_queue);
             }
         }
-
-        _fences_are_created = true;
     }
 
     _logger.debug("Pipeline - getCommandQueue() completed");
@@ -310,16 +308,18 @@ void Pipeline::closeCommandListIndex(size_t command_list_index) {
 };
 
 Pipeline::~Pipeline() {
-    // fences shall be destroyed before the command queue is destroyed
     if (_command_queue) {
         if (_sync_output_with_fences) {
+            // fences shall be destroyed before the command queue is destroyed
             for (size_t i = 0; i < _number_of_command_lists; i++) {
-                _fences[i].reset();
+                if (_fences[i] != nullptr) {
+                    _fences[i].reset();
+                }
             }
         }
 
         _command_queue.reset();
-        _command_queue_factory.freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
+        _command_queue_manager.freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
     }
 }
 
