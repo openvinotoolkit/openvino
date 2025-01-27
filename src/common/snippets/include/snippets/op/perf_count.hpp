@@ -11,6 +11,37 @@
 
 namespace ov {
 namespace snippets {
+
+namespace op {
+class PerfCountEnd;
+} // namespace op
+
+namespace utils {
+
+/**
+ * @interface PerfCountDumper
+ * @brief Dumper for node debug properties
+ * @ingroup snippets
+ */
+class Dumper {
+public:
+    Dumper();
+    ~Dumper();
+
+    void update(const op::PerfCountEnd* node,
+                ov::threading::ThreadLocal<uint64_t> accumulation,
+                ov::threading::ThreadLocal<uint32_t> iteration);
+
+private:
+    void dump_brgemm_params_to_csv();
+
+    static std::string brgemm_csv_path;
+    static std::map<std::string, std::string> m_debug_params_map;
+    static size_t nodes_count;
+};
+
+} // namespace utils
+
 namespace op {
 
 /**
@@ -83,16 +114,13 @@ public:
     void init_pc_begin();
     void set_accumulated_time();
 
-    void dump_brgemm_params_to_csv();
-
 private:
+
     ov::threading::ThreadLocal<uint64_t> accumulation;
     ov::threading::ThreadLocal<uint32_t> iteration;
-    std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 
-    static std::string brgemm_csv_path;
-    static std::map<std::string, std::string> m_debug_params_map;
-    static size_t nodes_count;
+    utils::Dumper csv_dumper;
+    std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
 } // namespace op
