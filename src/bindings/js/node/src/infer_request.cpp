@@ -146,7 +146,13 @@ Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info)
         auto tensor = _infer_request.get_tensor(node);
         auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(new_tensor);
-        outputs_obj.Set(node.get_any_name(), TensorWrap::wrap(info.Env(), new_tensor));
+        std::string name;
+        if (node.get_names().empty()) {
+            name = node.get_node()->get_name();
+        } else {
+            name = node.get_any_name();
+        }
+        outputs_obj.Set(name, TensorWrap::wrap(info.Env(), new_tensor));
     }
     return outputs_obj;
 }
@@ -215,7 +221,13 @@ void performInferenceThread(TsfnContext* context) {
             const auto& tensor = context->_ir->get_tensor(node);
             auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
             tensor.copy_to(new_tensor);
-            outputs.insert({node.get_any_name(), new_tensor});
+            std::string name;
+            if (node.get_names().empty()) {
+                name = node.get_node()->get_name();
+            } else {
+                name = node.get_any_name();
+            }
+            outputs.insert({name, new_tensor});
         }
 
         context->result = outputs;

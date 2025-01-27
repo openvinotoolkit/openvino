@@ -324,3 +324,47 @@ describe('ov.InferRequest tests', () => {
     });
   });
 });
+
+describe('ov.InferRequest tests with missing outputs names', () => {
+  const modelV3Small = testModels.modelV3Small;
+  let compiledModel = null;
+  let tensorData = null;
+  let tensor = null;
+  let inferRequest = null;
+
+  before(async () => {
+    await isModelAvailable(modelV3Small);
+
+    const fs = require('fs');
+    const core = new ov.Core();
+
+    let model_data = fs.readFileSync(getModelPath(modelV3Small).xml, 'utf8');
+    const weights = fs.readFileSync(getModelPath(modelV3Small).bin);
+    model_data = model_data.replace("names=\"MobilenetV3/Predictions/Softmax:0\"", "");
+    const model = core.readModelSync(Buffer.from(model_data, 'utf8'), weights);
+
+    compiledModel = core.compileModelSync(model, 'CPU');
+    inferRequest = compiledModel.createInferRequest();
+
+    tensorData = Float32Array.from(
+      { length: 150528 },
+      () => Math.random() + epsilon,
+    );
+    tensor = new ov.Tensor(ov.element.f32, modelV3Small.inputShape, tensorData);
+  });
+
+  it('Test infer(inputData: Tensor[])', () => {
+    const outputLayer = compiledModel.outputs[0];
+    const result = inferRequest.infer([tensor]);
+    assert.deepStrictEqual(Object.keys(result), [outputLayer.toString()]);
+    assert.ok(result[outputLayer] instanceof ov.Tensor);
+  });
+
+  it('Test inferAsync(inputData: Tensor[])', () => {
+    inferRequest.inferAsync([tensor]).then((result) => {
+      const outputLayer = compiledModel.outputs[0];
+      assert.deepStrictEqual(Object.keys(result), [outputLayer.toString()]);
+      assert.ok(result[outputLayer] instanceof ov.Tensor);
+    });
+  });
+});
