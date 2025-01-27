@@ -313,12 +313,10 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
 
-    // Obtain compiler-in-driver (vcl) version
-    ze_device_graph_properties_t graph_props;
-    graph_props.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &graph_props);
+    // Obtain compiler-in-driver (vcl) properties
+    graph_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &graph_properties);
     THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-    compiler_version = ZE_MAKE_VERSION(graph_props.compilerVersion.major, graph_props.compilerVersion.minor);
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
