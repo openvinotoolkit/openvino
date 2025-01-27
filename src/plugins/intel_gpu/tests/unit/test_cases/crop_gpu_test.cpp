@@ -1485,16 +1485,24 @@ TEST(crop_gpu, dynamic_input_padding_varaidic_split) {
     auto y_size = 128;
     auto x_size = 4;
 
-    auto axis = 2;
+    auto split_axis = 2;
+    auto data_y_pad_axis = 2;
+    auto data_x_pad_axis = 3;
     auto input_y_pad_before = 64;
     auto input_y_pad_after = 32;
+    auto input_x_pad_before = 8;
+    auto input_x_pad_after = 2;
 
     auto input_dyn_layout = layout{ ov::PartialShape{-1, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
-    input_dyn_layout.data_padding._dynamic_dims_mask[axis] = 1;
+    input_dyn_layout.data_padding._dynamic_dims_mask[data_y_pad_axis] = 1;
+    input_dyn_layout.data_padding._lower_size[data_x_pad_axis] = input_x_pad_before;
+    input_dyn_layout.data_padding._upper_size[data_x_pad_axis] = input_x_pad_after;
 
     auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
-    input_actual_layout.data_padding._lower_size[axis] = input_y_pad_before;
-    input_actual_layout.data_padding._upper_size[axis] = input_y_pad_after;
+    input_actual_layout.data_padding._lower_size[data_y_pad_axis] = input_y_pad_before;
+    input_actual_layout.data_padding._upper_size[data_y_pad_axis] = input_y_pad_after;
+    input_actual_layout.data_padding._lower_size[data_x_pad_axis] = input_x_pad_before;
+    input_actual_layout.data_padding._upper_size[data_x_pad_axis] = input_x_pad_after;
 
     auto input_mem = engine.allocate_memory(input_actual_layout);
     auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
@@ -1506,16 +1514,16 @@ TEST(crop_gpu, dynamic_input_padding_varaidic_split) {
     cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
     topology topology;
     topology.add(input_layout("input", input_dyn_layout));
-    topology.add(data("axis", axis_mem));
+    topology.add(data("split_axis", axis_mem));
     topology.add(data("splits_length", splits_length_mem));
-    topology.add(crop("variadic_split.out0", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(1), tensor(0), op_mode, 0, axis));
-    topology.add(crop("variadic_split.out1", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(1), tensor(0), op_mode, 1, axis));
+    topology.add(crop("variadic_split.out0", { input_info("input"), input_info("split_axis"), input_info("splits_length") }, tensor(1), tensor(0), op_mode, 0, split_axis));
+    topology.add(crop("variadic_split.out1", { input_info("input"), input_info("split_axis"), input_info("splits_length") }, tensor(1), tensor(0), op_mode, 1, split_axis));
 
     std::vector<int64_t> splits_vec = { 64, 64 };
 
     set_values(input_mem, input_data);
     set_values(splits_length_mem, splits_vec);
-    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(axis_mem, {split_axis});
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
