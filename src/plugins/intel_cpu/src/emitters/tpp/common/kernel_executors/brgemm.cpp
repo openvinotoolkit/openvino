@@ -13,16 +13,6 @@
 namespace ov {
 namespace intel_cpu {
 namespace tpp {
-#define COMPILE_BRGEMM_TPP_KERNEL(...)                                        \
-    [&]() {                                                                   \
-        setenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX", "1", 1);      \
-        setenv("LIBXSMM_GEMM_K_A_PF_DIST", "4", 1);                           \
-        auto res = reinterpret_cast<const libxsmm_gemmfunction>(__VA_ARGS__); \
-        unsetenv("LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX");            \
-        unsetenv("LIBXSMM_GEMM_K_A_PF_DIST");                                 \
-        return res;                                                           \
-    }()
-
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype)
     : BrgemmBaseKernelConfig(),
       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
@@ -111,8 +101,9 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
                                                            config.get_type_in1(),
                                                            config.get_type_out0(),
                                                            config.get_type_exec());
-    compiled_kernel->brgemm_kernel = std::make_shared<libxsmm_gemmfunction>(COMPILE_BRGEMM_TPP_KERNEL(
-        libxsmm_dispatch_gemm(m_shape, config.get_compile_flags(), config.get_prefetching_flags())));
+    compiled_kernel->brgemm_kernel =
+        std::make_shared<libxsmm_gemmfunction>(reinterpret_cast<const libxsmm_gemmfunction>(COMPILE_TPP_KERNEL(
+            libxsmm_dispatch_gemm(m_shape, config.get_compile_flags(), config.get_prefetching_flags()))));
 
     return compiled_kernel;
 }
