@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "ov_optional.hpp"
@@ -14,11 +15,18 @@
 namespace ov {
 namespace intel_cpu {
 
+struct ExecutorCreationResult {
+    ExecutorPtr executor;
+    ov::optional<CacheEntryBase::LookUpStatus> lookUpResult;
+};
+
 // @todo Consider alternative of using template arguments instead of std::functions
 template <typename Attrs>
 class ExecutorImplementation {
 public:
-    using SupportsPredicate = std::function<bool(const executor::Config<Attrs>&)>;
+    using SupportsExtendedPredicate = std::function<bool(const executor::Config<Attrs>&, const MemoryFormatFilter&)>;
+    using SupportsSimplePredicate = std::function<bool(const executor::Config<Attrs>&)>;
+
     using RequiresFallbackPredicate =
         std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
     using AcceptsShapePredicate = std::function<bool(const MemoryArgs& memory)>;
@@ -31,7 +39,7 @@ public:
                            const ExecutorType type,
                            const OperationType operationType,
                            const ShapeTolerance shapeRelation,
-                           SupportsPredicate supports,
+                           SupportsExtendedPredicate supports,
                            RequiresFallbackPredicate requiresFallback,
                            AcceptsShapePredicate acceptsShape,
                            CreateFunction create)
@@ -44,9 +52,28 @@ public:
           m_acceptsShape(std::move(acceptsShape)),
           m_create(std::move(create)) {}
 
-    bool supports(const executor::Config<Attrs>& config) const {
+    ExecutorImplementation(const char* name,
+                           const ExecutorType type,
+                           const OperationType operationType,
+                           const ShapeTolerance shapeRelation,
+                           SupportsSimplePredicate supports,
+                           RequiresFallbackPredicate requiresFallback,
+                           AcceptsShapePredicate acceptsShape,
+                           CreateFunction create)
+        : m_name(name),
+          m_type(type),
+          m_operationType(operationType),
+          m_shapeRelation(shapeRelation),
+          m_supports([supports](const executor::Config<Attrs>& config, const MemoryFormatFilter&) {
+              return supports(config);
+          }),
+          m_requiresFallback(std::move(requiresFallback)),
+          m_acceptsShape(std::move(acceptsShape)),
+          m_create(std::move(create)) {}
+
+    bool supports(const executor::Config<Attrs>& config, const MemoryFormatFilter& memoryFormatFilter) const {
         if (m_supports) {
-            return m_supports(config);
+            return m_supports(config, memoryFormatFilter);
         }
 
         return false;
@@ -100,7 +127,7 @@ private:
     ExecutorType m_type;
     OperationType m_operationType;
     ShapeTolerance m_shapeRelation;
-    SupportsPredicate m_supports;
+    SupportsExtendedPredicate m_supports;
     RequiresFallbackPredicate m_requiresFallback;
     AcceptsShapePredicate m_acceptsShape;
     CreateFunction m_create;

@@ -44,7 +44,7 @@ public:
 
     bool update(const MemoryArgs& memory) override {
         for (auto implId = select(memory, 0); implId < m_suitableImplementations.size();
-             implId = select(memory, implId)) {
+             implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
             }

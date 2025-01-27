@@ -30,6 +30,8 @@ using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 #define ARG_ATTR_SCALES 4096
 // zero points provided at execution time
 #define ARG_ATTR_ZERO_POINTS 8192
+/// fused depthwise convolution.
+#define ARG_ATTR_POST_OP_DW 16384
 
 }  // namespace intel_cpu
 }  // namespace ov
