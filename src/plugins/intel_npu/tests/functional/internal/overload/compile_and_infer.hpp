@@ -206,6 +206,47 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
     }
 }
 
+TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilationWithMultipleInfers) {
+    if (isCommandQueueExtSupported()) {
+        OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+        auto secondCompiledModel = core->compile_model(function, target_device, configuration);
+
+        ov::InferRequest req1, req2, req3;
+        OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req3 = secondCompiledModel.create_infer_request());
+        bool isCalled = false;
+        OV_ASSERT_NO_THROW(req1.set_callback([&](std::exception_ptr exception_ptr) {
+            ASSERT_EQ(exception_ptr, nullptr);
+            isCalled = true;
+        }));
+        OV_ASSERT_NO_THROW(req1.start_async());
+        OV_ASSERT_NO_THROW(req1.wait());
+        ASSERT_TRUE(isCalled);
+
+        OV_ASSERT_NO_THROW(req3.infer());
+
+        ov::AnyMap modelConfiguration;
+        modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+        ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::DEFAULT);
+        OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2.infer());
+
+        modelConfiguration[workload_type.name()] = WorkloadType::EFFICIENT;
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+        ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::EFFICIENT);
+        isCalled = false;
+        OV_ASSERT_NO_THROW(req2.set_callback([&](std::exception_ptr exception_ptr) {
+            ASSERT_EQ(exception_ptr, nullptr);
+            isCalled = true;
+        }));
+        OV_ASSERT_NO_THROW(req2.start_async());
+        OV_ASSERT_NO_THROW(req2.wait());
+        ASSERT_TRUE(isCalled);
+    }
+}
+
 using OVCompileAndInferRequestTurbo = OVCompileAndInferRequest;
 
 TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
