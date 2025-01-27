@@ -28,6 +28,11 @@ public:
 
     virtual ~Extension();
 };
+
+class OPENVINO_API FrontendExtension : public Extension {
+public:
+    virtual std::string get_frontend_name() = 0;
+};
 }  // namespace ov
 
 #ifndef OV_CREATE_EXTENSION

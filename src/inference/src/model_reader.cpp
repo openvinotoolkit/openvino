@@ -107,6 +107,22 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
 namespace ov {
 namespace util {
 
+namespace {
+    std::vector<ov::Extension::Ptr> filter_extensions_for_fronend(const ov::frontend::FrontEnd::Ptr& fe, const std::vector<ov::Extension::Ptr>& ov_exts) {
+        auto fe_name = fe->get_name();
+        std::vector<ov::Extension::Ptr> result;
+        for (auto& ext : ov_exts) {
+            if (auto fe_ext = ov::as_type_ptr<FrontendExtension>(ext)){
+                if (!fe_name.compare(fe_ext->get_frontend_name())){
+                    result.push_back(ext);
+                }
+            }
+            result.push_back(ext);
+        }
+        return result;
+    }
+}
+
 std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
                                       const std::string& binPath,
                                       const std::vector<ov::Extension::Ptr>& extensions,
@@ -137,7 +153,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
 
     FE = manager.load_by_model(params);
     if (FE) {
-        FE->add_extension(extensions);
+        FE->add_extension(filter_extensions_for_fronend(FE, extensions));
         inputModel = FE->load(params);
     }
 
@@ -183,7 +199,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
 
     FE = manager.load_by_model(params);
     if (FE) {
-        FE->add_extension(ov_exts);
+        FE->add_extension(filter_extensions_for_fronend(FE, ov_exts));
         inputModel = FE->load(params);
     }
     if (inputModel) {
@@ -210,7 +226,7 @@ std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& mode
 
     FE = manager.load_by_model(params);
     if (FE) {
-        FE->add_extension(ov_exts);
+        FE->add_extension(filter_extensions_for_fronend(FE, ov_exts));
         inputModel = FE->load(params);
     }
     if (inputModel) {
