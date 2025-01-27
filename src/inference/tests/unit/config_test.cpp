@@ -38,8 +38,8 @@ struct EmptyTestConfig : public ov::PluginConfig {
 
 struct NotEmptyTestConfig : public ov::PluginConfig {
     NotEmptyTestConfig() {
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_CONFIG_OPTION_MAPPING(__VA_ARGS__)
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_CONFIG_OPTION_MAPPING(__VA_ARGS__)
+    #define OV_CONFIG_LOCAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
+    #define OV_CONFIG_GLOBAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
         OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
         OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
         OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
@@ -58,8 +58,8 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         }
     }
 
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__)  OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__)
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__)  OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__)
+    #define OV_CONFIG_LOCAL_OPTION(...) EXPAND(OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__))  EXPAND(OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__))
+    #define OV_CONFIG_GLOBAL_OPTION(...) EXPAND(OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__))  EXPAND(OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__))
         OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
         OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
         OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
@@ -109,13 +109,14 @@ TEST(plugin_config, can_create_empty_config) {
 }
 
 TEST(plugin_config, can_create_not_empty_config) {
+#ifdef ENABLE_DEBUG_CAPS
+       size_t expected_options_num = 7;
+#else
+       size_t expected_options_num = 5;
+#endif
     ASSERT_NO_THROW(
         NotEmptyTestConfig cfg;
-#ifdef ENABLE_DEBUG_CAPS
-        ASSERT_EQ(cfg.get_supported_properties().size(), 7);
-#else
-        ASSERT_EQ(cfg.get_supported_properties().size(), 5);
-#endif
+        ASSERT_EQ(cfg.get_supported_properties().size(), expected_options_num);
     );
 }
 

@@ -118,7 +118,7 @@ class memory_pool {
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
     engine* _engine;
-    const ExecutionConfig& _config;
+    [[maybe_unused]] const ExecutionConfig& _config;
 
 public:
     explicit memory_pool(engine& engine, const ExecutionConfig& config);
