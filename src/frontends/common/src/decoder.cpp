@@ -7,3 +7,5 @@
 using namespace ov::frontend;
 
 IDecoder::~IDecoder() = default;
+
+DecoderBase::~DecoderBase() = default;
