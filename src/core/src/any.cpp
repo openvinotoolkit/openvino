@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <string>
+#include <string_view>
 #include "openvino/util/common_util.hpp"
 namespace {
 template <class Container>
@@ -204,13 +205,14 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
     std::string str;
     is >> str;
 
-    std::set<std::string> off = {"0", "false", "off", "no"};
-    std::set<std::string> on = {"1", "true", "on", "yes"};
+    using namespace std::literals;
+    constexpr std::array off = {"0"sv, "false"sv, "off"sv, "no"sv};
+    constexpr std::array on = {"1"sv, "true"sv, "on"sv, "yes"sv};
     str = util::to_lower(str);
 
-    if (on.count(str)) {
+    if (std::find(on.begin(), on.end(), str) != on.end()) {
         value = true;
-    } else if (off.count(str)) {
+    } else if (std::find(off.begin(), off.end(), str) != off.end()) {
         value = false;
     } else {
         OPENVINO_THROW("Could not convert to bool from string " + str);
