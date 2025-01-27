@@ -35,8 +35,6 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
-      OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
-      EXTENSION_BUILD_DIR: ${{ github.workspace }}/build
       KERAS_REPO: ${{ github.workspace }}/keras_repo
       KERAS_HOME: ${{ github.workspace }}/keras_repo/.github/workflows/config/openvino
 
@@ -45,9 +43,6 @@ jobs:
       - name: Setup Variables
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
-          echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
-          echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
           echo "KERAS_REPO=$GITHUB_WORKSPACE/keras" >> "$GITHUB_ENV"
           echo "KERAS_HOME=$GITHUB_WORKSPACE/keras/.github/workflows/config/openvino" >> "$GITHUB_ENV"
 
