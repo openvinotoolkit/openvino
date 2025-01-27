@@ -326,7 +326,7 @@ describe('ov.InferRequest tests', () => {
 });
 
 describe('ov.InferRequest tests with missing outputs names', () => {
-  const modelV3Small = testModels.modelV3Small;
+  const { modelV3Small } = testModels;
   let compiledModel = null;
   let tensorData = null;
   let tensor = null;
@@ -338,10 +338,13 @@ describe('ov.InferRequest tests with missing outputs names', () => {
     const fs = require('fs');
     const core = new ov.Core();
 
-    let model_data = fs.readFileSync(getModelPath(modelV3Small).xml, 'utf8');
+    let modelData = fs.readFileSync(getModelPath(modelV3Small).xml, 'utf8');
     const weights = fs.readFileSync(getModelPath(modelV3Small).bin);
-    model_data = model_data.replace("names=\"MobilenetV3/Predictions/Softmax:0\"", "");
-    const model = core.readModelSync(Buffer.from(model_data, 'utf8'), weights);
+    modelData = modelData.replace(
+      'names="MobilenetV3/Predictions/Softmax:0"',
+      ''
+    );
+    const model = core.readModelSync(Buffer.from(modelData, 'utf8'), weights);
 
     compiledModel = core.compileModelSync(model, 'CPU');
     inferRequest = compiledModel.createInferRequest();
