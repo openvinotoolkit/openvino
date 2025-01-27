@@ -1,3 +1,4 @@
+const path = require('node:path');
 const https = require('node:https');
 const fs = require('node:fs/promises');
 const { createWriteStream } = require('node:fs');
@@ -56,15 +57,18 @@ async function checkIfPathExists(path) {
  *
  * @function downloadFile
  * @param {string} url - The file URL.
- * @param {string} filePath - Path to downloaded file.
+ * @param {string} filename - The filename of result file.
+ * @param {string} destination - The destination path of result file.
  * @param {string} [proxy=null] - (Optional) The proxy URL.
  * @returns {Promise<string>} - Path to downloaded file.
  */
-function downloadFile(url, filePath, proxy = null) {
-  console.log(`Downloading file by link: ${url} to ${filePath}.`);
+function downloadFile(url, destination, filename, proxy = null) {
+  console.log(`Downloading file by link: ${url} to ${destination}`
+    + `with filename: ${filename}`);
 
   const timeout = 5000;
-  const file = createWriteStream(filePath);
+  const fullPath = path.resolve(destination, filename);
+  const file = createWriteStream(fullPath);
 
   if (new URL(url).protocol === 'http:')
     throw new Error('Http link doesn\'t support');
@@ -94,8 +98,8 @@ function downloadFile(url, filePath, proxy = null) {
 
       file.on('finish', () => {
         file.close();
-        console.log(`File was successfully downloaded to '${filePath}'.`);
-        resolve(filePath);
+        console.log(`File was successfully downloaded to '${fullPath}'.`);
+        resolve(fullPath);
       });
     });
 

@@ -83,11 +83,21 @@ async function downloadTestModel(model) {
     const { env } = process;
     const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
-    const modelExists = await checkIfPathExists(model.xml);
-    if (!modelExists) await downloadFile(model.xmlURL, model.xml, proxyUrl);
+    const modelExists = await checkIfPathExists(model.xml); 
+    if (!modelExists) await downloadFile(
+      model.xmlURL,
+      path.dirname(model.xml),
+      path.basename(model.xml),
+      proxyUrl,
+    );
 
     const weightsExists = await checkIfPathExists(model.bin);
-    if (!weightsExists) await downloadFile(model.binURL, model.bin, proxyUrl);
+    if (!weightsExists) await downloadFile(
+      model.binURL,
+      path.dirname(model.bin),
+      path.basename(model.bin),
+      proxyUrl,
+    );
 
   } catch(error) {
     console.error(`Failed to download the model: ${error}.`);
