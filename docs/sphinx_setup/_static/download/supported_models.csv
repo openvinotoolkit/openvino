@@ -92,10 +92,8 @@ codegen-2B-multi,Large Language Model,pytorch,intel-optimum default,,+,
 codegen-350M-mono,Large Language Model,pytorch,intel-optimum default,,+,
 codegen-6B-multi,Large Language Model,pytorch,intel-optimum default,,+,
 CodeQwen1.5-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-colorization-siggraph,Colorization,onnx,FP16,+,,
-colorization-siggraph,Colorization,onnx,FP16,,+,+
-colorization-siggraph,Colorization,onnx,FP32,+,,
-colorization-siggraph,Colorization,onnx,FP32,,,+
+colorization-siggraph,Colorization,onnx,FP16,+,+,+
+colorization-siggraph,Colorization,onnx,FP32,,+,+
 colorization-v2,Colorization,onnx,FP16-INT8,,,+
 common-sign-language-0001,Image Classification,onnx,FP16,+,+,+
 common-sign-language-0001,Image Classification,onnx,FP32,+,+,+
