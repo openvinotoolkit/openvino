@@ -56,7 +56,7 @@ TEST_F(TypePropSegmentMaxTest, non_default_args_no_values) {
 
 TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
     const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
-    const auto segment_ids = std::make_shared<Parameter>(element::i32, PartialShape{2});
+    const auto segment_ids = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto num_segments = std::make_shared<Parameter>(element::i32, PartialShape{});
     {
         const auto num_segments_i64 = std::make_shared<Parameter>(element::i64, PartialShape{});
@@ -65,7 +65,7 @@ TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
                         HasSubstr("The element types of the segment_ids and num_segments tensors must match."));
     }
     {
-        const auto segment_ids_f32 = std::make_shared<Parameter>(element::f32, PartialShape{2});
+        const auto segment_ids_f32 = std::make_shared<Parameter>(element::f32, PartialShape{3});
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_f32, num_segments, 0),
                         ov::NodeValidationFailure,
                         HasSubstr("The element type of the segment_ids input be i32 or i64."));
@@ -99,6 +99,13 @@ TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
         OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_short, num_segments, 0),
                         ov::NodeValidationFailure,
                         HasSubstr("The number of elements in segment_ids must match the first dimension of data."));
+    }
+    {
+        const auto num_segments_inconsistent = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int64_t>{200});
+        const auto segment_ids_const = std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{0, 1, 2});
+        OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_const, num_segments_inconsistent, 0),
+                        ov::NodeValidationFailure,
+                        HasSubstr("is inconsistent with number of segments given in segment_ids"));
     }
 }
 

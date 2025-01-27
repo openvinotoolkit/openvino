@@ -27,7 +27,8 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
                            "segment_ids must be a 1D input. Got: ",
                            segment_ids_shape);
 
-    if (op->inputs().size() == 3) {
+    const auto num_segments_available = op->inputs().size() == 3;
+    if (num_segments_available) {
         NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            num_segments_shape.rank().compatible(0),
@@ -43,27 +44,35 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
         auto output_shapes = std::vector<TRShape>{data_shape};
         auto& output_shape = output_shapes[0];
 
+        // Try to use segment_ids to infer the first dimension
         if (segment_ids_shape.rank().is_static()) {
             NODE_SHAPE_INFER_CHECK(op,
                               input_shapes,
                               data_shape[0].compatible(segment_ids_shape[0]),
                               "The number of elements in segment_ids must match the first dimension of data.");
-        }
-
-        // Prefer an explicit value from the num_segments input if available
-        if (op->inputs().size() == 3 && num_segments_shape.rank().is_static()) {
-            if (const auto num_segments = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)) {
-                output_shape[0] = (*num_segments)[0];
+            if (const auto segment_ids = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor)) {
+                NODE_VALIDATION_CHECK(op, std::is_sorted(segment_ids->begin(), segment_ids->end()), "segment_ids must be sorted.");
+                auto max_segment_id = *std::max_element(segment_ids->begin(), segment_ids->end());
+                if (num_segments_available) {
+                    if (const auto num_segments = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)) {
+                        NODE_VALIDATION_CHECK(op,
+                                            static_cast<typename TShape::value_type>(max_segment_id + 1) == (*num_segments)[0],
+                                            "num_segments value (",
+                                            (*num_segments)[0],
+                                            ") is inconsistent with number of segments given in segment_ids (",
+                                            max_segment_id + 1,
+                                            ").");
+                    }
+                }
+                output_shape[0] = max_segment_id + 1;
                 return output_shapes;
             }
         }
 
-        // If segment_ids input is available, use it to determine the output shape
-        if (segment_ids_shape.rank().is_static()) {
-            if (const auto segment_ids = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor)) {
-                NODE_VALIDATION_CHECK(op, std::is_sorted(segment_ids->begin(), segment_ids->end()), "segment_ids must be sorted.");
-                auto max_segment_id = *std::max_element(segment_ids->begin(), segment_ids->end());
-                output_shape[0] = max_segment_id + 1;
+        // Try to use num_segments to infer the first dimension
+        if (num_segments_available) {
+            if (const auto num_segments = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)) {
+                output_shape[0] = (*num_segments)[0];
                 return output_shapes;
             }
         }
