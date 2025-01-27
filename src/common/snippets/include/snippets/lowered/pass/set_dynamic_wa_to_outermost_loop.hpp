@@ -13,7 +13,7 @@ namespace pass {
 
 /**
  * @interface SetDynamicWAToOuterMostLoop
- * @brief The pass set dynamic work amount to outermost Loop by M in dynamic MHA Subgraphs
+ * @brief The pass set dynamic work amount to outermost Loop by M in MHA Subgraphs
  *        to allow MHAParallelWAOptimizer optimizes parallel work amount in runtime.
  * @ingroup snippets
  */
