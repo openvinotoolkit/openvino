@@ -311,14 +311,16 @@ void Pipeline::closeCommandListIndex(size_t command_list_index) {
 
 Pipeline::~Pipeline() {
     // fences shall be destroyed before the command queue is destroyed
-    if (_sync_output_with_fences) {
-        for (size_t i = 0; i < _number_of_command_lists; i++) {
-            _fences[i].reset();
+    if (_command_queue) {
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _number_of_command_lists; i++) {
+                _fences[i].reset();
+            }
         }
-    }
 
-    _command_queue.reset();
-    _command_queue_factory.freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
+        _command_queue.reset();
+        _command_queue_factory.freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
+    }
 }
 
 }  // namespace intel_npu

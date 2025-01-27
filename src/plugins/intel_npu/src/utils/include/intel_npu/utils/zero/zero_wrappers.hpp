@@ -155,11 +155,12 @@ public:
     void operator=(const CommandQueueFactory&) = delete;
     void operator=(CommandQueueFactory&&) = delete;
 
-    std::shared_ptr<CommandQueue>& getCommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                                   const ze_command_queue_priority_t& priority,
-                                                   const std::optional<ze_command_queue_workload_type_t>& workloadType,
-                                                   const uint32_t& group_ordinal,
-                                                   bool turbo);
+    const std::shared_ptr<CommandQueue>& getCommandQueue(
+        const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+        const ze_command_queue_priority_t& priority,
+        const std::optional<ze_command_queue_workload_type_t>& workloadType,
+        const uint32_t& group_ordinal,
+        bool turbo);
 
     void freeCommandQueue(const ze_command_queue_priority_t& priority,
                           const std::optional<ze_command_queue_workload_type_t>& workloadType,

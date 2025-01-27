@@ -204,7 +204,7 @@ Fence::~Fence() {
 }
 
 CommandQueueFactory::CommandQueueFactory() : _log("CommandQueue", Logger::global().level()) {}
-std::shared_ptr<CommandQueue>& CommandQueueFactory::getCommandQueue(
+const std::shared_ptr<CommandQueue>& CommandQueueFactory::getCommandQueue(
     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     const ze_command_queue_priority_t& priority,
     const std::optional<ze_command_queue_workload_type_t>& workloadType,
@@ -218,10 +218,18 @@ std::shared_ptr<CommandQueue>& CommandQueueFactory::getCommandQueue(
                                    std::make_shared<CommandQueue>(init_structs, priority, group_ordinal, turbo);
 
         if (zeroUtils::toWorkloadEnum(workloadType) != workload::NOT_SET) {
-            _log.debug("Set workload type");
-            _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                   [zeroUtils::toWorkloadEnum(workloadType)]
-                                       ->setWorkloadType(*workloadType);
+            try {
+                _log.debug("Set workload type");
+                _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                                       [zeroUtils::toWorkloadEnum(workloadType)]
+                                           ->setWorkloadType(*workloadType);
+            } catch (const std::exception& ex) {
+                _log.debug("Destroy pipeline if workload type is not supported!");
+                _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
+                                       [zeroUtils::toWorkloadEnum(workloadType)]
+                                           .reset();
+                OPENVINO_THROW(ex.what());
+            }
         }
     }
 
