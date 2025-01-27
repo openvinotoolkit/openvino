@@ -20,7 +20,7 @@ from transformers import (
 )
 
 from models_hub_common.constants import hf_hub_cache_dir
-from models_hub_common.utils import cleanup_dir, get_models_list, retry
+from models_hub_common.utils import cleanup_dir, get_models_list, retry, no_clean_cache_dir
 from torch_utils import TestTorchConvertModel
 
 
@@ -497,8 +497,9 @@ class TestTransformersModel(TestTorchConvertModel):
         return model
 
     def teardown_method(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
+        if not no_clean_cache_dir:
+            # remove all downloaded files from cache
+            cleanup_dir(hf_hub_cache_dir)
 
         super().teardown_method()
 
