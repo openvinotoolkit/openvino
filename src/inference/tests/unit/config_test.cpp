@@ -111,7 +111,11 @@ TEST(plugin_config, can_create_empty_config) {
 TEST(plugin_config, can_create_not_empty_config) {
     ASSERT_NO_THROW(
         NotEmptyTestConfig cfg;
+#ifdef ENABLE_DEBUG_CAPS
         ASSERT_EQ(cfg.get_supported_properties().size(), 7);
+#else
+        ASSERT_EQ(cfg.get_supported_properties().size(), 5);
+#endif
     );
 }
 
@@ -237,8 +241,11 @@ TEST(plugin_config, set_property_throw_for_non_release_options) {
 TEST(plugin_config, visibility_is_correct) {
     NotEmptyTestConfig cfg;
     ASSERT_EQ(cfg.get_option_ptr(release_internal_property.name())->get_visibility(), OptionVisibility::RELEASE_INTERNAL);
-    ASSERT_EQ(cfg.get_option_ptr(debug_property.name())->get_visibility(), OptionVisibility::DEBUG);
     ASSERT_EQ(cfg.get_option_ptr(int_property.name())->get_visibility(), OptionVisibility::RELEASE);
+
+#ifdef ENABLE_DEBUG_CAPS
+    ASSERT_EQ(cfg.get_option_ptr(debug_property.name())->get_visibility(), OptionVisibility::DEBUG);
+#endif
 }
 
 #ifdef ENABLE_DEBUG_CAPS
