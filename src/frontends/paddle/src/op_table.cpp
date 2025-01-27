@@ -9,6 +9,7 @@ namespace paddle {
 namespace op {
 #define OP_CONVERTER(op) NamedOutputs op(const NodeContext& node)
 OP_CONVERTER(argmax);
+OP_CONVERTER(argmin);
 OP_CONVERTER(assign);
 OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
@@ -142,9 +143,17 @@ OP_CONVERTER(write_to_array);
 OP_CONVERTER(where_index);
 OP_CONVERTER(yolo_box);
 OP_CONVERTER(generate_proposals_v2);
+OP_CONVERTER(abs);
+OP_CONVERTER(elu);
+OP_CONVERTER(atan2);
+OP_CONVERTER(scatter);
+OP_CONVERTER(scatter_nd_add);
+OP_CONVERTER(take_along_axis);
+OP_CONVERTER(reduce_any);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
+            {"arg_min", op::argmin},
             {"assign", op::assign},
             {"assign_value", op::assign_value},
             {"batch_norm", op::batch_norm},
@@ -285,7 +294,14 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"while", op::while_},
             {"write_to_array", op::write_to_array},
             {"where_index", op::where_index},
-            {"yolo_box", op::yolo_box}};
+            {"yolo_box", op::yolo_box},
+            {"abs", op::abs},
+            {"elu", op::elu},
+            {"atan2", op::atan2},
+            {"scatter", op::scatter},
+            {"scatter_nd_add", op::scatter_nd_add},
+            {"take_along_axis", op::take_along_axis},
+            {"reduce_any", op::reduce_any}};
 };
 
 }  // namespace paddle
