@@ -30,7 +30,7 @@ GET STARTED
 
 
 For a quick reference, check out
-`the Quick Start Guide [pdf] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+`the Quick Start Guide [pdf] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
 .. _quick-start-example:
