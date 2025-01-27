@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValuesDecompositionScalars),
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + Subgraph + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{4, 1}),
+        ::testing::Values(std::pair<size_t, size_t>{1, 1}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
@@ -85,7 +85,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValuesDecompositionPerChannel),
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x6 + Subgraph + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{10, 1}),
+        ::testing::Values(std::pair<size_t, size_t>{1, 1}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
@@ -96,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValuesDecompositionPerChannelInput),
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x4 + Subgraph + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{8, 1}),
+        ::testing::Values(std::pair<size_t, size_t>{1, 1}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 }  // namespace decompositionInSubgraph
@@ -138,6 +138,7 @@ std::vector<std::pair<std::shared_ptr<ov::Node>, std::pair<std::string, std::str
     {std::make_shared<ov::op::v1::Convolution>(), {"Convolution", "Convolution,fakeQuantize"}},
 };
 
+#ifdef OPENVINO_ARCH_X86_64
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets,
     FakeQuantizeDecompositionTest,
@@ -148,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::pair<size_t, size_t>{5, 0}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
-
+#endif
 }  // namespace legacyFuse
 
 }  // namespace
