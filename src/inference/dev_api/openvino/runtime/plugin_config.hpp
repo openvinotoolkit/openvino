@@ -292,7 +292,7 @@ protected:
 };
 
 template <>
-class OPENVINO_API AttributeAdapter<ConfigOptionBase*>
+class OPENVINO_RUNTIME_API AttributeAdapter<ConfigOptionBase*>
     : public DirectValueAccessor<ConfigOptionBase*> {
 public:
     AttributeAdapter(ConfigOptionBase*& value) : DirectValueAccessor<ConfigOptionBase*>(value) {}
@@ -301,7 +301,7 @@ public:
 };
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::AnyMap>
+class OPENVINO_RUNTIME_API AttributeAdapter<ov::AnyMap>
     : public DirectValueAccessor<ov::AnyMap> {
 public:
     AttributeAdapter(ov::AnyMap& value)  : DirectValueAccessor<ov::AnyMap>(value) {}

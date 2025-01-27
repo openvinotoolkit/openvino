@@ -124,8 +124,8 @@ bool is_llm(const ov::Model& model) {
 #undef OV_CONFIG_GLOBAL_OPTION
 
 ExecutionConfig::ExecutionConfig() : ov::PluginConfig() {
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_CONFIG_OPTION_MAPPING(__VA_ARGS__)
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_CONFIG_OPTION_MAPPING(__VA_ARGS__)
+    #define OV_CONFIG_LOCAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
+    #define OV_CONFIG_GLOBAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
     #include "intel_gpu/runtime/options.inl"
     #undef OV_CONFIG_LOCAL_OPTION
     #undef OV_CONFIG_GLOBAL_OPTION
@@ -315,8 +315,8 @@ void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
 
 const ov::PluginConfig::OptionsDesc& ExecutionConfig::get_options_desc() const {
     static  ov::PluginConfig::OptionsDesc help_map {
-        #define OV_CONFIG_LOCAL_OPTION(...) OV_CONFIG_OPTION_HELP(__VA_ARGS__)
-        #define OV_CONFIG_GLOBAL_OPTION(...) OV_CONFIG_OPTION_HELP(__VA_ARGS__)
+        #define OV_CONFIG_LOCAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_HELP(__VA_ARGS__))
+        #define OV_CONFIG_GLOBAL_OPTION(...) (OV_CONFIG_OPTION_HELP(__VA_ARGS__))
         #include "intel_gpu/runtime/options.inl"
         #undef OV_CONFIG_LOCAL_OPTION
         #undef OV_CONFIG_GLOBAL_OPTION
