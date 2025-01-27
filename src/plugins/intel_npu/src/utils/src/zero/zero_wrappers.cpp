@@ -59,16 +59,16 @@ Event::~Event() {
     _handle = nullptr;
 }
 
-CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                          const uint32_t& group_ordinal,
                          bool mtci_is_supported)
-    : _initStructs(initStructs),
+    : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
-        zeCommandListCreate(_initStructs->getContext(), _initStructs->getDevice(), &desc, &_handle));
+        zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
     if (mtci_is_supported) {
         ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
@@ -87,14 +87,14 @@ void CommandList::appendMemoryCopy(void* dst, const void* src, const std::size_t
 }
 void CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) const {
     ze_result_t result =
-        _initStructs->getGraphDdiTable().pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _initStructs->getGraphDdiTable());
+        _init_structs->getGraphDdiTable().pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _init_structs->getGraphDdiTable());
 }
 void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
                                      const ze_graph_profiling_query_handle_t& profiling_query_handle) const {
-    ze_result_t result = _initStructs->getGraphDdiTable()
+    ze_result_t result = _init_structs->getGraphDdiTable()
                              .pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _initStructs->getGraphDdiTable());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _init_structs->getGraphDdiTable());
 }
 void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp",
@@ -116,9 +116,9 @@ CommandList::~CommandList() {
 }
 void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
     ze_mutable_graph_argument_exp_desc_t desc = {
-        (ZE_MAJOR_VERSION(_initStructs->getZeDrvApiVersion()) > 1 ||
-         (ZE_MAJOR_VERSION(_initStructs->getZeDrvApiVersion()) == 1 &&
-          ZE_MINOR_VERSION(_initStructs->getZeDrvApiVersion()) >= 11))
+        (ZE_MAJOR_VERSION(_init_structs->getZeDrvApiVersion()) > 1 ||
+         (ZE_MAJOR_VERSION(_init_structs->getZeDrvApiVersion()) == 1 &&
+          ZE_MINOR_VERSION(_init_structs->getZeDrvApiVersion()) >= 11))
             ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
             : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
         nullptr,
@@ -203,30 +203,30 @@ Fence::~Fence() {
     _handle = nullptr;
 }
 
-CommandQueueFactory::CommandQueueFactory() : _log("CommandQueue", Logger::global().level()) {}
-const std::shared_ptr<CommandQueue>& CommandQueueFactory::getCommandQueue(
+CommandQueueManager::CommandQueueManager() : _log("CommandQueue", Logger::global().level()) {}
+const std::shared_ptr<CommandQueue>& CommandQueueManager::getCommandQueue(
     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     const ze_command_queue_priority_t& priority,
-    const std::optional<ze_command_queue_workload_type_t>& workloadType,
+    const std::optional<ze_command_queue_workload_type_t>& workload_type,
     const uint32_t& group_ordinal,
     bool turbo) {
     if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workloadType)] == nullptr) {
+                               [zeroUtils::toWorkloadEnum(workload_type)] == nullptr) {
         _log.debug("Create new command queue");
         _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workloadType)] =
+                               [zeroUtils::toWorkloadEnum(workload_type)] =
                                    std::make_shared<CommandQueue>(init_structs, priority, group_ordinal, turbo);
 
-        if (zeroUtils::toWorkloadEnum(workloadType) != workload::NOT_SET) {
+        if (zeroUtils::toWorkloadEnum(workload_type) != workload::NOT_SET) {
             try {
                 _log.debug("Set workload type");
                 _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                       [zeroUtils::toWorkloadEnum(workloadType)]
-                                           ->setWorkloadType(*workloadType);
+                                       [zeroUtils::toWorkloadEnum(workload_type)]
+                                           ->setWorkloadType(*workload_type);
             } catch (const std::exception& ex) {
                 _log.debug("Destroy pipeline if workload type is not supported!");
                 _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                       [zeroUtils::toWorkloadEnum(workloadType)]
+                                       [zeroUtils::toWorkloadEnum(workload_type)]
                                            .reset();
                 OPENVINO_THROW(ex.what());
             }
@@ -234,18 +234,18 @@ const std::shared_ptr<CommandQueue>& CommandQueueFactory::getCommandQueue(
     }
 
     return _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                  [zeroUtils::toWorkloadEnum(workloadType)];
+                                  [zeroUtils::toWorkloadEnum(workload_type)];
 }
-void CommandQueueFactory::freeCommandQueue(const ze_command_queue_priority_t& priority,
-                                           const std::optional<ze_command_queue_workload_type_t>& workloadType,
+void CommandQueueManager::freeCommandQueue(const ze_command_queue_priority_t& priority,
+                                           const std::optional<ze_command_queue_workload_type_t>& workload_type,
                                            bool turbo) {
     if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workloadType)]
+                               [zeroUtils::toWorkloadEnum(workload_type)]
                                    .use_count() == 1) {
         _log.debug("Destroy command queue");
 
         _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workloadType)]
+                               [zeroUtils::toWorkloadEnum(workload_type)]
                                    .reset();
     }
 }

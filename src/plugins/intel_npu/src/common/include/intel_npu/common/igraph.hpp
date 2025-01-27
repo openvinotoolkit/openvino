@@ -44,6 +44,7 @@ public:
     const std::vector<ArgumentDescriptor>& get_output_descriptors() const;
 
     void set_workload_type(const ov::WorkloadType workloadType);
+    const std::optional<ze_command_queue_workload_type_t> get_ze_workload_type() const;
 
     std::mutex& get_mutex();
 
@@ -55,7 +56,6 @@ public:
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
-    const std::optional<ze_command_queue_workload_type_t> get_ze_workload_type() const;
 
 protected:
     /**
