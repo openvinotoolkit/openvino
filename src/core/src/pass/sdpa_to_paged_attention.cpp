@@ -106,7 +106,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         // for "input_ids"
         processed_input_ids = input_ids_node;
     } else {
-        OPENVINO_ASSERT(processed_input_ids, "Counln't process neither input_ids, nor inputs_embeds.");
+        OPENVINO_ASSERT(processed_input_ids, "Couldn't process neither input_ids, nor inputs_embeds.");
     }
 
     ParameterVector kv_parameters;
