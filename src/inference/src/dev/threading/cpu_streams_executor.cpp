@@ -167,7 +167,7 @@ struct CPUStreamsExecutor::Impl {
             _rank = _impl->_config.get_rank();
             get_cur_stream_info(stream_id,
                                 _impl->_config.get_cpu_pinning(),
-                                std::move(org_proc_type_table),
+                                org_proc_type_table,
                                 _impl->_config.get_streams_info_table(),
                                 stream_type,
                                 concurrency,
