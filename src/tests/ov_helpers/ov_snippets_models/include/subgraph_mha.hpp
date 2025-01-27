@@ -57,19 +57,6 @@ protected:
     const std::vector<ov::element::Type> precisions;
 };
 
-class MHASplitMFunction : public MHAFunction {
-public:
-    explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                                       const std::vector<Shape>& reshapes, bool with_mul = true)
-            : MHAFunction(inputShapes, precisions, with_mul), reshapes(reshapes) {
-        OPENVINO_ASSERT(reshapes.size() == 5, "Got invalid number of Reshape shapes");
-    }
-protected:
-    std::shared_ptr<ov::Model> initReference() const override;
-
-    std::vector<ov::Shape> reshapes;
-};
-
 /* Graph:
  *       Transpose1[0,2,3,1]  Parameter
  *                     \       /

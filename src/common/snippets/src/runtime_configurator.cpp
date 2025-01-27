@@ -9,7 +9,6 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"

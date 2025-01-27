@@ -5,7 +5,7 @@
 #include "utils/split_dim_m.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
+#include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -33,10 +33,10 @@ TEST_P(SplitDimensionMTest, SplitDimensionM) {
     static const size_t last_dim = 1024;
     ov::Shape shape = {input.cur_batch, input.cur_m, last_dim};
     size_t batch_m_dim, new_m_dim;
-    bool result = ov::snippets::pass::SplitDimensionM::split(shape,
-                                                             input.concurrency,
-                                                             batch_m_dim,
-                                                             new_m_dim);
+    bool result = ov::snippets::lowered::pass::MHAParallelWAOptimizer::split(shape,
+                                                                             input.concurrency,
+                                                                             batch_m_dim,
+                                                                             new_m_dim);
 
     ASSERT_EQ(result, reference.is_split);
     if (result) {
