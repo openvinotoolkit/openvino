@@ -762,16 +762,11 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
             if (cluster.empty())
                 return false;
 
-            auto baseEdgeIt = std::find_if(cluster.begin(), cluster.end(), [](const EdgePtr& edge) {
-                return one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::NeedAllocation);
-            });
+            const auto& baseEdge = cluster.at(0);
 
-            OPENVINO_ASSERT(baseEdgeIt != cluster.end(), "Unexpected cluster state");
-
-            const auto& baseEdge = *baseEdgeIt;
-            if (baseEdge->getStatus() == Edge::Status::Allocated) {
-                return false;
-            }
+            OPENVINO_ASSERT(baseEdge->getStatus() == Edge::Status::NeedAllocation,
+                            "Unexpected status of edge: ",
+                            *baseEdge);
 
             // Allocate a cluster of the constants
             if (baseEdge->getParent()->isConstant()) {
@@ -806,20 +801,19 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
 static void AllocateBaseEdges(const EdgeClusters& edgeClusters, const MemoryControl::MemorySolution& memorySolution) {
     // attach all the not yet allocated edges to the memory control
     for (auto&& item : memorySolution) {
-        int count = 0;
-        for (auto&& edge : edgeClusters[item.first]) {
-            if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                edge->allocate(item.second);
-                // TODO: WA for some test (like strided_slice_test) which use tensors with
-                //       shapes {0}. And it is implicitly converted into {1} tensor.
-                //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->getType() == Type::Input && edge->getMemory().getDesc().hasDefinedMaxSize())
-                    edge->getMemoryPtr()->nullify();
+        const auto& cluster = edgeClusters.at(item.first);
+        const auto& baseEdge = cluster.at(0);
 
-                count++;
-            }
-        }
-        OPENVINO_ASSERT(count == 1, "Expected exactly one allocation. Actual number of allocations: ", count);
+        OPENVINO_ASSERT(baseEdge->getStatus() == Edge::Status::NeedAllocation,
+                        "Unexpected status of edge: ",
+                        *baseEdge);
+
+        baseEdge->allocate(item.second);
+        // TODO: WA for some test (like strided_slice_test) which use tensors with
+        //       shapes {0}. And it is implicitly converted into {1} tensor.
+        //       Zeroing of input data allow pass tests.
+        if (baseEdge->getParent()->getType() == Type::Input && baseEdge->getMemory().getDesc().hasDefinedMaxSize())
+            baseEdge->getMemoryPtr()->nullify();
     }
 }
 
@@ -827,30 +821,18 @@ static void AllocatedReferencingEdges(const EdgeClusters& clusters) {
     for (auto& cluster : clusters) {
         for (auto& edge : cluster) {
             if (edge->getStatus() != Edge::Status::NotAllocated) {
-                continue;
+                continue;  // skip base edge
             }
 
-            std::vector<EdgePtr> edges_to_process;
-            edges_to_process.push_back(edge);
-            for (auto next_edge = edge->getSharedEdge(std::nothrow); next_edge;
-                 next_edge = next_edge->getSharedEdge(std::nothrow)) {
-                edges_to_process.push_back(next_edge);
+            if (edge->inPlace(Edge::LOOK_DOWN)) {
+                edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
+            } else if (edge->inPlace(Edge::LOOK_UP)) {
+                edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
+            } else {
+                auto sharedEdge = edge->getSharedEdge();
+                edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
+                DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
             }
-
-            std::for_each(edges_to_process.rbegin(), edges_to_process.rend(), [](const EdgePtr& edge) {
-                if (edge->getStatus() == Edge::Status::NotAllocated) {
-                    if (edge->inPlace(Edge::LOOK_DOWN)) {
-                        edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
-                    } else if (edge->inPlace(Edge::LOOK_UP)) {
-                        edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
-                    } else {
-                        auto sharedEdge = edge->getSharedEdge();
-                        auto sharedEdgeParent = sharedEdge->getParent();
-                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
-                        DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
-                    }
-                }
-            });
         }
     }
 }
@@ -946,42 +928,33 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     EdgeClusters edgeClusters;
     EdgeClusterIdxMap edgeClusterIndices;
 
-    for (auto& edge : graphEdges) {
-        if (edgeClusterIndices.count(edge))
-            continue;  // edge is visited
-
-        size_t clusterIdx = edgeClusters.size();
-        EdgePtr lastSharedEdge = nullptr;
-
-        // find cluster index
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge;
-             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            auto shared_edge_it = edgeClusterIndices.find(shared_edge);
-            if (shared_edge_it != edgeClusterIndices.end()) {
-                clusterIdx = shared_edge_it->second;
-                lastSharedEdge = shared_edge;
-                break;
-            }
+    std::function<size_t(EdgePtr)> addToCluster;
+    addToCluster = [&addToCluster, &edgeClusterIndices, &edgeClusters](const EdgePtr& edge) {
+        // create edge cluster first time the base edge is visited, so the base edge is always the first one
+        if (edge == nullptr) {
+            edgeClusters.emplace_back(EdgeCluster{});
+            const auto clusterIdx = edgeClusters.size() - 1;
+            DEBUG_LOG("Edge: ", *edge, " is the base edge of cluster: ", clusterIdx);
+            return clusterIdx;
+        }
+        // cluster is already created for the edge
+        if (auto it = edgeClusterIndices.find(edge); it != edgeClusterIndices.end()) {
+            const auto clusterIdx = it->second;
+            return clusterIdx;
         }
 
-        if (clusterIdx == edgeClusters.size())
-            edgeClusters.emplace_back(EdgeCluster{edge});
+        auto clusterIdx = addToCluster(edge->getSharedEdge(std::nothrow));
 
-        // use recursive approach to ensure that the base edge is placed as a first entry of a cluster
-        std::function<void(EdgePtr)> addToCluster;
-        addToCluster =
-            [&addToCluster, &edgeClusterIndices, &clusterIdx, &edgeClusters, &lastSharedEdge](const EdgePtr& edge) {
-                if (edge == lastSharedEdge)
-                    return;
+        edgeClusterIndices[edge] = clusterIdx;
+        edgeClusters[clusterIdx].push_back(edge);
 
-                addToCluster(edge->getSharedEdge(std::nothrow));
+        return clusterIdx;
+    };
 
-                if (edgeClusterIndices.emplace(edge, clusterIdx).second) {
-                    edgeClusters[clusterIdx].push_back(edge);
-                }
-            };
-
-        addToCluster(edge);
+    for (auto& edge : graphEdges) {
+        const auto clusterIdx = addToCluster(edge);
+        MAYBE_UNUSED(clusterIdx);
+        DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
 
     return edgeClusters;
@@ -1077,42 +1050,45 @@ static Graph::OutputMemoryBlocks FilterOutDynamicOutputEdges(MemoryRegions& memo
                                                              const EdgeClusters& clusters,
                                                              const std::map<std::size_t, NodePtr>& outputNodes) {
     Graph::OutputMemoryBlocks outputMemBlocks;
-    memoryRegions.erase(
-        std::remove_if(memoryRegions.begin(),
-                       memoryRegions.end(),
-                       [&](const MemoryRegion& region) {
-                           if (region.size >= 0 ||
-                               !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
-                               return false;
-                           }
-                           bool result = false;
-                           for (auto& edge : clusters[region.id]) {
-                               auto child = edge->getChild();
-                               if (child->getType() == Type::Output &&
-                                   edge->getStatus() == Edge::Status::NeedAllocation) {
-                                   auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
-                                   DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock);
 
-                                   edge->allocate(proxyMemBlock);
+    auto storeOutputMemoryBlocks = [&](const MemoryRegion& region) {
+        if (region.size >= 0 || !one_of(region.type, MemoryRegion::RegionType::OUTPUT, MemoryRegion::RegionType::IO)) {
+            return false;
+        }
 
-                                   // Store the output memory blocks.
-                                   // So that, the infer requests can be able to access them.
-                                   // @todo Can we just get them from outputNodesMap instead?
-                                   int count = 0;
-                                   for (auto& output : outputNodes) {
-                                       if (output.second == child) {
-                                           outputMemBlocks[output.first] = proxyMemBlock;
-                                           count++;
-                                       }
-                                   }
-                                   // sometimes there are unused output ports.
-                                   OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
-                                   result = true;
-                               }
-                           }
-                           return result;
-                       }),
-        memoryRegions.end());
+        const auto& cluster = clusters.at(region.id);
+        const auto& baseEdge = cluster.at(0);
+        OPENVINO_ASSERT(baseEdge->getStatus() == Edge::Status::NeedAllocation,
+                        "Unexpected status of edge: ",
+                        *baseEdge);
+
+        auto child = baseEdge->getChild();
+        if (child->getType() != Type::Output) {
+            return false;
+        }
+
+        auto proxyMemBlock = std::make_shared<ProxyMemoryBlock>();
+        DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock);
+
+        baseEdge->allocate(proxyMemBlock);
+
+        // Store the output memory blocks.
+        // So that, the infer requests can be able to access them.
+        // @todo Can we just get them from outputNodesMap instead?
+        int count = 0;
+        for (auto& output : outputNodes) {
+            if (output.second == child) {
+                outputMemBlocks[output.first] = proxyMemBlock;
+                count++;
+            }
+        }
+        // sometimes there are unused output ports.
+        OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
+        return true;
+    };
+
+    memoryRegions.erase(std::remove_if(memoryRegions.begin(), memoryRegions.end(), storeOutputMemoryBlocks),
+                        memoryRegions.end());
 
     return outputMemBlocks;
 }
