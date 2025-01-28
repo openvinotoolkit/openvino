@@ -12,7 +12,9 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -21,77 +23,21 @@
 
 namespace {
 
-struct data_mem_wrapper {
-    cldnn::memory::ptr mem_ptr = nullptr;
-    cldnn::allocation_type mem_ptr_alloc_type = cldnn::allocation_type::unknown;
-    cldnn::layout output_layout{};
-    size_t data_size = 0;
-};
+bool is_alloc_host_accessible(const cldnn::allocation_type& alloc_type) {
+    return alloc_type == cldnn::allocation_type::usm_host || alloc_type == cldnn::allocation_type::usm_shared;
+}
 
-class MemoryManager {
-public:
-    MemoryManager(data_mem_wrapper memory_info,
-                  std::shared_ptr<ov::MappedMemory> mapped_weights,
-                  size_t bin_offset,
-                  size_t original_size)
-        : memory_info(memory_info) {
-        shared_buf =
-            std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_weights->data() + bin_offset,
-                                                                                  original_size,
-                                                                                  mapped_weights);
+void copy_to_dst_mem(cldnn::memory::ptr mem_ptr, const uint8_t* data_ptr) {
+    if (is_alloc_host_accessible(mem_ptr->get_allocation_type())) {
+        size_t data_size = mem_ptr->size();
+        std::memcpy(reinterpret_cast<uint8_t*>(mem_ptr->buffer_ptr()),
+                    data_ptr,
+                    data_size);
+    } else {
+        auto& strm = mem_ptr->get_engine()->get_service_stream();
+        mem_ptr->copy_from(strm, data_ptr);
     }
-
-    void copy_to_mem(cldnn::engine& engine) {
-        OPENVINO_ASSERT(memory_info.mem_ptr_alloc_type != cldnn::allocation_type::unknown);
-        OPENVINO_ASSERT(!copied);
-
-        if (memory_info.mem_ptr_alloc_type == cldnn::allocation_type::usm_host ||
-            memory_info.mem_ptr_alloc_type == cldnn::allocation_type::usm_shared) {
-            std::memcpy(reinterpret_cast<uint8_t*>(memory_info.mem_ptr->buffer_ptr()),
-                        get_loaded_data(),
-                        memory_info.data_size);
-        } else {
-            auto& strm = engine.get_service_stream();
-            auto data_ptr = get_loaded_data();
-            memory_info.mem_ptr->copy_from(strm, data_ptr);
-        }
-        copied = true;
-    }
-
-    void set_mem(cldnn::memory::ptr mem_ptr) {
-        memory_info.mem_ptr = mem_ptr;
-    }
-
-    bool is_copied() {
-        return copied;
-    }
-
-    std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> get_shared_buf() {
-        return shared_buf;
-    }
-
-    cldnn::memory::ptr get_mem_ptr() {
-        return memory_info.mem_ptr;
-    }
-
-    void set_transformed_constant(std::shared_ptr<ov::op::v0::Constant> constant) {
-        transformed_constant = constant;
-    }
-
-private:
-    std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> shared_buf = nullptr;
-    std::shared_ptr<ov::op::v0::Constant> transformed_constant = nullptr;
-    data_mem_wrapper memory_info{};
-    bool copied = false;
-
-    const uint8_t* get_loaded_data() {
-        if (transformed_constant) {
-            return reinterpret_cast<const uint8_t*>(transformed_constant->get_data_ptr());
-        }
-        OPENVINO_ASSERT(shared_buf);
-        return shared_buf->get_ptr<uint8_t>();
-    }
-};
+}
 
 }  // namespace
 
@@ -108,12 +54,13 @@ struct weightless_cache_manager {
                            size_t original_size,
                            ov::element::Type original_dtype,
                            ov::element::Type curr_dtype,
-                           ov::Shape shape) {
+                           ov::Shape shape, bool precision_conversion_set_by_transformation) {
         this->bin_offset = bin_offset;
         this->original_size = original_size;
         this->original_dtype = original_dtype;
         this->curr_dtype = curr_dtype;
         this->shape = shape;
+        this->precision_conversion_set_by_transformation = precision_conversion_set_by_transformation;
         do_weightless_caching = true;
 
         if (original_dtype != curr_dtype) {
@@ -121,19 +68,10 @@ struct weightless_cache_manager {
         }
     }
 
-    void invalidate() {
-        do_weightless_caching = false;
-    }
-
     void apply_reorder(layout input_layout, layout output_layout) {
         reorder_rep.do_reorder = true;
         reorder_rep.input_layout = input_layout;
         reorder_rep.output_layout = output_layout;
-    }
-
-    void set_new_dtype(ov::element::Type curr_dtype) {
-        this->curr_dtype = curr_dtype;
-        do_precision_conversion = original_dtype != curr_dtype;
     }
 
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
@@ -164,7 +102,7 @@ struct weightless_cache_manager {
         return true;
     }
 
-    bool load(BinaryInputBuffer& ib, data_mem_wrapper& mem_info, std::shared_ptr<ov::MappedMemory> mapped_weights) {
+    bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<ov::MappedMemory> mapped_weights) {
         ib >> do_weightless_caching;
         if (!do_weightless_caching) {
             return false;
@@ -184,7 +122,7 @@ struct weightless_cache_manager {
             shape.resize(num_dims);
             ib >> make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         } else {
-            original_size = mem_info.data_size;
+            original_size = dst_mem->size();
         }
 
         ib >> reorder_rep.do_reorder;
@@ -193,15 +131,19 @@ struct weightless_cache_manager {
             ib >> reorder_rep.output_layout;
         }
 
-        auto mem_obj = std::make_shared<MemoryManager>(mem_info, mapped_weights, bin_offset, original_size);
+        auto shared_buf =
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_weights->data() + bin_offset,
+                                                                                  original_size,
+                                                                                  mapped_weights);
 
         if (should_run_transformations()) {
-            run_transformations(ib.get_engine(), mem_obj);
+            run_transformations(ib.get_engine(), dst_mem, shared_buf);
         } else {
-            mem_obj->copy_to_mem(ib.get_engine());
+            copy_to_dst_mem(dst_mem, shared_buf->get_ptr<uint8_t>());
         }
         return true;
     }
+
 
 private:
     bool do_weightless_caching = false;
@@ -212,63 +154,107 @@ private:
     size_t original_size = SIZE_MAX;
     ov::element::Type original_dtype = ov::element::Type_t::undefined;
     ov::element::Type curr_dtype = ov::element::Type_t::undefined;
-    ov::Shape shape;
+    ov::Shape shape{};
+    bool precision_conversion_set_by_transformation = false;
 
     bool should_run_transformations() {
         return do_precision_conversion || reorder_rep.do_reorder;
     }
 
-    void run_transformations(engine& engine, std::shared_ptr<MemoryManager> mem_obj) {
-        auto orig_constant = std::make_shared<ov::op::v0::Constant>(original_dtype,
-                                                                    shape,
-                                                                    mem_obj->get_shared_buf()->get_ptr(),
-                                                                    mem_obj->get_shared_buf());
+    void run_transformations(engine& engine,
+                             memory::ptr dst_mem,
+                             std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>> shared_buf) {
+        std::shared_ptr<ov::op::v0::Constant> transformed_constant = nullptr;
 
-        ov::ParameterVector inputParams;
-        ov::ResultVector results;
-        results.push_back(std::make_shared<ov::op::v0::Result>(orig_constant->output(0)));
-        auto model = std::make_shared<ov::Model>(results, inputParams, "aux");
+        // Note: this works only until the data is copied to dst_mem.
+        auto get_intermediate_data = [&]() -> const uint8_t* {
+            if (transformed_constant) {
+                return reinterpret_cast<const uint8_t*>(transformed_constant->get_data_ptr());
+            }
+            return shared_buf->get_ptr<uint8_t>();
+        };
 
-        ov::pass::Manager manager("Plugin:GPU:weightless_cache_transformations");
+        // Note: this works only until the data is copied to dst_mem.
+        auto get_current_data_size = [&]() -> size_t {
+            if (transformed_constant) {
+                return transformed_constant->get_byte_size();
+            }
+            return original_size;
+        };
 
         if (do_precision_conversion) {
-            precisions_map fp_convert_precision_map = {{original_dtype, curr_dtype}};
-            type_to_fuse_map empty_fuse_map = {};
-            const bool keep_precision_sensitive_in_fp32 = false;
-            const bool convert_input_output_precision = false;
-            const bool store_original_precision_as_rt_attribute = true;
-            manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                              empty_fuse_map,
-                                                              keep_precision_sensitive_in_fp32,
-                                                              convert_input_output_precision,
-                                                              store_original_precision_as_rt_attribute);
+            auto orig_constant = std::make_shared<ov::op::v0::Constant>(original_dtype,
+                                                                        shape,
+                                                                        get_intermediate_data(),
+                                                                        shared_buf);
+
+            ov::ParameterVector inputParams;
+            ov::ResultVector results;
+            ov::pass::Manager manager("Plugin:GPU:weightless_cache_transformations");
+            std::shared_ptr<ov::Model> model = nullptr;
+
+            if (precision_conversion_set_by_transformation) {
+                results.push_back(std::make_shared<ov::op::v0::Result>(orig_constant->output(0)));
+                model = std::make_shared<ov::Model>(results, inputParams, "aux");
+
+
+                precisions_map fp_convert_precision_map = {{original_dtype, curr_dtype}};
+                type_to_fuse_map empty_fuse_map = {};
+                const bool keep_precision_sensitive_in_fp32 = false;
+                const bool convert_input_output_precision = false;
+                const bool store_original_precision_as_rt_attribute = true;
+                manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                                empty_fuse_map,
+                                                                keep_precision_sensitive_in_fp32,
+                                                                convert_input_output_precision,
+                                                                store_original_precision_as_rt_attribute);
+            } else {
+                auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
+                results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
+                model = std::make_shared<ov::Model>(results, inputParams, "aux");
+
+                manager.register_pass<ov::pass::ConstantFolding>();
+            }
+
+            manager.run_passes(model);
+            const auto& ops = model->get_ops();
+            auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+                return ov::op::util::is_constant(node);
+            });
+            OPENVINO_ASSERT(it != ops.end());
+            transformed_constant = ov::as_type_ptr<ov::op::v0::Constant>(*it);
+            OPENVINO_ASSERT(transformed_constant->get_element_type() == curr_dtype);
         }
 
-        manager.run_passes(model);
-        const auto& ops = model->get_ops();
-        auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
-            return ov::op::util::is_constant(node);
-        });
-        OPENVINO_ASSERT(it != ops.end());
-        auto transformed_constant = ov::as_type_ptr<ov::op::v0::Constant>(*it);
-        OPENVINO_ASSERT(transformed_constant->get_element_type() == curr_dtype);
-        mem_obj->set_transformed_constant(transformed_constant);
-        mem_obj->copy_to_mem(engine);
-
         if (reorder_rep.do_reorder) {
-            OPENVINO_ASSERT(reorder_rep.input_layout == mem_obj->get_mem_ptr()->get_layout());
+            const auto allocation_type = dst_mem->get_allocation_type();
+            memory::ptr input_mem = engine.allocate_memory(reorder_rep.input_layout, allocation_type, false);
+
+            if (is_alloc_host_accessible(allocation_type)) {
+                std::memcpy(reinterpret_cast<uint8_t*>(input_mem->buffer_ptr()),
+                            get_intermediate_data(),
+                            get_current_data_size());
+            } else {
+                auto& strm = engine.get_service_stream();
+                input_mem->copy_from(strm, get_intermediate_data());
+            }
+
             topology topology(input_layout("input", reorder_rep.input_layout),
                               reorder("reorder", input_info("input"), reorder_rep.output_layout));
             ExecutionConfig config{};
+            if (engine.get_device_info().supports_immad) {
+                config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+            }
+
             ov::intel_gpu::ImplementationDesc reorder_ref = {reorder_rep.output_layout.format, "reorder_data"};
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_ref} }));
             cldnn::network network(engine, topology, config);
-            memory::ptr input_mem = mem_obj->get_mem_ptr();
             network.set_input_data("input", input_mem);
+            network.set_output_memory("reorder", dst_mem);
             auto outputs = network.execute();
             OPENVINO_ASSERT(outputs.size() == 1);
-            memory::ptr output_mem = outputs.begin()->second.get_memory();
-            OPENVINO_ASSERT(input_mem->size() == output_mem->size());
-            mem_obj->set_mem(output_mem);
+        } else {
+            copy_to_dst_mem(dst_mem, get_intermediate_data());
         }
     }
 };
@@ -326,7 +312,7 @@ struct data : public primitive_base<data> {
 
         bool do_weightless_caching = cache_info->save(ob, data_size);
         if (!do_weightless_caching) {
-            if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+            if (is_alloc_host_accessible(_allocation_type)) {
                 ob << make_data(mem->buffer_ptr(), data_size);
             } else {
                 std::vector<uint8_t> _buf;
@@ -354,13 +340,10 @@ struct data : public primitive_base<data> {
 
         mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
 
-        data_mem_wrapper mem_info{mem, _allocation_type, output_layout, data_size};
-        bool is_weightless_caching = cache_info->load(ib, mem_info, mapped_weights);
+        bool is_weightless_caching = cache_info->load(ib, mem, mapped_weights);
 
-        if (is_weightless_caching) {
-            mem = mem_info.mem_ptr;
-        } else {
-            if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        if (!is_weightless_caching) {
+            if (is_alloc_host_accessible(_allocation_type)) {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             } else {
                 const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
