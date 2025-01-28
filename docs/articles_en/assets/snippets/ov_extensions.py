@@ -21,7 +21,12 @@ core.add_extension(ov.OpExtension(Identity))
 #! [add_extension]
 
 #! [add_frontend_extension]
-# Not implemented
+# Register more sophisticated mapping with decomposition
+def conversion(node):
+    input_node = node.get_input(0)
+    return Identity(input_node).outputs()
+
+core.add_extension(ConversionExtension("Identity", conversion))
 #! [add_frontend_extension]
 
 from utils import get_path_to_extension_library
