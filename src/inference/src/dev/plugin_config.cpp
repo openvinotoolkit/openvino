@@ -128,7 +128,6 @@ bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
     for (auto& prop : m_options_map) {
         visitor.on_attribute(prop.first + "__internal", prop.second);
     }
-    visitor.on_attribute("is_finalized", m_is_finalized);
 
     return true;
 }
