@@ -1831,15 +1831,15 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return ov::Shape(dataShape);
 }
 
-std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::vector<std::string>>& refFiles,
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
                                size_t numberOfTestCase, size_t outputInd) {
     std::string blobFileFullPath;
     if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
         // Case 1: Reference files & directory are provided (relative path)
-        blobFileFullPath = FLAGS_ref_dir + "/" + refFiles[numberOfTestCase][outputInd];
+        blobFileFullPath = FLAGS_ref_dir + "/" + refFiles[outputInd];
     } else if (!refFiles.empty()) {
         // Case 2: Reference files provided only (absolute path)
-        blobFileFullPath = refFiles[numberOfTestCase][outputInd];
+        blobFileFullPath = refFiles[outputInd];
     } else {
         // Case 3: Reference directory provided only
         std::ostringstream ostr;
@@ -1896,7 +1896,7 @@ static int runSingleImageTest() {
         std::vector<std::string> refFilesPerCase;
         using RefFilesPerInput = std::vector<std::string>;
         using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
-        std::vector<RefFilesForModelOutputs> refFilesForOneInfer;
+        RefFilesForModelOutputs refFilesForOneInfer;
 
         if (!FLAGS_ref_results.empty()) {
             refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
@@ -1912,13 +1912,7 @@ static int runSingleImageTest() {
 
             for (const auto& refResult : refFilesPerCase) {
                 std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
-                RefFilesForModelOutputs entireModelRefFiles;
-                entireModelRefFiles.reserve(refFilesPerModel.size());
-                for (auto &&refFilesPerInput : refFilesPerModel) {
-                    // from now on each input of a model support multiple image files as content of a batched input
-                    entireModelRefFiles.push_back(splitStringList(refFilesPerInput, '|'));
-                }
-                refFilesForOneInfer.push_back(std::move(entireModelRefFiles));
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
             }
         }
 
@@ -2151,8 +2145,8 @@ static int runSingleImageTest() {
             const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
-            const RefFilesForModelOutputs &refFiles = refFilesForOneInfer.empty() ? RefFilesForModelOutputs{}
-                                                                                 : refFilesForOneInfer[numberOfTestCase];
+            const RefFilesPerInput &refFiles = refFilesForOneInfer.empty() ? RefFilesPerInput{}
+                                                                           : refFilesForOneInfer[numberOfTestCase];
             if (!FLAGS_ref_results.empty()) {
                 OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
                 " doesn't match number of network output (s): ", outputsInfo.size());
