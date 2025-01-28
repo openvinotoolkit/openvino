@@ -1702,3 +1702,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fast_gelu) {
     test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
     test_case.run_with_tolerance_as_fp(0.0055f);
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dequantize_linear_with_required_params) {
+    const auto model = convert_model("com.microsoft/dequantized_linear_with_axis_and_zero_point.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> X = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                   12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+    const std::vector<float> scale = {0.1f};
+    const std::vector<int8_t> zero_point = {0};
+
+    const std::vector<float> expected_output = {0.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f,
+                                                1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f};
+
+    = test_case.add_input<int8_t>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{1}, scale);
+    test_case.add_input<int8_t>(Shape{1}, zero_point);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dequantize_linear_without_required_params) {
+    const auto model = convert_model("com.microsoft/dequantized_linear_without_axis_and_zero_point.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> X = {10, 20, 30, 40, 50, 60, 70, 80};
+    const float scale = 0.2f;
+
+    const std::vector<float> expected_output = {2.f, 4.f, 6.f, 8.f, 10.f, 12.f, 14.f, 16.f};
+
+    test_case.add_input<int8_t>(Shape{2, 4}, X);
+    test_case.add_input<float>(Shape{}, {scale});
+
+    test_case.add_expected_output<float>(Shape{2, 4}, expected_output);
+    test_case.run();
+}
