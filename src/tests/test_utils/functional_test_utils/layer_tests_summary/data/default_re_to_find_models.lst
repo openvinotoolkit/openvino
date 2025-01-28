@@ -1,5 +1,5 @@
-WW45_dynamic*
-WW45_pytorch*6c715998b36
-WW45_static*regul*
-WW45_tfhub*
+WW04_dynamic*
+WW04_pytorch*
+WW04_static*regular
+WW04_tfhub*
 # ww*_tflite*
