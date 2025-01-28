@@ -51,7 +51,7 @@ public:
     InputModel& operator=(const InputModel&) = delete;
     InputModel& operator=(InputModel&&) = delete;
 
-    virtual ~InputModel() = default;
+    virtual ~InputModel();
 
     /////  Searching for places  /////
 

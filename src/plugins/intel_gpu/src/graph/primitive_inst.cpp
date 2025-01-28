@@ -338,13 +338,13 @@ void primitive_inst::update_shape() {
                 _impl_params->state_layouts.resize(compressed_cache_variable->has_zp_state() ? 3 : 2);
 
                 auto scales_state = compressed_cache_variable->get_compression_scale_state();
-                auto new_scales_layout = compressed_cache_variable->get_compression_scale_state()->get_layout();
+                auto new_scales_layout = scales_state->get_layout();
                 update_state_layout(*scales_state, new_scales_layout, 1);
 
                 if (compressed_cache_variable->has_zp_state()) {
-                    auto scales_state = compressed_cache_variable->get_compression_zp_state();
-                    auto new_zp_layout = compressed_cache_variable->get_compression_zp_state()->get_layout();
-                    update_state_layout(*scales_state, new_zp_layout, 2);
+                    auto zp_state = compressed_cache_variable->get_compression_zp_state();
+                    auto new_zp_layout = zp_state->get_layout();
+                    update_state_layout(*zp_state, new_zp_layout, 2);
                 }
             }
         }
@@ -907,7 +907,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 auto& present_layout = _impl_params->output_layouts[i];
                 const auto present_layout_rank = present_layout.get_partial_shape().size();
                 const auto sequence_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, present_layout_rank)
-                                                  : kv_cache_inst::get_scale_zp_sequence_axis();;
+                                                  : kv_cache_inst::get_scale_zp_sequence_axis();
 
                 auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                           _max_output_layout_count[i],
@@ -978,7 +978,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             if (max_pad > 0) {
                 if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                     auto present_scales_layout = _impl_params->output_layouts[2];
-                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();;
+                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
 
                     // In case of compressed KV-cache, calling update_impl for each iteration
                     // because of scales layout [batch, num_heads, seq_len, head_size], which requires proper
@@ -990,8 +990,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
                     if (compressed_cache_variable->has_zp_state()) {
                         auto present_zp_layout = present_scales_layout;
+                        present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
 
-                        _impl_params->output_layouts[3] = present_scales_layout;
+                        _impl_params->output_layouts[3] = present_zp_layout;
                         compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
                     }
                 }
@@ -1385,7 +1386,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
                                        << " Updated present_zp_layout's pad : " << present_scales_layout.to_string() << std::endl;
 
-                compressed_cache_variable->get_compression_zp_state()->set_layout(present_scales_layout);
+                compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
             }
         }
 
@@ -2030,7 +2031,7 @@ void primitive_inst::configure_shape_of_dependencies() {
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)
-    , _impl_params(make_unique<kernel_impl_params>())
+    , _impl_params(std::make_unique<kernel_impl_params>())
     , _impl(nullptr)
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
@@ -2103,6 +2104,9 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         } else {
             _outputs = allocate_outputs();
         }
+    }
+    if (_node) {
+        GPU_DEBUG_TRACE_DETAIL << _node->type()->to_string(*_node) << "\n";
     }
     _impls_factory = std::make_shared<ImplementationsFactory>(_node);
     _impl_params->strm = _network.get_stream_ptr();
@@ -2385,6 +2389,9 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs
     // execution with other nodes) at the cost of tiny increase in memory consumption.
     if (_node.is_in_shape_of_subgraph())
+        reusable_across_network = false;
+
+    if (reusable_across_network && _node.get_program().is_body_program() && is_output_buffer && runtime_alloc)
         reusable_across_network = false;
 
     // For outputs, cpu prim we want to have lockable alloc type

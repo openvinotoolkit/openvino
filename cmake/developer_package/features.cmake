@@ -78,6 +78,8 @@ ov_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of fail
 
 ov_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
 
+ov_option (ENABLE_CLANG_TIDY "Enable clang-tidy checks during the build" ${STYLE_CHECKS_DEFAULT})
+
 ov_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 
 ov_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
