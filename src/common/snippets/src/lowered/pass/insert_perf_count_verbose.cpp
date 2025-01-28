@@ -23,12 +23,18 @@ bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
                                  snippets::lowered::LinearIR::constExprIt begin,
                                  snippets::lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertPerfCountVerbose")
-    if (linear_ir.get_config().debug_config.dumpParams.csv_path.empty()) {
-        return false;
-    }
+
     static size_t seq_number = 0;
     bool modified = false;
     auto csv_path = linear_ir.get_config().debug_config.dumpParams.csv_path;
+
+    std::vector<std::shared_ptr<snippets::utils::Dumper>> dumpers;
+    dumpers.push_back(std::make_shared<snippets::utils::ConsoleDumper>());
+    // Add CSV dumper if path is provided
+    if (!linear_ir.get_config().debug_config.dumpParams.csv_path.empty()) {
+        dumpers.push_back(std::make_shared<snippets::utils::CSVDumper>(csv_path));
+    }
+
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& brgemm_expr = *expr_it;
         const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(brgemm_expr->get_node());
@@ -36,18 +42,15 @@ bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
             continue;
         // Collect brgemm parameters
         auto params = collect_params(brgemm_expr, linear_ir);
+
         const auto& perf_count_begin = std::make_shared<snippets::op::PerfCountBegin>();
-        perf_count_begin->set_friendly_name(std::string("PerfCount_Begin_") + std::to_string(seq_number) +
-                                            "_DebugParams");
+        perf_count_begin->set_friendly_name(std::string("PerfCountVerbose_Begin_") + std::to_string(seq_number));
         const auto empty_inputs = std::vector<PortConnectorPtr>{};
         linear_ir.insert_node(perf_count_begin, empty_inputs, expr_it->get()->get_loop_ids(), false, expr_it);
 
-        const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0));
-        perf_count_end->set_friendly_name(std::string("PerfCount_End_") + std::to_string(seq_number) +
-                                            "_DebugParams");
-        // Attach brgemm parameters to PerfCountEnd node
-        perf_count_end->get_rt_info()["brgemm_params"] = params;
-        perf_count_end->get_rt_info()["brgemm_params_csv_path"] = csv_path;
+        const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0), dumpers, params);
+        perf_count_end->set_friendly_name(std::string("PerfCountVerbose_End_") + std::to_string(seq_number));
+
         linear_ir.insert_node(perf_count_end, empty_inputs, expr_it->get()->get_loop_ids(), false, next(expr_it));
         seq_number++;
         modified = true;

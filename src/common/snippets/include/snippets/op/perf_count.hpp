@@ -19,25 +19,54 @@ class PerfCountEnd;
 namespace utils {
 
 /**
- * @interface PerfCountDumper
+ * @interface Dumper
  * @brief Dumper for node debug properties
  * @ingroup snippets
  */
 class Dumper {
 public:
-    Dumper();
-    ~Dumper();
+    Dumper() = default;
+    Dumper(const Dumper&) = delete;
+    virtual ~Dumper() = default;
 
-    void update(const op::PerfCountEnd* node,
-                ov::threading::ThreadLocal<uint64_t> accumulation,
-                ov::threading::ThreadLocal<uint32_t> iteration);
+    void init(const std::string &params);
+    virtual void update(const op::PerfCountEnd* node) = 0;
+protected:
+    std::map<std::string, std::string> m_debug_params_map;
+    std::string m_params;
+};
+
+/**
+ * @interface ConsoleDumper
+ * @brief Dumper for node debug properties (output: stdout)
+ * @ingroup snippets
+ */
+class ConsoleDumper : public Dumper {
+public:
+    ConsoleDumper() = default;
+    ConsoleDumper(const ConsoleDumper&) = delete;
+    ~ConsoleDumper() override;
+
+    void update(const op::PerfCountEnd* node) override;
+};
+
+/**
+ * @interface CSVDumper
+ * @brief Dumper for node debug properties (output: .csv file)
+ * @ingroup snippets
+ */
+class CSVDumper : public Dumper {
+public:
+    CSVDumper(const std::string &csv_path);
+    CSVDumper(const CSVDumper&) = delete;
+    ~CSVDumper() override;
+
+    void update(const op::PerfCountEnd* node) override;
 
 private:
-    void dump_brgemm_params_to_csv();
+    const std::string csv_path;
 
-    static std::string brgemm_csv_path;
-    static std::map<std::string, std::string> m_debug_params_map;
-    static size_t nodes_count;
+    void dump_brgemm_params_to_csv();
 };
 
 } // namespace utils
@@ -104,21 +133,30 @@ private:
 class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
-    PerfCountEnd(const Output<Node>& pc_begin);
+    PerfCountEnd(const Output<Node>& pc_begin,
+                 std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
+                 const std::string& params = "");
     PerfCountEnd();
     ~PerfCountEnd();
 
-    void output_perf_count();
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     void init_pc_begin();
     void set_accumulated_time();
 
+    const ov::threading::ThreadLocal<uint64_t> &get_accumulation() const {
+        return accumulation;
+    }
+
+    const ov::threading::ThreadLocal<uint32_t> &get_iteration() const {
+        return iteration;
+    }
+
 private:
     ov::threading::ThreadLocal<uint64_t> accumulation;
     ov::threading::ThreadLocal<uint32_t> iteration;
 
-    utils::Dumper csv_dumper;
+    std::vector<std::shared_ptr<utils::Dumper>> dumpers;
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
