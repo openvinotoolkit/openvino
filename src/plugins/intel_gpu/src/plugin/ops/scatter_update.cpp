@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/scatter_update.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateScatterUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::ScatterUpdate>& op) {
     validate_inputs_count(op, {4});
@@ -32,5 +31,4 @@ static void CreateScatterUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 
 REGISTER_FACTORY_IMPL(v3, ScatterUpdate);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

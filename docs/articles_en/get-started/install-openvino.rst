@@ -11,11 +11,11 @@ Install OpenVINO™ 2025.0
    :maxdepth: 3
    :hidden:
 
+   OpenVINO GenAI <install-openvino/install-openvino-genai>
    OpenVINO Runtime on Linux <install-openvino/install-openvino-linux>
    OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
    OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
    Create an OpenVINO Yocto Image <install-openvino/install-openvino-yocto>
-   OpenVINO GenAI Flavor <install-openvino/install-openvino-genai>
 
 .. raw:: html
 
@@ -30,13 +30,13 @@ All currently supported versions are:
 * 2023.3 (LTS)
 
 
-.. dropdown:: Effortless GenAI integration with OpenVINO GenAI Flavor
+.. dropdown:: Effortless GenAI integration with OpenVINO GenAI
 
-   A new OpenVINO GenAI Flavor streamlines application development by providing
-   LLM-specific interfaces for easy integration of language models, handling tokenization and
-   text generation. For installation and usage instructions, proceed to
-   :doc:`Install OpenVINO GenAI Flavor <../openvino-workflow-generative>` and
-   :doc:`Run LLMs with OpenVINO GenAI Flavor <../openvino-workflow-generative/inference-with-genai>`.
+   OpenVINO GenAI streamlines application development by providing LLM-specific interfaces for
+   easy integration of language models, handling tokenization and text generation.
+   For installation and usage instructions, check
+   :doc:`OpenVINO GenAI installation <../openvino-workflow-generative>` and
+   :doc:`inference with OpenVINO GenAI <../openvino-workflow-generative/inference-with-genai>`.
 
 .. dropdown:: Building OpenVINO from Source
 

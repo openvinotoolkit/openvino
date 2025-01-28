@@ -291,12 +291,14 @@ private:
     }
 
     void allocate() override {
-        if (m_workspace)
+        if (m_workspace) {
             m_workspace->resize(m_totalSize);
+        }
     }
     void release() override {
-        if (m_workspace)
+        if (m_workspace) {
             m_workspace->free();
+        }
     }
 
     static const char* getClassName() {
@@ -634,8 +636,9 @@ EdgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
 
     for (auto& edge : graphEdges) {
         auto edge_it = edge_cluster_indices.find(edge);
-        if (edge_it != edge_cluster_indices.end())
+        if (edge_it != edge_cluster_indices.end()) {
             continue;  // edge is visited
+        }
 
         size_t cluster_idx = edge_clusters.size();
         EdgePtr last_shared_edge = nullptr;
@@ -654,10 +657,11 @@ EdgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
         // add shared edges to cluster
         edge_cluster_indices.emplace(edge, cluster_idx);
 
-        if (cluster_idx == edge_clusters.size())
+        if (cluster_idx == edge_clusters.size()) {
             edge_clusters.emplace_back(EdgeCluster{edge});
-        else
+        } else {
             edge_clusters[cluster_idx].emplace(edge);
+        }
 
         for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge != last_shared_edge;
              shared_edge = shared_edge->getSharedEdge(std::nothrow)) {

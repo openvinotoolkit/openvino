@@ -96,8 +96,8 @@ The advantages of using OpenVINO for generative model deployment:
 
 Proceed to guides on:
 
-* :doc:`OpenVINO GenAI Flavor <./openvino-workflow-generative/inference-with-genai>`
+* :doc:`OpenVINO GenAI <./openvino-workflow-generative/inference-with-genai>`
 * :doc:`Hugging Face and Optimum Intel <./openvino-workflow-generative/inference-with-optimum-intel>`
-* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/openvino-workflow-generative/llm-inference-native-ov.html>`__
+* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov>`__
 
 
