@@ -70,7 +70,7 @@ public:
      * To enable layout propagation and global memory reuse
      * two-stage creation should be used instead:
      * - Init()
-     * - Allocate()
+     * - Activate()
      */
     template <typename NET>
     void CreateGraph(NET& model, const GraphContext::CPtr& context);
@@ -80,7 +80,7 @@ public:
      * To enable layout propagation and global memory reuse
      * two-stage creation should be used instead:
      * - Init()
-     * - Allocate()
+     * - Activate()
      */
     void CreateGraph(const std::vector<NodePtr>& graphNodes,
                      const std::vector<EdgePtr>& graphEdges,
@@ -239,8 +239,6 @@ public:
     bool hasDynamicInput() const {
         return graphHasDynamicInput;
     }
-
-    const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
 
     void Init(const std::vector<NodePtr>& graphNodes,
               const std::vector<EdgePtr>& graphEdges,

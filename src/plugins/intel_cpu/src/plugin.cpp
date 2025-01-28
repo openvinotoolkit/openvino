@@ -533,7 +533,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     conf.applyRtInfo(model);
     conf.readProperties(config, modelType);
 
-    auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false, nullptr);
+    auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,

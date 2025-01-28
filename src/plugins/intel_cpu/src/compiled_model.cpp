@@ -56,8 +56,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg{std::move(cfg)},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache),
-      m_sub_memory_manager(std::move(sub_memory_manager)),
-      m_networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
+      m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core) {

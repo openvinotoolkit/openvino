@@ -68,10 +68,6 @@ public:
         return m_name;
     }
 
-    std::shared_ptr<NetworkMemoryControl> get_network_memory_control() const {
-        return m_networkMemoryControl;
-    }
-
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     friend class CompiledModelHolder;
@@ -105,7 +101,6 @@ private:
 
     std::vector<std::shared_ptr<CompiledModel>> m_sub_compiled_models;
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
-    std::shared_ptr<NetworkMemoryControl> m_networkMemoryControl = nullptr;
     bool m_has_sub_compiled_models = false;
 };
 
