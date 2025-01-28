@@ -12,6 +12,7 @@ OpenVINO™ Ecosystem Overview
    :hidden:
 
    openvino-ecosystem/openvino-training-extensions
+   openvino-ecosystem/openvino-test-drive
    openvino-ecosystem/datumaro
    openvino-ecosystem/openvino-security-add-on
 
@@ -23,7 +24,7 @@ you an overview of a whole ecosystem of tools and solutions under the OpenVINO u
 
 | **GenAI**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino.genai>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html>`
 
 OpenVINO™ GenAI Library aims to simplify running inference of generative AI
 models. Check the LLM-powered Chatbot Jupyter notebook to see how GenAI works.
@@ -102,20 +103,19 @@ development process, empowering teams to produce custom AI models at scale.
 |hr|
 
 
-| **Tokenizers**
-| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_tokenizers>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html>`
+| **Intel® Test Drive**
+| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_testdrive>`
 
-OpenVINO Tokenizers add text processing operations to OpenVINO.
+OpenVINO™ Test Drive is cross-platform graphic user interface application that enables running
+generative AI and vision models directly on your computer or edge device using OpenVINO™ Runtime.
 |hr|
 
 
-| **OpenVINO's Open Model Zoo**
-| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/open_model_zoo>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/documentation/legacy-features/model-zoo.html>`
+| **Tokenizers**
+| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_tokenizers>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html>`
 
-Open Model Zoo includes optimized deep learning models and a set of demos to
-expedite development of high-performance deep learning inference applications.
+OpenVINO Tokenizers add text processing operations to OpenVINO.
 
 OpenVINO-based AI projects
 ##########################

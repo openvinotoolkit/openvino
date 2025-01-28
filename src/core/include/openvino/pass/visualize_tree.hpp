@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ namespace pass {
  */
 class OPENVINO_API VisualizeTree : public ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::VisualizeTree");
+    OPENVINO_MODEL_PASS_RTTI("ov::pass::VisualizeTree");
 
     using node_modifiers_t = std::function<void(const Node& node, std::vector<std::string>& attributes)>;
     VisualizeTree(const std::string& file_name, node_modifiers_t nm = nullptr, bool dot_only = false);

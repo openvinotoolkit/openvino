@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,8 @@ namespace node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
-            !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
-                !std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        if (!ov::as_type_ptr<const ov::opset1::Reshape>(op) && !ov::as_type_ptr<const ov::opset1::Squeeze>(op) &&
+            !ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -31,29 +30,28 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, ReshapeShapeInferFactory(op)) {
+Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
-
     if (isDynamicNode()) {
-        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string opType) {
+        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
                 OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
             }
         };
 
-        if (std::dynamic_pointer_cast<const ov::opset1::Reshape>(op)) {
+        if (ov::as_type_ptr<const ov::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
-            if (op->get_input_size() == 1)
+        } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
+            if (op->get_input_size() == 1) {
                 OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
+            }
             checkSecondInput(op, "Squeeze");
-        } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
             OPENVINO_THROW("Unsupported operation type via reshape node");
@@ -66,7 +64,7 @@ bool Reshape::needShapeInfer() const {
     if (lastSecondInputValues.empty()) {
         lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
     }
-    const int32_t *sndInput = mem.getDataAs<const int32_t>();
+    const int32_t* sndInput = mem.getDataAs<const int32_t>();
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
         if (lastSecondInputValues[i] != sndInput[i]) {
             for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
@@ -82,15 +80,18 @@ bool Reshape::needShapeInfer() const {
 }
 
 void Reshape::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
+    if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
         OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+    }
 }
 
 void Reshape::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outPrec = getOriginalOutputPrecisionAtPort(0);
@@ -98,14 +99,16 @@ void Reshape::initSupportedPrimitiveDescriptors() {
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required
-    if (inPrec != outPrec)
+    if (inPrec != outPrec) {
         inPrec = outPrec;
+    }
 
     bool canBeInPlace = true;
 
     // CVS-81059 : disable inPlace in following case since it won't be satisfied by framework
-    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant())
+    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant()) {
         canBeInPlace = false;
+    }
 
     NodeConfig config;
     config.inConfs.resize(getParentEdges().size());
@@ -113,7 +116,8 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         config.inConfs[i].inPlace(0 == i && canBeInPlace ? 0 : -1);
         config.inConfs[i].constant(false);
-        config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
+        config.inConfs[i].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace(canBeInPlace ? 0 : -1);
@@ -122,11 +126,11 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void Reshape::executeDynamicImpl(dnnl::stream strm) {
+void Reshape::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reshape::execute(dnnl::stream strm) {
+void Reshape::execute(const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
 
@@ -142,8 +146,7 @@ bool Reshape::isExecutable() const {
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
-        if (config.inConfs[0].inPlace() >= 0 ||
-            config.outConfs[0].inPlace() >= 0) {
+        if (config.inConfs[0].inPlace() >= 0 || config.outConfs[0].inPlace() >= 0) {
             inPlaceEnabled = true;
         }
     }
@@ -154,6 +157,6 @@ bool Reshape::created() const {
     return getType() == Type::Reshape;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

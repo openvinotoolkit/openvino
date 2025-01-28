@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,22 +19,22 @@ template <typename Attrs>
 class ExecutorImplementation {
 public:
     using SupportsPredicate = std::function<bool(const executor::Config<Attrs>&)>;
-    using RequiresFallbackPredicate = std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
+    using RequiresFallbackPredicate =
+        std::function<ov::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
     using AcceptsShapePredicate = std::function<bool(const MemoryArgs& memory)>;
     using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
                                                      const PostOps& postOps,
                                                      const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr context)>;
+                                                     const ExecutorContext::CPtr& context)>;
 
-    ExecutorImplementation(
-        const char* name,
-        const ExecutorType type,
-        const OperationType operationType,
-        const ShapeTolerance shapeRelation,
-        SupportsPredicate supports,
-        RequiresFallbackPredicate requiresFallback,
-        AcceptsShapePredicate acceptsShape,
-        CreateFunction create)
+    ExecutorImplementation(const char* name,
+                           const ExecutorType type,
+                           const OperationType operationType,
+                           const ShapeTolerance shapeRelation,
+                           SupportsPredicate supports,
+                           RequiresFallbackPredicate requiresFallback,
+                           AcceptsShapePredicate acceptsShape,
+                           CreateFunction create)
         : m_name(name),
           m_type(type),
           m_operationType(operationType),
@@ -74,8 +74,9 @@ public:
                        const ExecutorContext::CPtr context) const {
         DEBUG_LOG("Creating executor using implementation: ", m_name);
 
-        if (m_create)
+        if (m_create) {
             return m_create(attrs, postOps, memory, context);
+        }
         return nullptr;
     }
 

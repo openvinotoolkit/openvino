@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -422,7 +422,7 @@ TEST(copy, loop) {
     OutputVector new_args = {trip_count, exec_condition, X_new, Y_new, M_new};
     auto loop_copy = loop->clone_with_new_inputs(new_args);
 
-    auto node_cast = std::dynamic_pointer_cast<op::v5::Loop>(loop_copy);
+    auto node_cast = ov::as_type_ptr<op::v5::Loop>(loop_copy);
     ASSERT_NE(node_cast, nullptr);
     ASSERT_TRUE(nullptr != loop_copy);
     EXPECT_EQ(loop->get_num_iterations(), node_cast->get_num_iterations());

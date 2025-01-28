@@ -18,7 +18,7 @@ Inputs Pre-Processing with OpenVINO
 
 In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 
-* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
+* Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
 * Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <optimize-preprocessing>`
 * Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
@@ -60,7 +60,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/object_detection_demo/cpp/README.md>`__ , `Object Detection Python Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/object_detection_demo/python/README.md>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
+Refer to the :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
 
 .. note::
 

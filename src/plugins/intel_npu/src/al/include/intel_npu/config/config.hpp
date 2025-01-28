@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,11 @@ struct OptionParser<bool> final {
 template <>
 struct OptionParser<int32_t> final {
     static int32_t parse(std::string_view val);
+};
+
+template <>
+struct OptionParser<uint32_t> final {
+    static uint32_t parse(std::string_view val);
 };
 
 template <>
@@ -162,6 +167,25 @@ struct OptionPrinter final {
             return ss.str();
         } else {
             ss << val;
+        }
+        return ss.str();
+    }
+};
+
+template <typename K, typename V>
+struct OptionPrinter<std::map<K, V>> final {
+    static std::string toString(const std::map<K, V>& val) {
+        std::stringstream ss;
+        std::size_t counter = 0;
+        std::size_t size = val.size();
+        for (auto& [key, value] : val) {
+            std::string key_str = OptionPrinter<K>::toString(key);
+            std::string value_str = OptionPrinter<V>::toString(value);
+            ss << key_str << ":" << value_str;
+            if (counter < size - 1) {
+                ss << ",";
+            }
+            ++counter;
         }
         return ss.str();
     }
@@ -398,6 +422,8 @@ public:
     typename std::string getString() const;
 
     std::string toString() const;
+
+    void fromString(const std::string& str);
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;

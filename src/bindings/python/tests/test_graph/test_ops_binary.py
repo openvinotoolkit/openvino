@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import operator
@@ -9,8 +9,8 @@ import pytest
 import warnings
 
 from openvino import Type
-import openvino.runtime.opset13 as ov
-import openvino.runtime.opset15 as ov_opset15
+import openvino.opset13 as ov
+import openvino.opset15 as ov_opset15
 
 
 @pytest.mark.parametrize(

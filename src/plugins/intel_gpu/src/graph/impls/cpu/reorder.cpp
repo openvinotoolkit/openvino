@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "reorder_inst.h"
 #include "impls/registry/implementation_map.hpp"
@@ -20,7 +21,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::reorder_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<reorder_impl>(*this);
+        return std::make_unique<reorder_impl>(*this);
     }
 
     reorder_impl() : parent("reorder_cpu_impl") {}
@@ -40,9 +41,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         auto params = instance.get_impl_params();
@@ -70,14 +69,10 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
                         "[GPU] Couldn't execute reorder primitive with id ", instance.id());
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -86,7 +81,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<reorder_impl>();
+        return std::make_unique<reorder_impl>();
     }
 };
 

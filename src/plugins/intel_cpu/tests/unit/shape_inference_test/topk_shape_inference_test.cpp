@@ -15,10 +15,10 @@ using namespace ov::opset10;
 using namespace testing;
 
 namespace topk_test {
-using TopKTestParams = std::tuple<ShapeVector,  // Input shapes
-                                  int64_t,      // axis
-                                  int64_t,      // k value
-                                  StaticShape   // Expected output shape
+using TopKTestParams = std::tuple<StaticShapeVector,  // Input shapes
+                                  int64_t,            // axis
+                                  int64_t,            // k value
+                                  StaticShape         // Expected output shape
                                   >;
 template <class TOp>
 class TopKTest : public OpStaticShapeInferenceTest<TOp>, public WithParamInterface<TopKTestParams> {
@@ -30,9 +30,9 @@ protected:
     int64_t axis, k;
 };
 
-const auto TopkTestValues = Values(make_tuple(ShapeVector{{0}, {}}, 0, 1, StaticShape{1}),
-                                   make_tuple(ShapeVector{{5, 2, 10, 0}, {}}, -1, 5, StaticShape{5, 2, 10, 5}),
-                                   make_tuple(ShapeVector{{3, 5, 6}, {}}, 1, 2, StaticShape{3, 2, 6}));
+const auto TopkTestValues = Values(make_tuple(StaticShapeVector{{0}, {}}, 0, 1, StaticShape{1}),
+                                   make_tuple(StaticShapeVector{{5, 2, 10, 0}, {}}, -1, 5, StaticShape{5, 2, 10, 5}),
+                                   make_tuple(StaticShapeVector{{3, 5, 6}, {}}, 1, 2, StaticShape{3, 2, 6}));
 
 namespace v1 {
 using TopKV1AssertStaticShapeInferenceTest = OpStaticShapeInferenceTest<op::v1::TopK>;
@@ -43,11 +43,11 @@ TEST_F(TopKV1AssertStaticShapeInferenceTest, k_is_negative) {
 
     const auto op = make_op(data, k_node, 0, "max", "value");
 
-    input_shapes = ShapeVector{{5, 2}, {}};
-    output_shapes = ShapeVector(2);
+    input_shapes = StaticShapeVector{{5, 2}, {}};
+    output_shapes = StaticShapeVector(2);
 
     int64_t k = -2;
-    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{}, &k}}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, &k}}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_map),
                     ov::AssertFailure,
@@ -59,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(StaticShapeInference, TopKV1Test, TopkTestValues, Print
 
 TEST_P(TopKV1Test, no_constant_map) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k_node = Constant::create(element::i64, Shape{}, {k});
+    const auto k_node = Constant::create(element::i64, ov::Shape{}, {k});
 
     const auto op = make_op(data, k_node, axis, "max", "value");
 
@@ -84,7 +84,7 @@ TEST_P(TopKV1Test, k_as_param_in_const_map) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     const auto k_node = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
 
-    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{}, &k}}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, &k}}};
 
     const auto op = make_op(data, k_node, axis, "min", "value");
 
@@ -104,11 +104,11 @@ TEST_F(TopKV3AssertStaticShapeInferenceTest, k_is_negative) {
 
     const auto op = make_op(data, k_node, 0, "max", "value");
 
-    input_shapes = ShapeVector{{5, 2}, {}};
-    output_shapes = ShapeVector(2);
+    input_shapes = StaticShapeVector{{5, 2}, {}};
+    output_shapes = StaticShapeVector(2);
 
     int64_t k = -2;
-    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{}, &k}}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, &k}}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_map),
                     ov::AssertFailure,
@@ -120,7 +120,7 @@ INSTANTIATE_TEST_SUITE_P(StaticShapeInference, TopKV3Test, TopkTestValues, Print
 
 TEST_P(TopKV3Test, k_as_constant) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto k_node = Constant::create(element::i64, Shape{}, {k});
+    const auto k_node = Constant::create(element::i64, ov::Shape{}, {k});
 
     const auto op = make_op(data, k_node, axis, "min", "value");
 
@@ -145,7 +145,7 @@ TEST_P(TopKV3Test, k_as_param_in_const_map) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     const auto k_node = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
 
-    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, Shape{}, &k}}};
+    const auto const_map = std::unordered_map<size_t, ov::Tensor>{{1, {element::i64, ov::Shape{}, &k}}};
 
     const auto op = make_op(data, k_node, axis, "max", "value");
 

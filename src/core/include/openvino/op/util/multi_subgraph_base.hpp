@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ public:
     OPENVINO_OP("MultiSubGraphOp", "util", ov::op::Sink);
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
-    class InputDescription {
+    class OPENVINO_API InputDescription {
     protected:
         ///
         /// \brief      Constructs a new instance.
@@ -34,7 +34,7 @@ public:
     public:
         using Ptr = std::shared_ptr<InputDescription>;
         using type_info_t = DiscreteTypeInfo;
-        virtual ~InputDescription() = default;
+        virtual ~InputDescription();
         virtual std::shared_ptr<InputDescription> copy() const = 0;
 
         virtual const type_info_t& get_type_info() const = 0;
@@ -45,7 +45,7 @@ public:
 
     /// \brief Abstract class describes how a MultiSubGraphOp output is produced from
     /// the body.
-    class OutputDescription {
+    class OPENVINO_API OutputDescription {
     protected:
         ///
         /// \brief      Constructs a new instance.
@@ -59,7 +59,7 @@ public:
     public:
         using Ptr = std::shared_ptr<OutputDescription>;
         using type_info_t = DiscreteTypeInfo;
-        virtual ~OutputDescription() = default;
+        virtual ~OutputDescription();
         virtual std::shared_ptr<OutputDescription> copy() const = 0;
         virtual const type_info_t& get_type_info() const = 0;
 

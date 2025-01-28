@@ -16,7 +16,7 @@ namespace snippets {
 
 class LIRPassDump {
 public:
-    explicit LIRPassDump(lowered::LinearIR& linear_ir, std::string pass_name)
+    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name)
         : linear_ir(linear_ir), pass_name(std::move(pass_name)), debug_config(linear_ir.get_config().debug_config) {
         dump("_in");
     }
@@ -44,7 +44,7 @@ private:
         num++;
     }
 
-    lowered::LinearIR& linear_ir;
+    const lowered::LinearIR& linear_ir;
     const std::string pass_name;
     const DebugCapsConfig& debug_config;
 };

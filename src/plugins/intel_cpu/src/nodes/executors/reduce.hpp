@@ -5,9 +5,9 @@
 #pragma once
 
 #include "cpu_memory.h"
-#include "onednn/iml_type_mapper.h"
 #include "dnnl_scratch_pad.h"
 #include "executor.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,13 +20,15 @@ struct ReduceAttrs {
 
 class ReduceExecutor {
 public:
-    ReduceExecutor(const ExecutorContext::CPtr context);
+    ReduceExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ReduceAttrs& reduceAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
-                      const dnnl::primitive_attr &attr) = 0;
+                      const dnnl::primitive_attr& attr) = 0;
 
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) = 0;
+    virtual void exec(const std::vector<MemoryCPtr>& src,
+                      const std::vector<MemoryPtr>& dst,
+                      const void* post_ops_data_) = 0;
     virtual ~ReduceExecutor() = default;
 
     virtual impl_desc_type getImplType() const = 0;
@@ -51,5 +53,5 @@ public:
 using ReduceExecutorBuilderPtr = std::shared_ptr<ReduceExecutorBuilder>;
 using ReduceExecutorBuilderCPtr = std::shared_ptr<const ReduceExecutorBuilder>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

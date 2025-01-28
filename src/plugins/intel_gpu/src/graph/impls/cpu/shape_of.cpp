@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "shape_of_inst.h"
 #include "impls/registry/implementation_map.hpp"
@@ -21,7 +22,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::shape_of_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<shape_of_impl>(*this);
+        return std::make_unique<shape_of_impl>(*this);
     }
 
     shape_of_impl() : parent("shape_of_cpu_impl") {}
@@ -59,14 +60,10 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
         }
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -75,7 +72,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const shape_of_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<shape_of_impl>();
+        return std::make_unique<shape_of_impl>();
     }
 };
 

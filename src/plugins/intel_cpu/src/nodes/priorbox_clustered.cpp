@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,17 +9,18 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
 #include "dnnl_types.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
@@ -30,14 +31,14 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = std::dynamic_pointer_cast<const ov::opset1::PriorBoxClustered>(op);
+    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
     const ov::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
 
     widths = attrs.widths;
@@ -76,24 +77,25 @@ bool PriorBoxClustered::needPrepareParams() const {
 }
 
 void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
-    addSupportedPrimDesc(
-            {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
-            {{LayoutType::ncsp, ov::element::f32}},
-            impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
+                         impl_desc_type::ref_any);
 }
 
 void PriorBoxClustered::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
 
-void PriorBoxClustered::execute(dnnl::stream strm) {
+void PriorBoxClustered::execute(const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -143,11 +145,13 @@ void PriorBoxClustered::execute(dnnl::stream strm) {
             // 1. A single variance value (to be repeated 4 times for each prior)
             // 2. 4 variance values
             if (var_size == 1) {
-                for (size_t j = 0; j < 4; j++)
+                for (size_t j = 0; j < 4; j++) {
                     dst_data[idx + j + out_shape[1]] = variances[0];
+                }
             } else {
-                for (size_t j = 0; j < var_size; j++)
+                for (size_t j = 0; j < var_size; j++) {
                     dst_data[idx + j + out_shape[1]] = variances[j];
+                }
             }
         }
     });
@@ -157,6 +161,6 @@ bool PriorBoxClustered::created() const {
     return getType() == Type::PriorBoxClustered;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

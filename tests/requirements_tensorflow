@@ -1,14 +1,16 @@
 # test ovc with NumPy 2.x on Ubuntu 24 with default Python 3.12
 # test against NumPy 1.x with older Python versions
 # tensorflow-intel 2.18.0 depends on numpy<2.1.0 and >=1.26.0
-numpy==1.26.4; python_version < "3.12"
-numpy==2.0.2; python_version >= "3.12"
-pytest==7.0.1
+# tensorflow 2.16.2 depends on numpy<2.0.0 and >=1.26.0; python_version >= "3.12"
+numpy==1.26.4; python_version < "3.12" or platform_system == "Darwin" and platform_machine == "x86_64"
+numpy==2.0.2; python_version >= "3.12" and (platform_system != "Darwin" or platform_machine != "x86_64")
+pytest==7.0.1; python_version < '3.10'
+pytest==7.2.0; python_version >= '3.10'
 pytest-xdist[psutil]==3.6.1
 pytest-html==4.1.1
 transformers==4.45.1
 # install exact keras version since tensorflow depends and has no upper bound for it
-keras==3.6.0
+keras==3.8.0
 tensorflow==2.18.0; platform_system != "Darwin" or platform_machine != "x86_64"
 tensorflow==2.16.2; platform_system == "Darwin" and platform_machine == "x86_64"
 # install explicit version of wrapt to avoid "this __dict__ descriptor does not support '_DictWrapper' objects" error from TensorFlow 2.18
@@ -16,7 +18,8 @@ wrapt==1.15.0; python_version >= "3.12"
 # tensorflow-text is not available for both Windows and ARM platforms
 tensorflow-text==2.18.0; python_version < "3.12" and platform_system == "Linux" and platform_machine == "x86_64"
 tensorflow-hub==0.16.1
-jax==0.4.35; platform_system != "Darwin" or platform_machine != "x86_64"
+jax==0.5.0; (platform_system != "Darwin" or platform_machine != "x86_64") and python_version > "3.9"
 # tensorflow 2.16.2 depends on ml-dtypes~=0.3.1 and jax 0.4.35 depends on ml-dtypes>=0.4.0
-jax==0.4.33; platform_system == "Darwin" and platform_machine == "x86_64"
+jax==0.4.33; (platform_system == "Darwin" and platform_machine == "x86_64") and python_version > "3.9"
+jax==0.4.30; python_version <= "3.9"
 defusedxml==0.7.1

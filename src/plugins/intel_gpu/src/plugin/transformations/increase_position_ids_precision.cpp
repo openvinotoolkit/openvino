@@ -22,8 +22,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     using namespace ov::pass::pattern;
@@ -50,9 +49,9 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(gemm_or_matmul).get_node_shared_ptr());
-        auto cos_node = std::dynamic_pointer_cast<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
-        auto sin_node = std::dynamic_pointer_cast<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
+        auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(gemm_or_matmul).get_node_shared_ptr());
+        auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
+        auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
 
         if (!matmul_node || transformation_callback(matmul_node))
             return false;
@@ -74,7 +73,7 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
                 if (input_et == desired_et)
                     continue;
 
-                auto in_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(incoming_node);
+                auto in_convert = ov::as_type_ptr<ov::op::v0::Convert>(incoming_node);
 
                 if (in_convert && in_convert->get_users().size() == 1 && input_et.bitwidth() <= desired_et.bitwidth()) {
                     auto convert = std::make_shared<ov::op::v0::Convert>(incoming_node->input_value(0), desired_et);
@@ -126,5 +125,4 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

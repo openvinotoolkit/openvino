@@ -3382,21 +3382,6 @@ std::vector<LSTMSequenceParams> generateCombinedParams() {
     return combinedParams;
 }
 
-std::vector<LSTMSequenceV1Params> generateV1CombinedParams() {
-    const std::vector<std::vector<LSTMSequenceV1Params>> generatedParams{
-        generateV1Params<element::Type_t::f64>(),
-        generateV1Params<element::Type_t::f32>(),
-        generateV1Params<element::Type_t::f16>(),
-        generateV1ParamsBF16<element::Type_t::bf16>(),
-    };
-    std::vector<LSTMSequenceV1Params> combinedParams;
-
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    }
-    return combinedParams;
-}
-
 INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequence_With_Hardcoded_Refs,
                          ReferenceLSTMSequenceTest,
                          testing::ValuesIn(generateCombinedParams()),

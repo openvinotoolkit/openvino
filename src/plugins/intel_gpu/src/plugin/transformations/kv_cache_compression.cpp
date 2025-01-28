@@ -32,8 +32,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 std::vector<ov::op::util::VariableInfo> get_variable_infos(const ov::op::util::VariableInfo& data_variable_info,
@@ -126,18 +125,19 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
 
 class KVCacheCompressionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("KVCacheCompressionMatcher", "0");
-    KVCacheCompressionMatcher(ov::element::Type compression_dt);
+    OPENVINO_MATCHER_PASS_RTTI("KVCacheCompressionMatcher");
+    KVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad);
 };
 
-KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt) {
+KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad) {
     using namespace ov::pass::pattern;
 
-    if (compression_dt != element::i8)
+    if (compression_dt != element::i8 && compression_dt != element::u8)
         return;
 
     const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
-    const auto output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
+    const auto output_storage_type = supports_immad ? ov::op::internal::DynamicQuantize::OutputStorageType::Planar
+                                                    : ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
 
     bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
     GPU_DEBUG_LOG << "KV-cache compression configuration: "
@@ -178,12 +178,12 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         auto query_node = pattern_map.at(query).get_node_shared_ptr();
 
         auto key_new_token_node = pattern_map.at(key_new_token).get_node_shared_ptr();
-        auto key_cache_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(key_cache).get_node_shared_ptr());
-        auto value_cache_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(value_cache).get_node_shared_ptr());
-        auto sdpa_node = std::dynamic_pointer_cast<ov::intel_gpu::op::IndirectSDPA>(m.get_match_root());
+        auto key_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(key_cache).get_node_shared_ptr());
+        auto value_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(value_cache).get_node_shared_ptr());
+        auto sdpa_node = ov::as_type_ptr<ov::intel_gpu::op::IndirectSDPA>(m.get_match_root());
 
-        auto key_past_rv_node = std::dynamic_pointer_cast<ov::intel_gpu::op::ReadValue>(pattern_map.at(key_past).get_node_shared_ptr());
-        auto value_past_rv_node = std::dynamic_pointer_cast<ov::intel_gpu::op::ReadValue>(pattern_map.at(value_past).get_node_shared_ptr());
+        auto key_past_rv_node = ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(pattern_map.at(key_past).get_node_shared_ptr());
+        auto value_past_rv_node = ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(pattern_map.at(value_past).get_node_shared_ptr());
 
         auto data_rank = key_cache_node->get_input_partial_shape(0).size();
         auto get_shape_group_sizes = [&](const std::vector<int64_t>& transposed_order) {
@@ -219,7 +219,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         config.output_storage_type = output_storage_type;
 
         if (config.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric)
-            config.zp_dt = query_node->get_output_element_type(0);
+            config.zp_dt = supports_immad ? element::i8 : query_node->get_output_element_type(0);
 
         key_past_rv_node = update_past_read_value(key_past_rv_node, config);
         value_past_rv_node = update_past_read_value(value_past_rv_node, config);
@@ -284,9 +284,8 @@ bool KVCacheCompression::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return pass::GraphRewrite::run_on_model(m);
 }
 
-KVCacheCompression::KVCacheCompression(ov::element::Type compression_dt) {
-    add_matcher<ov::intel_gpu::KVCacheCompressionMatcher>(compression_dt);
+KVCacheCompression::KVCacheCompression(ov::element::Type compression_dt, bool supports_immad) {
+    add_matcher<ov::intel_gpu::KVCacheCompressionMatcher>(compression_dt, supports_immad);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

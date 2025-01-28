@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::convolution_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<convolution_impl>(*this);
+        return make_deep_copy<convolution_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {

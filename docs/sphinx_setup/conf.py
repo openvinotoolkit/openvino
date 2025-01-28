@@ -84,7 +84,8 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
-        'ovdoctype': 'null'
+        'ovdoctype': 'null',
+        'ovcategory': 'null'
     })
 ]
 
@@ -186,13 +187,11 @@ except FileNotFoundError:
 html_static_path = ['_static']
 
 html_css_files = [
-    'css/custom.css',
     'css/openvino_sphinx_theme.css',
     'css/button.css',
     'css/input.css',
     'css/textfield.css',
     'css/tabs.css',
-    'css/coveo_custom.css',
     'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
 ]
 

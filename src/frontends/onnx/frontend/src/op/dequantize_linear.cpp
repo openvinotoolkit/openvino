@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,6 +231,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         src_x.get_shape()[0] % block_size == 0,
         "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
 
+    // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
     ov::Output<ov::Node> broadcastable_x = op::util::reshape(
         src_x,
         Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
@@ -240,22 +241,22 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto scale_type = scale.get_element_type();
     if (inputs.size() > 2) {
         zp = inputs[2];
+        zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
         if (zp.get_element_type() != scale.get_element_type()) {
             zp = std::make_shared<v0::Convert>(zp, scale_type);
-            disable_constant_folding(zp.get_node_shared_ptr());
         }
-        zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
     }
 
     const auto& x = src_x.get_element_type() == scale_type ? broadcastable_x
                                                            : std::make_shared<v0::Convert>(broadcastable_x, scale_type);
-    // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
 
     // Adding additional dimension for broadcasting
     scale = std::make_shared<v0::Unsqueeze>(scale, unsqueezed_axes);
 
     if (zp.get_node_shared_ptr()) {
         broadcastable_x = std::make_shared<v1::Subtract>(x, zp);
+    } else {
+        broadcastable_x = x;
     }
 
     const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);

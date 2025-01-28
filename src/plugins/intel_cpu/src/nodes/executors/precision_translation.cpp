@@ -14,19 +14,23 @@
 namespace ov {
 namespace intel_cpu {
 
-InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors, const TypeMapping& mapping, const MappingNotation& notation) {
+InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
+                                const TypeMapping& mapping,
+                                const MappingNotation& notation) {
     InOutTypes types;
     std::transform(notation.begin(), notation.end(), std::back_inserter(types), [&descriptors](int id) {
         return descriptors.at(id)->getPrecision();
     });
 
     for (const auto& entry : mapping) {
-        if (!entry.enabled())
+        if (!entry.enabled()) {
             continue;
+        }
 
         const auto& pattern = entry.mask();
-        if (!match(pattern, types))
+        if (!match(pattern, types)) {
             continue;
+        }
 
         return entry.translate(types);
     }

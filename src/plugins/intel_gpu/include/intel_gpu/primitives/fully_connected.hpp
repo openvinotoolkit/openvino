@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include "intel_gpu/runtime/optionals.hpp"
+
 #include "primitive.hpp"
 #include <vector>
 
@@ -96,6 +96,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           decompression_scale(decompression_scale),
           decompression_zero_point(decompression_zero_point),
           dynamic_quantized_activation(false),
+          dynamic_quantized_activation_zp(false),
           input_size(input_size),
           weights_rank(weights_rank) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
@@ -109,6 +110,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @param compression_scale Primitive id containing scale factors for weights decompression.
     /// @param compression_zero_point Primitive id containing zero points for weights decompression.
     /// @param activation_scale Primitive id containing scale factor for activation.
+    /// @param activation_zero_point Primitive id containing zero point for activation.
     fully_connected(const primitive_id& id,
                     const input_info& input,
                     const primitive_id& weights,
@@ -116,6 +118,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& decompression_scale,
                     const primitive_id& decompression_zero_point,
                     const input_info& activation_scale,
+                    const input_info& activation_zero_point,
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
@@ -126,11 +129,15 @@ struct fully_connected : public primitive_base<fully_connected> {
           decompression_scale(decompression_scale),
           decompression_zero_point(decompression_zero_point),
           dynamic_quantized_activation(false),
+          dynamic_quantized_activation_zp(false),
           activation_scale(activation_scale),
+          activation_zero_point(activation_zero_point),
           input_size(input_size),
           weights_rank(weights_rank) {
         if (activation_scale.is_valid())
             dynamic_quantized_activation = true;
+        if (activation_zero_point.is_valid())
+            dynamic_quantized_activation_zp = true;
 
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
@@ -144,8 +151,10 @@ struct fully_connected : public primitive_base<fully_connected> {
     primitive_id decompression_scale = "";
     primitive_id decompression_zero_point = "";
     bool dynamic_quantized_activation = false;
+    bool dynamic_quantized_activation_zp = false;
     input_info activation_scale = {"", 0};
-    optional_value<float> decompression_zero_point_scalar = optional_value<float>();
+    input_info activation_zero_point = {"", 0};
+    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
 
     /// @brief Primitive dimension size.
     size_t input_size = 2;
@@ -161,6 +170,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, !decompression_scale.empty());
         seed = hash_combine(seed, !decompression_zero_point.empty());
         seed = hash_combine(seed, activation_scale.is_valid());
+        seed = hash_combine(seed, activation_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
         seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
         return seed;
@@ -179,6 +189,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                decompression_scale.empty() == rhs_casted.decompression_scale.empty() &&
                decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
+               activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
@@ -190,9 +201,11 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << decompression_scale;
         ob << decompression_zero_point;
         ob << activation_scale;
+        ob << activation_zero_point;
         ob << input_size;
         ob << weights_rank;
         ob << dynamic_quantized_activation;
+        ob << dynamic_quantized_activation_zp;
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
@@ -211,9 +224,11 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> decompression_scale;
         ib >> decompression_zero_point;
         ib >> activation_scale;
+        ib >> activation_zero_point;
         ib >> input_size;
         ib >> weights_rank;
         ib >> dynamic_quantized_activation;
+        ib >> dynamic_quantized_activation_zp;
 
         bool has_value;
         ib >> has_value;
@@ -222,7 +237,7 @@ struct fully_connected : public primitive_base<fully_connected> {
             ib >> decompression_zero_point_value;
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
-            decompression_zero_point_scalar = optional_value<float>();
+            decompression_zero_point_scalar = std::optional<float>();
         }
     }
 
@@ -242,6 +257,9 @@ protected:
 
         if (activation_scale.is_valid())
             ret.push_back(activation_scale);
+
+        if (activation_zero_point.is_valid())
+            ret.push_back(activation_zero_point);
 
         return ret;
     }

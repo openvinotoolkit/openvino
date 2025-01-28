@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -11,8 +11,8 @@ import os
 
 from openvino.frontend import FrontEnd, InputModel, NotImplementedFailure, \
     Place  # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_element_type, \
+from openvino import PartialShape, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.utils.types import get_element_type, \
     get_numpy_ctype  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.ovc.moc_frontend.extractor import fe_user_data_repack, convert_params_lists_to_dicts, \

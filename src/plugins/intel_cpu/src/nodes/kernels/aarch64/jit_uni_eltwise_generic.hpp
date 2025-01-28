@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <onednn/dnnl.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <utility>
 #include <vector>
 
-#include <onednn/dnnl.h>
-#include <cpu/aarch64/cpu_isa_traits.hpp>
 #include "nodes/executors/eltwise.hpp"
 
 // TODO: handle x64 headers more accurate and remove undef later
@@ -24,12 +26,11 @@
 
 #include <cpu/aarch64/jit_generator.hpp>
 
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
-
-#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "nodes/kernels/jit_eltwise_call_args_ptrs.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -57,6 +58,7 @@ struct jit_eltwise_params {
 
     size_t work_amount;
     bool use_runtime_ptrs;
+    bool do_output_saturation;
 };
 
 struct jit_eltwise_call_args_indexes {
@@ -69,7 +71,7 @@ struct jit_uni_eltwise_kernel {
     void operator()(const node::jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes);
 
     jit_uni_eltwise_kernel() {}
-    jit_uni_eltwise_kernel(const jit_eltwise_params& jep) : ker_(nullptr), jep_(jep) {}
+    jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
@@ -82,10 +84,10 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    jit_uni_eltwise_generic(const jit_eltwise_params& jep,
-                            const std::vector<EltwiseData>& eltwise_data,
-                            const std::vector<ov::intel_cpu::Type>& ops_list,
-                            const dnnl::post_ops& post_ops);
+    jit_uni_eltwise_generic(jit_eltwise_params jep,
+                            std::vector<EltwiseData> eltwise_data,
+                            std::vector<ov::intel_cpu::Type> ops_list,
+                            dnnl::post_ops post_ops);
 
     jit_uni_eltwise_generic() {}
 
@@ -154,7 +156,7 @@ private:
             OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
         }
 
-        static const std::vector<uint32_t> src_gprs = { 19, 20, 21, 22, 25, 26, 27 };
+        static const std::vector<uint32_t> src_gprs = {19, 20, 21, 22, 25, 26, 27};
         return XReg(src_gprs[idx]);
     }
 
@@ -192,8 +194,7 @@ private:
     // 24      | src
     // 25-31   | [not used]
 
-
-    TReg vmm_dst {9};
+    TReg vmm_dst{9};
 
     inline TReg get_vmm_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
@@ -230,10 +231,10 @@ private:
                      const int32_t ptr_offset = 0);
 
     void store_vector(const XReg& ptr,
-                 const TReg& data,
-                 const ov::element::Type& src_prc,
-                 const ov::element::Type& dst_prc,
-                 const int32_t ptr_offset = 0);
+                      const TReg& data,
+                      const ov::element::Type& src_prc,
+                      const ov::element::Type& dst_prc,
+                      const int32_t ptr_offset = 0);
 
     void store_scalar(const XReg& ptr,
                       const SReg& data,
@@ -264,6 +265,6 @@ private:
     static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
 };
 
-}   // namespace aarch64
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

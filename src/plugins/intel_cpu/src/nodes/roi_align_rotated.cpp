@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     const auto roiAlign = ov::as_type_ptr<const ov::opset15::ROIAlignRotated>(op);
     pooledH = roiAlign->get_pooled_h();
     pooledW = roiAlign->get_pooled_w();
@@ -28,8 +28,9 @@ void ROIAlignRotated::getSupportedDescriptors() {
 }
 
 void ROIAlignRotated::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
@@ -48,7 +49,7 @@ bool ROIAlignRotated::needPrepareParams() const {
     return false;
 }
 
-void ROIAlignRotated::executeDynamicImpl(dnnl::stream strm) {
+void ROIAlignRotated::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -83,7 +84,7 @@ void ROIAlignRotated::executeImpl() {
         clockwiseMode);
 }
 
-void ROIAlignRotated::execute(dnnl::stream) {
+void ROIAlignRotated::execute(const dnnl::stream&) {
     const ov::element::Type type = getOriginalInputPrecisionAtPort(0);
     executeImpl<ov::element::f32>();
 

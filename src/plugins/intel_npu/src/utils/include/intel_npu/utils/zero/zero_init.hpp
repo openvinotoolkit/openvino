@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,17 @@ public:
     inline uint32_t getDriverVersion() const {
         return driver_properties.driverVersion;
     }
+    inline uint32_t getCompilerVersion() const {
+        return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
+    }
+    inline ze_device_graph_properties_t getCompilerProperties() const {
+        return compiler_properties;
+    }
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
+    }
+    inline ze_api_version_t getZeDrvApiVersion() const {
+        return ze_drv_api_version;
     }
     // Helper function to check if extension with <ext_name> exists and its newer than <version>
     inline bool isExtensionSupported(std::string ext_name, uint32_t version) const {
@@ -64,6 +73,8 @@ public:
     }
 
 private:
+    void initNpuDriver();
+
     static const ze_driver_uuid_t uuid;
     Logger log;
 
@@ -78,6 +89,10 @@ private:
 
     ze_driver_properties_t driver_properties = {};
     uint32_t mutable_command_list_version = 0;
+
+    ze_api_version_t ze_drv_api_version = {};
+
+    ze_device_graph_properties_t compiler_properties = {};
 };
 
 }  // namespace intel_npu

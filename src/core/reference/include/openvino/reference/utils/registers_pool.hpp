@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,13 @@ public:
         }
         void release() {
             if (auto pool = regPool.lock()) {
-                pool->return_to_pool(reg);
+                try {
+                    pool->return_to_pool(reg);
+                } catch (...) {
+                    // This function is called by destructor and should not throw. Well formed Reg object won't cause
+                    // any exception throw from return_to_pool, while on badly formed object the destructor is most
+                    // likely called during exception stack unwind.
+                }
                 regPool.reset();
             }
         }
@@ -90,8 +96,10 @@ public:
         RegistersPool::WeakPtr regPool;
     };
 
+    static thread_local bool is_created;
+
     virtual ~RegistersPool() {
-        check_unique_and_update(false);
+        is_created = false;
     }
 
     template <ov::reference::jit::cpu_isa_t isa>
@@ -178,7 +186,7 @@ private:
         }
     }
 
-    void check_unique_and_update(bool isCtor = true);
+    void check_unique_and_update();
 
     PhysicalSet m_general_set;
     PhysicalSet m_simd_set;

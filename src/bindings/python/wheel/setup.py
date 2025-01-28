@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -66,9 +66,9 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
-    "ie_libs_с": {
+    "ie_libs_c": {
         "name": "core_c",
-        "prefix": f"{BUILD_BASE}/libs.core_с",
+        "prefix": f"{BUILD_BASE}/libs.core_c",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,

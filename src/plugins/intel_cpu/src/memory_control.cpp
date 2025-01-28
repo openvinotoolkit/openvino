@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory_control.hpp"
 
 #include <ov_optional.hpp>
+#include <utility>
 
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
@@ -17,7 +18,8 @@ namespace {
 class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
 public:
     StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
-        : m_pBlock(pBlock), m_offset(offset) {
+        : m_pBlock(std::move(pBlock)),
+          m_offset(offset) {
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
@@ -92,7 +94,7 @@ public:
 
 using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
 
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
     return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
 }
@@ -152,10 +154,14 @@ private:
     }
 
     void allocate() override {
-        if (m_workspace) m_workspace->resize(m_totalSize);
+        if (m_workspace) {
+            m_workspace->resize(m_totalSize);
+        }
     }
     void release() override {
-        if (m_workspace) m_workspace->free();
+        if (m_workspace) {
+            m_workspace->free();
+        }
     }
 
 private:
@@ -171,14 +177,13 @@ public:
     void insert(const MemoryRegion& reg) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
         if (-1 != reg.finish) {
-            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
-            //the intermediate computation results from possible loss due to the tensor resize
-            auto itr_upper =
-                std::upper_bound(m_syncInds.begin(), m_syncInds.end(), box.finish, [](int y, int x) {
-                    return y <= x;
-                });
+            // We have to extend the lifespan of tensors that are crossing a sync point border in order to save
+            // the intermediate computation results from possible loss due to the tensor resize
+            auto itr_upper = std::upper_bound(m_syncInds.begin(), m_syncInds.end(), box.finish, [](int y, int x) {
+                return y <= x;
+            });
             auto itr_lower = std::lower_bound(m_syncInds.begin(), m_syncInds.end(), box.start);
-            if (itr_lower != itr_upper) { // across sections
+            if (itr_lower != itr_upper) {  // across sections
                 if (itr_upper == m_syncInds.end()) {
                     box.finish = -1;
                 } else {
@@ -186,7 +191,7 @@ public:
                 }
             }
         }
-        m_boxes.emplace_back(std::move(box));
+        m_boxes.emplace_back(box);
     }
 
     const MemoryControl::MemoryBlockMap& lastSolution() override {
@@ -201,7 +206,7 @@ private:
     void solve() {
         ov::MemorySolver::normalize_boxes(m_boxes);
 
-        std::vector<std::vector<ov::MemorySolver::Box>> groups; //groups of nonoverlapping boxes
+        std::vector<std::vector<ov::MemorySolver::Box>> groups;  // groups of nonoverlapping boxes
         groups.push_back({m_boxes.front()});
         for (size_t i = 1; i < m_boxes.size(); ++i) {
             const auto& box = m_boxes[i];
@@ -229,7 +234,7 @@ private:
     }
 
     void allocate() override {
-        //nothing to do
+        // nothing to do
     }
     void release() override {
         for (auto&& item : m_internalBlocks) {
@@ -305,15 +310,17 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     }));
 
     // handler for static tensors
-    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlapingSets>([](const MemoryRegion& reg) {
-        if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
-            MemoryRegion::AllocType::POD != reg.alloc_type) {
-            return false;
-        }
-        return true;
-    }, std::move(syncInds)));
+    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlapingSets>(
+        [](const MemoryRegion& reg) {
+            if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
+                MemoryRegion::AllocType::POD != reg.alloc_type) {
+                return false;
+            }
+            return true;
+        },
+        std::move(syncInds)));
 
-    //handler for I/O tensors, so far simply individual blocks
+    // handler for I/O tensors, so far simply individual blocks
     m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
         if (MemoryRegion::RegionType::VARIABLE == reg.type || reg.alloc_type != MemoryRegion::AllocType::POD) {
             return false;
@@ -372,8 +379,9 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
 
     for (auto& edge : graphEdges) {
         auto edge_it = edge_cluster_indices.find(edge);
-        if (edge_it != edge_cluster_indices.end())
+        if (edge_it != edge_cluster_indices.end()) {
             continue;  // edge is visited
+        }
 
         size_t cluster_idx = edge_clusters.size();
         EdgePtr last_shared_edge = nullptr;
@@ -392,10 +400,11 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
         // add shared edges to cluster
         edge_cluster_indices.emplace(edge, cluster_idx);
 
-        if (cluster_idx == edge_clusters.size())
+        if (cluster_idx == edge_clusters.size()) {
             edge_clusters.emplace_back(edgeCluster{edge});
-        else
+        } else {
             edge_clusters[cluster_idx].emplace(edge);
+        }
 
         for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge != last_shared_edge;
              shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
@@ -408,7 +417,7 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
 }
 
 MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
-    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
+    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(std::move(syncInds))));
     return *(m_controlUnits.back());
 }
 

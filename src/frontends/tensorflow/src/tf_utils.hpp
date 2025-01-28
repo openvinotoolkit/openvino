@@ -39,7 +39,7 @@ using SetOfBranchIndices = std::unordered_set<uint32_t>;
 // structure to save conditional flow marker
 class CfMarkerType : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("CfMarkerType");
+    OPENVINO_RTTI("CfMarkerType", "0", RuntimeAttribute);
     CfMarkerType() = default;
     bool is_copyable() const override;
 

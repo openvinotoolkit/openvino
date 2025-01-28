@@ -729,6 +729,7 @@ up of the dynamic quantized models.
 Interactive demo
 ----------------
 
+
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.
 

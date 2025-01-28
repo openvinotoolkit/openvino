@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <cstdint>
 
 namespace ov {
 namespace intel_cpu {
@@ -13,7 +15,7 @@ typedef short ie_fp16;
 // F32: exp_bias:127 SEEEEEEE EMMMMMMM MMMMMMMM MMMMMMMM.
 // F16: exp_bias:15  SEEEEEMM MMMMMMMM
 #define EXP_MASK_F32 0x7F800000U
-#define EXP_MASK_F16     0x7C00U
+#define EXP_MASK_F16 0x7C00U
 
 // small helper function to represent uint32_t value as float32
 inline float asfloat(uint32_t v) {
@@ -83,5 +85,5 @@ inline float f16tof32(ie_fp16 x) {
     return asfloat(u);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

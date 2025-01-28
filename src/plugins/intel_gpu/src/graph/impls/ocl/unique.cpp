@@ -19,7 +19,7 @@ struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::unique_count_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<unique_count_impl>(*this);
+        return make_deep_copy<unique_count_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -101,7 +101,7 @@ struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::unique_gather)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<unique_gather_impl>(*this);
+        return make_deep_copy<unique_gather_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {

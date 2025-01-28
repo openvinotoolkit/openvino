@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -255,7 +255,7 @@ public:
     /**
      * @brief Infers specified input(s) in synchronous mode.
      * @note It blocks all methods of InferRequest while request is ongoing (running or waiting in a queue).
-     *       Calling any method leads to throwning the ov::Busy exception.
+     *       Calling any method leads to throwing the ov::Busy exception.
      */
     void infer();
 
@@ -274,7 +274,7 @@ public:
     /**
      * @brief Starts inference of specified input(s) in asynchronous mode.
      * @note It returns immediately. Inference starts also immediately.
-     *       Calling any method while the request in a running state leads to throwning the ov::Busy exception.
+     *       Calling any method while the request in a running state leads to throwing the ov::Busy exception.
      */
     void start_async();
 

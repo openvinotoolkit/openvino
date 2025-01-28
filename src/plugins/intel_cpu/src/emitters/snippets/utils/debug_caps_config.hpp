@@ -3,10 +3,10 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include <string>
-#include <cstdlib>
+#    include <cstdlib>
+#    include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -23,7 +23,7 @@ private:
     void readProperties();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
 
-#endif // SNIPPETS_DEBUG_CAPS
+#endif  // SNIPPETS_DEBUG_CAPS

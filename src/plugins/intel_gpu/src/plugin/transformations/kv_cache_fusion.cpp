@@ -24,13 +24,13 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class KVCacheFusionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("KVCacheFusionMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KVCacheFusionMatcher");
     KVCacheFusionMatcher();
 };
 
@@ -42,7 +42,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past});
+    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
     auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
     auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
@@ -54,17 +55,19 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         }
 
         const auto& pattern_map = m.get_pattern_value_map();
-        auto concat_node = std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_map.at(concat).get_node_shared_ptr());
+        auto concat_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat).get_node_shared_ptr());
 
-        auto past_node = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
-        auto present_node = std::dynamic_pointer_cast<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
+        auto past_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
+        auto present_node = ov::as_type_ptr<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
 
         if (past_node->get_variable_id() != present_node->get_variable_id())
             return false;
 
         // TODO: Support conversion internally
-        if (concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
-            return false;
+        if (ov::is_type<ov::opset8::Gather>(concat_past_input)) {
+            if (!concat_node || concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
+                return false;
+        }
 
         auto variable = past_node->get_variable();
         auto concat_axis = concat_node->get_axis();
@@ -128,5 +131,4 @@ KVCacheFusion::KVCacheFusion() {
     add_matcher<ov::intel_gpu::KVCacheFusionMatcher>();
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

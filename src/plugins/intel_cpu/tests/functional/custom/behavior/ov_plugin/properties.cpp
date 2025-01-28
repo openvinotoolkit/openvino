@@ -39,7 +39,6 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::architecture.name()),
         // read write
         RW_property(ov::num_streams.name()),
-        RW_property(ov::affinity.name()),
         RW_property(ov::inference_num_threads.name()),
         RW_property(ov::enable_profiling.name()),
         RW_property(ov::hint::inference_precision.name()),
@@ -47,6 +46,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::execution_mode.name()),
         RW_property(ov::hint::num_requests.name()),
         RW_property(ov::hint::enable_cpu_pinning.name()),
+        RW_property(ov::hint::enable_cpu_reservation.name()),
         RW_property(ov::hint::scheduling_core_type.name()),
         RW_property(ov::hint::model_distribution_policy.name()),
         RW_property(ov::hint::enable_hyper_threading.name()),
@@ -56,6 +56,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
         RW_property(ov::hint::kv_cache_precision.name()),
+        RW_property(ov::key_cache_precision.name()),
+        RW_property(ov::value_cache_precision.name()),
+        RW_property(ov::key_cache_group_size.name()),
+        RW_property(ov::value_cache_group_size.name()),
     };
 
     ov::Core ie;
@@ -147,67 +151,6 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
 
     setGetProperty(value, num_streams);
     ASSERT_GT(value, 0); // value has been configured automatically
-}
-
-TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
-    ov::Core ie;
-
-#if defined(__APPLE__)
-    ov::Affinity value = ov::Affinity::CORE;
-    auto defaultBindThreadParameter = ov::Affinity::NONE;
-#else
-    ov::Affinity value = ov::Affinity::NUMA;
-#    if defined(_WIN32)
-    auto defaultBindThreadParameter = ov::Affinity::NONE;
-#    else
-    auto defaultBindThreadParameter = ov::Affinity::CORE;
-#    endif
-#endif
-    auto coreTypes = ov::get_available_cores_types();
-    if (coreTypes.size() > 1) {
-        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
-    }
-
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
-    ASSERT_EQ(defaultBindThreadParameter, value);
-
-    const ov::Affinity affinity =
-        defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
-#if defined(__APPLE__)
-    ASSERT_EQ(ov::Affinity::NUMA, value);
-#else
-    ASSERT_EQ(affinity, value);
-#endif
-}
-
-TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
-    ov::Core ie;
-    ov::Affinity affinity = ov::Affinity::CORE;
-    bool value = false;
-
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
-#if defined(__APPLE__)
-    ASSERT_EQ(false, value);
-#else
-    ASSERT_EQ(true, value);
-#endif
-
-    affinity = ov::Affinity::HYBRID_AWARE;
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
-#if defined(__APPLE__)
-    ASSERT_EQ(false, value);
-#else
-    ASSERT_EQ(true, value);
-#endif
-
-    affinity = ov::Affinity::NUMA;
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
-    ASSERT_EQ(false, value);
 }
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)

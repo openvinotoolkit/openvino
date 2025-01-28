@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,7 +188,7 @@ static inline uint32_t findGroupOrdinal(ze_device_handle_t device_handle, const 
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
 
-    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
+    log.debug("zero_utils::findGroupOrdinal - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -275,6 +275,22 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     } else {
         return "";
     }
+}
+
+static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle_t hContext, const void* ptr) {
+    ze_memory_allocation_properties_t desc = {};
+    desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
+    auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
+    if (res == ZE_RESULT_SUCCESS) {
+        if (desc.id) {
+            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 }  // namespace zeroUtils

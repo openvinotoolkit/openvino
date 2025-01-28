@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,15 +58,15 @@ public:
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const PostOps& postOps,
                                                             const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr context,
+                                                            const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
 
     static bool useWeightsDecompressionImpl(const ov::element::Type inputType,
                                             const ov::element::Type weightsType,
                                             const Config::ModelType modelType);
 
-    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
-                                                            const DnnlMemoryDescPtr dstDesc,
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
                                                             bool weightsNonTransposed);
 
     static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
@@ -75,13 +75,6 @@ public:
                                                    const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:
-    static bool useDynamicQuantizationImpl(size_t dqGroupSize,
-                                           const MemoryDescPtr srcDesc,
-                                           const MemoryDescPtr weightsDesc,
-                                           MemoryCPtr scalesPtr,
-                                           MemoryCPtr zpPtr,
-                                           bool needTranspose);
-
     dnnl::stream m_stream;
     dnnl::primitive_desc m_primDesc;
     impl_desc_type m_implType;

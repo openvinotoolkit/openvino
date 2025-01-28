@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
@@ -17,11 +17,12 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
-#include "lstm_elt_inst.h"
+#include "lstm_cell_inst.h"
 #include "strided_slice_inst.h"
 #include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "lstm_seq_inst.h"
 #include "border_inst.h"
 
 #include "pass_manager.h"
@@ -504,6 +505,8 @@ bool crop_in_place_optimization::match(const program_node& node,
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
             return false;
+        if (user->is_type<lstm_seq>() || user->is_type<lstm_cell>())
+            return false;
     }
 
     // do not optimize crop, that must be calculated in propagate_constants
@@ -519,10 +522,6 @@ bool crop_in_place_optimization::match(const program_node& node,
         return false;
 
     if (node.get_users().size() > 0) {
-        if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
-            return false;
-        }
-
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing && node.is_dynamic()) {
             return false;
@@ -847,6 +846,27 @@ void prepare_buffer_fusing::run(program& p) {
                 if (user_info.first) {
                     node.get_users().front()->set_output_layout(user_info.second);
                 }
+
+                // In case that the rank of weight node of gemm is less than 4 and,
+                // it transforms to extend to 4 dims by adding 1 to begin().
+                // Therefore, the padding of crop_layout should be shifted properly.
+                const size_t TDIM = 4;
+                auto user = node.get_users().front();
+                bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+                if (!allow_new_shape_infer && user->is_type<gemm>() && user->get_dependency(1).id().compare(node.id()) == 0) {
+                    auto input_rank = user->get_kernel_impl_params()->typed_desc<gemm>()->weight_rank;
+                    if (input_rank < TDIM) {
+                        std::vector<int32_t> l_pad = {0, 0, 0, 0};
+                        std::vector<int32_t> u_pad = {0, 0, 0, 0};
+
+                        //shift right
+                        size_t shift_right = TDIM - input_rank;
+                        std::copy_n(crop_layout.data_padding._lower_size.begin(), l_pad.size() - shift_right, l_pad.begin() + shift_right);
+                        std::copy_n(crop_layout.data_padding._upper_size.begin(), u_pad.size() - shift_right, u_pad.begin() + shift_right);
+
+                        crop_layout.data_padding = padding(l_pad, u_pad);
+                    }
+                }
             }
             node.set_output_layout(crop_layout);
             node.can_be_optimized(true);
@@ -906,6 +926,7 @@ void prepare_buffer_fusing::run(program& p) {
 
             if (kv_out_layout.is_dynamic()) {
                 // set dynamic pad dims for shape agnostic kernel
+                const auto& desc = node.get_primitive();
                 padding::DynamicDimsMask info_dynamic_pad;
                 info_dynamic_pad[concat_axis] = 1;
                 kv_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
@@ -922,7 +943,7 @@ void prepare_buffer_fusing::run(program& p) {
                 auto update_scale_zp = [&](size_t kv_cache_output_idx, size_t read_value_output_idx) {
                     auto scales_out_layout = node.get_output_layout(false, kv_cache_output_idx);
 
-                    const size_t scales_zp_concat_axis = 2;
+                    const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis();
                     padding::DynamicDimsMask info_dynamic_pad_scales;
                     info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
                     scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;
@@ -938,7 +959,6 @@ void prepare_buffer_fusing::run(program& p) {
                     update_dep(gather_prim, info_dynamic_pad, 0);
                 }
 
-                const auto& desc = node.get_primitive();
                 if (desc->compressed) {
                     update_scale_zp(2, 1);
 

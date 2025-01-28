@@ -20,8 +20,7 @@ using IndirectSDPA = ov::intel_gpu::op::IndirectSDPA;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::ScaledDotProductAttention>& op) {
     validate_inputs_count(op, {3, 4, 5});
@@ -88,5 +87,4 @@ REGISTER_FACTORY_IMPL(internal, SDPA);
 REGISTER_FACTORY_IMPL(internal, IndirectSDPA);
 REGISTER_FACTORY_IMPL(v13, ScaledDotProductAttention);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

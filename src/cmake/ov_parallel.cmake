@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -132,7 +132,7 @@ macro(ov_find_package_tbb)
                                   IMPORTED_TARGET
                                   # we need to set GLOBAL in order to create ALIAS later
                                   # ALIAS creation for non-GLOBAL targets is available since cmake 3.18
-                                  ${OV_PkgConfig_VISILITY}
+                                  ${OV_PkgConfig_VISIBILITY}
                                   tbb)
                 if(tbb_FOUND)
                     # parse version

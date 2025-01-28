@@ -92,10 +92,8 @@ codegen-2B-multi,Large Language Model,pytorch,intel-optimum default,,+,
 codegen-350M-mono,Large Language Model,pytorch,intel-optimum default,,+,
 codegen-6B-multi,Large Language Model,pytorch,intel-optimum default,,+,
 CodeQwen1.5-7B-Chat,Large Language Model,pytorch,intel-optimum default,,+,
-colorization-siggraph,Colorization,onnx,FP16,+,,
-colorization-siggraph,Colorization,onnx,FP16,,+,+
-colorization-siggraph,Colorization,onnx,FP32,+,,
-colorization-siggraph,Colorization,onnx,FP32,,,+
+colorization-siggraph,Colorization,onnx,FP16,+,+,+
+colorization-siggraph,Colorization,onnx,FP32,,+,+
 colorization-v2,Colorization,onnx,FP16-INT8,,,+
 common-sign-language-0001,Image Classification,onnx,FP16,+,+,+
 common-sign-language-0001,Image Classification,onnx,FP32,+,+,+
@@ -715,7 +713,6 @@ tiny-random-BeitForImageClassification,Image Classification,pytorch,intel-optimu
 tiny-random-bert,Natural Language Processing,pytorch,intel-optimum default,+,,
 tiny-random-BlenderbotModel,Large Language Model,pytorch,INT4,+,,
 tiny-random-BloomModel,Large Language Model,pytorch,INT4,+,,
-tiny-random-chatglm2,Large Language Model,pytorch,INT4,+,,
 tiny-random-codegen2,Large Language Model,pytorch,INT4,+,,
 tiny-random-CodeGenForCausalLM,Large Language Model,pytorch,INT4,+,,
 tiny-random-CohereForCausalLM,Large Language Model,pytorch,INT4,+,,
