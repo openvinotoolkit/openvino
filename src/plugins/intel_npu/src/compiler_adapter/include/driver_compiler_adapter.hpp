@@ -55,7 +55,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
-    ze_device_graph_properties_t _deviceGraphProperties = {};
+    ze_device_graph_properties_t _compilerProperties = {};
 
     Logger _logger;
 };
