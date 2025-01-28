@@ -6,6 +6,8 @@
 
 #include <ze_api.h>
 
+#include <mutex>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
@@ -155,6 +157,8 @@ public:
     void operator=(const CommandQueueManager&) = delete;
     void operator=(CommandQueueManager&&) = delete;
 
+    static CommandQueueManager& getInstance();
+
     const std::shared_ptr<CommandQueue>& getCommandQueue(
         const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         const ze_command_queue_priority_t& priority,
@@ -168,6 +172,8 @@ public:
 
 private:
     Logger _log;
+
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

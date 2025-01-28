@@ -57,7 +57,6 @@ protected:
      */
     size_t _number_of_command_lists;
 
-    CommandQueueManager _command_queue_manager;
     std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
