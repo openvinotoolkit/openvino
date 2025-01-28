@@ -139,14 +139,13 @@ private:
 
 class jit_not_equal_emitter : public jit_emitter {
 public:
-    jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                           const ov::element::Type exec_prc = ov::element::f32);
 
-
-    jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                          const std::shared_ptr<ov::Node>& n); 
+                          const std::shared_ptr<ov::Node>& n);
 
     size_t get_inputs_count() const override;
 
@@ -155,7 +154,7 @@ public:
     size_t get_aux_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node = nullptr);
+        const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
