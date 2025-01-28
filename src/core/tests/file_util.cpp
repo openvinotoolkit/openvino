@@ -469,17 +469,19 @@ TEST_P(CutAndroidPathTests, HandlesStringPaths) {
 INSTANTIATE_TEST_SUITE_P(
     WStringPathTests,
     CutAndroidPathTests,
-    ::testing::Values(
-        std::make_tuple(ov::util::Path(L"path/to/file"), ov::util::Path(L"path/to/file")),
-        std::make_tuple(ov::util::Path(L"path/to/file!extra"), ov::util::Path(L"path/to/file")),
-        std::make_tuple(ov::util::Path(L""), ov::util::Path(L"")),
-        std::make_tuple(ov::util::Path(L"!"), ov::util::Path(L"")),
-        std::make_tuple(ov::util::Path(L"path/to/file!extra!more"), ov::util::Path(L"path/to/file")),
-        std::make_tuple(ov::util::WPath(L"狗"), ov::util::WPath(L"狗")),
-        std::make_tuple(ov::util::WPath(L"~/いろはにほへど/狗.txt"), ov::util::WPath(L"~/いろはにほへど/狗.txt")),
-        std::make_tuple(ov::util::WPath(L"~/いろはにほへど/狗.txt!"), ov::util::WPath(L"~/いろはにほへど/狗.txt")),
-        std::make_tuple(ov::util::WPath(L"!~/いろはにほへど/狗.txt"), ov::util::WPath(L"")),
-        std::make_tuple(ov::util::WPath(L"~/いろはにほへど/狗!.txt"), ov::util::WPath(L"~/いろはにほへど/狗"))));
+    ::testing::Values(std::make_tuple(ov::util::Path(L"path/to/file"), ov::util::Path(L"path/to/file")),
+                      std::make_tuple(ov::util::Path(L"path/to/file!extra"), ov::util::Path(L"path/to/file")),
+                      std::make_tuple(ov::util::Path(L""), ov::util::Path(L"")),
+                      std::make_tuple(ov::util::Path(L"path/to/file!extra!more"), ov::util::Path(L"path/to/file")),
+                      std::make_tuple(ov::util::make_path(L"狗"), ov::util::make_path(L"狗")),
+                      std::make_tuple(ov::util::make_path(L"~/いろはにほへど/狗.txt"),
+                                      ov::util::make_path(L"~/いろはにほへど/狗.txt")),
+                      std::make_tuple(ov::util::make_path(L"~/いろはにほへど/狗.txt!"),
+                                      ov::util::make_path(L"~/いろはにほへど/狗.txt")),
+                      std::make_tuple(ov::util::make_path(L"!~/いろはにほへど/狗.txt"), ov::util::make_path(L"")),
+                      std::make_tuple(ov::util::make_path(L"~/いろはにほへど/狗!.txt"),
+                                      ov::util::make_path(L"~/いろはにほへど/狗")),
+                      std::make_tuple(ov::util::Path(L"!"), ov::util::Path(L""))));
 
 INSTANTIATE_TEST_SUITE_P(
     StringPathTests,
@@ -535,8 +537,31 @@ protected:
             outfile << "This is a test file." << std::endl;
         }
         {
-            std::ofstream outfile(ov::util::WPath(L"这是_wstring_.txt"));
+            std::ofstream outfile(ov::util::make_path(L"这是_wstring_.txt"));
             outfile << "This is a test file." << std::endl;
+        }
+#endif
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        {
+            std::ofstream outfile("test_file_28.txt");
+            outfile << "这是一个测试文件。" << std::endl;
+        }
+        {
+            std::ofstream outfile("test_file_u8_10.txt");
+            outfile << u8"这是一个测试文件。" << std::endl;
+        }
+        {
+            std::ofstream outfile("test_file_u16_10.txt");
+            outfile << u"这是一个测试文件。" << std::endl;
+        }
+        {
+            std::ofstream outfile("test_file_u32_10.txt");
+            outfile << U"这是一个测试文件。" << std::endl;
+        }
+        {
+            std::ofstream outfile("test_file_wstring_10.txt");
+            outfile << L"这是一个宽字符串测试文件。" << std::endl;
         }
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
@@ -556,7 +581,14 @@ protected:
         std::filesystem::remove(u8"这是_u8_.txt");
         std::filesystem::remove(u"这是_u16_.txt");
         std::filesystem::remove(U"这是_u32_.txt");
-        std::filesystem::remove(ov::util::WPath(L"这是_wstring_.txt"));
+        std::filesystem::remove(ov::util::make_path(L"这是_wstring_.txt"));
+#endif
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        std::filesystem::remove("test_file_28.txt");
+        std::filesystem::remove("test_file_u8_10.txt");
+        std::filesystem::remove("test_file_u16_10.txt");
+        std::filesystem::remove("test_file_u32_10.txt");
+        std::filesystem::remove("test_file_wstring_10.txt");
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
         std::filesystem::remove("android_test_file_21.txt");
@@ -583,7 +615,7 @@ TEST_F(FileUtilTest, EmptyFileSizeTest) {
     EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"test_file_0.txt")), 0);
     EXPECT_EQ(ov::util::file_size(ov::util::Path(u"test_file_0.txt")), 0);
     EXPECT_EQ(ov::util::file_size(ov::util::Path(U"test_file_0.txt")), 0);
-    EXPECT_EQ(ov::util::file_size(ov::util::WPath(L"test_file_0.txt")), 0);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(L"test_file_0.txt")), 0);
 }
 
 TEST_F(FileUtilTest, FileSizeTest) {
@@ -612,7 +644,8 @@ TEST_F(FileUtilTest, u8FileSizeTest) {
     EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8_.txt")), 21);
     EXPECT_EQ(ov::util::file_size(ov::util::Path(u"这是_u8_.txt")), 21);
     EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::WPath(L"这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(std::wstring(L"这是_u8_.txt"))), 21);
 }
 
 TEST_F(FileUtilTest, u16FileSizeTest) {
@@ -644,5 +677,29 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
     EXPECT_EQ(ov::util::file_size("android_test_file_21.txt!_to_cut.jar"s), 21);
     EXPECT_EQ(ov::util::file_size(L"android_test_file_21.txt!_to_cut.jar"), 21);
     EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_21.txt!_to_cut.jar")), 21);
+}
+#endif
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_F(FileUtilTest, FileSizeTestUnicodeContent) {
+    EXPECT_EQ(ov::util::file_size("test_file_28.txt"), 28);
+}
+
+#    ifdef OPENVINO_CPP_VER_AT_LEAST_20
+TEST_F(FileUtilTest, u8FileSizeTestUnicodeContent) {
+    EXPECT_EQ(ov::util::file_size("test_file_u8_10.txt"), 10);
+}
+#    endif
+
+TEST_F(FileUtilTest, u16FileSizeTestUnicodeContent) {
+    EXPECT_EQ(ov::util::file_size("test_file_u16_10.txt"), 10);
+}
+
+TEST_F(FileUtilTest, u32FileSizeTestUnicodeContent) {
+    EXPECT_EQ(ov::util::file_size("test_file_u32_10.txt"), 10);
+}
+
+TEST_F(FileUtilTest, wstringFileSizeTestUnicodeContent) {
+    EXPECT_EQ(ov::util::file_size("test_file_wstring_10.txt"), 10);
 }
 #endif

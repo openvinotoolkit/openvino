@@ -217,9 +217,6 @@ inline bool file_exists(const char* path) {
 inline int64_t file_size(const wchar_t* path) {
     return ov::util::file_size(wstring_to_string(path));
 }
-inline int64_t file_size(const std::wstring& path) {
-    return ov::util::file_size(ov::util::Path(path));
-}
 
 /**
  * @brief      Returns true if file exists
@@ -381,6 +378,16 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
         return file;
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
+
+inline ov::util::Path make_path(const ov::util::Path& file) {
+    return file;
+}
+
+#if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
+inline ov::util::Path make_path(const wchar_t* file) {
+    return wstring_to_string(file);
+}
+#endif
 
 }  // namespace util
 }  // namespace ov

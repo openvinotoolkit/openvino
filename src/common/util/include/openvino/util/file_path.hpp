@@ -7,7 +7,6 @@
 #include <cstdio>
 
 #include "openvino/util/filesystem.hpp"
-#include "openvino/util/wstring_convert_util.hpp"
 //#include "openvino/util/util.hpp"
 
 namespace ov::util {
@@ -52,14 +51,11 @@ using Path = std::experimental::filesystem::path;
 #    define CLANG_VER_LESS_THAN_17
 #endif
 
-#if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
-inline ov::util::Path WPath(const std::wstring& wpath) {
-    return {ov::util::wstring_to_string(wpath)};
-}
-#else
-inline ov::util::Path WPath(const std::wstring& wpath) {
-    return {wpath};
-}
-#endif
-
 }  // namespace ov::util
+
+#ifdef GCC_VER_LESS_THAN_12_3 || CLANG_VER_LESS_THAN_17
+
+template <>
+ov::util::Path::path(const std::wstring& source, ov::util::Path::format fmt);
+
+#endif
