@@ -9,6 +9,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "openvino/util/file_path.hpp"
@@ -508,6 +509,13 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(ov::util::Path(U"D:\\いろはにほへど\\猫!.txt"), ov::util::Path(U"D:\\いろはにほへど\\猫"))));
 
 class FileUtilTest : public ::testing::Test {
+public:
+    static constexpr auto char_unicode_content = "这是一个测试文件。"sv;
+    static constexpr auto u8_unicode_content = u8"这是一个测试文件。"sv;
+    static constexpr auto u16_unicode_content = u"这是一个测试文件。"sv;
+    static constexpr auto u32_unicode_content = U"这是一个测试文件。"sv;
+    static constexpr auto wchar_unicode_content = L"这是一个测试文件。"sv;
+
 protected:
     void SetUp() override {
         // Create a temporary files for testing
@@ -544,24 +552,24 @@ protected:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         {
-            std::ofstream outfile("test_file_28.txt");
-            outfile << "这是一个测试文件。" << std::endl;
+            std::ofstream outfile("test_file_char.txt");
+            outfile << char_unicode_content.data() << std::endl;
         }
         {
-            std::ofstream outfile("test_file_u8_10.txt");
-            outfile << u8"这是一个测试文件。" << std::endl;
+            std::ofstream outfile("test_file_u8.txt");
+            outfile << u8_unicode_content.data() << std::endl;
         }
         {
-            std::ofstream outfile("test_file_u16_10.txt");
-            outfile << u"这是一个测试文件。" << std::endl;
+            std::ofstream outfile("test_file_u16.txt");
+            outfile << u16_unicode_content.data() << std::endl;
         }
         {
-            std::ofstream outfile("test_file_u32_10.txt");
-            outfile << U"这是一个测试文件。" << std::endl;
+            std::ofstream outfile("test_file_u32.txt");
+            outfile << u32_unicode_content.data() << std::endl;
         }
         {
-            std::ofstream outfile("test_file_wstring_10.txt");
-            outfile << L"这是一个宽字符串测试文件。" << std::endl;
+            std::ofstream outfile("test_file_wchar.txt");
+            outfile << wchar_unicode_content.data() << std::endl;
         }
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
@@ -584,11 +592,11 @@ protected:
         std::filesystem::remove(ov::util::make_path(L"这是_wstring_.txt"));
 #endif
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        std::filesystem::remove("test_file_28.txt");
-        std::filesystem::remove("test_file_u8_10.txt");
-        std::filesystem::remove("test_file_u16_10.txt");
-        std::filesystem::remove("test_file_u32_10.txt");
-        std::filesystem::remove("test_file_wstring_10.txt");
+        std::filesystem::remove("test_file_char.txt");
+        std::filesystem::remove("test_file_u8.txt");
+        std::filesystem::remove("test_file_u16.txt");
+        std::filesystem::remove("test_file_u32.txt");
+        std::filesystem::remove("test_file_wchar.txt");
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
         std::filesystem::remove("android_test_file_21.txt");
@@ -682,24 +690,24 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_F(FileUtilTest, FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_28.txt"s), 28);
+    EXPECT_EQ(ov::util::file_size("test_file_char.txt"s), char_unicode_content.size() + 1);
 }
 
 #    ifdef OPENVINO_CPP_VER_AT_LEAST_20
 TEST_F(FileUtilTest, u8FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_u8_10.txt"s), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_u8.txt"s), u8_unicode_content.size() + 1);
 }
 #    endif
 
 TEST_F(FileUtilTest, u16FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_u16_10.txt"s), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_u16.txt"s), u16_unicode_content.size() + 1);
 }
 
 TEST_F(FileUtilTest, u32FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_u32_10.txt"s), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_u32.txt"s), u32_unicode_content.size() + 1);
 }
 
 TEST_F(FileUtilTest, wstringFileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_wstring_10.txt"s), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_wchar.txt"s), wchar_unicode_content.size() + 1);
 }
 #endif
