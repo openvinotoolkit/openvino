@@ -1105,7 +1105,6 @@ static void test_loop_gpu_wo_trip_count_update_primitive_id(ov::PartialShape bod
 
     auto const_shape = engine.allocate_memory({ov::PartialShape{4}, data_types::i32, format::bfyx});
 
-
     std::vector<int32_t> body_input_layouts;
     for (size_t i = 0; i < body_input_layout.size(); i++) {
         if (body_input_layout[i].is_dynamic())
