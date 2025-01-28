@@ -78,18 +78,22 @@ SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void SoftMax::getSupportedDescriptors() {
-    if (descs.size())
+    if (descs.size()) {
         return;
+    }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16))
+    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
+    }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
-    if (getParentEdges().size() != 1)
+    if (getParentEdges().size() != 1) {
         OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
-    if (!getChildEdges().size())
+    }
+    if (!getChildEdges().size()) {
         OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+    }
 
     const auto& inShape = getInputShapeAtPort(0);
     if (inShape.getRank() == 3) {
@@ -100,8 +104,9 @@ void SoftMax::getSupportedDescriptors() {
     for (auto format : getAvailableFormatsForDims(inShape)) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, format);
 
-        if (in_candidate->blocksExtended())
+        if (in_candidate->blocksExtended()) {
             continue;
+        }
 
         createDescriptor({in_candidate}, {});
     }
@@ -120,8 +125,9 @@ Node::AttrPtr SoftMax::initPrimitiveAttr() {
 
 void SoftMax::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    }
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
         auto outMemDesc = config.outConfs[0].getMemDesc();
@@ -130,8 +136,9 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
     } else {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined() &&
-             !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc())))
+             !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc()))) {
             OPENVINO_THROW("Layer ", getName(), " has incorrect selected config!");
+        }
 
         config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0)->getMemDesc());
         config.outConfs[0].setMemDesc(config.inConfs[0].getMemDesc());
@@ -156,16 +163,18 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                 *attr,
                                                 true);
 
-    if (desc)
+    if (desc) {
         descs.emplace_back(desc);
+    }
 }
 
 void SoftMax::prepareParams() {
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
+    }
 
     auto attr = initPrimitiveAttr();
 
