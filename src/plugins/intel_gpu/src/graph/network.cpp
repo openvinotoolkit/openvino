@@ -171,7 +171,6 @@ opt pass).
 */
 network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
-    , _config(program->get_config())
     , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine(), program->get_config()))
@@ -225,7 +224,7 @@ network::~network() {
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
-    std::string dump_path = GPU_DEBUG_VALUE_OR(_config.get_dump_profiling_data_path(), "");
+    std::string dump_path = GPU_DEBUG_VALUE_OR(get_config().get_dump_profiling_data_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
         dump_perf_data_raw(dump_path + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
     }
@@ -385,7 +384,7 @@ void network::calculate_weights_cache_capacity() {
     }
 
     // Sum all weights constants for each stream
-    required_mem_size += weights_const_size * _config.get_num_streams();
+    required_mem_size += weights_const_size * get_config().get_num_streams();
     // Add all other constants (shared between streams)
     required_mem_size += total_const_size - weights_const_size;
 
