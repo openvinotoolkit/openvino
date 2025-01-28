@@ -6,8 +6,7 @@
 
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class ConvertConvolutionToInternal : public ov::pass::ModelPass {
 public:
@@ -15,5 +14,4 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

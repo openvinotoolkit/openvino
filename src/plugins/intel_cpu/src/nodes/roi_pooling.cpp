@@ -172,7 +172,7 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_max = get_acc_reg(i);
 
-            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i * src_c_off)},
+            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i) * src_c_off},
                                     {static_cast<size_t>(vmm_max.getIdx())},
                                     {},
                                     load_pool_gpr_idxs);
@@ -190,7 +190,7 @@ private:
                     Vmm vmm_src = get_src_reg(i);
 
                     load_emitter->emit_code(
-                        {static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i * src_c_off)},
+                        {static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i) * src_c_off},
                         {static_cast<size_t>(vmm_src.getIdx())},
                         {},
                         load_pool_gpr_idxs);
@@ -227,7 +227,7 @@ private:
             Vmm vmm_dst = get_acc_reg(i);
 
             store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                     {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                                     {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i) * dst_c_off},
                                      get_local_store_pool_vec_idxs(vmm_dst),
                                      store_pool_gpr_idxs);
         }
@@ -297,7 +297,7 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             store_empty_roi_emitter->emit_code(
                 {static_cast<size_t>(vmm_zero.getIdx())},
-                {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i) * dst_c_off},
                 store_pool_vec_idxs,
                 store_pool_gpr_idxs);
         }
@@ -401,14 +401,12 @@ bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-
-    std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
     refParams.pooled_h = roiPooling->get_output_roi()[0];
@@ -424,25 +422,25 @@ ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::
 
 void ROIPooling::getSupportedDescriptors() {
     if (getParentEdges().size() != 2)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, "has incorrect number of output edges: ", getChildEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getInputShapeAtPort(1).getRank() != 2) {
-        OPENVINO_THROW(errorPrefix, "doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
+        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        OPENVINO_THROW(errorPrefix, "doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
+        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
     }
 
     const auto& dims = getInputShapeAtPort(1).getDims();
     if (dims[1] != 5) {
-        OPENVINO_THROW(errorPrefix, "has invalid shape on 1st input: [", dims[0], ",", dims[1], "]");
+        THROW_CPU_NODE_ERR("has invalid shape on 1st input: [", dims[0], ",", dims[1], "]");
     }
 }
 
@@ -499,7 +497,7 @@ void ROIPooling::createPrimitive() {
     }
 }
 
-void ROIPooling::execute(dnnl::stream strm) {
+void ROIPooling::execute(const dnnl::stream& strm) {
     if (execPtr) {
         const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
@@ -510,7 +508,7 @@ void ROIPooling::execute(dnnl::stream strm) {
     }
 }
 
-void ROIPooling::executeDynamicImpl(dnnl::stream strm) {
+void ROIPooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

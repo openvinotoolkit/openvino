@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,14 @@ static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> compiler_ver
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
+
+/**
+ * @brief [Only for NPU compiler]
+ * Type: boolean
+ * Set or verify state of dynamic quantization in  the NPU compiler
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> compiler_dynamic_quantization{"NPU_COMPILER_DYNAMIC_QUANTIZATION"};
 
 /**
  * @brief [Only for NPU plugin]

@@ -22,8 +22,8 @@ class LP_TRANSFORMATIONS_API NormalizeL2Transformation : public LayerTransformat
 public:
     OPENVINO_RTTI("NormalizeL2Transformation", "0", LayerTransformation);
     NormalizeL2Transformation(const Params& params = Params());
-    bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

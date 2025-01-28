@@ -133,9 +133,18 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+        // Drop CACHE_DIR from the config
+        // If it's present we will be utilizing LLMCompiledModel's import
+        // and not the underlying models and submodels
+        auto config = properties;
+        config.erase(ov::cache_dir.name());
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
+        // CACHE_DIR isn't supported with NPU_USE_NPUW
+        if (properties.count(ov::cache_dir.name())) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with configuration: NPU_USE_NPUW : YES, NPUW_LLM : NO");
+        }
         pre_load_transform(model, properties);
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
     }
@@ -611,6 +620,12 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Write config
     write(stream, m_cfg);
+    // FIXME: utilize overload instead
+    write(stream, m_non_npuw_props.size());
+    for (const auto& p : m_non_npuw_props) {
+        write(stream, p.first);
+        write_any(stream, p.second);
+    }
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -671,6 +686,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    compiled->m_cfg.parseEnvVars();
+    // FIXME: utilize overload instead
+    std::size_t props_size;
+    read(stream, props_size);
+    for (std::size_t i = 0; i < props_size; ++i) {
+        std::string key;
+        read(stream, key);
+        ov::Any val;
+        read_any(stream, val);
+        compiled->m_non_npuw_props[key] = val;
+    }
+    compiled->implement_properties();
 
     // Deserialize compiled submodels
     std::size_t subm_size = 0;
@@ -836,12 +863,13 @@ std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) c
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
     NPUW_ASSERT(model.get() != nullptr);
-    for (auto& output : model->outputs()) {
-        const auto& tensor_names = output.get_tensor().get_names();
-        if (tensor_names.size() > 32) {  // maximum supported
-            output.get_tensor().set_names({});
-            LOG_INFO("Removed output tensor names for " << model->get_friendly_name());
-            LOG_BLOCK();
+    for (auto node : model->get_ordered_ops()) {
+        for (auto &&output : node->outputs()) {
+            const auto& tensor_names = output.get_tensor().get_names();
+            if (tensor_names.size() > 32) {
+                LOG_VERB(model->get_friendly_name() << " output " << output << " exceeds the name limit, removing...");
+                output.get_tensor().set_names({});
+            }
         }
     }
 }
@@ -856,8 +884,7 @@ void ov::npuw::CompiledModel::fill_empty_tensor_names(const std::shared_ptr<ov::
         const auto& tensor_names = input.get_tensor().get_names();
         if (tensor_names.empty()) {
             input.get_tensor().set_names({"npuw_in_tensor_" + std::to_string(in_tensor_idx)});
-            LOG_INFO("Added input tensor name for " << model->get_friendly_name());
-            LOG_BLOCK();
+            LOG_VERB("Added input tensor name for " << model->get_friendly_name());
         }
         in_tensor_idx++;
     }
@@ -865,8 +892,7 @@ void ov::npuw::CompiledModel::fill_empty_tensor_names(const std::shared_ptr<ov::
         const auto& tensor_names = output.get_tensor().get_names();
         if (tensor_names.empty()) {
             output.get_tensor().set_names({"npuw_out_tensor_" + std::to_string(out_tensor_idx)});
-            LOG_INFO("Added output tensor name for " << model->get_friendly_name());
-            LOG_BLOCK();
+            LOG_VERB("Added output tensor name for " << model->get_friendly_name());
         }
         out_tensor_idx++;
     }

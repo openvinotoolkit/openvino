@@ -36,12 +36,15 @@ public:
         bool run(ov::snippets::lowered::LinearIR& linear_ir,
                  ov::snippets::lowered::LinearIR::constExprIt begin,
                  ov::snippets::lowered::LinearIR::constExprIt end) override;
-        std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
+        std::shared_ptr<snippets::lowered::pass::PassBase> merge(
+            const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
     };
 
 private:
-    std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
-    ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const override;
+    std::tuple<size_t, size_t, size_t> get_blocking_params(
+        const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
+    ov::snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount,
+                                                                         size_t block_size) const override;
 };
 
 }  // namespace pass

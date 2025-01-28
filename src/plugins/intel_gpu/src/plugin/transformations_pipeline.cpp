@@ -279,8 +279,7 @@ namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
@@ -1034,7 +1033,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
-        manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt);
+        manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
@@ -1077,6 +1076,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
+                // AZP does not support grouped size dyn-quan
+                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym && (dynamic_quantization_group_size != UINT64_MAX)) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
+                                                                   " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
+                    return true;
+                }
+
                 bool has_wzp = root->get_input_size() > 4;
                 if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
                     && has_wzp
@@ -1085,6 +1091,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                     " asym 8bit weight does not support grouped quantization" << std::endl;
                     return true;
                 }
+
                 return false;
             });
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
@@ -1102,5 +1109,4 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.run_passes(func);
     }
 }
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

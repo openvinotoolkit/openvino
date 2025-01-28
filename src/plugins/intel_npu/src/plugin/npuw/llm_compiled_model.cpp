@@ -15,6 +15,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "serialization.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -578,6 +579,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    LOG_DEBUG("   ...also convert BF16 to FP16");
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -724,21 +727,21 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
         OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       " Serialized by OV ",
+                       "\nSerialized by OV ",
                        vmajor,
                        '.',
                        vminor,
                        '.',
                        vpatch,
-                       " Current OV version ",
+                       "\nCurrent OV version ",
                        OPENVINO_VERSION_MAJOR,
                        '.',
                        OPENVINO_VERSION_MINOR,
                        '.',
                        OPENVINO_VERSION_PATCH,
-                       " NPUW serialized by version ",
+                       "\nNPUW serialized by version ",
                        s11n_version,
-                       " NPUW current serialization version ",
+                       "\nNPUW current serialization version ",
                        NPUW_SERIALIZATION_VERSION);
     }
 
@@ -766,6 +769,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     // Deserialize config
     read(stream, compiled->m_cfg);
+    compiled->implement_properties();
 
     // Deserialize CompiledModels
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin);

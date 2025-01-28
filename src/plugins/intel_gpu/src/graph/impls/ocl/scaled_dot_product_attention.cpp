@@ -287,7 +287,7 @@ public:
         if (has_indirect_inputs(impl_param))
             data_inputs_num--;
 
-        auto has_zp_input_buffers = false;
+        auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
         if (desc->is_kv_compressed) {
             data_inputs_num -= 2; // key and value compression scales are handled separately
 
@@ -369,7 +369,7 @@ public:
             kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
         }
 
-        return cldnn::make_unique<scaled_dot_product_attention_impl>(kernels_data);
+        return std::make_unique<scaled_dot_product_attention_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

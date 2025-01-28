@@ -92,7 +92,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -156,11 +156,11 @@ void Proposal::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Proposal::executeDynamicImpl(dnnl::stream strm) {
+void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Proposal::execute(dnnl::stream strm) {
+void Proposal::execute(const dnnl::stream& strm) {
     try {
         const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
         const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
