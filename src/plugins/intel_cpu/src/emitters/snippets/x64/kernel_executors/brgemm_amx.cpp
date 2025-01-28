@@ -111,8 +111,9 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
     std::shared_ptr<BrgemmAMXCompiledKernel> compiled_kernel = std::make_shared<BrgemmAMXCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
-    if (config.is_empty())
+    if (config.is_empty()) {
         return compiled_kernel;
+    }
 
     const auto& cache = m_kernel_cache.lock();
     OPENVINO_ASSERT(cache, "Invalid kernel cache pointer in BrgemmAMXKernelExecutor::compile_kernel()");
