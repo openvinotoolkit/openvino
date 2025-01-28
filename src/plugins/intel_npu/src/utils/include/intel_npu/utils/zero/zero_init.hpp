@@ -50,10 +50,10 @@ public:
         return driver_properties.driverVersion;
     }
     inline uint32_t getCompilerVersion() const {
-        return ZE_MAKE_VERSION(graph_properties.compilerVersion.major, graph_properties.compilerVersion.minor);
+        return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
     }
     inline ze_device_graph_properties_t getCompilerProperties() const {
-        return graph_properties;
+        return compiler_properties;
     }
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
@@ -92,7 +92,7 @@ private:
 
     ze_api_version_t ze_drv_api_version = {};
 
-    ze_device_graph_properties_t graph_properties = {};
+    ze_device_graph_properties_t compiler_properties = {};
 };
 
 }  // namespace intel_npu

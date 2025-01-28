@@ -145,7 +145,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
-    _deviceGraphProperties = _zeroInitStruct->getCompilerProperties();
+    _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
     _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
 
@@ -160,8 +160,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
@@ -222,8 +222,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
-    const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
-    const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");

@@ -314,8 +314,8 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     log.debug("ZeroInitStructsHolder initialize complete");
 
     // Obtain compiler-in-driver (vcl) properties
-    graph_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &graph_properties);
+    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
     THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
 }
 
