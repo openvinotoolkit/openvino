@@ -83,7 +83,7 @@ async function downloadTestModel(model) {
     const { env } = process;
     const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
-    const modelExists = await checkIfPathExists(model.xml); 
+    const modelExists = await checkIfPathExists(model.xml);
     if (!modelExists) await downloadFile(
       model.xmlURL,
       path.dirname(model.xml),

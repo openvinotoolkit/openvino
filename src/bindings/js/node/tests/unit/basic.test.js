@@ -19,7 +19,6 @@ const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
   const { testModelFP32 } = testModels;
-  const testXml = testModelFP32.xml;
   let core = null;
   let model = null;
   let compiledModel = null;
@@ -33,7 +32,7 @@ describe('ov basic tests.', () => {
 
   beforeEach(() => {
     core = new ov.Core();
-    model = core.readModelSync(testXml);
+    model = core.readModelSync(testModelFP32.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
     modelLike = [model, compiledModel];
   });
@@ -139,12 +138,12 @@ describe('ov basic tests.', () => {
     });
 
     it('compileModelSync(model_path, deviceName, config: {}) ', () => {
-      const cm = core.compileModelSync(testXml, 'CPU', tput);
+      const cm = core.compileModelSync(testModelFP32.xml, 'CPU', tput);
       assert.equal(cm.inputs.length, 1);
     });
 
     it('compileModelSync(model:model_path, deviceName: string) ', () => {
-      const cm = core.compileModelSync(testXml, 'CPU');
+      const cm = core.compileModelSync(testModelFP32.xml, 'CPU');
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
@@ -200,13 +199,13 @@ describe('ov basic tests.', () => {
     });
 
     it('compileModel(model_path, deviceName, config: {}) ', () => {
-      core.compileModel(testXml, 'CPU', tput).then((cm) => {
+      core.compileModel(testModelFP32.xml, 'CPU', tput).then((cm) => {
         assert.equal(cm.inputs.length, 1);
       });
     });
 
     it('compileModel(model:model_path, deviceName: string) ', () => {
-      core.compileModel(testXml, 'CPU').then((cm) => {
+      core.compileModel(testModelFP32.xml, 'CPU').then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
     });
@@ -297,7 +296,7 @@ describe('ov basic tests.', () => {
         () => Math.random() + epsilon,
       );
       const core = new ov.Core();
-      const model = core.readModelSync(testXml);
+      const model = core.readModelSync(testModelFP32.xml);
       const compiledModel = core.compileModelSync(model, 'CPU');
       userStream = compiledModel.exportModelSync();
       const inferRequest = compiledModel.createInferRequest();
