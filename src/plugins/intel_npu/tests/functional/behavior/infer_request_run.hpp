@@ -170,6 +170,36 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
     }
 }
 
+TEST_P(InferRequestRunTests, MultipleCompiledModelsTestsSyncInfers) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Load CNNNetwork to target plugins
+    const int no_of_iterations = 256;
+    std::array<ov::CompiledModel, no_of_iterations> compiled_models;
+
+    for (int i = 0; i < no_of_iterations; ++i) {
+        OV_ASSERT_NO_THROW(compiled_models[i] = core->compile_model(ov_model, target_device, configuration));
+    }
+
+    // Create InferRequests
+    std::array<ov::InferRequest, no_of_iterations> infer_reqs;
+    std::array<std::thread, no_of_iterations> infer_reqs_threads;
+    for (int i = 0; i < no_of_iterations; ++i) {
+        OV_ASSERT_NO_THROW(infer_reqs[i] = compiled_models[i].create_infer_request());
+    }
+
+    for (int i = 0; i < no_of_iterations; ++i) {
+        infer_reqs_threads[i] = std::thread([&infer_reqs, i]() -> void {
+            OV_ASSERT_NO_THROW(infer_reqs[i].infer());
+            infer_reqs[i] = {};
+        });
+    }
+
+    for (int i = 0; i < no_of_iterations; ++i) {
+        infer_reqs_threads[i].join();
+    }
+}
+
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
