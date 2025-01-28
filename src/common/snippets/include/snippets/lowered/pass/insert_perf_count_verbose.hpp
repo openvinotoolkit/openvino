@@ -19,14 +19,14 @@ namespace lowered {
 namespace pass {
 
 /**
- * @interface BrgemmDebugParams
+ * @interface InsertPerfCountVerbose
  * @brief Brgemm parameters dump pass
  * @ingroup snippets
  */
-class BrgemmDebugParams : public snippets::lowered::pass::RangedPass {
+class InsertPerfCountVerbose : public snippets::lowered::pass::RangedPass {
 public:
-    BrgemmDebugParams(const std::string& subgraph_name) : m_subgraph_name(subgraph_name) {}
-    OPENVINO_RTTI("BrgemmDebugParams", "", RangedPass);
+    InsertPerfCountVerbose(const std::string& subgraph_name) : m_subgraph_name(subgraph_name) {}
+    OPENVINO_RTTI("InsertPerfCountVerbose", "", RangedPass);
 
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,

@@ -3,7 +3,7 @@
 //
 
 #ifdef SNIPPETS_DEBUG_CAPS
-#include "snippets/lowered/pass/brgemm_debug_params.hpp"
+#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -19,10 +19,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool BrgemmDebugParams::run(snippets::lowered::LinearIR& linear_ir,
-                            snippets::lowered::LinearIR::constExprIt begin,
-                            snippets::lowered::LinearIR::constExprIt end) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmDebugParams")
+bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
+                                 snippets::lowered::LinearIR::constExprIt begin,
+                                 snippets::lowered::LinearIR::constExprIt end) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertPerfCountVerbose")
     if (linear_ir.get_config().debug_config.dumpParams.csv_path.empty()) {
         return false;
     }
@@ -55,8 +55,8 @@ bool BrgemmDebugParams::run(snippets::lowered::LinearIR& linear_ir,
     return modified;
 }
 
-std::string BrgemmDebugParams::collect_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr,
-                                              const snippets::lowered::LinearIR& linear_ir) {
+std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr,
+                                                   const snippets::lowered::LinearIR& linear_ir) {
     const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(brgemm_expr->get_node());
     OPENVINO_ASSERT(brgemm, "Brgemm is nullptr!");
     std::stringstream ss;
