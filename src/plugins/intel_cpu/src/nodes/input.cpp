@@ -578,8 +578,9 @@ void Input::initSupportedPdFromMemDesc() {
 }
 
 void Input::resolveInPlaceEdges(Edge::LOOK look) {
-    if (!m_isInPlace)
+    if (!m_isInPlace) {
         return Node::resolveInPlaceEdges(look);
+    }
 
     if (look & Edge::LOOK_UP) {
         auto edges = getChildEdgesAtPort(0);

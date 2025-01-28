@@ -80,8 +80,9 @@ If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 }
 
 void If::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto ifOp = ov::as_type_ptr<ov::op::v8::If>(m_op);
 

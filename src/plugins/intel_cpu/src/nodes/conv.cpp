@@ -925,8 +925,9 @@ void Convolution::selectOptimalPrimitiveDescriptor() {
 }
 
 int Convolution::registerToAllocationContext(int offset, AllocationContext& context) {
-    if (subgraph)
+    if (subgraph) {
         return subgraph->RegisterToAllocationContext(offset, context);
+    }
 
     return Node::registerToAllocationContext(offset, context);
 }

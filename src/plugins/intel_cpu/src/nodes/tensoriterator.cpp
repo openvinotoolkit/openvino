@@ -442,8 +442,9 @@ void TensorIterator::initSupportedPrimitiveDescriptors() {
 
     sub_graph.Init(subgraphOp->get_function(), context);
 
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     supportedPrimitiveDescriptors.emplace_back(make_plain_config(ngraphOp), impl_desc_type::unknown);
 }

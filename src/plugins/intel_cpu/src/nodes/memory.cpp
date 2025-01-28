@@ -703,11 +703,10 @@ void MemoryInput::createPrimitive() {
         CPU_NODE_ASSERT(getParentEdges().size() == subGraph->inputsNumber(),
                         "Number of node inputs must be equal the number of inner graph's inputs");
 
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            auto srcEdgeMem = getSrcMemoryAtPort(i);
-            // create a separate input memory objects instead of share them. avoid data corruption.
-            auto mem = std::make_shared<Memory>(getEngine(), srcEdgeMem->getDescPtr(), srcEdgeMem->getMemoryBlock());
-            subgraphMemoryPtrs.push_back(mem);
+        for (size_t i = 0; i < subGraph->inputsNumber(); i++) {
+            auto subgraphInputNode = subGraph->getInputNodeByIndex(i);
+            auto subgraphInputMemory = subgraphInputNode->getDstMemoryAtPort(0);
+            subgraphMemoryPtrs.push_back(subgraphInputMemory);
         }
 
         subGraph->Activate();

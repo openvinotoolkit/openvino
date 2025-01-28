@@ -44,7 +44,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "utils/debug_capabilities.h"
@@ -771,8 +770,9 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
         clusters.begin(),
         clusters.end(),
         [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
-            if (cluster.empty())
+            if (cluster.empty()) {
                 return false;
+            }
 
             auto baseEdgeIt = std::find_if(cluster.begin(), cluster.end(), [](const EdgePtr& edge) {
                 return one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::NeedAllocation);
@@ -825,8 +825,9 @@ static void AllocateBaseEdges(const EdgeClusters& edgeClusters, const MemoryCont
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
                 //       shapes {0}. And it is implicitly converted into {1} tensor.
                 //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->getType() == Type::Input && edge->getMemory().getDesc().hasDefinedMaxSize())
+                if (edge->getParent()->getType() == Type::Input && edge->getMemory().getDesc().hasDefinedMaxSize()) {
                     edge->getMemoryPtr()->nullify();
+                }
 
                 count++;
             }
@@ -937,13 +938,15 @@ int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
 }
 
 static void InitEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges)
+    for (auto& edge : edges) {
         edge->init();
+    }
 }
 
 static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges)
+    for (auto& edge : edges) {
         edge->validate();
+    }
 }
 
 /**
@@ -959,8 +962,9 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     EdgeClusterIdxMap edgeClusterIndices;
 
     for (auto& edge : graphEdges) {
-        if (edgeClusterIndices.count(edge))
+        if (edgeClusterIndices.count(edge)) {
             continue;  // edge is visited
+        }
 
         size_t clusterIdx = edgeClusters.size();
         EdgePtr lastSharedEdge = nullptr;
@@ -976,15 +980,17 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
             }
         }
 
-        if (clusterIdx == edgeClusters.size())
+        if (clusterIdx == edgeClusters.size()) {
             edgeClusters.emplace_back(EdgeCluster{edge});
+        }
 
         // use recursive approach to ensure that the base edge is placed as a first entry of a cluster
         std::function<void(EdgePtr)> addToCluster;
         addToCluster =
             [&addToCluster, &edgeClusterIndices, &clusterIdx, &edgeClusters, &lastSharedEdge](const EdgePtr& edge) {
-                if (edge == lastSharedEdge)
+                if (edge == lastSharedEdge) {
                     return;
+                }
 
                 addToCluster(edge->getSharedEdge(std::nothrow));
 
