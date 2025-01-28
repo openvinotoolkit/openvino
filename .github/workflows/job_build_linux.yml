@@ -91,7 +91,7 @@ jobs:
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
       - name: Clone OpenVINO (with trace)
-        if: {{ inputs.os == 'fedora_29' }} # to debug ticket 160901
+        if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
         env:
           GIT_TRACE: 1
           GIT_TRACE_PERFORMANCE: 1
@@ -103,7 +103,7 @@ jobs:
           submodules: 'true'
 
       - name: Clone OpenVINO
-        if: {{ inputs.os != 'fedora_29' }}
+        if: ${{ inputs.os != 'fedora_29' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
