@@ -49,6 +49,7 @@ private:
     std::stringstream m_stream;
 // If you want to log only specific matchers, put their names in this list and recompile.
 // The empty list would mean logging of all matchers.
+    // std::unordered_set<std::string> m_matchers_to_log = {"RoPEFusionQwen"};
     std::unordered_set<std::string> m_matchers_to_log = {};
 };
 

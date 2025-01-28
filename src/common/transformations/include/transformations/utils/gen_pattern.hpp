@@ -863,11 +863,12 @@ public:
     }
 
 #ifdef ENABLE_OPENVINO_DEBUG
-    std::string get_wraped_type_str()  {
+    std::string get_wraped_type_str(bool verbose)  {
         auto version = m_type_info.version_id;
         std::string res = "<";
-        if (version)
-            res += version + std::string("::");
+        if (verbose)
+            if (version)
+                res += version + std::string("::");
         res += m_type_info.name + std::string(">");
         return res;
     }

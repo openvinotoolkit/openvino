@@ -63,19 +63,20 @@ std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostre
     return out;
 }
 
-std::string ov::pass::pattern::op::WrapType::type_description_str() const {
+#ifdef ENABLE_OPENVINO_DEBUG
+std::string ov::pass::pattern::op::WrapType::type_description_str(bool verbose) const {
     bool first = true;
-    // std::string res = (m_wrapped_types.size() > 1 ? "<" : "");
     std::string res = "<";
     for (const auto& type : m_wrapped_types) {
         auto version = type.version_id;
-        if (version)
-            res += std::string(first ? "" : ", ") + version + std::string("::") + type.name;
-        else
-            res += std::string(first ? "" : ", ") + type.name;
+        res += std::string(first ? "" : ", ");
+        if (verbose)
+            if (version)
+                res += version + std::string("::");
+        res += type.name;
         first = false;
     }
-    // res += (m_wrapped_types.size() > 1 ? ">" : "");
     res += ">";
     return res;
 }
+#endif
