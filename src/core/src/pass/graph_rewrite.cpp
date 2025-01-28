@@ -296,7 +296,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
             } catch (const std::exception& exp) {
                 OPENVINO_DEBUG_EMPTY(m, "│");
                 OPENVINO_DEBUG_EMPTY(m, "└─ [", m->get_name(), "] END: PATTERN MATCHED, CALLBACK HAS THROWN: ", exp.what());
-                OPENVINO_THROW("[", m->get_name(), "] END: node: ", ov::node_version_type_name_str(node), " CALLBACK HAS THROWN: ", exp.what(), "\n");
+                OPENVINO_THROW("[", m->get_name(), "] END: node: ", node, " CALLBACK HAS THROWN: ", exp.what(), "\n");
             }
         }
         OPENVINO_DEBUG_EMPTY(m, "│");
