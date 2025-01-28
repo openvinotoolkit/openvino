@@ -153,12 +153,14 @@ void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count == max_num_out) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -245,8 +247,9 @@ void nms_cpu(const int num_boxes,
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
@@ -325,8 +328,9 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
 }
 
 void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, ov::element::f32},
@@ -353,16 +357,18 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
         for (size_t i = 0; i < deltaDims.size(); i++) {
             deltas_dims_size *= deltaDims[i];
         }
-        if (anchor_dims_size != deltas_dims_size)
+        if (anchor_dims_size != deltas_dims_size) {
             OPENVINO_THROW("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
+        }
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (size_t i = 0; i < scoreDims.size(); i++) {
             score_dims_size *= scoreDims[i];
         }
-        if (deltas_dims_size != (4 * score_dims_size))
+        if (deltas_dims_size != (4 * score_dims_size)) {
             OPENVINO_THROW("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
+        }
 
         // Prepare memory
         const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
