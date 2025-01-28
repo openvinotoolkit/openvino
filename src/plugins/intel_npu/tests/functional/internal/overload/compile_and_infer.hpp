@@ -250,6 +250,18 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
         OV_ASSERT_NO_THROW(req2.start_async());
         OV_ASSERT_NO_THROW(req2.wait());
         ASSERT_TRUE(isCalled);
+
+        req1 = {};
+        req2 = {};
+        req3 = {};
+
+        OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2 = secondCompiledModel.create_infer_request());
+        OV_ASSERT_NO_THROW(req1.infer());
+        OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2.infer());
+        OV_ASSERT_NO_THROW(req3.infer());
+        OV_ASSERT_NO_THROW(req3.infer());
     }
 }
 
