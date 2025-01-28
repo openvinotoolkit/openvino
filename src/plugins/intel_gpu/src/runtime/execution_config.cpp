@@ -172,7 +172,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
     // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
     // using that mechanism.
-    if (m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
@@ -217,7 +217,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 }
 
 void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
-    GPU_DEBUG_IF(m_help) {
+    GPU_DEBUG_IF(get_help()) {
         print_help();
         exit(-1);
     }
@@ -230,13 +230,13 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
-    if (m_use_onednn) {
+    if (get_use_onednn()) {
         m_queue_type = QueueTypes::in_order;
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || m_kv_cache_precision == ov::element::undefined) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::undefined) {
         if (info.supports_immad) {  // MFDNN-11755
-            m_kv_cache_precision = m_inference_precision;
+            m_kv_cache_precision = get_inference_precision();
         } else {
             // Enable KV-cache compression by default for non-systolic platforms only
             m_kv_cache_precision = ov::element::i8;
@@ -244,7 +244,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
     // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && m_dynamic_quantization_group_size == 0 && !info.supports_immad) {
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0 && !info.supports_immad) {
         m_dynamic_quantization_group_size = 32;
     }
 
