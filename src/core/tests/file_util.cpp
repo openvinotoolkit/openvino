@@ -682,24 +682,24 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_F(FileUtilTest, FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_28.txt"), 28);
+    EXPECT_EQ(ov::util::file_size("test_file_28.txt"s), 28);
 }
 
 #    ifdef OPENVINO_CPP_VER_AT_LEAST_20
 TEST_F(FileUtilTest, u8FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_u8_10.txt"), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_u8_10.txt"s), 10);
 }
 #    endif
 
 TEST_F(FileUtilTest, u16FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_u16_10.txt"), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_u16_10.txt"s), 10);
 }
 
 TEST_F(FileUtilTest, u32FileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_u32_10.txt"), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_u32_10.txt"s), 10);
 }
 
 TEST_F(FileUtilTest, wstringFileSizeTestUnicodeContent) {
-    EXPECT_EQ(ov::util::file_size("test_file_wstring_10.txt"), 10);
+    EXPECT_EQ(ov::util::file_size("test_file_wstring_10.txt"s), 10);
 }
 #endif
