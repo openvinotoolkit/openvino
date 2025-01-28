@@ -44,10 +44,10 @@
 #    include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
 #    include "emitters/tpp/x64/jit_equation_emitter.hpp"
 #    include "emitters/tpp/x64/jit_scalar_emitter.hpp"
-#    include "transformations/tpp/x64/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/eltwise.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
-#    include "transformations/tpp/x64/op/modifiers.hpp"
 #    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"
 // Note: for reference implementations
@@ -295,7 +295,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
-    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter);
+    jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
     jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Subtract::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
     jitters[intel_cpu::tpp::op::Multiply::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);

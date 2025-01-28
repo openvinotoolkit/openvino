@@ -9,7 +9,6 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -55,6 +54,7 @@ ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_h
     handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>();
     return handlers;
 }
+
 }  // namespace pass
 }  // namespace tpp
 }  // namespace intel_cpu
