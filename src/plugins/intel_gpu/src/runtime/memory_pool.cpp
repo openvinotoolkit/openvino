@@ -433,7 +433,9 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 }
 
-memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) { }
+memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
+    (void)(_config); // Silence unused warning
+}
 
 #ifdef GPU_DEBUG_CONFIG
 inline std::string get_mb_size(size_t size) {

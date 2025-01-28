@@ -205,9 +205,8 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
     std::string str;
     is >> str;
 
-    using namespace std::literals;
-    constexpr std::array off = {"0"sv, "false"sv, "off"sv, "no"sv};
-    constexpr std::array on = {"1"sv, "true"sv, "on"sv, "yes"sv};
+    constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
+    constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
     str = util::to_lower(str);
 
     if (std::find(on.begin(), on.end(), str) != on.end()) {
