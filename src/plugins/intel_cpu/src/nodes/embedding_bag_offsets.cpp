@@ -53,16 +53,19 @@ EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, cons
                                ov::as_string(offsets_op->get_reduction()));
         }
     }
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
         OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
+    }
 
-    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul)
+    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul) {
         OPENVINO_THROW("'", _layerName, "' layer's offsets data has invalid rank.");
+    }
 }
 
 void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions = {ov::element::f32,
@@ -71,27 +74,32 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
                                                                     ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16))
+    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
         inDataPrecision = ov::element::f32;
+    }
     if (!supportedPrecisions.empty()) {
-        if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
+        if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
             OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+        }
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
                                                                                ov::element::i8,
                                                                                ov::element::u8,
                                                                                ov::element::i32};
-        if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
+        if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
             OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+        }
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
                                                        {LayoutType::ncsp, ov::element::i32},
                                                        {LayoutType::ncsp, ov::element::i32}});
-    if (inputShapes.size() > DEFAULT_INDEX_IDX)
+    if (inputShapes.size() > DEFAULT_INDEX_IDX) {
         inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
-    if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
+    }
+    if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX) {
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
+    }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
@@ -127,10 +135,11 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
     size = 0lu;
     withWeight = _withWeights;
 
-    if (embIndex == _offsetsLen - 1lu)
+    if (embIndex == _offsetsLen - 1lu) {
         size = _indicesLen - offsetsData_[embIndex];
-    else
+    } else {
         size = offsetsData_[embIndex + 1lu] - offsetsData_[embIndex];
+    }
 
     if (size != 0lu) {
         indices = indicesData_ + offsetsData_[embIndex];
@@ -144,8 +153,9 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
         return;
     }
 
-    if (withWeight)
+    if (withWeight) {
         weightsIdx = offsetsData_[embIndex];
+    }
 }
 
 void EmbeddingBagOffset::executeDynamicImpl(const dnnl::stream& strm) {
@@ -159,8 +169,9 @@ bool EmbeddingBagOffset::isExecutable() const {
 void EmbeddingBagOffset::execute(const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
-    if (_withWeights)
+    if (_withWeights) {
         weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
+    }
 
     const auto& inputMem = getParentEdgeAt(0)->getMemory();
     EmbeddingBag::execute(srcData,

@@ -40,8 +40,9 @@ void Col2Im::getSupportedDescriptors() {
 }
 
 void Col2Im::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc(
         {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},

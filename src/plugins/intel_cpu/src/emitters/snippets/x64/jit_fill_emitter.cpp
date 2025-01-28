@@ -22,18 +22,21 @@ jit_fill_emitter::jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h,
 
     offset = fill->get_offset();
     fill_value = fill->get_fill_value();
-    if (!is_optimized())
+    if (!is_optimized()) {
         push_arg_entry_of("value", fill_value, true);
+    }
     prepare_table();
 }
 
 size_t jit_fill_emitter::aux_gprs_count() const {
     // Optimized version (fill full vector by zero) doesn't need additional register
-    if (is_optimized())
+    if (is_optimized()) {
         return 0;
+    }
     // + 1 reg for table value in full vector case
-    if (is_full_reg())
+    if (is_full_reg()) {
         return 1;
+    }
     // + 1 reg for temp reg for mask in avx512
     return one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
 }
@@ -65,8 +68,9 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
         // removed from the LIR
         // TODO: when inplace is supported, remove such Fill ops from the LIR and remove this logic.
         // Ticket: 126270
-        if (src_vmm.getIdx() != dst_vmm.getIdx())
+        if (src_vmm.getIdx() != dst_vmm.getIdx()) {
             h->uni_vmovups(dst_vmm, src_vmm);
+        }
     } else if (is_full_reg()) {
         fill_full<Vmm>(dst_vmm);
     } else {

@@ -27,12 +27,13 @@ struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
             const auto power = power_static->get_power();
             const auto& input = n->input_value(0);
             std::shared_ptr<ov::Node> tpp_node{nullptr};
-            if (power == -1.f)
+            if (power == -1.f) {
                 tpp_node = std::make_shared<Reciprocal>(input);
-            else if (power == 2.f)
+            } else if (power == 2.f) {
                 tpp_node = std::make_shared<Square>(input);
-            else if (power == 0.5f)
+            } else if (power == 0.5f) {
                 tpp_node = std::make_shared<SquareRoot>(input);
+            }
             OPENVINO_ASSERT(tpp_node, "Failed to create TPP in power_static_builder");
             return tpp_node;
         };

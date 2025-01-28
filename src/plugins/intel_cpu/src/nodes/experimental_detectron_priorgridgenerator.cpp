@@ -36,8 +36,9 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
     }
 
     const auto priorGridGen = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronPriorGridGenerator>(op);
-    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1)
+    if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     const auto& attr = priorGridGen->get_attrs();
     grid_w_ = attr.w;
@@ -47,8 +48,9 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
 }
 
 void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, ov::element::f32},

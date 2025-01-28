@@ -11,10 +11,11 @@ namespace intel_cpu {
 void SnippetsDebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
         const char* env = std::getenv(envVar);
-        if (env && *env)
+        if (env && *env) {
             return env;
+        }
 
-        return (const char*)nullptr;
+        return static_cast<const char*>(nullptr);
     };
 
     enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;

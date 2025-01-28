@@ -246,8 +246,9 @@ std::vector<snippets::Reg> CPUTargetMachine::get_abi_arg_regs() const {
     using namespace dnnl::impl::cpu::aarch64;
     std::vector<snippets::Reg> res;
     for (const auto& r :
-         {abi_param1, abi_param2, abi_param3, abi_param4, abi_param5, abi_param6, abi_param7, abi_param8})
+         {abi_param1, abi_param2, abi_param3, abi_param4, abi_param5, abi_param6, abi_param7, abi_param8}) {
         res.emplace_back(snippets::RegType::gpr, r.getIdx());
+    }
     return res;
 }
 
@@ -257,8 +258,9 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
         // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29))
+        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
+        }
     }
     return reg_pool;
 }
@@ -273,8 +275,10 @@ std::vector<snippets::Reg> CPUTargetMachine::get_vec_reg_pool() const {
         }
     }();
     std::vector<snippets::Reg> reg_pool;
-    for (int i = 0; i < num_vec_regs; i++)
+    reg_pool.reserve(num_vec_regs);
+    for (int i = 0; i < num_vec_regs; i++) {
         reg_pool.emplace_back(snippets::RegType::vec, static_cast<size_t>(i));
+    }
     return reg_pool;
 }
 
@@ -295,10 +299,11 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op))
+    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
-    else
+    } else {
         return ov::snippets::RegType::undefined;
+    }
 }
 
 bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {

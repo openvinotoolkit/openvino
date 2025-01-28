@@ -219,8 +219,9 @@ void BrgemmCopyBKernel::generate() {
 
     mov(src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(src)]);
     mov(tr_src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(tr_src)]);
-    if (is_with_comp)
+    if (is_with_comp) {
         mov(comp_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)]);
+    }
 
     size_t start_in = 0;
     size_t start_out = 0;
@@ -255,8 +256,9 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
     spill.preamble();
 
     const auto add_offset = [&](Xbyak::Reg64 reg, size_t bytes_offset) {
-        if (bytes_offset)
+        if (bytes_offset) {
             add(reg, bytes_offset);
+        }
     };
 
     // save function address in gpr to pass in call instruction
@@ -267,10 +269,11 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
 
     add_offset(src_reg, offset_in);      // abi_param2
     add_offset(tr_src_reg, offset_out);  // abi_param3
-    if (is_with_comp)                    // abi_param4
+    if (is_with_comp) {                  // abi_param4
         add_offset(comp_reg, offset_comp);
-    else
+    } else {
         mov(comp_reg, reinterpret_cast<uintptr_t>(nullptr));
+    }
 
 #ifdef _WIN32
     // Note: ABI requires that the remaining parameters (except the first for) are pushed to the stack in right-to-left

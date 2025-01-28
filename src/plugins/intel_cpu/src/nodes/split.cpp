@@ -82,8 +82,9 @@ void Split::getSupportedDescriptors() {}
 void Split::initSupportedPrimitiveDescriptors() {
     constexpr size_t channelsPos = 1lu;
 
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& srcShape = getInputShapeAtPort(0);
     const auto& dstFirstDims = getOutputShapeAtPort(0).getDims();
@@ -94,10 +95,12 @@ void Split::initSupportedPrimitiveDescriptors() {
         }
 
         for (size_t j = 0; j < dstFirstDims.size(); j++) {
-            if (j == axis)
+            if (j == axis) {
                 continue;
-            if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j]))
+            }
+            if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j])) {
                 THROW_CPU_NODE_ERR("has incorrect output dimensions");
+            }
         }
     }
 
@@ -111,8 +114,9 @@ void Split::initSupportedPrimitiveDescriptors() {
     if (srcShape.getRank() > 2) {
         for (auto item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const auto& blkDims = srcShape.getDims();
-            if (blkDims[channelsPos] == Shape::UNDEFINED_DIM || blkDims[channelsPos] % item.first != 0)
+            if (blkDims[channelsPos] == Shape::UNDEFINED_DIM || blkDims[channelsPos] % item.first != 0) {
                 continue;
+            }
 
             bool blocked = true;
             for (size_t i = 0; i < outputShapes.size(); i++) {
@@ -298,8 +302,9 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    if (dstMemPtrs.empty())
+    if (dstMemPtrs.empty()) {
         THROW_CPU_NODE_ERR("Output data pointers have not been initialized.");
+    }
 
     const auto& srcMem = getParentEdgeAt(0)->getMemory();
 
@@ -320,8 +325,9 @@ bool Split::created() const {
 void Split::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+    }
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
@@ -330,8 +336,9 @@ void Split::initOptimalPrimitiveDescriptor() {
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp))
+            if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp)) {
                 canUseOptimizedNspc2Ncsp = false;
+            }
         }
     }
 }
@@ -514,16 +521,18 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
     const auto getRank = srcDims.size();
 
     countStrides = 1;
-    for (unsigned int i = 0; i < axisOrderPos; i++)
+    for (unsigned int i = 0; i < axisOrderPos; i++) {
         countStrides *= srcDims[i];
+    }
 
     srcDataStride = 0;
     dataSize.resize(outputPortsCount);
 
     for (size_t i = 0; i < outputPortsCount; i++) {
         dataSize[i] = srcDataSize;
-        for (size_t j = axisOrderPos; j < getRank; j++)
+        for (size_t j = axisOrderPos; j < getRank; j++) {
             dataSize[i] *= outDescs[i]->getBlockDims()[j];
+        }
 
         srcDataStride += dataSize[i];
     }
@@ -551,8 +560,9 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    }
     auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();

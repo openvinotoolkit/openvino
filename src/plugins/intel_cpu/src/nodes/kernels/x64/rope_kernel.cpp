@@ -52,8 +52,9 @@ void jit_rotary_kernel<isa>::generate() {
     }
     this->postamble();
     for (const auto& emitter : emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 

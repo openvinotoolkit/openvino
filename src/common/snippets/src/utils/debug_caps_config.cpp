@@ -11,10 +11,11 @@ namespace snippets {
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
         const char* env = std::getenv(envVar);
-        if (env && *env)
+        if (env && *env) {
             return env;
+        }
 
-        return (const char*)nullptr;
+        return static_cast<const char*>(nullptr);
     };
 
     const char* envVarValue = nullptr;

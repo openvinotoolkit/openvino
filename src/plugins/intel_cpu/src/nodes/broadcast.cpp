@@ -57,17 +57,20 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 2 && op->get_input_size() != 3)
+    if (op->get_input_size() != 2 && op->get_input_size() != 3) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (op->get_output_size() == 0)
+    }
+    if (op->get_output_size() == 0) {
         THROW_CPU_NODE_ERR("has no output edges.");
+    }
 
     auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
     if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
         broadcastType = NUMPY;
     } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
-        if (op->get_input_size() <= AXES_MAPPING_IDX)
+        if (op->get_input_size() <= AXES_MAPPING_IDX) {
             THROW_CPU_NODE_ERR("and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
+        }
         broadcastType = EXPLICIT;
     } else {
         THROW_CPU_NODE_ERR("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
@@ -105,8 +108,9 @@ void Broadcast::getSupportedDescriptors() {
 }
 
 void Broadcast::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     supportedPrimitiveDescriptors = getSupportedConfigs(this, outputShapes.size());
 }
 
@@ -211,10 +215,12 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
     VectorDims srcStrides = srcDesc->getStrides();
     const size_t dataSize = srcDesc->getPrecision().size();
 
-    if (!dataSrcRank)
+    if (!dataSrcRank) {
         srcDims = VectorDims(1, 1);
-    if (!srcStrides.size())
+    }
+    if (!srcStrides.size()) {
         srcStrides = VectorDims(1, 1);
+    }
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     VectorDims dstStrides = dstDesc->getStrides();
@@ -244,15 +250,17 @@ void Broadcast::plainExecute(const dnnl::stream& strm) {
             i /= dstDims[j];
         }
         for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
-            for (i = 0lu, srcIdx = 0lu; i < dataDstRank; ++i)
+            for (i = 0lu, srcIdx = 0lu; i < dataDstRank; ++i) {
                 srcIdx += counters[i] ? ((counters[i] % srcAligned[i]) * srcStridesAligned[i]) : 0;
+            }
 
             cpu_memcpy(&dstData[iwork], &srcData[srcIdx * dataSize], dataSize);
 
             for (int j = dataDstRank - 1; j >= 0; j--) {
                 counters[j] = (counters[j] + 1) % dstDims[j];
-                if (counters[j] != 0)
+                if (counters[j] != 0) {
                     break;
+                }
             }
         }
     });

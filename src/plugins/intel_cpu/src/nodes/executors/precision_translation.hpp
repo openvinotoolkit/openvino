@@ -93,14 +93,16 @@ public:
     }
 
     InOutTypes translate(const InOutTypes& types) const {
-        if (m_translation)
+        if (m_translation) {
             return m_translation(types);
+        }
         return {};
     }
 
     bool enabled() const {
-        if (m_enabled)
+        if (m_enabled) {
             return m_enabled();
+        }
         return true;
     }
 

@@ -149,14 +149,17 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
         const auto& type = typeConfig[i];
         const auto& desc = currentDescriptors.at(notation[i]);
 
-        if (desc->empty())
+        if (desc->empty()) {
             continue;
+        }
 
-        if (desc->getPrecision() != type)
+        if (desc->getPrecision() != type) {
             return false;  // type mismatch
+        }
 
-        if (!desc->hasLayoutType(layoutConfig[i]))
+        if (!desc->hasLayoutType(layoutConfig[i])) {
             return false;  // layout mismatch
+        }
     }
 
     return true;
@@ -175,8 +178,9 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
         const auto& type = typeConfig[i];
         const auto& layout = layoutConfig[i];
 
-        if (desc->empty())
+        if (desc->empty()) {
             continue;
+        }
 
         if (descType == type && desc->hasLayoutType(layout)) {
             continue;

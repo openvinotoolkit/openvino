@@ -190,12 +190,13 @@ public:
         static GateUpCombine jit_gateup_silu(dnnl_eltwise_swish, std::is_same<T, ov::float16>::value);
         static GateUpCombine jit_gateup_gelu(dnnl_eltwise_gelu_tanh, std::is_same<T, ov::float16>::value);
 
-        if (config.act == LLMMLPNode::ACT_FN::GELU)
+        if (config.act == LLMMLPNode::ACT_FN::GELU) {
             jit_gateup = &jit_gateup_gelu;
-        else if (config.act == LLMMLPNode::ACT_FN::SILU)
+        } else if (config.act == LLMMLPNode::ACT_FN::SILU) {
             jit_gateup = &jit_gateup_silu;
-        else
+        } else {
             OPENVINO_THROW("unsupported act in GateUpCombine");
+        }
 
         bool quantized_int8 = config.gate_up_quantized;
 
@@ -247,17 +248,18 @@ public:
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                if (quantized_int8)
+                if (quantized_int8) {
                     work.setup(wbuffer.get<int8_t>(ithr),
                                reinterpret_cast<int8_t*>(p_weight_gate),
                                reinterpret_cast<int8_t*>(p_weight_up),
                                stride,
                                true);
-                else
+                } else {
                     work.setup(wbuffer.get<T>(ithr),
                                reinterpret_cast<ov::float16*>(p_weight_gate),
                                reinterpret_cast<ov::float16*>(p_weight_up),
                                stride);
+                }
             }
         });
         DEBUG_LOG("   setup is done. weight @ ", static_cast<void*>(p_weight_gate));
@@ -379,8 +381,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
 
     void setM(int M) {
         uint8_t* cur_scratch_base = nullptr;
-        if (m_scratchMem)
+        if (m_scratchMem) {
             cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+        }
         // new M larger than previous or the scratch pointer is changed after the following allocation
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             ScratchBuffAllocator allocator;
@@ -508,8 +511,9 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 void LLMMLP::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
@@ -551,12 +555,13 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
                                    getInputShapeAtPort(5),
                                    false,
                                    -1);  // up_weight scales per OC
-        if (m_mlp_config.down_quantized)
+        if (m_mlp_config.down_quantized) {
             inPortConfigs.emplace_back(LayoutType::ncsp,
                                        ov::element::f32,
                                        getInputShapeAtPort(6),
                                        false,
                                        -1);  // down_weight scales per OC
+        }
 
         // initialize output port
         outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);

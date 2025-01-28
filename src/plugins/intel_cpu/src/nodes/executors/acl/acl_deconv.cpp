@@ -280,8 +280,9 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
     if (!one_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
-        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1)))
+        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
         return false;
+    }
 
     try {
         arm_compute::Status status =

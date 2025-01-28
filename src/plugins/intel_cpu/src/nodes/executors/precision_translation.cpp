@@ -23,12 +23,14 @@ InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
     });
 
     for (const auto& entry : mapping) {
-        if (!entry.enabled())
+        if (!entry.enabled()) {
             continue;
+        }
 
         const auto& pattern = entry.mask();
-        if (!match(pattern, types))
+        if (!match(pattern, types)) {
             continue;
+        }
 
         return entry.translate(types);
     }

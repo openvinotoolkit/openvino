@@ -21,10 +21,11 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
 static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; --j) {
         ++indexes[j];
-        if (indexes[j] < dims[j])
+        if (indexes[j] < dims[j]) {
             break;
-        else
+        } else {
             indexes[j] = 0;
+        }
     }
 }
 
@@ -38,15 +39,17 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
     const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
-    if (static_cast<int>(dst_dims[0]) != mb)
+    if (static_cast<int>(dst_dims[0]) != mb) {
         dst_dims[0] = mb;
+    }
 
     size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
 
     auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;
-        for (size_t i = 0; i < ndims; ++i)
+        for (size_t i = 0; i < ndims; ++i) {
             idx += indexes[i] * strides[i];
+        }
         return idx * data_size;
     };
 

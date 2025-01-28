@@ -138,8 +138,9 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void Proposal::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (store_prob) {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -167,8 +168,9 @@ void Proposal::execute(const dnnl::stream& strm) {
         const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
         float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
-        if (store_prob)
+        if (store_prob) {
             outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+        }
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];

@@ -152,23 +152,25 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
-                if (quantized_int8)
+                if (quantized_int8) {
                     work.setup(wbuffer.get<int8_t>(ithr),
                                reinterpret_cast<int8_t*>(work.p_raw_weights),
                                stride_in_bytes,
                                true);
-                else
+                } else {
                     work.setup(wbuffer.get<T>(ithr),
                                reinterpret_cast<ov::float16*>(work.p_raw_weights),
                                stride_in_bytes);
+                }
             }
         });
     }
 
     void setM(int M) {
         uint8_t* cur_scratch_base = nullptr;
-        if (m_scratchMem)
+        if (m_scratchMem) {
             cur_scratch_base = m_scratchMem->getDataAs<uint8_t>();
+        }
         // new M larger than previous or the scratch pointer is changed after the following allocation
         if (m_M < M || cur_scratch_base != m_scratch_base) {
             ScratchBuffAllocator allocator;
@@ -341,8 +343,9 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     const auto& config = context->getConfig();
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
-    if (concurrency == 0)
+    if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
+    }
 
     if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
         OPENVINO_THROW("CPU: " + errorMessage);
@@ -352,8 +355,9 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
 }
 
 void QKVProjection::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;

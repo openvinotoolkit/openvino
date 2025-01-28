@@ -43,15 +43,18 @@ NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1)
+    if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (!getChildEdges().size())
+    }
+    if (!getChildEdges().size()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& inPrc = getOriginalInputPrecisionAtPort(0);
     if (!one_of(inPrc,
@@ -88,8 +91,9 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount))
+        if (inSize < static_cast<size_t>(blockSize * threadsCount)) {
             threadsCount = 1;
+        }
 
         counts.resize(threadsCount);
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
@@ -159,8 +163,9 @@ void NonZero::executeSpecified() {
         redefineOutputMemory({newDims});
     }
     int* dst = dstMemPtr->getDataAs<int>();
-    if (totalNonZeroCount == 0)
+    if (totalNonZeroCount == 0) {
         return;
+    }
 
     std::vector<int> srcDims(inRank);
     std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {

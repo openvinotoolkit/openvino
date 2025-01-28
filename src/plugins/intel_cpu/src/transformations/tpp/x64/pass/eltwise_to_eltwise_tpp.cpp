@@ -42,8 +42,9 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
         const size_t N_block =
             ov::is_type<ov::snippets::op::ReduceBase>(node) ? ov::snippets::utils::get_full_dim_value() : 64;
         ov::replace_node_update_name(node, tpp_eltwise);
-        for (size_t i = 0; i < node->get_input_size(); i++)
+        for (size_t i = 0; i < node->get_input_size(); i++) {
             ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->input(i), {M_block, N_block});
+        }
 
         ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(tpp_eltwise->output(0), {M_block, N_block});
 

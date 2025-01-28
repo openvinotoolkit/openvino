@@ -63,8 +63,9 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
@@ -208,8 +209,9 @@ void PagedAttention::execute(const dnnl::stream& strm) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
         auto pastLens = inputs[5]->getDataAs<const int32_t>();
-        for (size_t i = 0; i < pastLensDims[0]; i++)
+        for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
+        }
         len += outDims[0];
         VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
@@ -218,8 +220,9 @@ void PagedAttention::execute(const dnnl::stream& strm) {
     }
 
     outputs[0] = getDstMemoryAtPort(0);
-    if (m_hasScore)
+    if (m_hasScore) {
         outputs[1] = getDstMemoryAtPort(1);
+    }
 
     m_executor->execute(inputs, outputs);
 }

@@ -72,20 +72,22 @@ libxsmm_bitfield BinaryEltwiseTPP::get_broadcasting_flags(const snippets::Vector
     } else {
         libxsmm_bitfield flags = LIBXSMM_MELTW_FLAG_BINARY_NONE;
         if (subshape_0[0] != subshape_1[0]) {
-            if (subshape_0[0] == 1)
+            if (subshape_0[0] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_0;
-            else if (subshape_1[0] == 1)
+            } else if (subshape_1[0] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_COL_IN_1;
-            else
+            } else {
                 OPENVINO_THROW("Unsupported subshape combination: dim 0");
+            }
         }
         if (subshape_0[1] != subshape_1[1]) {
-            if (subshape_0[1] == 1)
+            if (subshape_0[1] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_0;
-            else if (subshape_1[1] == 1)
+            } else if (subshape_1[1] == 1) {
                 flags |= LIBXSMM_MELTW_FLAG_BINARY_BCAST_ROW_IN_1;
-            else
+            } else {
                 OPENVINO_THROW("Unsupported subshape combination: dim 1");
+            }
         }
         return flags;
     }

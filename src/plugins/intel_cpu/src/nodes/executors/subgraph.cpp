@@ -13,18 +13,24 @@ namespace ov {
 namespace intel_cpu {
 
 bool operator==(const SubgraphAttrs& lhs, const SubgraphAttrs& rhs) {
-    if (&lhs == &rhs)
+    if (&lhs == &rhs) {
         return true;
-    if (lhs.bodyHash != rhs.bodyHash)
+    }
+    if (lhs.bodyHash != rhs.bodyHash) {
         return false;
-    if (lhs.inMemOrders.size() != rhs.inMemOrders.size() || lhs.inMemPrecs.size() != rhs.inMemPrecs.size())
+    }
+    if (lhs.inMemOrders.size() != rhs.inMemOrders.size() || lhs.inMemPrecs.size() != rhs.inMemPrecs.size()) {
         return false;
-    if (lhs.outMemOrders.size() != rhs.outMemOrders.size() || lhs.outMemPrecs.size() != rhs.outMemPrecs.size())
+    }
+    if (lhs.outMemOrders.size() != rhs.outMemOrders.size() || lhs.outMemPrecs.size() != rhs.outMemPrecs.size()) {
         return false;
-    if (lhs.inMemOrders != rhs.inMemOrders || lhs.inMemPrecs != rhs.inMemPrecs)
+    }
+    if (lhs.inMemOrders != rhs.inMemOrders || lhs.inMemPrecs != rhs.inMemPrecs) {
         return false;
-    if (lhs.outMemOrders != rhs.outMemOrders || lhs.outMemPrecs != rhs.outMemPrecs)
+    }
+    if (lhs.outMemOrders != rhs.outMemOrders || lhs.outMemPrecs != rhs.outMemPrecs) {
         return false;
+    }
     return true;
 }
 
@@ -32,15 +38,19 @@ size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs) {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
-    for (const auto& order : attrs->inMemOrders)
+    for (const auto& order : attrs->inMemOrders) {
         seed = get_vector_hash(seed, order);
-    for (const auto& prec : attrs->inMemPrecs)
+    }
+    for (const auto& prec : attrs->inMemPrecs) {
         seed = hash_combine(seed, prec.hash());
+    }
 
-    for (const auto& order : attrs->outMemOrders)
+    for (const auto& order : attrs->outMemOrders) {
         seed = get_vector_hash(seed, order);
-    for (const auto& prec : attrs->outMemPrecs)
+    }
+    for (const auto& prec : attrs->outMemPrecs) {
         seed = hash_combine(seed, prec.hash());
+    }
 
     seed = hash_combine(seed, attrs->bodyHash);
     return seed;
@@ -75,7 +85,7 @@ SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfi
     m_tensor_rank = snippet_config->tensor_rank;
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(),
                                             m_parallel_exec_domain.cend(),
-                                            size_t(1),
+                                            static_cast<size_t>(1),
                                             std::multiplies<size_t>());
     m_nthreads = std::min(parallel_get_max_threads(), static_cast<int>(m_harness_work_amount));
 

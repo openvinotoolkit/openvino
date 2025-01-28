@@ -33,8 +33,9 @@ template void RegPrinter::print<unsigned char, Reg8>(jit_generator& h, Reg8 reg,
 template <typename T>
 void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
     std::stringstream ss;
-    if (name)
+    if (name) {
         ss << name << " | ";
+    }
     ss << ori_name << ": ";
     if (std::is_floating_point<T>::value) {
         ss << *ptr;
@@ -52,8 +53,9 @@ void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
 template <typename PRC_T, size_t vlen>
 void RegPrinter::print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr) {
     std::stringstream ss;
-    if (name)
+    if (name) {
         ss << name << " | ";
+    }
     ss << ori_name << ": {" << ptr[0];
     for (size_t i = 1; i < vlen / sizeof(float); i++) {
         ss << ", " << ptr[i];

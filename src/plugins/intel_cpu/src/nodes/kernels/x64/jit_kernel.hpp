@@ -186,8 +186,9 @@ public:
 
     ~if_expression() {
         try {
-            if (!_is_exit_valid)
+            if (!_is_exit_valid) {
                 _expr._kernel.assignL(_exit, _else);
+            }
         } catch (...) {
         }
     }
@@ -609,10 +610,11 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         using traits = internal::reg_traits<U>;
         using reg_type = typename traits::type;
         const auto& res = reserve<reg_type>();
-        if (sizeof(T) < traits::size)
+        if (sizeof(T) < traits::size) {
             movzx(res, argPtr(member));
-        else
+        } else {
             mov(res, argPtr(member));
+        }
         return {*this, internal::make_shared(res, *this)};
     }
 
@@ -621,10 +623,11 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         using traits = internal::reg_traits<U>;
         using reg_type = typename traits::type;
         const auto& res = reserve<reg_type>();
-        if (sizeof(T) < traits::size)
+        if (sizeof(T) < traits::size) {
             movzx(res, argPtr(member));
-        else
+        } else {
             mov(res, argPtr(member));
+        }
         return {*this, internal::make_shared(res, *this)};
     }
 
@@ -891,10 +894,11 @@ boolean_expression<T>::boolean_expression(jit_kernel& kernel, type t, const shar
 
 template <typename T>
 void boolean_expression<T>::cmp(const Xbyak::Label& exit) const {
-    if (_rhs)
+    if (_rhs) {
         _kernel.cmp(*_lhs, *_rhs);
-    else
+    } else {
         _kernel.cmp(*_lhs, _rvalue);
+    }
 
     switch (_type) {
     case type::eq: {

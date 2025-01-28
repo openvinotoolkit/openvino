@@ -94,8 +94,9 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
-    if (evaluate_once && !is_work_amount_dynamic)
+    if (evaluate_once && !is_work_amount_dynamic) {
         return;
+    }
 
     Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {

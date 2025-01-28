@@ -31,10 +31,12 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     num_outputs = results.size();
     std::vector<snippets::Reg> data_ptr_regs;
     data_ptr_regs.reserve(num_inputs + num_outputs);
-    for (const auto& param : parameters)
+    for (const auto& param : parameters) {
         data_ptr_regs.push_back(param->get_output_port_descriptor(0)->get_reg());
-    for (const auto& result : results)
+    }
+    for (const auto& result : results) {
         data_ptr_regs.push_back(result->get_input_port_descriptor(0)->get_reg());
+    }
 
     std::set<size_t> unique_buffers;
     for (const auto& buffer_expr : buffers) {
@@ -84,8 +86,9 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
                    std::inserter(available_gpr, available_gpr.begin()),
                    convert);
     // Note: data_ptr regs are globally live, so it makes no sense to keep them in the pool
-    for (auto idx : data_ptr_regs_idx)
+    for (auto idx : data_ptr_regs_idx) {
         available_gpr.erase({snippets::RegType::gpr, idx});
+    }
     reg_type = snippets::RegType::vec;
     std::transform(aux_vec_idxs.begin(),
                    aux_vec_idxs.end(),
@@ -110,8 +113,9 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         }
     };
     std::vector<Xbyak::Reg64> aux_tmp_regs{};
-    if (!available_gpr.empty())
+    if (!available_gpr.empty()) {
         aux_tmp_regs.emplace_back(available_gpr.begin()->idx);
+    }
     init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, aux_tmp_regs);
     for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
@@ -123,12 +127,14 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         // Note: A few operations are allowed to have mixed register types on their inputs (or outputs) => skip
         // validation here
         if (!ov::is_type<snippets::op::LoopEnd>(node) && !ov::is_type<snippets::op::RegSpillBase>(node) &&
-            !std::dynamic_pointer_cast<jit_nop_emitter>(emitter))
+            !std::dynamic_pointer_cast<jit_nop_emitter>(emitter)) {
             std::tie(expected_in_type, expected_out_type) = get_expected_reg_types(emitter);
+        }
         // Note: live regs = regs live on input of the expression. We also need to exclude output regs from the pool
         auto live_regs = expression->get_live_regs();
-        for (auto r : reg_info.second)
+        for (auto r : reg_info.second) {
             live_regs.insert(r);
+        }
         std::vector<snippets::Reg> pool_gp_reg;
         std::vector<snippets::Reg> pool_vec_reg;
         std::set_difference(available_gpr.begin(),
@@ -198,10 +204,11 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
     }
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {
-        if (i < num_inputs)
+        if (i < num_inputs) {
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
-        else
+        } else {
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+        }
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
     // A rare case when num_params is maximal, so we have no spare gprs
@@ -236,10 +243,11 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg
         h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs)
+        if (i < num_inputs) {
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
-        else
+        } else {
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+        }
     }
 }
 

@@ -124,8 +124,9 @@ bool PriorBox::needPrepareParams() const {
 }
 
 void PriorBox::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -134,8 +135,9 @@ void PriorBox::initSupportedPrimitiveDescriptors() {
 
 void PriorBox::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -158,12 +160,14 @@ void PriorBox::execute(const dnnl::stream& strm) {
     auto min_size_ = min_size;
     if (!scale_all_sizes) {
         // mxnet-like PriorBox
-        if (step_ == -1)
+        if (step_ == -1) {
             step_ = 1.f * IH / H;
-        else
+        } else {
             step_ *= IH;
-        for (auto& size : min_size_)
+        }
+        for (auto& size : min_size_) {
             size *= IH;
+        }
     }
 
     int64_t idx = 0;

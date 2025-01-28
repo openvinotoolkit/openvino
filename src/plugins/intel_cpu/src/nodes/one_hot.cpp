@@ -73,8 +73,9 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
 
     if (!(((1 + srcDims.size()) == dstDims.size()) ||
-          (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1))))
+          (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
+    }
 }
 
 bool OneHot::needShapeInfer() const {
@@ -88,8 +89,9 @@ bool OneHot::needShapeInfer() const {
 }
 
 void OneHot::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     // check a precision of the input tensor
     auto input_precision = getOriginalInputPrecisionAtPort(INDICES_ID);
@@ -141,8 +143,9 @@ void OneHot::execute(const dnnl::stream& strm) {
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
     std::size_t actual_axis = (axis == -1) ? input_dims.size() : axis;
-    for (size_t i = 0; i < actual_axis; ++i)
+    for (size_t i = 0; i < actual_axis; ++i) {
         prefix_size *= input_dims[i];
+    }
 
     std::size_t suffix_size = getParentEdgeAt(0)->getMemory().getShape().getElementsCount() / prefix_size;
 

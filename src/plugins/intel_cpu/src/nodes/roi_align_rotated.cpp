@@ -28,8 +28,9 @@ void ROIAlignRotated::getSupportedDescriptors() {
 }
 
 void ROIAlignRotated::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);

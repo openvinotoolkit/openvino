@@ -24,11 +24,11 @@ struct ShlStructure {
 public:
     ShlStructure() = default;
     ShlStructure(const ShlStructure<T, traits>&) = default;
-    ShlStructure(ShlStructure<T, traits>&&) = default;
+    ShlStructure(ShlStructure<T, traits>&&) noexcept = default;
     explicit ShlStructure(T t) { reset(t); }
 
     ShlStructure<T, traits> &operator=(const ShlStructure<T, traits>&) = default;
-    ShlStructure<T, traits> &operator=(ShlStructure<T, traits>&&) = default;
+    ShlStructure<T, traits>& operator=(ShlStructure<T, traits>&&) noexcept = default;
 
     void reset(T t) {
         m_ptr.reset(t, traits::destructor);
@@ -121,8 +121,9 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
 
     VectorDims getShape() const {
         VectorDims shape(get()->dim_count);
-        for (size_t i = 0; i < shape.size(); ++i)
+        for (size_t i = 0; i < shape.size(); ++i) {
             shape[i] = static_cast<size_t>(get()->dim[i]);
+        }
         return shape;
     }
 
@@ -161,8 +162,9 @@ private:
     void setShape(const VectorDims& shape) {
         get()->dim_count = shape.size();
         OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
-        for (int i = 0; i < get()->dim_count; ++i)
+        for (int i = 0; i < get()->dim_count; ++i) {
             get()->dim[i] = static_cast<int32_t>(shape[i]);
+        }
     };
 };
 

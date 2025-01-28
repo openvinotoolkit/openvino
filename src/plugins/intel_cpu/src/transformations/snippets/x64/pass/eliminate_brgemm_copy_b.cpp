@@ -38,8 +38,9 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
 
         // TODO [157340]: support external repacking for copyB with compensations
         if (!is_supported_layout(layout) || brgemm_utils::with_compensations(copy_b_node->get_type()) ||
-            transformation_callback(copy_b_node))
+            transformation_callback(copy_b_node)) {
             return false;
+        }
 
         // If there is non-planar layout, we should insert reshape to support shape inference
         if (!ov::snippets::utils::is_planar_layout(layout)) {

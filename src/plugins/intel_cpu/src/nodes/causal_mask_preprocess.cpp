@@ -88,11 +88,11 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
                 bool cmask_eq0 = (j <= row);
                 bool amask_eq0 = (pamask[j] == 0);
                 bool padding_mask = (cmask_eq0 && amask_eq0);
-                pdst[j] = (padding_mask | (!cmask_eq0)) ? min_dtype : T(0);
+                pdst[j] = (padding_mask | (!cmask_eq0)) ? min_dtype : static_cast<T>(0);
             }
             for (; j < kvLen; j++) {
                 bool cmask_eq0 = (j <= row);
-                pdst[j] = cmask_eq0 ? T(0) : min_dtype;
+                pdst[j] = cmask_eq0 ? static_cast<T>(0) : min_dtype;
             }
         });
         DEBUG_LOG("CausalMaskPreprocess::execute  dst=", t_dst);
@@ -125,8 +125,9 @@ bool CausalMaskPreprocess::isSupportedOperation(const std::shared_ptr<const ov::
 }
 
 void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<ov::element::Type> iprecs = getOriginalInputPrecisions();
     std::vector<ov::element::Type> oprecs = getOriginalOutputPrecisions();
@@ -141,19 +142,22 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
             oprecs[0] = ov::element::f32;
         }
         // all input precisions must be int32
-        for (auto& prec : iprecs)
+        for (auto& prec : iprecs) {
             prec = ov::element::i32;
+        }
     } else {
         OPENVINO_THROW("CPU: CausalMaskPreprocess type not supported : " + m_config.type);
     }
 
     std::vector<PortConfigurator> inPortConfigs;
-    for (size_t i = 0; i < getOriginalInputsNumber(); i++)
+    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
         inPortConfigs.emplace_back(LayoutType::ncsp, iprecs[i], getInputShapeAtPort(i), false, -1);
+    }
 
     std::vector<PortConfigurator> outPortConfigs;
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++)
+    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         outPortConfigs.emplace_back(LayoutType::ncsp, oprecs[i], getOutputShapeAtPort(i), false, -1);
+    }
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }

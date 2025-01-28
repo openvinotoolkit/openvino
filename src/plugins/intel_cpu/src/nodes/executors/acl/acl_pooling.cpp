@@ -154,8 +154,9 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                              getAclDataLayoutByMemoryDesc(srcDescs[0]),
                              nullptr,
                              nullptr,
-                             &pool_info))
+                             &pool_info)) {
                 return false;
+            }
             exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPooling3dLayer>();
                 acl_op->configure(&srcTensor, &dstTensor, pool_info);
@@ -173,8 +174,9 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                              getAclDataLayoutByMemoryDesc(srcDescs[0]),
                              &dstDescs[1]->getShape().getStaticDims(),
                              &pool_info,
-                             nullptr))
+                             nullptr)) {
                 return false;
+            }
             auto indDims = dstDescs[1]->getShape().getStaticDims();
             TensorInfo indTensorInfo = TensorInfo(shapeCast(indDims),
                                                   1,
@@ -195,8 +197,9 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                              getAclDataLayoutByMemoryDesc(srcDescs[0]),
                              nullptr,
                              &pool_info,
-                             nullptr))
+                             nullptr)) {
                 return false;
+            }
             exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPoolingLayer>();
                 acl_op->configure(&srcTensor, &dstTensor, pool_info);

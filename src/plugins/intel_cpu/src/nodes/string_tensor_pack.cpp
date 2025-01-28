@@ -36,8 +36,9 @@ void StringTensorPack::getSupportedDescriptors() {
 }
 
 void StringTensorPack::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc({{LayoutType::ncsp, indicesPrecision},
                           {LayoutType::ncsp, indicesPrecision},

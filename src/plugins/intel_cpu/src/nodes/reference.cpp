@@ -31,8 +31,9 @@ Reference::Reference(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 void Reference::getSupportedDescriptors() {}
 
 void Reference::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());

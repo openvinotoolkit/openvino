@@ -138,7 +138,7 @@ unsigned get_cache_size(int level, bool per_core) {
             return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
         }
 
-        if (level > 0 && (unsigned)level <= cpu().getDataCacheLevels()) {
+        if (level > 0 && static_cast<unsigned>(level) <= cpu().getDataCacheLevels()) {
             unsigned l = level - 1;
             return cpu().getDataCacheSize(l);
         } else {
