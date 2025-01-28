@@ -9,7 +9,7 @@ Custom OpenVINO Operations
 
 OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box.  A custom operation might be implemented both in C++ and Python.```
 
-Also it is possible to create a shared library with custom operation implemented in C++ first and load it in Python using ``add_extension`` API. Please refer to :ref:`Create library with extensions <create_a_library_with_extensions>` for more details on library creation and usage. The remaining part of this document describes how to implement an operation class using both the C++ API and Python API.
+Also it is possible to create a shared library with custom operation implemented in C++ first and load it using ``add_extension`` API. Please refer to :ref:`Create library with extensions <create_a_library_with_extensions>` for more details on library creation and usage. The remaining part of this document describes how to implement an operation class using both the C++ API and Python API.
 
 Operation Class
 ###############
@@ -28,7 +28,7 @@ Operation Class
       
       Follow the steps below to add a custom operation:
 
-      1. Add the ``OPENVINO_OP`` macro which defines a ``NodeTypeInfo`` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an operation currently consists of a string operation identifier and a string for operation version.
+      1. Add the ``OPENVINO_OP`` macro. The type info of an operation consists of a string operation identifier and a string for operation version.
 
       2. Implement default constructor and constructors that optionally take the operation inputs and attributes as parameters.
 
@@ -38,7 +38,7 @@ Operation Class
 
       5. Override the ``visit_attributes`` method, which enables serialization and deserialization of operation attributes. An ``AttributeVisitor`` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware ``on_attribute`` helper. Helpers are already implemented for standard C++ types like ``int64_t``, ``float``, ``bool``, ``vector``, and for existing OpenVINO defined types.
 
-      6. Override ``evaluate``, which is an optional method that enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
+      6. Override ``evaluate`` method, which enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
 
 
     .. tab-item:: Python
@@ -59,11 +59,9 @@ Operation Class
 
       3. Override the ``visit_attributes`` method, which enables serialization and deserialization of operation attributes. An ``AttributeVisitor`` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware ``on_attribute`` helper. Helpers are already implemented for standard types like ``int``, ``float``, ``bool``, ``vector``, and for existing OpenVINO defined types.
 
-      There are some methods that can also be overridden if needed:
+      4. Override ``evaluate`` method, which enables fallback of a CPU device to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
 
-      4. Override the ``clone_with_new_inputs`` method, which enables graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
-
-      5. Override ``evaluate``, which is an optional method that enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
+      5. Override the ``clone_with_new_inputs`` method, which enables graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
 
 
 Based on that, declaration of an operation class can look as follows:

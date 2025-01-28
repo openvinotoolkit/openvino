@@ -112,6 +112,8 @@ The ``Identity`` is a custom operation class defined in :doc:`Custom Operation G
          :language: cpp
          :fragment: [add_frontend_extension]
 
+If custom OpenVINO operation is implemented in C++ and loaded into the runtime using Python API by a shared library, there is no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
+
 .. _create_a_library_with_extensions:
 
 Create a Library with Extensions
