@@ -371,7 +371,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-16gb-staging'
+      runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
@@ -391,7 +391,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: 'aks-linux-8-cores-64gb-staging'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_hf'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
 
