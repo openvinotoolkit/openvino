@@ -31,15 +31,13 @@ public:
     WeightlessCacheAttribute(size_t original_size, size_t bin_offset, ov::element::Type original_dtype)
         : original_size(original_size),
           bin_offset(bin_offset),
-          original_dtype(original_dtype),
-          set_by_convert_precision(false) {}
+          original_dtype(original_dtype) {}
 
     bool is_copyable() const override;
 
     size_t original_size;
     size_t bin_offset;
     ov::element::Type original_dtype;
-    bool set_by_convert_precision;
 };
 
 }  // namespace ov
