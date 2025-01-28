@@ -27,12 +27,14 @@ std::string CPURuntimeConfig::to_string() const {
         const auto& loop = loop_args[i];
         out << "\t[" << i << "] WA: " << loop.m_work_amount << "\n";
         out << "\tPointer Increments: ";
-        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j)
+        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j) {
             out << loop.m_ptr_increments[j] << " ";
+        }
         out << "\n";
         out << "\tFinalization offsets: ";
-        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j)
+        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j) {
             out << loop.m_finalization_offsets[j] << " ";
+        }
         out << "\n";
     }
     return out.str();
@@ -53,8 +55,9 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
-    if (linear_ir->is_dynamic())
+    if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
+    }
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {
