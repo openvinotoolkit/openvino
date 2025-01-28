@@ -53,7 +53,7 @@ using Path = std::experimental::filesystem::path;
 
 }  // namespace ov::util
 
-#ifdef GCC_VER_LESS_THAN_12_3 || CLANG_VER_LESS_THAN_17
+#if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
 
 template <>
 ov::util::Path::path(const std::wstring& source, ov::util::Path::format fmt);
