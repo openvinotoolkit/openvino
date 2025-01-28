@@ -35,7 +35,7 @@ size_t get_terminal_width() {
     } else {
         return default_width;
     }
-#elif __linux__
+#elif defined(__linux__)
     struct winsize w;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
         return w.ws_col;

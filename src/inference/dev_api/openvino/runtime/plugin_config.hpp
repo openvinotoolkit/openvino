@@ -26,7 +26,7 @@
     #define CAT(a, b) a ## b
 #endif
 
-#define GET_EXCEPT_LAST_IMPL(N, ...) CAT(GET_EXCEPT_LAST_IMPL_, N)(__VA_ARGS__)
+#define GET_EXCEPT_LAST_IMPL(N, ...) EXPAND(CAT(GET_EXCEPT_LAST_IMPL_, N)(__VA_ARGS__))
 #define GET_EXCEPT_LAST_IMPL_2(_0, _1) _0
 #define GET_EXCEPT_LAST_IMPL_3(_0, _1, _2) _0, _1
 #define GET_EXCEPT_LAST_IMPL_4(_0, _1, _2, _3) _0, _1, _2
@@ -34,7 +34,7 @@
 
 #define GET_EXCEPT_LAST(...) EXPAND(GET_EXCEPT_LAST_IMPL(COUNT(__VA_ARGS__), __VA_ARGS__))
 
-#define GET_LAST_IMPL(N, ...) CAT(GET_LAST_IMPL_, N)(__VA_ARGS__)
+#define GET_LAST_IMPL(N, ...) EXPAND(CAT(GET_LAST_IMPL_, N)(__VA_ARGS__))
 #define GET_LAST_IMPL_0(_0, ...) _0
 #define GET_LAST_IMPL_1(_0, _1, ...) _1
 #define GET_LAST_IMPL_2(_0, _1, _2, ...) _2

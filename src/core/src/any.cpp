@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <array>
 #include "openvino/util/common_util.hpp"
 namespace {
 template <class Container>
