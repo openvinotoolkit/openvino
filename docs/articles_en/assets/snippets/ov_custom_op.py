@@ -3,26 +3,19 @@
 #
 
 # ! [op:common_include]
-import numpy as np
 from openvino import Op
-from openvino.runtime import DiscreteTypeInfo
 # ! [op:common_include]
 
 
 
 # ! [op:header]
 class Identity(Op):
-    class_type_info = DiscreteTypeInfo("Identity", "extension")
-
-    def get_type_info(self):
-        return Identity.class_type_info
 # ! [op:header]
 
 # ! [op:ctor]
-    def __init__(self, inputs):
-        super().__init__(self)
-        self.set_arguments(inputs)
-        self.constructor_validate_and_infer_types()
+    def __init__(self, inputs=None, **attrs):
+        super().__init__(self, inputs)
+        self._attrs = attrs
 # ! [op:ctor]
 
 # ! [op:validate]
@@ -47,5 +40,6 @@ class Identity(Op):
 
 # ! [op:visit_attributes]
     def visit_attributes(self, visitor):
+        visitor.on_attributes(self._attrs)
         return True
 # ! [op:visit_attributes]
