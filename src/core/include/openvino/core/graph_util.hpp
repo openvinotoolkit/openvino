@@ -336,8 +336,11 @@ void save_model(const std::shared_ptr<const ov::Model>& model, const Path& outpu
 
 // These functions are used for printing nodes in a pretty way for matching logging
 #ifdef ENABLE_OPENVINO_DEBUG
+OPENVINO_API
 std::string node_version_type_str(const std::shared_ptr<ov::Node>& node);
+OPENVINO_API
 std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node);
+OPENVINO_API
 std::string node_with_arguments(const std::shared_ptr<ov::Node>& node);
 #endif /* ENABLE_OPENVINO_DEBUG */
 }  // namespace ov

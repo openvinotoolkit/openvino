@@ -13,7 +13,7 @@ namespace pattern {
 namespace op {
 class OPENVINO_API WrapType : public Pattern {
 public:
-    OPENVINO_RTTI("patternWrapType");
+    OPENVINO_RTTI("WrapType");
 
     explicit WrapType(
         NodeTypeInfo wrapped_type,

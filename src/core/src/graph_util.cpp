@@ -23,6 +23,7 @@
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 namespace {
 
@@ -359,20 +360,19 @@ bool is_used(Node* node) {
 //TODO: rewrite these functions in a nicer way
 #ifdef ENABLE_OPENVINO_DEBUG
 std::string node_version_type_str(const std::shared_ptr<ov::Node>& node) {
+    auto version = node->get_type_info().version_id;
+    std::string res;
+    if (version)
+        res = version + std::string("::");
+    res += node->get_type_info().name;
+
    if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
-       auto version = node->get_type_info().version_id;
-       std::string res;
-       if (version)
-           res = version + std::string("::");
-       res += node->get_type_info().name;
-       return res + wrap_type->type_description_str();
+       res += wrap_type->type_description_str();
+   } else if (auto generic_pattern = ov::as_type_ptr<ov::gen_pattern::detail::GenericPattern>(node)) {
+       res += generic_pattern->get_wraped_type_str();
    }
 
-   auto version = node->get_type_info().version_id;
-   std::string res;
-   if (version)
-       res = version + std::string("::");
-   return res + node->get_type_info().name;
+   return res;
 }
 
 std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node) {
@@ -381,22 +381,17 @@ std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node) {
 
 std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
    std::string res;
+   auto version = node->get_type_info().version_id;
+   if (version)
+       res += version + std::string("::");
+   res += node->get_type_info().name;
+
    if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
-       auto version = node->get_type_info().version_id;
-       if (version)
-           res += version + std::string("::");
-
-       res += node->get_type_info().name + std::string(" ") + node->get_name();
-
-       res += std::string(" WrapType");
        res += wrap_type->type_description_str();
-   } else {
-       auto version = node->get_type_info().version_id;
-       if (version)
-           res += version + std::string("::");
-   
-       res += node->get_type_info().name + std::string(" ") + node->get_name();
+   } else if (auto generic_pattern = ov::as_type_ptr<ov::gen_pattern::detail::GenericPattern>(node)) {
+       res += generic_pattern->get_wraped_type_str();
    }
+   res += std::string(" ") + node->get_name();
 
    std::string sep = "";
    std::stringstream stream;

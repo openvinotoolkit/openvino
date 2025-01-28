@@ -42,7 +42,7 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
         OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OPTIONAL MATCHED");
         return true;
     }
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
+    OPENVINO_DEBUG_EMPTY(matcher, level_string(--matcher->level), "│");
     OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OPTIONAL DIDN'T MATCH");
     return false;
 }
