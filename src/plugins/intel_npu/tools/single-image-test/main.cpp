@@ -129,8 +129,8 @@ DEFINE_string(
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
 static constexpr char ref_results_message[] =
         "String of reference result file(s) to be used during run_test mode. "
-        "For the same test case, the files should be separated by semicolon (;). "
-        "For different test cases, it should be separated by comma (,). "
+        "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
+        "For different test cases, it should be separated by semicolon (;). "
         "If ref_dir is provided, the reference files should be relative to the ref_dir. "
         "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
 DEFINE_string(ref_results, "", ref_results_message);
