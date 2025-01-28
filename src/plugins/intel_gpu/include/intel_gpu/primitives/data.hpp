@@ -54,13 +54,12 @@ struct weightless_cache_manager {
                            size_t original_size,
                            ov::element::Type original_dtype,
                            ov::element::Type curr_dtype,
-                           ov::Shape shape, bool precision_conversion_set_by_transformation) {
+                           ov::Shape shape) {
         this->bin_offset = bin_offset;
         this->original_size = original_size;
         this->original_dtype = original_dtype;
         this->curr_dtype = curr_dtype;
         this->shape = shape;
-        this->precision_conversion_set_by_transformation = precision_conversion_set_by_transformation;
         do_weightless_caching = true;
 
         if (original_dtype != curr_dtype) {
@@ -155,7 +154,6 @@ private:
     ov::element::Type original_dtype = ov::element::Type_t::undefined;
     ov::element::Type curr_dtype = ov::element::Type_t::undefined;
     ov::Shape shape{};
-    bool precision_conversion_set_by_transformation = false;
 
     bool should_run_transformations() {
         return do_precision_conversion || reorder_rep.do_reorder;
@@ -193,28 +191,10 @@ private:
             ov::pass::Manager manager("Plugin:GPU:weightless_cache_transformations");
             std::shared_ptr<ov::Model> model = nullptr;
 
-            if (precision_conversion_set_by_transformation) {
-                results.push_back(std::make_shared<ov::op::v0::Result>(orig_constant->output(0)));
-                model = std::make_shared<ov::Model>(results, inputParams, "aux");
-
-
-                precisions_map fp_convert_precision_map = {{original_dtype, curr_dtype}};
-                type_to_fuse_map empty_fuse_map = {};
-                const bool keep_precision_sensitive_in_fp32 = false;
-                const bool convert_input_output_precision = false;
-                const bool store_original_precision_as_rt_attribute = true;
-                manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                                empty_fuse_map,
-                                                                keep_precision_sensitive_in_fp32,
-                                                                convert_input_output_precision,
-                                                                store_original_precision_as_rt_attribute);
-            } else {
-                auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
-                results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
-                model = std::make_shared<ov::Model>(results, inputParams, "aux");
-
-                manager.register_pass<ov::pass::ConstantFolding>();
-            }
+            auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
+            results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
+            model = std::make_shared<ov::Model>(results, inputParams, "aux");
+            manager.register_pass<ov::pass::ConstantFolding>();
 
             manager.run_passes(model);
             const auto& ops = model->get_ops();

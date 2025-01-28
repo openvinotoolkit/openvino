@@ -321,8 +321,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
                                                          attr.original_size,
                                                          attr.original_dtype,
                                                          op.get_output_element_type(0),
-                                                         op.get_output_shape(0),
-                                                         attr.set_by_convert_precision);
+                                                         op.get_output_shape(0));
             }
         }
     }
