@@ -10,22 +10,24 @@
 namespace ov {
 namespace snippets {
 
-//////////////////utils::Dumper///////////////
+//////////////////utils///////////////
 
 namespace utils {
 
-Dumper::Dumper() {
-    ++nodes_count;
+//////////////////utils::Dumper///////////////
+
+void Dumper::init(const std::string &params) {
+    m_params = params;
 }
 
-Dumper::~Dumper() {
-    --nodes_count;
-    if (nodes_count == 0) {
-        dump_brgemm_params_to_csv();
-    }
+//////////////////utils::ConsoleDumper///////////////
+
+ConsoleDumper::~ConsoleDumper() {
 }
 
-void Dumper::update(const op::PerfCountEnd* node, ov::threading::ThreadLocal<uint64_t> accumulation, ov::threading::ThreadLocal<uint32_t> iteration) {
+void ConsoleDumper::update(const op::PerfCountEnd* node) {
+    auto accumulation = node->get_accumulation();
+    auto iteration = node->get_iteration();
     OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
     auto iterator_iter = iteration.begin();
     auto iterator_acc = accumulation.begin();
@@ -52,37 +54,53 @@ void Dumper::update(const op::PerfCountEnd* node, ov::threading::ThreadLocal<uin
     std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
     // max avg
     std::cout << "max avg time:" << avg_max << "ns" << std::endl;
-
-    if (acc_max == 0 || avg_max == 0 || node->get_friendly_name().find("_DebugParams") == std::string::npos) {
-        return;
-    }
-    const auto& rt_info = node->get_rt_info();
-    auto brgemm_params_it = rt_info.find("brgemm_params");
-    if (brgemm_params_it == rt_info.end()) {
-        return;
-    }
-    if (brgemm_csv_path.empty()) {
-        auto brgemm_csv_path_it = rt_info.find("brgemm_params_csv_path");
-        if (brgemm_csv_path_it != rt_info.end()) {
-            brgemm_csv_path = brgemm_csv_path_it->second.as<std::string>();
-        }
-    }
-    m_debug_params_map[node->get_friendly_name()] =
-        brgemm_params_it->second.as<std::string>() + std::to_string(acc_max) + ',' + std::to_string(avg_max);
 }
 
-size_t Dumper::nodes_count = 0;
-std::map<std::string, std::string> Dumper::m_debug_params_map;
-std::string Dumper::brgemm_csv_path;  // NOLINT
+//////////////////utils::CSVDumper///////////////
 
-void Dumper::dump_brgemm_params_to_csv() {
-    if (m_debug_params_map.empty() || brgemm_csv_path.empty()) {
+CSVDumper::CSVDumper(const std::string& csv_path) : csv_path(csv_path) {}
+
+CSVDumper::~CSVDumper() {
+    dump_brgemm_params_to_csv();
+}
+
+void CSVDumper::update(const op::PerfCountEnd* node) {
+    auto accumulation = node->get_accumulation();
+    auto iteration = node->get_iteration();
+    OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = iteration.begin();
+    auto iterator_acc = accumulation.begin();
+    uint64_t avg_max = 0;
+    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
+        const auto iter = *iterator_iter;
+        const auto acc = *iterator_acc;
+        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        if (avg > avg_max)
+            avg_max = avg;
+    }
+
+    // max time of all threads: combine for reduce max
+    auto BinaryFunc = [](const uint64_t& a, const uint64_t& b) {
+        return a >= b ? a : b;
+    };
+
+    // max accumulation
+    uint64_t acc_max = accumulation.combine(BinaryFunc);
+
+    m_debug_params_map[node->get_friendly_name()] = m_params + std::to_string(acc_max) + ',' + std::to_string(avg_max);
+}
+
+void CSVDumper::dump_brgemm_params_to_csv() {
+    if (m_debug_params_map.empty() || csv_path.empty()) {
         return;
     }
-    std::ofstream csv_file(brgemm_csv_path);
+    std::ofstream csv_file(csv_path, std::ios_base::app);
     OPENVINO_ASSERT(csv_file.is_open(), "Failed to open csv file for brgemm debug parameters.");
-    csv_file << "name,subgraph_name,in_type,out_type,in_shapes,out_shapes,in_layouts,out_layouts,M,N,K,m_block,n_block,k_block,acc_max_time,"
-                "avg_max_time\n";
+    if (csv_file.tellp() == 0) {
+        csv_file << "name,subgraph_name,in_type,out_type,in_shapes,out_shapes,in_layouts,out_layouts,M,N,K,m_block,n_"
+                    "block,k_block,acc_max_time,"
+                    "avg_max_time\n";
+    }
     for (const auto& [_, params] : m_debug_params_map) {
         csv_file << params << '\n';
     }
@@ -149,17 +167,24 @@ void PerfCountBegin::set_start_time() {
 
 PerfCountEnd::PerfCountEnd() : PerfCountEndBase() {}
 
-
-PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin)
+PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
+                           std::vector<std::shared_ptr<utils::Dumper>> dumpers,
+                           const std::string& params)
     : PerfCountEndBase({pc_begin}),
       accumulation(0ul),
-      iteration(0u) {
+      iteration(0u),
+      dumpers(dumpers) {
     constructor_validate_and_infer_types();
     init_pc_begin();
+    for (const auto& dumper : dumpers) {
+        dumper->init(params);
+    }
 }
 
 PerfCountEnd::~PerfCountEnd() {
-    output_perf_count();
+    for (const auto& dumper : dumpers) {
+        dumper->update(this);
+    }
 }
 
 std::shared_ptr<Node> PerfCountEnd::clone_with_new_inputs(const OutputVector& inputs) const {
@@ -176,10 +201,6 @@ void PerfCountEnd::set_accumulated_time() {
 void PerfCountEnd::init_pc_begin() {
     m_pc_begin = ov::as_type_ptr<PerfCountBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, m_pc_begin != nullptr, "PerfCountEnd last input is not connected to PerfCountBegin");
-}
-
-void PerfCountEnd::output_perf_count() {
-    csv_dumper.update(this, accumulation, iteration);
 }
 
 } // namespace op
