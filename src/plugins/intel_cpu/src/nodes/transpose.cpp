@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, TransposeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -78,7 +78,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
-    auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config, TransposeParams transposeParams) {
+    auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config, const TransposeParams& transposeParams) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < config.inConfs.size(); i++) {
             srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
@@ -238,7 +238,7 @@ void Transpose::createPrimitive() {
     }
 }
 
-void Transpose::execute(dnnl::stream strm) {
+void Transpose::execute(const dnnl::stream& strm) {
     if (isOptimized)
         return;
 
@@ -254,7 +254,7 @@ void Transpose::execute(dnnl::stream strm) {
     }
 }
 
-void Transpose::executeDynamicImpl(dnnl::stream strm) {
+void Transpose::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ov::
     return true;
 }
 
-EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
       EmbeddingBag(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
@@ -145,7 +145,7 @@ bool EmbeddingSegmentsSum::needShapeInfer() const {
     return false;
 }
 
-void EmbeddingSegmentsSum::executeDynamicImpl(dnnl::stream strm) {
+void EmbeddingSegmentsSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -153,7 +153,7 @@ bool EmbeddingSegmentsSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingSegmentsSum::execute(dnnl::stream strm) {
+void EmbeddingSegmentsSum::execute(const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)

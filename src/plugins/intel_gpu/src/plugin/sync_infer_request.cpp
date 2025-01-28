@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,7 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
@@ -295,13 +294,21 @@ void SyncInferRequest::enqueue() {
         std::move(events.begin(), events.end(), std::back_inserter(dependencies));
     }
 
+    auto network = m_graph->get_network();
     for (const auto& it : m_variables) {
         const auto& name = it.first;
         const auto& variable = it.second;
+        if (network->has_variable(name)) {
+            const auto& prev_var = network->get_variable(name);
+            if (prev_var.get_memory() == variable->get_memory()) {
+                network->set_reuse_variable_mem(true);
+                continue;
+            }
+        }
+        network->set_reuse_variable_mem(false);
         prepare_state(name, variable);
     }
 
-    auto network = m_graph->get_network();
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
@@ -1006,5 +1013,4 @@ bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) 
     return m_batched_tensors.count(port.get_tensor_ptr()) > 0;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

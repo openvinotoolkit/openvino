@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,7 @@ using FullyConnectedCompressed = ov::intel_gpu::op::FullyConnectedCompressed;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnectedCompressed>& op) {
     validate_inputs_count(op, {4, 5, 6, 7});
@@ -44,7 +43,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
     if (zp_name.size() > 0) {
-        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
+        auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
             zp_value = zp_const->cast_vector<float>()[0];
@@ -157,5 +156,4 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
 REGISTER_FACTORY_IMPL(internal, FullyConnected);
 REGISTER_FACTORY_IMPL(internal, FullyConnectedCompressed);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -220,7 +220,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }  // namespace
 #endif
 
-Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
                 op::v0::Parameter::get_type_info_static(),
@@ -404,7 +404,7 @@ Input::Input(const Shape& shape,
              const ov::element::Type& prc,
              const std::string& name,
              const std::string& type,
-             const GraphContext::CPtr context)
+             const GraphContext::CPtr& context)
     : Node(type,
            createInputShapes(shape, TypeFromName(type)),
            createOutputShapes(shape, TypeFromName(type)),
@@ -419,22 +419,26 @@ Input::Input(const Shape& shape,
     }
 }
 
-Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context)
+Input::Input(const MemoryDescPtr& memDesc,
+             const std::string& name,
+             const std::string& type,
+             const GraphContext::CPtr& context)
     : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
-    extMemDesc = memDesc;
+    extMemDesc = memDesc;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
 }
 
-Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, InputConfig config)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;
-    m_isInPlace = config.inPlace;
+    extMemDesc = config.desc;      // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
 }
 
-Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, OutputConfig config)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const OutputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;
-    m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
-    m_isInPlace = config.inPlace;
+    extMemDesc = config.desc;         // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    m_useParentMemoryDescForOutput =  // NOLINT(cppcoreguidelines-prefer-member-initializer)
+        config.useParentMemoryDescForOutput;
+    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
 }
 
 MemoryCPtr Input::getMemoryPtr() const {

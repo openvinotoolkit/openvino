@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,10 +76,6 @@ public:
 
     TDims& operator*() & noexcept {
         return m_dims;
-    }
-
-    const TDims&& operator*() const&& noexcept {
-        return std::move(m_dims);
     }
 
     TDims&& operator*() && noexcept {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ void regclass_graph_op_Loop(py::module m) {
 
     cls.def("get_function", [](const std::shared_ptr<ov::op::v5::Loop>& self) {
         auto model = self->get_function();
-        py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+        py::type model_class = py::module_::import("openvino").attr("Model");
         return model_class(py::cast(model));
     });
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,7 @@
 #include <memory>
 #include <atomic>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
@@ -74,5 +73,4 @@ inline RemoteContextImpl::Ptr get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr
     return casted;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

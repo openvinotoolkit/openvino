@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& B,
@@ -73,6 +71,4 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           m_output_type);
     else
         OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());}
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

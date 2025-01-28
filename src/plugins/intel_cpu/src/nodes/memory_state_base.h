@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <utility>
 
 #include "memory_state.h"
 
@@ -12,7 +14,7 @@ namespace node {
 
 class MemoryNode {
 public:
-    explicit MemoryNode(std::string id) : m_id(id) {}
+    explicit MemoryNode(std::string id) : m_id(std::move(id)) {}
     explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
     const std::string& getId() const {

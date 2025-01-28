@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,13 +171,24 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 
         uint wi = 0;
         uint kr = 0; // kr = Kernel Row
+#ifdef DISABLE_MANUAL_UNROLL
+        unroll_for (; kr < FILTER_SIZE_Y; ++kr)
+#else
         LOOP(FILTER_SIZE_Y, kr,  // LOOP is a macro that unrolls the loop.
+#endif
         {
             uint kc = 0; // kc = Kernel Column
+#ifdef DISABLE_MANUAL_UNROLL
+        unroll_for (; kc < FILTER_SIZE_X; ++kc)
+            {
+                unroll_for (uint br = 0; br < OUTPUT_BLOCK_HEIGHT; br++) {
+                    unroll_for(uint bc = 0; bc < OUTPUT_BLOCK_WIDTH; bc++) {
+#else
             LOOP(FILTER_SIZE_X, kc,
             {
-                for(uint br=0; br<OUTPUT_BLOCK_HEIGHT; br++) {
-                    for(uint bc=0; bc<OUTPUT_BLOCK_WIDTH; bc++) {
+                for (uint br = 0; br < OUTPUT_BLOCK_HEIGHT; br++) {
+                    for(uint bc = 0; bc < OUTPUT_BLOCK_WIDTH; bc++) {
+#endif
 
 #if IN_BLOCK_WIDTH != SUB_GROUP_SIZE
                         //if we fix the programming model, then we could use a nice simple 2d array: val = in[br * STRIDE_SIZE_Y + kr][bc * STRIDE_SIZE_X + kc];
@@ -193,11 +204,17 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                 w[wi % PREFETCH] = weights[weight_addr_safe];
                 weight_addr += OSV_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
                 wi++;
+#ifdef DISABLE_MANUAL_UNROLL
+            }
+        }
+#else
             });
         });
+#endif
         // addr went beyond due to prefetch so move it back to correct location.
         weight_addr -= PREFETCH * OSV_SIZE;
     }
+    
 
     uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
     uint out_addr = OUTPUT_OFFSET;

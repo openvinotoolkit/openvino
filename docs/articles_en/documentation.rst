@@ -16,6 +16,7 @@ Documentation
    Tool Ecosystem <documentation/openvino-ecosystem>
    OpenVINO Extensibility <documentation/openvino-extensibility>
    OpenVINO™ Security <documentation/openvino-security>
+   Legacy Features <documentation/legacy-features>
 
 
 This section provides reference documents that guide you through the OpenVINO toolkit workflow, from preparing models, optimizing them, to deploying them in your own deep learning applications.

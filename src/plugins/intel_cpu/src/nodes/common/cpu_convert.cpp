@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -407,9 +407,11 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
         case ov::element::f8e4m3:
             lbound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest());
             ubound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max());
+            break;
         case ov::element::f8e5m2:
             lbound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest());
             ubound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max());
+            break;
         case ov::element::bf16:
             lbound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest());
             ubound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,16 +23,16 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceSumTransformation::canBeTransformed(const std::shared_ptr<Node>& reduce) const {
     const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
-    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
+    if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(reduceSum)) {
         return false;
     }
 

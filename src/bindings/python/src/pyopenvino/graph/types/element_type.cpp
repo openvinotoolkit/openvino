@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace py = pybind11;
 
 void regclass_graph_Type(py::module m) {
     py::class_<ov::element::Type, std::shared_ptr<ov::element::Type>> type(m, "Type");
-    type.doc() = "openvino.runtime.Type wraps ov::element::Type";
+    type.doc() = "openvino.Type wraps ov::element::Type";
 
     type.def(py::init([](py::object& np_literal) {
                  auto dtype = py::dtype::from_args(np_literal);
@@ -96,7 +96,7 @@ void regclass_graph_Type(py::module m) {
                 `other`.
 
                 :param other: The element type to compare this element type to.
-                :type other: openvino.runtime.Type
+                :type other: openvino.Type
                 :return: `True` if element types are compatible, otherwise `False`.
                 :rtype: bool
              )");
@@ -117,10 +117,10 @@ void regclass_graph_Type(py::module m) {
             otherwise return None.
 
             :param other: The element type to merge with this element type.
-            :type other: openvino.runtime.Type
+            :type other: openvino.Type
             :return: If element types are compatible return the least
                      restrictive Type, otherwise `None`.
-            :rtype: Union[openvino.runtime.Type|None]
+            :rtype: Union[openvino.Type|None]
         )");
 
     type.def(

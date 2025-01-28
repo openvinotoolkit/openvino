@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -39,6 +39,11 @@ if(POLICY CMP0149)
     # environment variable. New in 3.27. This is to allow override
     # in the Windows CI builds.
     cmake_policy(SET CMP0149 NEW)
+endif()
+
+if(POLICY CMP0177)
+    # install() DESTINATION paths are normalized.
+    cmake_policy(SET CMP0177 NEW)
 endif()
 
 project(OpenVINO

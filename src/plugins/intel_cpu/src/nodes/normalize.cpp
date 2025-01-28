@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "normalize.h"
 
 #include <shape_inference/shape_inference_pass_through.hpp>
+#include <utility>
 
 #include "common/cpu_memcpy.h"
 #include "common/primitive_hashing_utils.hpp"
@@ -34,7 +35,6 @@ using namespace Xbyak;
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 #endif
-#define THROW_ERROR(...) OPENVINO_THROW("NormalizeL2 layer with name '", getName(), "' ", __VA_ARGS__)
 
 namespace ov {
 namespace intel_cpu {
@@ -773,7 +773,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -781,10 +781,10 @@ NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext
     }
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        THROW_ERROR(" has incorrect number of input/output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges");
 
     if (getInputShapeAtPort(DATA).getRank() > 4 || getInputShapeAtPort(DATA).getRank() < 2) {
-        THROW_ERROR("has invalid input shape. Normalize supports from 2D to 4D blobs.");
+        THROW_CPU_NODE_ERR("has invalid input shape. Normalize supports from 2D to 4D blobs.");
     }
 
     auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
@@ -824,7 +824,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                 ov::element::f16,
                 ov::element::i8,
                 ov::element::u8)) {
-        THROW_ERROR("has unsupported input precision: ", inputPrecision);
+        THROW_CPU_NODE_ERR("has unsupported input precision: ", inputPrecision);
     }
     if (!one_of(outputPrecision,
                 ov::element::f32,
@@ -832,7 +832,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                 ov::element::f16,
                 ov::element::i8,
                 ov::element::u8)) {
-        THROW_ERROR("has unsupported output precision: ", outputPrecision);
+        THROW_CPU_NODE_ERR("has unsupported output precision: ", outputPrecision);
     }
 
     attrs.input_prec = inputPrecision;
@@ -913,11 +913,11 @@ void NormalizeL2::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(DATA);
     auto srcMemPtr = getSrcMemoryAtPort(DATA);
     if (!dstMemPtr)
-        THROW_ERROR("can't get destination memory");
+        THROW_CPU_NODE_ERR("can't get destination memory");
     if (!srcMemPtr)
-        THROW_ERROR("can't get input memory");
+        THROW_CPU_NODE_ERR("can't get input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR("has nullable preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
 
     if (!attrs.cornerCase) {
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -929,7 +929,7 @@ void NormalizeL2::createPrimitive() {
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
             attrs.layout = LayoutType::nspc;
         } else {
-            THROW_ERROR("has selected layout which is not supported");
+            THROW_CPU_NODE_ERR("has selected layout which is not supported");
         }
     }
 
@@ -965,13 +965,13 @@ void NormalizeL2::prepareParams() {
     execPtr = result.first;
 }
 
-void NormalizeL2::executeDynamicImpl(dnnl::stream strm) {
+void NormalizeL2::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NormalizeL2::execute(dnnl::stream strm) {
+void NormalizeL2::execute(const dnnl::stream& strm) {
     if (!execPtr)
-        THROW_ERROR("doesn't have a compiled executor.");
+        THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
 
     const uint8_t* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
     uint8_t* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
@@ -983,9 +983,8 @@ void NormalizeL2::execute(dnnl::stream strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    NormalizeL2CornerCaseExecutor(const VectorDims& dims) {
-        workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
-    }
+    NormalizeL2CornerCaseExecutor(const VectorDims& dims)
+        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>())) {}
 
     void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
@@ -1347,8 +1346,8 @@ class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs,
                                  const dnnl::primitive_attr& kernel_attrs,
-                                 const VectorDims& dims)
-        : dims(dims),
+                                 VectorDims dims)
+        : dims(std::move(dims)),
           kernel_attrs(kernel_attrs),
           attrs(attrs) {
         if (attrs.layout != LayoutType::ncsp) {
