@@ -176,6 +176,25 @@ inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
  * @param[in]  path  The file name
  * @return     file size
  */
+[[deprecated("This function is deprecated use file_size(const ov::util::Path& path) instead. Will be removed in "
+             "2026.0")]] inline int64_t
+file_size(const char* path) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = ov::util::string_to_wstring(path);
+    const wchar_t* file_name = widefilename.c_str();
+#elif defined(__ANDROID__) || defined(ANDROID)
+    std::string file_name = path;
+    std::string::size_type pos = file_name.find('!');
+    if (pos != std::string::npos) {
+        file_name = file_name.substr(0, pos);
+    }
+#else
+    const char* file_name = path;
+#endif
+    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
+    return in.tellg();
+}
+
 inline int64_t file_size(const ov::util::Path& path) {
     std::error_code ec;
     if (const std::uintmax_t size = std::filesystem::file_size(path, ec); ec) {
