@@ -134,7 +134,7 @@ constexpr bool validate_types_info(decltype(types_info)& info, size_t i = 0) {
     return i >= info.size() ? true : info[i].is_valid() ? validate_types_info(info, i + 1) : false;
 }
 
-static_assert(validate_types_info(types_info), "Some entries of type_info  have not valid information");
+static_assert(validate_types_info(types_info), "Some entries of type_info are invalid.");
 
 constexpr bool is_valid_type_idx(size_t idx) {
     return idx < types_info.size();
@@ -162,7 +162,7 @@ Type type_from_string(const std::string& type) {
     return {static_cast<Type_t>(type_idx)};
 }
 
-// generate known type automatically
+// generate known types automatically
 static constexpr auto known_types = [] {
     std::array<Type, enum_types_size - 1> types;
     for (size_t idx = 1, i = 0; i < types.size(); ++idx, ++i) {
