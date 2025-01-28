@@ -7,6 +7,7 @@
 #include <onednn/dnnl.h>
 
 #include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <utility>
 #include <vector>
 
 #include "nodes/executors/eltwise.hpp"
@@ -57,6 +58,7 @@ struct jit_eltwise_params {
 
     size_t work_amount;
     bool use_runtime_ptrs;
+    bool do_output_saturation;
 };
 
 struct jit_eltwise_call_args_indexes {
@@ -69,7 +71,7 @@ struct jit_uni_eltwise_kernel {
     void operator()(const node::jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes);
 
     jit_uni_eltwise_kernel() {}
-    jit_uni_eltwise_kernel(const jit_eltwise_params& jep) : ker_(nullptr), jep_(jep) {}
+    jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
@@ -82,10 +84,10 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    jit_uni_eltwise_generic(const jit_eltwise_params& jep,
-                            const std::vector<EltwiseData>& eltwise_data,
-                            const std::vector<ov::intel_cpu::Type>& ops_list,
-                            const dnnl::post_ops& post_ops);
+    jit_uni_eltwise_generic(jit_eltwise_params jep,
+                            std::vector<EltwiseData> eltwise_data,
+                            std::vector<ov::intel_cpu::Type> ops_list,
+                            dnnl::post_ops post_ops);
 
     jit_uni_eltwise_generic() {}
 

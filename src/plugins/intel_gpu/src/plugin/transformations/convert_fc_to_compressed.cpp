@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         OPENVINO_ASSERT(pattern_map.count(weights_m));
         OPENVINO_ASSERT(pattern_map.count(bias_m));
         OPENVINO_ASSERT(pattern_map.count(convert_m));
-        auto fc = std::dynamic_pointer_cast<op::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
+        auto fc = ov::as_type_ptr<op::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
@@ -86,13 +86,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
         bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
 
-        auto weight_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
+        auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
         if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8)
             weight_u8 = true;
 
         auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
             if (current_shape.size() <= 2)
@@ -107,7 +107,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         };
 
         auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
                 return std::dynamic_pointer_cast<ov::Node>(constant);
@@ -156,7 +156,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
 
         if (pattern_map.count(mul2_m)) {
-            auto mul2_op_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
+            auto mul2_op_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
             fc_input_scale = ov::op::util::eltwise_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const).get_node_shared_ptr();
         }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,19 +23,19 @@ class TRANSFORMATIONS_API MultiplyMultiplyFusion;
 
 class ov::pass::AddMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AddMultiplyFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("AddMultiplyFusion");
     AddMultiplyFusion();
 };
 
 class ov::pass::AddAddFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AddAddFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("AddAddFusion");
     AddAddFusion();
 };
 
 class ov::pass::MultiplyMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyMultiplyFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyMultiplyFusion");
     MultiplyMultiplyFusion();
 };
 
@@ -45,7 +45,7 @@ public:
  */
 class ov::pass::LinOpSequenceFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("LinOpSequenceFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("LinOpSequenceFusion");
     LinOpSequenceFusion() {
         add_matcher<ov::pass::AddMultiplyFusion>();
         add_matcher<ov::pass::AddAddFusion>();

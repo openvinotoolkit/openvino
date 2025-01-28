@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,10 +73,10 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
     const std::shared_ptr<const ov::Model>& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const Config& config) {
-    std::unordered_map<size_t, TensorData> constantIdToTensorData;
-    std::vector<std::vector<std::optional<TensorData>>> inputTensorsData;
-    std::vector<std::optional<TensorData>> outputTensorsData;
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
+    std::unordered_map<size_t, std::shared_ptr<ov::ITensor>> constantIdToTensorData;
+    std::vector<std::vector<std::shared_ptr<ov::ITensor>>> inputTensors;
+    std::vector<std::shared_ptr<ov::ITensor>> outputTensors;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputTensorsMap;
 
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
@@ -94,10 +94,12 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
             continue;
         }
 
-        const auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-        const void* address = constantNode->get_data_ptr();
-        const size_t size = constantNode->get_byte_size();
-        constantIdToTensorData.emplace(constantIndex++, TensorData{address, size});
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        std::shared_ptr<ov::ITensor> tensor = ov::make_tensor(constantNode->get_element_type(),
+                                                              constantNode->get_shape(),
+                                                              const_cast<void*>(constantNode->get_data_ptr()),
+                                                              constantNode->get_strides());
+        constantIdToTensorData.emplace(constantIndex++, tensor);
     }
     end = std::chrono::steady_clock::now();
     std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
@@ -127,17 +129,26 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
         const size_t currentInputSize =
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
         OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
-        OPENVINO_ASSERT(constantIdToTensorData.at(id).size == currentInputSize,
+        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_byte_size() == currentInputSize,
                         "Byte size mismatch for ",
+                        descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_element_type() == descriptor.precision,
+                        "Precision mismatch for ",
+                        descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(constantIdToTensorData.at(id)->get_shape() == descriptor.shapeFromCompiler.to_shape(),
+                        "Shape mismatch for ",
                         descriptor.nameFromCompiler);
 
         begin_memcpy = std::chrono::steady_clock::now();
-        std::memcpy(currentInputBufferLocation, constantIdToTensorData.at(id).mem, currentInputSize);
+        std::memcpy(currentInputBufferLocation, constantIdToTensorData.at(id)->data(), currentInputSize);
         end_memcpy = std::chrono::steady_clock::now();
         memcpy_duration =
             memcpy_duration + std::chrono::duration_cast<std::chrono::microseconds>(end_memcpy - begin_memcpy).count();
 
-        inputTensorsData.push_back({TensorData{currentInputBufferLocation, currentInputSize}});
+        inputTensors.push_back({ov::make_tensor(constantIdToTensorData.at(id)->get_element_type(),
+                                                constantIdToTensorData.at(id)->get_shape(),
+                                                currentInputBufferLocation,
+                                                constantIdToTensorData.at(id)->get_strides())});
         offset += currentInputSize;
     }
     end = std::chrono::steady_clock::now();
@@ -165,15 +176,14 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
     offset = 0;
     for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
         const auto currentOutputBufferLocation = static_cast<unsigned char*>(initOutputsTensor->data()) + offset;
-        const size_t currentOutputSize =
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
         const ov::SoPtr<ov::ITensor> hostTensor =
             ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
 
-        outputTensorsData.push_back(TensorData{currentOutputBufferLocation, currentOutputSize});
-        outputHostTensors.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
-        offset += currentOutputSize;
+        outputTensors.push_back(hostTensor._ptr);
+        outputTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
+        offset +=
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
     end = std::chrono::steady_clock::now();
     std::cout << "Creating output tensors "
@@ -194,8 +204,8 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
                                                      progilingPool,
                                                      profilingQuery,
                                                      nullptr,
-                                                     inputTensorsData,
-                                                     outputTensorsData,
+                                                     inputTensors,
+                                                     outputTensors,
                                                      groupOrdinal);
     begin = std::chrono::steady_clock::now();
     pipeline->push();
@@ -205,7 +215,7 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
               << "[microseconds]" << std::endl;
 
     return std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>>(
-        outputHostTensors,
+        outputTensorsMap,
         initOutputsTensor);
 }
 

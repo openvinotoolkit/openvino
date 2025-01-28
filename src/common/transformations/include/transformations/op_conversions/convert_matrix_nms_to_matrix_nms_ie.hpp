@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertMatrixNmsToMatrixNmsIE;
 
 class ov::pass::ConvertMatrixNmsToMatrixNmsIE : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMatrixNmsToMatrixNmsIE", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMatrixNmsToMatrixNmsIE");
     ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type = true);
 };

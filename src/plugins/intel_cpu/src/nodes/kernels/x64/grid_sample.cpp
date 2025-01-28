@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,7 @@ namespace kernel {
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp)
-    : GridSampleKernelBase(jit_name(), jcp, isa) {
-    vlen = x64::cpu_isa_traits<isa>::vlen;
-    dataTypeSize = jcp.inDataPrc.size();
-    gridTypeSize = jcp.gridPrc.size();
-    dataElPerVec = vlen / dataTypeSize;
-    gridElPerVec = vlen / gridTypeSize;
+    : GridSampleKernelBase(jit_name(), jcp, isa, x64::cpu_isa_traits<isa>::vlen) {
     if (dataTypeSize == 2)
         dataTypeShift = 1;
     else if (dataTypeSize == 4)

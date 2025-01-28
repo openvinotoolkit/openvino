@@ -41,7 +41,7 @@ bool ReorderKey::operator==(const ReorderKey& rhs) const {
     return retVal;
 }
 
-dnnl::reorder getReorderPrim(MultiCachePtr cache,
+dnnl::reorder getReorderPrim(const MultiCachePtr& cache,
                              const dnnl::engine& engine,
                              const dnnl::memory::desc& src,
                              const dnnl::memory::desc& dest) {

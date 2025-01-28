@@ -160,7 +160,8 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
         auto qcoeff_shape = matched_node_qcoeff->output(0).get_shape();
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
-             ov::element::i8 == matched_qweight->get_element_type()) &&
+             ov::element::i8 == matched_qweight->get_element_type() ||
+             ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();

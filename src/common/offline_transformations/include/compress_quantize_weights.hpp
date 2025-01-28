@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,6 +102,6 @@ public:
 
 class ov::pass::CompressQuantizeWeights : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("CompressQuantizeWeights", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("CompressQuantizeWeights");
     CompressQuantizeWeights();
 };

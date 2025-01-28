@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
 from inspect import signature
 from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args
 
-from openvino.runtime import Node, Output
+from openvino import Node, Output
 from openvino.utils.types import NodeInput, as_node, as_nodes
 
 

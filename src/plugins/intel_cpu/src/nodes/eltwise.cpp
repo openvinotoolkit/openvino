@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,6 +265,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
+              OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
               OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
@@ -341,8 +342,11 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                                                                                       reg_d_bias));
         }
 
-        if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2))
-            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
+            auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
+                                                        : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        }
 
         const auto& jep = jep_;
 
@@ -478,7 +482,11 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                     apply_post_ops(true, jep_.oc_size > 1 ? j * sizeof(float) : 0);
 
-                    store_scalar(ptr[reg_dst + j * jep.dst_prc.size()], xmm_dst, exec_prc, jep.dst_prc);
+                    store_scalar(ptr[reg_dst + j * jep.dst_prc.size()],
+                                 xmm_dst,
+                                 exec_prc,
+                                 jep.dst_prc,
+                                 jep.do_output_saturation);
                 }
 
                 for (size_t i = 0; i < jep.inputs_number; i++)
@@ -546,7 +554,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
             apply_post_ops(true);
 
-            store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc);
+            store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc, jep.do_output_saturation);
 
             for (size_t i = 0; i < jep.inputs_number; i++)
                 if (jep.src_size[i] != 1)
@@ -657,6 +665,7 @@ private:
                   OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
                   OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
                   OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
+                  OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
                   OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
                   OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
                   OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
@@ -1012,7 +1021,8 @@ private:
     inline void store_scalar(const Xbyak::Address& op,
                              Xmm xmm_dst,
                              ov::element::Type src_prc,
-                             ov::element::Type dst_prc) {
+                             ov::element::Type dst_prc,
+                             const bool do_output_saturation) {
         if (src_prc == dst_prc) {
             switch (src_prc.size()) {
             case 4:
@@ -1047,7 +1057,11 @@ private:
             uni_vmovss(op, xmm_dst);
             break;
         case ov::element::bf16:
-            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            if (do_output_saturation)
+                uni_vpsrld(xmm_dst, xmm_dst, 16);
+            else
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())},
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
             uni_vpextrw(op, xmm_dst, 0x0);
             break;
         case ov::element::f16:
@@ -1136,6 +1150,9 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         }},
         {ov::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseCeiling;
+        }},
+        {ov::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseNegative;
         }},
         {ov::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseFloor;
@@ -1355,6 +1372,7 @@ struct EltwiseKey {
     ov::element::Type outPrc;
     dnnl::post_ops postOps;
     EltwiseImplType implType;
+    bool doOutputSaturation;
 
     size_t hash() const {
         using namespace dnnl::impl;
@@ -1390,6 +1408,10 @@ struct EltwiseKey {
         seed = hash_combine(seed, outPrc.hash());
         seed = get_post_op_hash(seed, *postOps.get());
         seed = hash_combine(seed, implType);
+
+        if (outPrc == ov::element::bf16) {
+            seed = hash_combine(seed, doOutputSaturation);
+        }
         return seed;
     }
 
@@ -1416,6 +1438,8 @@ struct EltwiseKey {
                     result = result && (inpDims[i] == rhs.inpDims[i]);
                 }
             }
+            if (doOutputSaturation != rhs.doOutputSaturation)
+                return false;
         }
 
         return result;
@@ -1448,7 +1472,8 @@ public:
                        const std::vector<ov::element::Type>& inpPrc,
                        const ov::element::Type& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useRuntimePtrs) {
+                       bool useRuntimePtrs,
+                       bool doOutputSaturation) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
@@ -1639,6 +1664,7 @@ public:
         jep.dst_prc = outPrc;
         jep.work_amount = jep.dst_size = jep.dims.back();
         jep.oc_size = oc_size;
+        jep.do_output_saturation = doOutputSaturation;
 
         std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(), [](size_t& offset) {
             return offset * sizeof(float);
@@ -1745,7 +1771,7 @@ public:
     EltwiseRefBaseExecutor(const EltwiseData& opData,
                            const VectorDims& outBlkDims,
                            const std::vector<VectorDims>& inpDims)
-        : _opData(std::move(opData)),
+        : _opData(opData),
           _inpDims(inpDims) {
         if (inpDims.empty()) {
             OPENVINO_THROW("Can not make Eltwise executor from empty input dims array");
@@ -1958,6 +1984,9 @@ public:
                 case Algorithm::EltwiseFloor:
                     *dst_ptr_f = floorf(src_f[0]);
                     break;
+                case Algorithm::EltwiseNegative:
+                    *dst_ptr_f = -src_f[0];
+                    break;
                 case Algorithm::EltwiseFloorMod:
                     *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
                     break;
@@ -2160,7 +2189,8 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                 key.inpPrc,
                                                 key.outPrc,
                                                 key.postOps,
-                                                key.implType == EltwiseImplType::optimizedShapeAgnostic);
+                                                key.implType == EltwiseImplType::optimizedShapeAgnostic,
+                                                key.doOutputSaturation);
 }
 
 bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -2189,7 +2219,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, EltwiseShapeInferFactory()),
       broadcastingPolicy(Undefined) {
     std::string errorMessage;
@@ -2208,6 +2238,7 @@ size_t Eltwise::getOpInputsNum() const {
     case Algorithm::EltwiseGeluErf:
     case Algorithm::EltwiseGeluTanh:
     case Algorithm::EltwiseCeiling:
+    case Algorithm::EltwiseNegative:
     case Algorithm::EltwiseFloor:
     case Algorithm::EltwiseElu:
     case Algorithm::EltwiseTanh:
@@ -2862,6 +2893,18 @@ void Eltwise::prepareParams() {
             }
         }
 
+        // FP32 constant inputs may contain values out of BF16 representable range. In case output precision is BF16 we
+        // choose "saturation" mode for fp32->bf16 conversion procedure to prevent getting -Inf/+Inf values in the
+        // outputs. Since "saturation" conversion is more time consuming, better solution would be to clamp constants on
+        // compilation stage (ticket: 159589).
+        key.doOutputSaturation = false;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (getParentEdgeAt(i)->getParent()->isConstant()) {
+                key.doOutputSaturation = true;
+                break;
+            }
+        }
+
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, buildExecutor);
         execPtr = result.first;
@@ -2926,7 +2969,7 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
-void Eltwise::execute(dnnl::stream strm) {
+void Eltwise::execute(const dnnl::stream& strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         VectorDims dims_out =
@@ -2960,7 +3003,7 @@ void Eltwise::execute(dnnl::stream strm) {
     }
 }
 
-void Eltwise::executeDynamicImpl(dnnl::stream strm) {
+void Eltwise::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -3022,8 +3065,6 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
                                 const VectorDims& postOpDims,
                                 std::vector<T>& postOpsMem,
                                 const int channelAxis) {
-    const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
-
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
         switch (getOneDnnAlgorithm()) {
         case dnnl::algorithm::eltwise_relu:
@@ -3048,7 +3089,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("Appending Eltwise node with name '", getName(), "' as post operation is not supported");
         }
     } else {
         // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
@@ -3076,7 +3117,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             if (scales.size() == 1) {
                 depthwiseData.resize(channelSize, depthwiseData.back());
             } else if (scales.size() != channelSize) {
-                OPENVINO_THROW(errorPrefix, "failed due to scales data size inconsistency");
+                OPENVINO_THROW("Appending Eltwise node with name '",
+                               getName(),
+                               "' failed due to scales data size inconsistency");
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
             if (shifts.empty()) {
@@ -3085,7 +3128,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             } else if (shifts.size() == 1) {
                 depthwiseData.resize(2 * channelSize, depthwiseData.back());
             } else if (shifts.size() != channelSize) {
-                OPENVINO_THROW(errorPrefix, "failed due to shifts data size inconsistency");
+                OPENVINO_THROW("Appending Eltwise node with name '",
+                               getName(),
+                               "' failed due to shifts data size inconsistency");
             }
             depthwiseDataSize = 2 * channelSize;
 
@@ -3096,7 +3141,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         }
 
         if (depthwiseData.empty())
-            OPENVINO_THROW(errorPrefix, "cannot be performed since buffers are not allocated");
+            THROW_CPU_NODE_ERR("cannot be performed since buffers are not allocated");
 
         std::array<size_t, 2> offsets = {0};
         offsets[1] = offsets[0] + channelSize;
@@ -3117,7 +3162,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             ops.append_depthwise(dnnl::algorithm::depthwise_prelu, offsets);
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("as post operation is not supported");
         }
 
         appendMemory(depthwiseData, depthwiseMemory, postOpsMem);
@@ -3149,8 +3194,6 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                                 bool isLastPostOp,
                                 dnnl::memory::data_type outDataType,
                                 bool allowBinary) {
-    const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' as binary post op ";
-
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
         switch (getOneDnnAlgorithm()) {
         case dnnl::algorithm::eltwise_relu:
@@ -3178,7 +3221,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("as post operation is not supported");
         }
     } else {
         switch (getAlgorithm()) {
@@ -3205,7 +3248,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
             break;
         default:
-            OPENVINO_THROW(errorPrefix, "as post operation is not supported");
+            THROW_CPU_NODE_ERR("as post operation is not supported");
         }
     }
     return true;

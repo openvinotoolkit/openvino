@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
 from datetime import datetime
 
-from openvino.runtime import Dimension,properties
+from openvino import Dimension, properties
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
@@ -49,8 +49,9 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision.")
 
-    if args.api_type == "sync" and args.number_infer_requests > args.number_iterations:
-        raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
+    if args.api_type == "sync":
+        if args.time == 0 and (args.number_infer_requests > args.number_iterations):
+            raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
 
     return args, is_network_compiled
 
@@ -288,11 +289,6 @@ def main():
                 return
 
             def set_nthreads_pin(property_name, property_value):
-                if property_name == properties.affinity():
-                    if property_value == "YES":
-                        property_value = properties.Affinity.CORE
-                    elif property_value == "NO":
-                        property_value = properties.Affinity.NONE
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
@@ -309,7 +305,7 @@ def main():
 
             if is_flag_set_in_command_line('pin'):
                 ## set for CPU to user defined value
-                set_nthreads_pin(properties.affinity(), args.infer_threads_pinning)
+                set_nthreads_pin(properties.hint.enable_cpu_pinning(), args.infer_threads_pinning)
 
             set_throughput_streams()
             set_infer_precision()

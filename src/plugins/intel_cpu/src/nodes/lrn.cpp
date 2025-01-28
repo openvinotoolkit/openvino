@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,12 +109,10 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "LRN node with name '" + getName() + "'";
-
         auto lrn = ov::as_type_ptr<const ov::opset1::LRN>(op);
         auto axes =
             ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
@@ -134,9 +132,9 @@ void Lrn::getSupportedDescriptors() {
         return;
 
     if (getParentEdges().size() != 2)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
 
     ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
     if (precision != ov::element::f32 && precision != ov::element::bf16)
@@ -166,13 +164,13 @@ void Lrn::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, " input memory is undefined");
+        THROW_CPU_NODE_ERR("input memory is undefined");
     if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW(errorPrefix, "destination memory is undefined");
+        THROW_CPU_NODE_ERR("destination memory is undefined");
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
-        OPENVINO_THROW(errorPrefix, "preferable primitive descriptor did not set");
+        THROW_CPU_NODE_ERR("preferable primitive descriptor did not set");
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -242,15 +240,15 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc, const st
     descs.push_back(desc);
 }
 
-void Lrn::execute(dnnl::stream strm) {
+void Lrn::execute(const dnnl::stream& strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {
-        OPENVINO_THROW(errorPrefix, " doesn't have an initialized executor");
+        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
     }
 }
 
-void Lrn::executeDynamicImpl(dnnl::stream strm) {
+void Lrn::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

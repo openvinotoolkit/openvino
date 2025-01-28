@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "experimental_detectron_detection_output.h"
@@ -15,13 +16,12 @@ namespace intel_cpu {
 namespace node {
 
 struct Indexer {
-    const std::vector<int> dims_;
+    std::vector<int> dims_;
     int total_{1};
 
-    explicit Indexer(const std::vector<int>& dims) : dims_(dims) {
-        total_ = 1;
-        for (size_t i = 0; i < dims_.size(); ++i) {
-            total_ *= dims_[i];
+    explicit Indexer(std::vector<int> dims) : dims_(std::move(dims)), total_(1) {
+        for (const auto dim : dims_) {
+            total_ *= dim;
         }
     }
 
@@ -246,7 +246,7 @@ bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::share
 }
 
 ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const std::shared_ptr<ov::Node>& op,
-                                                                           const GraphContext::CPtr context)
+                                                                           const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -281,7 +281,7 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
+void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));

@@ -51,38 +51,38 @@ namespace intel_cpu {
 
 class ConvertReduceMultiAxisBase : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceMultiAxisBase");
     template <class T>
     ov::matcher_pass_callback convert_reduce();
 };
 
 class ConvertReduceProd : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceProd", "0");
+    OPENVINO_RTTI("ConvertReduceProd", "0", ConvertReduceMultiAxisBase);
     ConvertReduceProd();
 };
 
 class ConvertReduceMin : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMin", "0");
+    OPENVINO_RTTI("ConvertReduceMin", "0", ConvertReduceMultiAxisBase);
     ConvertReduceMin();
 };
 
 class ConvertReduceMax : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMax", "0");
+    OPENVINO_RTTI("ConvertReduceMax", "0", ConvertReduceMultiAxisBase);
     ConvertReduceMax();
 };
 
 class ConvertReduceSum : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSum", "0");
+    OPENVINO_RTTI("ConvertReduceSum", "0", ConvertReduceMultiAxisBase);
     ConvertReduceSum();
 };
 
 class ConvertReduceMultiAxis : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxis", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceMultiAxis");
     ConvertReduceMultiAxis() {
         add_matcher<ConvertReduceProd>();
         add_matcher<ConvertReduceMin>();

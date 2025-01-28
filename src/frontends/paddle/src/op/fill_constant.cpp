@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,10 @@ NamedOutputs fill_constant(const NodeContext& node) {
         value_node = opset6::Constant::create(dtype, {1}, {value});
     } else {
         PADDLE_OP_CHECK(node, false, "fill_constant only supports i32, f32, i64");
+    }
+
+    if (shape.empty()) {
+        shape.emplace_back(1);
     }
 
     PADDLE_OP_CHECK(node,

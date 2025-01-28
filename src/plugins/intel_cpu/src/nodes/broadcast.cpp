@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,28 +50,27 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "Broadcast node with name '" + op->get_friendly_name() + "' ";
     if (op->get_input_size() != 2 && op->get_input_size() != 3)
-        OPENVINO_THROW(errorPrefix, "has incorrect number of input edges: ", getParentEdges().size());
+        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     if (op->get_output_size() == 0)
-        OPENVINO_THROW(errorPrefix, "has no output edges.");
+        THROW_CPU_NODE_ERR("has no output edges.");
 
     auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
     if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
         broadcastType = NUMPY;
     } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
         if (op->get_input_size() <= AXES_MAPPING_IDX)
-            OPENVINO_THROW(errorPrefix, " and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
+            THROW_CPU_NODE_ERR("and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
         broadcastType = EXPLICIT;
     } else {
-        OPENVINO_THROW(errorPrefix, "has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
+        THROW_CPU_NODE_ERR("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
     }
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
@@ -190,11 +189,11 @@ bool Broadcast::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void Broadcast::executeDynamicImpl(dnnl::stream strm) {
+void Broadcast::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Broadcast::execute(dnnl::stream strm) {
+void Broadcast::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
         optimizedExecute(getSrcMemoryAtPort(INPUT_DATA_IDX), getDstMemoryAtPort(0));
     } else {
@@ -202,7 +201,7 @@ void Broadcast::execute(dnnl::stream strm) {
     }
 }
 
-void Broadcast::plainExecute(dnnl::stream strm) {
+void Broadcast::plainExecute(const dnnl::stream& strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getShape().getRank();

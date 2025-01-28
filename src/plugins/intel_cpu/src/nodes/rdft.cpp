@@ -74,7 +74,7 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape,
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -151,7 +151,7 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void RDFT::execute(dnnl::stream strm) {
+void RDFT::execute(const dnnl::stream& strm) {
     const auto& inputMem = getParentEdgeAt(DATA_INDEX)->getMemory();
     const auto& outputMem = getChildEdgeAt(0)->getMemory();
     const auto& inputShape = inputMem.getStaticDims();
@@ -177,7 +177,7 @@ void RDFT::execute(dnnl::stream strm) {
                       outputStrides);
 }
 
-void RDFT::executeDynamicImpl(dnnl::stream strm) {
+void RDFT::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -838,17 +838,20 @@ struct RDFTJitExecutor : public RDFTExecutor {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
-            primDesc->setImplementationType(jit_avx512);
+            if (primDesc)
+                primDesc->setImplementationType(jit_avx512);
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
-            primDesc->setImplementationType(jit_avx2);
+            if (primDesc)
+                primDesc->setImplementationType(jit_avx2);
         } else if (mayiuse(cpu::x64::sse41)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
-            primDesc->setImplementationType(jit_sse42);
+            if (primDesc)
+                primDesc->setImplementationType(jit_sse42);
         } else {
             OPENVINO_THROW("Can't create RDFT kernel");
         }
@@ -1075,22 +1078,6 @@ private:
     }
 };
 
-struct RDFTKey {
-    bool isInverse;
-
-    size_t hash() const {
-        using namespace dnnl::impl::primitive_hashing;
-
-        size_t seed = 0;
-        seed = hash_combine(seed, isInverse);
-        return seed;
-    }
-
-    bool operator==(const RDFTKey& rhs) const {
-        return isInverse == rhs.isInverse;
-    }
-};
-
 void RDFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = inverse;
@@ -1115,6 +1102,22 @@ void RDFT::createPrimitive() {
 
     Node::createPrimitive();
 }
+
+std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDesc) {
+    std::shared_ptr<RDFTExecutor> executor;
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::cpu::x64;
+    if (mayiuse(cpu::x64::sse41)) {
+        executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc);
+        return executor;
+    }
+#endif
+    executor = std::make_shared<RDFTRefExecutor>(inverse);
+    primDesc->setImplementationType(ref_any);
+    return executor;
+}
+
 }  // namespace node
 }  // namespace intel_cpu
 }  // namespace ov

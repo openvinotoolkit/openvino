@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/runtime.hpp"
+#include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -122,12 +123,14 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-
     if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0) {
         _graph->custom_export(stream, _initGraph, _initModel);
         return;
     }
-    _graph->export_blob(stream);
+
+    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, ov::get_openvino_version().buildNumber);
+    meta.write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -314,6 +317,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
+        {ov::intel_npu::compiler_dynamic_quantization.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
           }}},
         {ov::intel_npu::turbo.name(),
          {isPropertySupported(ov::intel_npu::turbo.name()),

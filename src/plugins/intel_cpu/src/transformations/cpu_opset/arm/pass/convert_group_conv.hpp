@@ -61,7 +61,7 @@ namespace intel_cpu {
 
 class ConvertGroupConvolution : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGroupConvolution", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGroupConvolution");
     ConvertGroupConvolution();
 };
 }  // namespace intel_cpu

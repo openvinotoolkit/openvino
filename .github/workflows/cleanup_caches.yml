@@ -4,7 +4,7 @@ on:
   schedule:
     # at 00:00 on the 1st day of every month
     - cron: '0 0 1 * *'
- 
+
 permissions: read-all
 
 jobs:
@@ -61,8 +61,8 @@ jobs:
           cache-path: ${{ env.CCACHE_PATH }}
           recursive: true
           key: '.'
-          
-          
+
+
   Cleanup_ccache_win:
     name: Cleanup Windows ccache
     runs-on: 'aks-win-4-cores-8gb'

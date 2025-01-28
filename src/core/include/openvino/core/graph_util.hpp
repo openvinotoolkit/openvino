@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/serialize.hpp"
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 #    include <filesystem>
 #endif
 
@@ -299,7 +299,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& bin_path = "",
                ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED);
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
 void serialize(const std::shared_ptr<const ov::Model>& m,
                const Path& xml_path,
@@ -312,7 +312,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 
 /// \brief Save given model into IR. Floating point weights are compressed to FP16 by default.
 /// This method saves a model to IR applying all necessary transformations that usually applied
-/// in model conversion flow provided by mo tool. Particularly, floating point weights are compressed to FP16.
+/// in model conversion flow provided by OVC tool. Particularly, floating point weights are compressed to FP16.
 /// \param model Model which will be converted to IR representation.
 /// \param output_model Path to the output model file, must have extension .xml
 /// \param compress_to_fp16 Whether to compress floating point weights to FP16 (true by default)
@@ -327,7 +327,7 @@ void save_model(const std::shared_ptr<const ov::Model>& model,
                 bool compress_to_fp16 = true);
 #endif
 
-#ifdef OPENVINO_CPP_VER_17
+#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
 void save_model(const std::shared_ptr<const ov::Model>& model, const Path& output_model, bool compress_to_fp16 = true) {
     save_model(model, output_model.string(), compress_to_fp16);

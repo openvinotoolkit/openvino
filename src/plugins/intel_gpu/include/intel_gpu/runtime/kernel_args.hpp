@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,11 @@ namespace cldnn {
 struct work_group_sizes {
     std::vector<size_t> global;
     std::vector<size_t> local;
+};
+
+enum class kernel_language {
+    OCLC,
+    CM,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,8 +127,10 @@ struct kernel_string {
     std::string entry_point;
     bool batch_compilation;
     bool has_microkernels;
+    kernel_language language;
 
-    kernel_string() : str(""), jit(""), undefs(""), options(""), entry_point(""), batch_compilation(false), has_microkernels(false) {}
+    kernel_string() : str(""), jit(""), undefs(""), options(""), entry_point(""),
+    batch_compilation(false), has_microkernels(false), language(kernel_language::OCLC) {}
 
     std::string get_str() const { return str + jit + undefs + options + entry_point; }
     size_t get_hash() const { return std::hash<std::string>()(get_str()); }

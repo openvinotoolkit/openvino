@@ -156,6 +156,16 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_jax_layer_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]

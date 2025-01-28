@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // Copyright (c) Facebook, Inc. and its affiliates.
@@ -221,7 +221,7 @@ void NonMaxSuppression::createJitKernel() {
 #endif  // OPENVINO_ARCH_X86_64
 }
 
-void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
+void NonMaxSuppression::executeDynamicImpl(const dnnl::stream& strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAX_OUTPUT_BOXES_PER_CLASS &&
                                    getSrcDataAtPortAs<int>(NMS_MAX_OUTPUT_BOXES_PER_CLASS)[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
@@ -231,7 +231,7 @@ void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void NonMaxSuppression::execute(dnnl::stream strm) {
+void NonMaxSuppression::execute(const dnnl::stream& strm) {
     const auto inputs_num = inputShapes.size();
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
                 const Config& config,
                 std::optional<std::vector<uint8_t>> blob);
 
-    void export_blob(std::ostream& stream) const override;
+    size_t export_blob(std::ostream& stream) const override;
 
     void custom_export(std::ostream& stream,
                        const std::shared_ptr<IGraph> initGraph,

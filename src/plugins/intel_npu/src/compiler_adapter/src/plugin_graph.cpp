@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,22 +69,21 @@ void PluginGraph::custom_export(std::ostream& stream,
     } else {
         if (_logger.level() >= ov::log::Level::INFO) {
             std::stringstream str;
-            str << "Blob size: " << _blob.size() + initBlob.size()
-                << std::endl;
-            str << "Blob size with weights: " << _blob.size() + initBlob.size() + 4 * sizeof(uint32_t) + xmlSize + binSize
-                << std::endl;
+            str << "Blob size: " << _blob.size() + initBlob.size() << std::endl;
+            str << "Blob size with weights: "
+                << _blob.size() + initBlob.size() + 4 * sizeof(uint32_t) + xmlSize + binSize << std::endl;
             _logger.info(str.str().c_str());
         }
         _logger.info("Write blob to stream successfully.");
     }
 }
 
-void PluginGraph::export_blob(std::ostream& stream) const {
+size_t PluginGraph::export_blob(std::ostream& stream) const {
     stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return;
+        return 0;
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -98,6 +97,7 @@ void PluginGraph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
+    return _blob.size();
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,

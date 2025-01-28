@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory_control.hpp"
 
 #include <ov_optional.hpp>
+#include <utility>
 
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
@@ -16,7 +17,9 @@ namespace {
 
 class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
 public:
-    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset) : m_pBlock(pBlock), m_offset(offset) {
+    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
+        : m_pBlock(std::move(pBlock)),
+          m_offset(offset) {
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
@@ -186,7 +189,7 @@ public:
                 }
             }
         }
-        m_boxes.emplace_back(std::move(box));
+        m_boxes.emplace_back(box);
     }
 
     const MemoryControl::MemoryBlockMap& lastSolution() override {
@@ -410,7 +413,7 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
 }
 
 MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
-    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
+    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(std::move(syncInds))));
     return *(m_controlUnits.back());
 }
 

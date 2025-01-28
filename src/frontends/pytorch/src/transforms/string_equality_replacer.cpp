@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,7 @@ StringEqualityReplacer::StringEqualityReplacer() {
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
 
-        auto lhs_node =
-            std::dynamic_pointer_cast<PtFrameworkNode>(pattern_map.at(framework_node_lhs).get_node_shared_ptr());
+        auto lhs_node = ov::as_type_ptr<PtFrameworkNode>(pattern_map.at(framework_node_lhs).get_node_shared_ptr());
         if (!lhs_node) {
             return false;
         }
@@ -45,8 +44,7 @@ StringEqualityReplacer::StringEqualityReplacer() {
         }
         std::string lhs = lhs_attrs.at("string_value");
 
-        auto rhs_node =
-            std::dynamic_pointer_cast<PtFrameworkNode>(pattern_map.at(framework_node_rhs).get_node_shared_ptr());
+        auto rhs_node = ov::as_type_ptr<PtFrameworkNode>(pattern_map.at(framework_node_rhs).get_node_shared_ptr());
         if (!rhs_node) {
             return false;
         }
@@ -57,14 +55,14 @@ StringEqualityReplacer::StringEqualityReplacer() {
         std::string rhs = rhs_attrs.at("string_value");
 
         auto equal_node = pattern_map.at(equal_op).get_node_shared_ptr();
-        if (auto equal = std::dynamic_pointer_cast<v1::Equal>(equal_node)) {
+        if (auto equal = ov::as_type_ptr<v1::Equal>(equal_node)) {
             auto const_result = v0::Constant::create(element::boolean, Shape{}, {lhs == rhs});
             copy_runtime_info_and_name(equal_node, {const_result});
             replace_node(equal_node, const_result);
             return true;
         };
         auto not_equal_node = pattern_map.at(not_equal_op).get_node_shared_ptr();
-        if (auto equal = std::dynamic_pointer_cast<v1::NotEqual>(not_equal_node)) {
+        if (auto equal = ov::as_type_ptr<v1::NotEqual>(not_equal_node)) {
             auto const_result = v0::Constant::create(element::boolean, Shape{}, {lhs != rhs});
             copy_runtime_info_and_name(equal_node, {const_result});
             replace_node(equal_node, const_result);

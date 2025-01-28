@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -25,7 +26,7 @@ void regclass_graph_op_If(py::module m) {
             Constructs If with condition.
 
             :param execution_condition: condition node.
-            :type execution_condition: openvino.runtime.Output
+            :type execution_condition: openvino.Output
 
             :rtype: openvino.impl.op.If
         )");
@@ -44,7 +45,7 @@ void regclass_graph_op_If(py::module m) {
             Constructs If with condition.
 
             :param execution_condition: condition node.
-            :type execution_condition: openvino.runtime.Node
+            :type execution_condition: openvino.Node
 
             :rtype: openvino.impl.op.If
         )");
@@ -53,7 +54,7 @@ void regclass_graph_op_If(py::module m) {
         "get_then_body",
         [](ov::op::v8::If& self) {
             auto model = self.get_then_body();
-            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            py::type model_class = py::module_::import("openvino").attr("Model");
             return model_class(py::cast(model));
         },
         R"(
@@ -67,7 +68,7 @@ void regclass_graph_op_If(py::module m) {
         "get_else_body",
         [](ov::op::v8::If& self) {
             auto model = self.get_else_body();
-            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            py::type model_class = py::module_::import("openvino").attr("Model");
             return model_class(py::cast(model));
         },
         R"(
@@ -77,10 +78,14 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.Model
         )");
 
-    cls.def("set_then_body",
-            &ov::op::v8::If::set_then_body,
-            py::arg("body"),
-            R"(
+    cls.def(
+        "set_then_body",
+        [](const std::shared_ptr<ov::op::v8::If>& self, const py::object& ie_api_model) {
+            const auto body = Common::utils::convert_to_model(ie_api_model);
+            return self->set_then_body(body);
+        },
+        py::arg("body"),
+        R"(
             Sets new Model object as new then_body.
 
             :param body: new body for 'then' branch.
@@ -89,10 +94,14 @@ void regclass_graph_op_If(py::module m) {
             :rtype: None
         )");
 
-    cls.def("set_else_body",
-            &ov::op::v8::If::set_else_body,
-            py::arg("body"),
-            R"(
+    cls.def(
+        "set_else_body",
+        [](const std::shared_ptr<ov::op::v8::If>& self, const py::object& ie_api_model) {
+            const auto body = Common::utils::convert_to_model(ie_api_model);
+            return self->set_else_body(body);
+        },
+        py::arg("body"),
+        R"(
             Sets new Model object as new else_body.
 
             :param body: new body for 'else' branch.
@@ -110,13 +119,13 @@ void regclass_graph_op_If(py::module m) {
             Sets new input to the operation associated with parameters of each sub-graphs.
 
             :param value: input to operation.
-            :type value: openvino.runtime.Output
+            :type value: openvino.Output
 
             :param then_result: parameter for then_body or nullptr.
-            :type then_result: openvino.runtime.Node
+            :type then_result: openvino.Node
 
             :param else_result: parameter for else_body or nullptr.
-            :type else_result: openvino.runtime.Node
+            :type else_result: openvino.Node
 
             :rtype: None
         )");
@@ -135,14 +144,14 @@ void regclass_graph_op_If(py::module m) {
             :type else_result: op.Result
 
             :return: output from operation.
-            :rtype: openvino.runtime.Output
+            :rtype: openvino.Output
         )");
 
     cls.def(
         "get_function",
         [](ov::op::v8::If& self, size_t index) {
             auto model = self.get_function(index);
-            py::type model_class = py::module_::import("openvino.runtime").attr("Model");
+            py::type model_class = py::module_::import("openvino").attr("Model");
             return model_class(py::cast(model));
         },
         py::arg("index"),
@@ -156,11 +165,15 @@ void regclass_graph_op_If(py::module m) {
             :rtype: openvino.Model
         )");
 
-    cls.def("set_function",
-            &ov::op::util::MultiSubGraphOp::set_function,
-            py::arg("index"),
-            py::arg("func"),
-            R"(
+    cls.def(
+        "set_function",
+        [](const std::shared_ptr<ov::op::v8::If>& self, int index, const py::object& ie_api_model) {
+            const auto func = Common::utils::convert_to_model(ie_api_model);
+            self->set_function(index, func);
+        },
+        py::arg("index"),
+        py::arg("func"),
+        R"(
             Adds sub-graph to MultiSubGraphOp.
 
             :param index: index of new sub-graph.
@@ -186,9 +199,9 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :param inputs: list of input descriptions.
-            :type inputs: list[Union[openvino.runtime.op.util.MergedInputDescription,
-                                     openvino.runtime.op.util.InvariantInputDescription,
-                                     openvino.runtime.op.util.SliceInputDescription]]
+            :type inputs: list[Union[openvino.op.util.MergedInputDescription,
+                                     openvino.op.util.InvariantInputDescription,
+                                     openvino.op.util.SliceInputDescription]]
 
             :rtype: None
         )");
@@ -207,8 +220,8 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :param outputs: list of output descriptions.
-            :type outputs: list[Union[openvino.runtime.op.util.BodyOutputDescription,
-                                      openvino.runtime.op.util.ConcatOutputDescription]]
+            :type outputs: list[Union[openvino.op.util.BodyOutputDescription,
+                                      openvino.op.util.ConcatOutputDescription]]
 
             :rtype: None
         )");
@@ -232,8 +245,8 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :return: list of output descriptions.
-            :rtype: list[Union[openvino.runtime.op.util.BodyOutputDescription,
-                              openvino.runtime.op.util.ConcatOutputDescription]]
+            :rtype: list[Union[openvino.op.util.BodyOutputDescription,
+                              openvino.op.util.ConcatOutputDescription]]
         )");
 
     cls.def(
@@ -255,9 +268,9 @@ void regclass_graph_op_If(py::module m) {
             :type index: int
 
             :return: list of input descriptions.
-            :rtype: list[Union[openvino.runtime.op.util.MergedInputDescription,
-                               openvino.runtime.op.util.InvariantInputDescription,
-                               openvino.runtime.op.util.SliceInputDescription]]
+            :rtype: list[Union[openvino.op.util.MergedInputDescription,
+                               openvino.op.util.InvariantInputDescription,
+                               openvino.op.util.SliceInputDescription]]
         )");
 
     cls.def("__repr__", [](const ov::op::v8::If& self) {

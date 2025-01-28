@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
@@ -345,7 +345,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
 bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& node) {
     if (!ov::is_type<ov::op::v1::Add>(node))
         return false;
-    auto isFusedBiasNode = [](std::shared_ptr<Node> n) {
+    auto isFusedBiasNode = [](const std::shared_ptr<Node>& n) {
         if (!(ov::is_type<ov::op::v1::Add>(n) && GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution))
             return false;
         const auto conv = n->get_input_source_output(0);
@@ -372,7 +372,7 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
                conv_shape[channelAxis].get_length() == static_cast<int64_t>(bias_norm_dims[channelAxis]) &&
                bias_norm_dims[channelAxis] == static_cast<size_t>(shape_size(bias_norm_dims));
     };
-    auto isFusedFQNode = [&isFusedBiasNode](std::shared_ptr<Node> n) {
+    auto isFusedFQNode = [&isFusedBiasNode](const std::shared_ptr<Node>& n) {
         if (!(ov::is_type<ov::op::v0::FakeQuantize>(n) && GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution))
             return false;
         const auto& parent = n->get_input_node_shared_ptr(0);
@@ -486,11 +486,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);
             channelAxis = DEFAULT_AXIS;
         } else if (isSuitableReduceParent(node)) {
-            const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(node);
+            const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(node);
             channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
             SetNodeFusingType(node, NodeFusingType::FusedWithReduce);
         } else if (isSuitableMiscParent(node)) {
-            if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(node)) {
+            if (const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(node)) {
                 channelAxis = getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
             } else {
                 channelAxis = DEFAULT_AXIS;

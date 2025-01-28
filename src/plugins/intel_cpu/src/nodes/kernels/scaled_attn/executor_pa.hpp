@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -17,7 +17,11 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type, ov::element::Type kvcache_type);
+std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
+                                                         ov::element::Type key_cache_type,
+                                                         ov::element::Type value_cache_type,
+                                                         size_t key_group_size,
+                                                         size_t value_group_size);
 
 }  // namespace XARCH
 }  // namespace Cpu

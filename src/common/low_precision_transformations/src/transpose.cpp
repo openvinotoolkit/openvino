@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
@@ -83,15 +83,15 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
 
 } // namespace
 
-bool TransposeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool TransposeTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();
-    if (!canBeTransformed(context, transpose)) {
+    if (!canBeTransformed(transpose)) {
         return false;
     }
 
     transpose = NetworkHelper::separateInStandaloneBranch(transpose, defaultPrecisions);
     transposeDequantizationConstant(transpose, defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0));
+    const auto newOperation = moveDequantizationAfter(transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
@@ -101,8 +101,8 @@ bool TransposeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) con
     return true;
 }
 
-bool TransposeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
+bool TransposeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformed(op)) {
         return false;
     }
 

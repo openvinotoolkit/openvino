@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Callable
 
-from openvino.runtime import PartialShape  # pylint: disable=no-name-in-module,import-error
+from openvino import PartialShape  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.utils import refer_to_faq_msg
 
@@ -62,7 +62,7 @@ def get_dimension_index_by_label(input_shape: PartialShape, input_names: list, l
             layout = layout_value.get('source_layout', None)
             if layout is None:
                 return default_dim, True
-            from openvino.runtime import Layout  # pylint: disable=no-name-in-module,import-error
+            from openvino import Layout  # pylint: disable=no-name-in-module,import-error
             layout_parsed = Layout(layout)
             if layout_parsed.has_name(dimension_label):
                 return layout_parsed.get_index_by_name(dimension_label), False

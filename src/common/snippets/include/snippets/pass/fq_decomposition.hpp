@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,8 @@ public:
  */
 class CommonFakeQuantizeDecomposition: public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::CommonFakeQuantizeDecomposition");
+
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     static bool is_supported_fq(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq);

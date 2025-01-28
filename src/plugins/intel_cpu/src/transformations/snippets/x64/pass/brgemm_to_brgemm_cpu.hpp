@@ -34,7 +34,7 @@ namespace pass {
  */
 class BrgemmToBrgemmCPU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BrgemmToBrgemmCPU", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BrgemmToBrgemmCPU");
     BrgemmToBrgemmCPU();
 };
 

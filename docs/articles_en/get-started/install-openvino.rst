@@ -35,8 +35,8 @@ All currently supported versions are:
    A new OpenVINO GenAI Flavor streamlines application development by providing
    LLM-specific interfaces for easy integration of language models, handling tokenization and
    text generation. For installation and usage instructions, proceed to
-   :doc:`Install OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>` and
-   :doc:`Run LLMs with OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>`.
+   :doc:`Install OpenVINO GenAI Flavor <../openvino-workflow-generative>` and
+   :doc:`Run LLMs with OpenVINO GenAI Flavor <../openvino-workflow-generative/inference-with-genai>`.
 
 .. dropdown:: Building OpenVINO from Source
 

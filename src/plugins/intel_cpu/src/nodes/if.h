@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,20 +17,20 @@ namespace node {
 
 class If : public Node {
 public:
-    If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool isExecutable() const override {
         return true;
     }
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool needPrepareParams() const override {
         return false;
     };
@@ -51,9 +51,9 @@ private:
 
     class PortMapHelper {
     public:
-        PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng);
+        PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const dnnl::engine& eng);
         ~PortMapHelper() = default;
-        void execute(dnnl::stream& strm);
+        void execute(const dnnl::stream& strm);
 
     private:
         void redefineTo();
