@@ -409,7 +409,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 .. note::
 
-   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../get-started/configurations/configurations-intel-gpu>`, as described earlier on this page.
+   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../get-started/install-openvino/configurations/configurations-intel-gpu>`, as described earlier on this page.
    * Running on GPU is not compatible with macOS.
 
 .. tab-set::
