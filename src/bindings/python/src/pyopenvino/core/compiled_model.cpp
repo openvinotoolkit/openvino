@@ -81,13 +81,20 @@ void regclass_CompiledModel(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            std::stringstream _stream;
+
+            py::buffer_info info;
+
+            info = py::buffer(model_stream.attr("getbuffer")()).request();
+
+            Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
+            std::ostream _stream(&mb);
+
             {
                 py::gil_scoped_release release;
                 self.export_model(_stream);
             }
             model_stream.attr("flush")();
-            model_stream.attr("write")(py::bytes(_stream.str()));
+            //model_stream.attr("write")(py::bytes(_stream.str()));
             model_stream.attr("seek")(0);  // Always rewind stream!
         },
         py::arg("model_stream"),
