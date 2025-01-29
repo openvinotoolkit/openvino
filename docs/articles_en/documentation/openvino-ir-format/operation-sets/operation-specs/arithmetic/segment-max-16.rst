@@ -40,9 +40,9 @@ For ``empty_segment_value`` equal to 0, the operator output would be ``[max(Segm
 
 * **1**: ``data`` - ND tensor of type *T*, the numerical data on which SegmentMax operation will be performed. **Required.**
 
-* **2**: ``segment_ids`` - 1D Tensor of sorted non-negative numbers of type *T_IDX*. Its size is equal to the size of the first dimension of the ``data`` input tensor. The values must be smaller than ``num_segments``. **Required.**
+* **2**: ``segment_ids`` - 1D Tensor of sorted non-negative numbers of type *T_IDX1*. Its size is equal to the size of the first dimension of the ``data`` input tensor. The values must be smaller than ``num_segments``. **Required.**
 
-* **3**: ``num_segments`` - A scalar value of type *T_IDX* representing the segments count, used for shape inference. **Optional.**
+* **3**: ``num_segments`` - A scalar value of type *T_IDX2* representing the segments count, used for shape inference. **Optional.**
 
 **Outputs**
 
