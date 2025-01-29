@@ -27,8 +27,8 @@ const testModels = {
       'https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin',
   },
   modelV3Small: {
-    xml: 'v3-small_224_1.0_float.xml',
-    bin: 'v3-small_224_1.0_float.bin',
+    xml: getModelPath('v3-small_224_1.0_float.xml'),
+    bin: getModelPath('v3-small_224_1.0_float.bin'),
     inputShape: [1, 224, 224, 3],
     outputShape: [1, 1001],
     xmlURL:
