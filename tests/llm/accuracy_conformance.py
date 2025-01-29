@@ -33,8 +33,8 @@ ACCURACY_THRESHOLDS = {
     "INT4": 0.05,
 }
 
-tmp_dir = tempfile.mkdtemp()
-
+tmp_dir = tempfile.mkdtemp(dir=os.getcwd())
+logger.info(f"Created temporary directory: {tmp_dir}")
 
 def init_test_scope():
     test_scope = []
@@ -86,7 +86,7 @@ def init_test_scope():
 
 
 def teardown_module():
-    logger.info("Remove models")
+    logger.info(f"Deleting temporary directory: {tmp_dir}")
     shutil.rmtree(tmp_dir)
 
 
