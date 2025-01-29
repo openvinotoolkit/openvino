@@ -17,11 +17,14 @@ namespace op {
 /// \brief Modes for the `Pad` operator.
 enum class PadMode { CONSTANT = 0, EDGE, REFLECT, SYMMETRIC };
 
-/// \brief Fill modes for the `SegmentMax` operator.
-enum class FillMode { ZEROS = 0, LOWEST};
-
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const PadMode& type);
+
+/// \brief Fill modes for the `SegmentMax` operator.
+enum class FillMode { ZERO = 0, LOWEST };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const FillMode& type);
 
 /// \brief Padding Type used for `Convolution` and `Pooling`
 ///

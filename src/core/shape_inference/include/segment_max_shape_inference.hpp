@@ -60,22 +60,25 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
                                num_segments_shape.rank().compatible(0),
                                "num_segments must be a scalar input. Got: ",
                                num_segments_shape);
-        if (num_segments) {
+        if (num_segments && is_data_shape_rank_static) {
             output_shape[0] = (*num_segments)[0];
             return output_shapes;
         }
     }
 
     // if num_segments is not given, attempt to infer the first dimension from segment_ids
-    if (is_segment_ids_rank_static) {
-        if (segment_ids) { //TODO: collapse if
+    if (segment_ids && is_data_shape_rank_static) {
+        auto max_segment_id = *std::max_element(segment_ids->begin(), segment_ids->end());
+        output_shape[0] = max_segment_id + 1;
+        return output_shapes;
+    }
+
+    if (is_data_shape_rank_static) {
+        if (segment_ids) {
             auto max_segment_id = *std::max_element(segment_ids->begin(), segment_ids->end());
             output_shape[0] = max_segment_id + 1;
             return output_shapes;
         }
-    }
-
-    if (is_data_shape_rank_static) {
         output_shape[0] = Dimension::dynamic();
         return output_shapes;
     } else {
