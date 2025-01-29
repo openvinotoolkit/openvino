@@ -11,6 +11,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 
 #include <gtest/gtest.h>
+#include <cstdlib>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <fstream>
@@ -31,6 +32,9 @@ static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property
 #endif
 
 namespace {
+const std::string test_config_path = "test_debug_config_path.json";
+const std::string device_name = "SOME_DEVICE";
+
 void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
@@ -51,15 +55,7 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
 
     ofs << jsonConfig;
 }
-class DummyRemoteContext : public ov::IRemoteContext {
-public:
-    const std::string& get_device_name() const override { static const std::string device_name = "SOME_DEVICE"; return device_name; }
-    const ov::AnyMap& get_property() const override { OPENVINO_NOT_IMPLEMENTED; };
-    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                       const ov::Shape& shape,
-                                                       const ov::AnyMap& params = {}) override { OPENVINO_NOT_IMPLEMENTED; }
-    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override { OPENVINO_NOT_IMPLEMENTED; }
-};
+
 }  // namespace
 
 struct EmptyTestConfig : public ov::PluginConfig {
@@ -118,6 +114,9 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         if (!is_set_by_user(low_level_property)) {
             m_low_level_property.value = m_high_level_property.value;
         }
+#ifdef ENABLE_DEBUG_CAPS
+        apply_config_options(device_name, test_config_path);
+#endif
     }
 
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override {
@@ -288,30 +287,37 @@ TEST(plugin_config, visibility_is_correct) {
 }
 
 TEST(plugin_config, can_read_from_env_with_debug_caps) {
-    NotEmptyTestConfig cfg;
-    ASSERT_EQ(cfg.get_int_property(), -1);
-    std::string env_var1 = "OV_INT_PROPERTY=10";
-    ::putenv(env_var1.data());
-    ASSERT_EQ(cfg.get_int_property(), -1); // env is applied after finalization only for build with debug caps
+    try {
+        NotEmptyTestConfig cfg;
+        ASSERT_EQ(cfg.get_int_property(), -1);
+        std::string env_var1 = "OV_INT_PROPERTY=10";
+        ::putenv(env_var1.data());
+        ASSERT_EQ(cfg.get_int_property(), -1); // env is applied after finalization only for build with debug caps
 
 #ifdef ENABLE_DEBUG_CAPS
-    std::string env_var2 = "OV_DEBUG_PROPERTY=20";
-    ::putenv(env_var2.data());
-    ASSERT_EQ(cfg.get_debug_property(), 2); // same for debug option
+        std::string env_var2 = "OV_DEBUG_PROPERTY=20";
+        ::putenv(env_var2.data());
+        ASSERT_EQ(cfg.get_debug_property(), 2); // same for debug option
 #endif
 
-    cfg.finalize(nullptr, nullptr);
+        cfg.finalize(nullptr, nullptr);
 
 #ifdef ENABLE_DEBUG_CAPS
-    ASSERT_EQ(cfg.get_int_property(), 10);
-    ASSERT_EQ(cfg.get_debug_property(), 20);
+        ASSERT_EQ(cfg.get_int_property(), 10);
+        ASSERT_EQ(cfg.get_debug_property(), 20);
 #else
-    ASSERT_EQ(cfg.get_int_property(), -1); // no effect
+        ASSERT_EQ(cfg.get_int_property(), -1); // no effect
+#endif
+    } catch (std::exception&) {}
+
+    ::unsetenv("OV_INT_PROPERTY");
+#ifdef ENABLE_DEBUG_CAPS
+    ::unsetenv("OV_DEBUG_PROPERTY");
 #endif
 }
 
 TEST(plugin_config, can_read_from_config) {
-    const std::filesystem::path filepath = "config.json";
+    const std::filesystem::path filepath = test_config_path;
     try {
         NotEmptyTestConfig cfg;
         ov::AnyMap config {
@@ -321,15 +327,14 @@ TEST(plugin_config, can_read_from_config) {
     #endif
         };
 
-        DummyRemoteContext ctx;
-        dump_config(filepath.generic_string(), {{ctx.get_device_name(), config }});
+        dump_config(filepath.generic_string(), {{device_name, config }});
 
         ASSERT_EQ(cfg.get_int_property(), -1); // config is applied after finalization only for build with debug caps
     #ifdef ENABLE_DEBUG_CAPS
         ASSERT_EQ(cfg.get_debug_property(), 2); // same for debug option
     #endif
 
-        cfg.finalize(&ctx, nullptr);
+        cfg.finalize(nullptr, nullptr);
     #ifdef ENABLE_DEBUG_CAPS
         ASSERT_EQ(cfg.get_int_property(), 10);
         ASSERT_EQ(cfg.get_debug_property(), 20);
@@ -348,13 +353,17 @@ TEST(plugin_config, can_get_global_property) {
 }
 
 TEST(plugin_config, global_property_read_env_on_each_call) {
-    ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 4);
-    std::string env_var1 = "OV_DEBUG_GLOBAL_PROPERTY=10";
-    ::putenv(env_var1.data());
-    ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 10);
+    try {
+        ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 4);
+        std::string env_var1 = "OV_DEBUG_GLOBAL_PROPERTY=10";
+        ::putenv(env_var1.data());
+        ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 10);
 
-    std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
-    ::putenv(env_var2.data());
-    ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 20);
+        std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
+        ::putenv(env_var2.data());
+        ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 20);
+    } catch (std::exception&) {}
+
+    ::unsetenv("OV_DEBUG_GLOBAL_PROPERTY");
 }
 #endif
