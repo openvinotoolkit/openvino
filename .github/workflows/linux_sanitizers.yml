@@ -71,7 +71,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-64gb
+    runs-on: aks-linux-16-cores-64gb-staging
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
