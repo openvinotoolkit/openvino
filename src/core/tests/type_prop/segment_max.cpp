@@ -11,6 +11,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_max.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace test {
@@ -19,6 +20,7 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using ov::op::v1::Add;
 using ov::op::v1::ReduceMax;
+using ov::op::v1::StridedSlice;
 using testing::HasSubstr;
 
 class TypePropSegmentMaxTest : public TypePropOpTest<op::v16::SegmentMax> {};
@@ -52,15 +54,28 @@ TEST_F(TypePropSegmentMaxTest, non_default_args_no_values) {
                 testing::ElementsAre(nullptr, data_symbols[1], data_symbols[2]));
 }
 
+TEST_F(TypePropSegmentMaxTest, num_segments_bigger_than_segment_ids) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 81});
+    const auto segment_ids = std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{0, 0, 1});
+    const auto num_segments = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int64_t>{40});
+
+    const auto op = make_op(data, segment_ids, num_segments, 20);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{40, 12, 81}));
+    EXPECT_EQ(op->get_empty_segment_value(), 20);
+}
+
 TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
     const auto data = std::make_shared<Parameter>(element::i32, PartialShape{3, 12, 225});
     const auto segment_ids = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto num_segments = std::make_shared<Parameter>(element::i32, PartialShape{});
     {
-        const auto num_segments_i64 = std::make_shared<Parameter>(element::i64, PartialShape{});
-        OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids, num_segments_i64, 0),
+        const auto num_segments_f32 = std::make_shared<Parameter>(element::f32, PartialShape{});
+        OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids, num_segments_f32, 0),
                         ov::NodeValidationFailure,
-                        HasSubstr("The element types of the segment_ids and num_segments tensors must match."));
+                        HasSubstr("The element type of the num_segments input be i32 or i64."));
     }
     {
         const auto segment_ids_f32 = std::make_shared<Parameter>(element::f32, PartialShape{3});
@@ -99,15 +114,6 @@ TEST_F(TypePropSegmentMaxTest, incorrect_inputs) {
                         ov::NodeValidationFailure,
                         HasSubstr("The number of elements in segment_ids must match the first dimension of data."));
     }
-    {
-        const auto num_segments_inconsistent =
-            std::make_shared<Constant>(element::i32, Shape{}, std::vector<int64_t>{200});
-        const auto segment_ids_const =
-            std::make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{0, 1, 2});
-        OV_EXPECT_THROW(std::ignore = make_op(data, segment_ids_const, num_segments_inconsistent, 0),
-                        ov::NodeValidationFailure,
-                        HasSubstr("is inconsistent with number of segments given in segment_ids"));
-    }
 }
 
 TEST_F(TypePropSegmentMaxTest, num_segments_from_graph) {
@@ -143,6 +149,51 @@ TEST_F(TypePropSegmentMaxTest, interval_num_segments_from_graph) {
     const auto num_segments = std::make_shared<Add>(max_segment_id, Constant::create(element::i32, Shape{}, {1}));
 
     const auto op = make_op(data, segment_ids, num_segments, 20);
+    op->validate_and_infer_types();
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_empty_segment_value(), 20);
+}
+
+TEST_F(TypePropSegmentMaxTest, segment_ids_from_graph) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 81});
+    const auto segment_ids_input = std::make_shared<Constant>(element::i32, Shape{5}, std::vector<int32_t>{0, 1, 2, 3, 4});
+    const auto begin = Constant::create(element::i64, Shape{1}, {0});
+    const auto end = Constant::create(element::i64, Shape{1}, {3});
+    const auto stride = Constant::create(element::i64, Shape{1}, {1});
+    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+
+    const auto op = make_op(data, segment_ids, 20);
+    op->validate_and_infer_types();
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 12, 81}));
+    EXPECT_EQ(op->get_empty_segment_value(), 20);
+}
+
+TEST_F(TypePropSegmentMaxTest, dynamic_segment_ids_from_graph) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 81});
+    const auto segment_ids_input = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto begin = Constant::create(element::i64, Shape{1}, {0});
+    const auto end = Constant::create(element::i64, Shape{1}, {3});
+    const auto stride = Constant::create(element::i64, Shape{1}, {1});
+    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+
+    const auto op = make_op(data, segment_ids, 20);
+    op->validate_and_infer_types();
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
+    EXPECT_EQ(op->get_empty_segment_value(), 20);
+}
+
+TEST_F(TypePropSegmentMaxTest, interval_segment_ids_from_graph) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 81});
+    const auto segment_ids_input = std::make_shared<Parameter>(element::i32, PartialShape{{2, 4}});
+    const auto begin = Constant::create(element::i64, Shape{1}, {0});
+    const auto end = Constant::create(element::i64, Shape{1}, {3});
+    const auto stride = Constant::create(element::i64, Shape{1}, {1});
+    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+
+    const auto op = make_op(data, segment_ids, 20);
     op->validate_and_infer_types();
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 12, 81}));
