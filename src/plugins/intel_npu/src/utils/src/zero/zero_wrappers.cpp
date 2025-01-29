@@ -214,7 +214,7 @@ CommandQueueManager& CommandQueueManager::getInstance() {
     static CommandQueueManager instance;
     return instance;
 }
-const std::shared_ptr<CommandQueue>& CommandQueueManager::getCommandQueue(
+std::shared_ptr<CommandQueue> CommandQueueManager::getCommandQueue(
     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     const ze_command_queue_priority_t& priority,
     const std::optional<ze_command_queue_workload_type_t>& workload_type,
@@ -255,7 +255,7 @@ void CommandQueueManager::freeCommandQueue(const ze_command_queue_priority_t& pr
 
     if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
                                [zeroUtils::toWorkloadEnum(workload_type)]
-                                   .use_count() == 1) {
+                                   .use_count() <= 1) {
         _log.debug("Destroy command queue");
         _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
                                [zeroUtils::toWorkloadEnum(workload_type)]
