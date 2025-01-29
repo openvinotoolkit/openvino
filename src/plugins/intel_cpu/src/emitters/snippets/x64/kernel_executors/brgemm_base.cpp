@@ -328,7 +328,9 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
+    std::cout << "[ INFO ] BrgemmBaseKernelExecutor is executed...\n";
     (*kernel)(&brgemm_p);
+    std::cout << "[ INFO ] BrgemmBaseKernelExecutor execution is finished.\n";
 }
 
 #undef DIM_CAST
