@@ -88,9 +88,12 @@ jobs:
       build-js: true
       build-debian-packages: true
       build-contrib: true
+      # clang-tidy static analysis check is enabled as part of collection
+      # to avoid an additional separate build execution
       cmake-options: |- 
             -G "Ninja Multi-Config" \
             -DENABLE_CPPLINT=OFF \
+            -DENABLE_CLANG_TIDY=ON \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
