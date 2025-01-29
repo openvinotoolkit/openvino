@@ -44,6 +44,22 @@ void dump_config(const std::string& filename, const std::string& config_content)
     ofs << config_content;
 }
 
+void set_env(const std::string& name, const std::string& value) {
+#ifdef _WIN32
+    _putenv_s(name.c_str(), value.c_str());
+#else
+    ::setenv(name.c_str(), value.c_str(), 1);
+#endif
+}
+
+void unset_env(const std::string& name) {
+#ifdef _WIN32
+    _putenv_s(name.c_str(), env_value.c_str());
+#else
+    ::unsetenv(name.c_str());
+#endif
+}
+
 }  // namespace
 
 struct EmptyTestConfig : public ov::PluginConfig {
@@ -278,13 +294,11 @@ TEST(plugin_config, can_read_from_env_with_debug_caps) {
     try {
         NotEmptyTestConfig cfg;
         ASSERT_EQ(cfg.get_int_property(), -1);
-        std::string env_var1 = "OV_INT_PROPERTY=10";
-        ::putenv(env_var1.data());
+        set_env("OV_INT_PROPERTY", "10");
         ASSERT_EQ(cfg.get_int_property(), -1); // env is applied after finalization only for build with debug caps
 
 #ifdef ENABLE_DEBUG_CAPS
-        std::string env_var2 = "OV_DEBUG_PROPERTY=20";
-        ::putenv(env_var2.data());
+        set_env("OV_DEBUG_PROPERTY", "20");
         ASSERT_EQ(cfg.get_debug_property(), 2); // same for debug option
 #endif
 
@@ -298,9 +312,9 @@ TEST(plugin_config, can_read_from_env_with_debug_caps) {
 #endif
     } catch (std::exception&) {}
 
-    ::unsetenv("OV_INT_PROPERTY");
+    unset_env("OV_INT_PROPERTY");
 #ifdef ENABLE_DEBUG_CAPS
-    ::unsetenv("OV_DEBUG_PROPERTY");
+    unset_env("OV_DEBUG_PROPERTY");
 #endif
 }
 
@@ -338,15 +352,13 @@ TEST(plugin_config, can_get_global_property) {
 TEST(plugin_config, global_property_read_env_on_each_call) {
     try {
         ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 4);
-        std::string env_var1 = "OV_DEBUG_GLOBAL_PROPERTY=10";
-        ::putenv(env_var1.data());
+        set_env("OV_DEBUG_GLOBAL_PROPERTY", "10");
         ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 10);
 
-        std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
-        ::putenv(env_var2.data());
+        set_env("OV_DEBUG_GLOBAL_PROPERTY", "20");
         ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 20);
     } catch (std::exception&) {}
 
-    ::unsetenv("OV_DEBUG_GLOBAL_PROPERTY");
+    unset_env("OV_DEBUG_GLOBAL_PROPERTY");
 }
 #endif
