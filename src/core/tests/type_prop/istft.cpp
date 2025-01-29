@@ -21,11 +21,41 @@ using testing::HasSubstr;
 
 class TypePropISTFTTest : public TypePropOpTest<op::v16::ISTFT> {
 public:
-    bool center = true;
+    bool center = false;
     bool normalized = false;
 };
 
-TEST_F(TypePropISTFTTest, all_inputs_as_params_static_shapes) {
+TEST_F(TypePropISTFTTest, default_ctor) {
+    const auto op = make_op();
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{4, 6, 16, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {3});
+
+    op->set_arguments(OutputVector{data, window, frame_size, frame_step});
+    op->validate_and_infer_types();
+
+    op->set_center(true);
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_input_size(), 4);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 56}));
+}
+
+TEST_F(TypePropISTFTTest, all_inputs_as_params_static_shapes_auto_length) {
+    const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{2, 1, 4, 48});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
+
+    const auto op = make_op(in_data, window, frame_size, frame_step, center, normalized);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, -1}));
+}
+
+TEST_F(TypePropISTFTTest, all_inputs_as_params_static_shapes_in_length) {
     const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{2, 1, 4, 48});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
     const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
@@ -38,13 +68,51 @@ TEST_F(TypePropISTFTTest, all_inputs_as_params_static_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, -1}));
 }
 
+TEST_F(TypePropISTFTTest, all_inputs_as_params_f16_static_shapes) {
+    const auto in_data = std::make_shared<Parameter>(element::f16, PartialShape{2, 1, 4, 48});
+    const auto window = std::make_shared<Parameter>(element::f16, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
+
+    const auto op = make_op(in_data, window, frame_size, frame_step, center, normalized);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, -1}));
+}
+
+TEST_F(TypePropISTFTTest, all_inputs_as_params_dyn_shapes) {
+    const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1, -1, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{-1});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto length = std::make_shared<Parameter>(element::i64, PartialShape{});
+
+    const auto op = make_op(in_data, window, frame_size, frame_step, length, center, normalized);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, -1}));
+}
+
+TEST_F(TypePropISTFTTest, all_inputs_as_params_dyn_rank) {
+    const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto length = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+
+    const auto op = make_op(in_data, window, frame_size, frame_step, length, center, normalized);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
 using STFTTestParam = std::tuple<PartialShape, PartialShape, int32_t, int32_t, bool, PartialShape>;
 class TypePropISTFTTestP : public TypePropISTFTTest, public testing::WithParamInterface<STFTTestParam> {
 protected:
     void SetUp() override {
-        std::tie(signal_shape, window_shape, frame_size_val, step_size_val, center, expected_shape) = GetParam();
+        std::tie(signal_shape, window_shape, frame_size_val, step_size_val, center, data_shape) = GetParam();
     }
-    PartialShape signal_shape, window_shape, expected_shape;
+    PartialShape signal_shape, window_shape, data_shape;
     int32_t frame_size_val, step_size_val;
 };
 
@@ -52,21 +120,58 @@ INSTANTIATE_TEST_SUITE_P(
     type_prop_stft_shape,
     TypePropISTFTTestP,
     testing::Values(
-        std::make_tuple(PartialShape{16}, PartialShape{16}, 16, 16, false, PartialShape{9, 1, 2}), // frames at 1
+        std::make_tuple(PartialShape{16}, PartialShape{16}, 16, 16, false, PartialShape{9, 1, 2}),  // frames at 1
+        std::make_tuple(PartialShape{16}, PartialShape{16}, 16, 4, false, PartialShape{9, 1, 2}),
         std::make_tuple(PartialShape{48}, PartialShape{16}, 16, 16, false, PartialShape{9, 3, 2}),
+        std::make_tuple(PartialShape{8, 48}, PartialShape{16}, 16, 16, false, PartialShape{8, 9, 3, 2}),
+        std::make_tuple(PartialShape{48}, PartialShape{16}, 16, 16, true, PartialShape{9, 4, 2}),
+        std::make_tuple(PartialShape{5, 48}, PartialShape{16}, 16, 16, true, PartialShape{5, 9, 4, 2}),
+        std::make_tuple(PartialShape{48}, PartialShape{16}, 16, 12, true, PartialShape{9, 5, 2}),
         std::make_tuple(PartialShape{56}, PartialShape{7}, 11, 3, false, PartialShape{6, 16, 2}),
 
+        std::make_tuple(PartialShape{48}, PartialShape{8}, 16, 4, false, PartialShape{9, 9, 2}),
+        std::make_tuple(PartialShape{{47, 56}}, PartialShape{7}, 11, 3, false, PartialShape{6, {13, 16}, 2}),
+        std::make_tuple(PartialShape{{11, -1}}, PartialShape{7}, 11, 3, false, PartialShape{6, {1, -1}, 2}),
+        std::make_tuple(PartialShape{1, 16}, PartialShape{16}, 16, 16, false, PartialShape{1, 9, 1, 2}),
+        std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, false, PartialShape{1, 9, 3, 2}),
+        std::make_tuple(PartialShape{2, 48}, PartialShape{8}, 16, 4, false, PartialShape{2, 9, 9, 2}),
+        std::make_tuple(PartialShape{2, 9}, PartialShape{5}, 9, 100, false, PartialShape{2, 5, 1, 2}),
+        std::make_tuple(PartialShape{2, 0}, PartialShape{5}, 9, 100, true, PartialShape{2, 5, 1, 2}),
+        std::make_tuple(PartialShape{4, 47},
+                        PartialShape{7},
+                        11,
+                        3,
+                        false,
+                        PartialShape{4, 6, 13, 2}),  // If the signal was 48, the last sample can be lost
+        std::make_tuple(PartialShape{4, 56}, PartialShape{7}, 11, 3, false, PartialShape{4, 6, 16, 2}),
+        std::make_tuple(PartialShape{-1, {11, -1}}, PartialShape{7}, 11, 3, false, PartialShape{-1, 6, {1, -1}, 2}),
+        std::make_tuple(PartialShape{-1, {47, 56}}, PartialShape{7}, 11, 3, false, PartialShape{-1, 6, {13, 16}, 2}),
+        std::make_tuple(PartialShape{{2, 4}, {11, -1}},
+                        PartialShape{7},
+                        11,
+                        3,
+                        false,
+                        PartialShape{{2, 4}, 6, {1, -1}, 2}),
+        std::make_tuple(PartialShape{{2, 4}, {-1, -1}},
+                        PartialShape{7},
+                        11,
+                        3,
+                        true,
+                        PartialShape{{2, 4}, 6, {1, -1}, 2}),
+
+        std::make_tuple(PartialShape::dynamic(), PartialShape{7}, 11, 3, false, PartialShape::dynamic()),
+
+        std::make_tuple(PartialShape::dynamic(), PartialShape::dynamic(), 11, 3, false, PartialShape::dynamic()),
         std::make_tuple(PartialShape::dynamic(), PartialShape::dynamic(), 11, 3, true, PartialShape::dynamic())),
     testing::PrintToStringParamName());
 
 TEST_P(TypePropISTFTTestP, istft_shapes) {
-    const auto in_data = std::make_shared<Parameter>(element::f32, expected_shape);
+    const auto in_data = std::make_shared<Parameter>(element::f32, data_shape);
     const auto window = std::make_shared<Parameter>(element::f32, window_shape);
     const auto frame_size = Constant::create<int32_t>(element::i32, {}, {frame_size_val});
     const auto frame_step = Constant::create<int32_t>(element::i32, {}, {step_size_val});
-    const auto length = std::make_shared<Parameter>(element::i32, Shape{});
 
-    const auto op = make_op(in_data, window, frame_size, frame_step, length, center, false);
+    const auto op = make_op(in_data, window, frame_size, frame_step, center, normalized);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), signal_shape);
