@@ -31,7 +31,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            data_shape_rank.compatible(3) || data_shape_rank.compatible(4),
-                           "The shape of data must be 3D [signal_size] or 4D [batch, signal_size].");
+                           "The shape of data must be 3D or 4D.");
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            window_shape.rank().compatible(1),
@@ -91,6 +91,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
                                input_shapes,
                                length_shape.rank().compatible(0),
                                "The shape of length input must be a scalar.");
+
         const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
         if (sig_len_in) {  // Set desired length of the signal dimension, if provided
             output_shapes.emplace_back(TRShape{(*sig_len_in)[0]});

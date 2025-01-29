@@ -87,7 +87,9 @@ void ISTFT::validate_and_infer_types() {
 
     const auto has_valid_window_type =
         window_type.is_dynamic() || (window_type.is_real() && element::Type::merge(data_type, window_type, data_type));
-    NODE_VALIDATION_CHECK(this, has_valid_window_type, "Expected floating point type of the 'window' input.");
+    NODE_VALIDATION_CHECK(this,
+                          has_valid_window_type,
+                          "Expected floating point type of the 'window' input, matching the type of `data` input.");
 
     check_int_input_at(this, 2);
     check_int_input_at(this, 3);
