@@ -9,7 +9,7 @@
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_batched.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "utils.hpp"
 
@@ -27,7 +27,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
+    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto brgemm_type = brgemm_node->get_type();
@@ -70,8 +70,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
-    const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
+    const auto brgemm = as_type_ptr<ov::intel_cpu::GemmCPU>(node);
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects GemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
     if (brgemm->get_type() == BRGEMM_TYPE::STAND_ALONE) {
         return {{element::f32, element::f32}};
@@ -91,7 +91,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
                 {element::bf16, element::bf16, element::u8},
                 {element::f16, element::f16, element::u8}};
     }
-    OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    OV_CPU_JIT_EMITTER_THROW("got GemmCPU node with unsupported type");
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {

@@ -16,7 +16,7 @@
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/tpp/x64/op/modifiers.hpp"
 #include "utils/general_utils.h"
@@ -30,12 +30,12 @@ bool pass::BuildBrgemm::run(const snippets::lowered::LinearIR& linear_ir) {
     bool modified = false;
     for (const auto& expr : linear_ir) {
         fprintf(stderr, "expr: %s\n", expr->get_node()->get_friendly_name().c_str());
-        const auto brgemm_node = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
+        const auto brgemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
         if (!brgemm_node || brgemm_node->is_dynamic()) {
             continue;
         }
         const auto& loop_manager = linear_ir.get_loop_manager();
-        OPENVINO_ASSERT(loop_manager, "BrgemmCPU node should have a loop manager.");
+        OPENVINO_ASSERT(loop_manager, "GemmCPU node should have a loop manager.");
 
         const auto loop_ids = expr->get_loop_ids();
         if (!loop_ids.empty()) {

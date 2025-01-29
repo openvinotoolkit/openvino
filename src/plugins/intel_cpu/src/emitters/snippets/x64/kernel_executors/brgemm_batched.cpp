@@ -7,7 +7,7 @@
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 using namespace Xbyak;

@@ -32,7 +32,7 @@
 #else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
-#    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#    include "transformations/snippets/x64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
@@ -497,16 +497,16 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+                                           ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::BrgemmToGemmCPU,
                                            ov::intel_cpu::pass::EliminateBrgemmCopyB);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::BrgemmToGemmCPU,
                                            ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
     // Note: There could be several ConvertConstantsToScalars instances in the pipeline
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
@@ -541,7 +541,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::MarkLoops,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking);
+                                    ov::intel_cpu::pass::GemmCPUBlocking);
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::InitLoops,
@@ -556,7 +556,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before,
-                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                    ov::intel_cpu::pass::GemmCPUBlocking,
                                     ov::intel_cpu::tpp::pass::BrgemmTPPBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert,
