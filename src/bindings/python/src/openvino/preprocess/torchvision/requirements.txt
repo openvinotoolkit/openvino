@@ -1,6 +1,7 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch<=2.5.1; python_version <= '3.9'
 torch>=1.13; python_version > '3.9'
-torchvision; platform_machine == 'arm64' and python_version >= '3.9'
+torchvision; platform_machine == 'arm64' and python_version > '3.9'
+torchvision<=0.20.1; python_version <= '3.9'
 torchvision; platform_machine != 'arm64'
 pillow>=9.0
