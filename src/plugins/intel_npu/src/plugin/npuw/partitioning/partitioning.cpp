@@ -336,9 +336,10 @@ void Partitioner::set_const_offset(ov::npuw::weights::LazyTensor& lt,
                                    const std::shared_ptr<ov::op::v0::Constant>& const_node) {
     auto rt_info = const_node->get_rt_info();
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-    NPUW_ASSERT(weightless_cache_attr != rt_info.end());
-    std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-    lt.set_const_offset(offset);
+    if (weightless_cache_attr != rt_info.end()) {
+        std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+        lt.set_const_offset(offset);
+    }
 }
 
 void Partitioner::identifySubgraphs() {

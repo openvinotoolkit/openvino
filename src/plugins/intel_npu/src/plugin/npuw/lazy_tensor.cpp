@@ -28,6 +28,7 @@ struct Const {
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_weights;
+    bool m_offset_is_set = false;
 
     Const() = default;
 
@@ -59,7 +60,7 @@ struct Const {
         return m_read_from_weights;
     }
     void read_weight(std::istream& stream) {
-        NPUW_ASSERT(was_deserialized);
+        NPUW_ASSERT(was_deserialized && m_offset_is_set);
         m_read_from_weights = ov::Tensor(m_cached_type, m_cached_shape);
         // Note: assumed to be called sequentially
         stream.seekg(m_offset);
@@ -89,6 +90,7 @@ struct Const {
     }
     void set_offset(std::size_t offset) {
         m_offset = offset;
+        m_offset_is_set = true;
     }
 };
 struct Concat {
