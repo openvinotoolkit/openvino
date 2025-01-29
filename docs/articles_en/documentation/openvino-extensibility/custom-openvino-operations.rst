@@ -59,7 +59,7 @@ Operation Class
 
       3. Override the ``visit_attributes`` method, which enables serialization and deserialization of operation attributes. An ``AttributeVisitor`` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware ``on_attribute`` helper. Helpers are already implemented for standard types like ``int``, ``float``, ``bool``, ``vector``, and for existing OpenVINO defined types.
 
-      4. Override ``evaluate`` method, which enables fallback of a CPU device to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
+      4. Override ``evaluate`` method with the code that will run when this operation is encountered in the model graph during the model inference. It works only for CPU device and enables OpenVINO runtime to run your arbitrary Python code as a part of model inference. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method which returns `True`, this method allows to get information about availability of ``evaluate`` method for the operation.
 
       5. Override the ``clone_with_new_inputs``, which is an optional method that graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
 
