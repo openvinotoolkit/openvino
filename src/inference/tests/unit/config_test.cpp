@@ -12,9 +12,9 @@
 
 #include <gtest/gtest.h>
 #include <cstdlib>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <fstream>
+#include <filesystem>
 
 using namespace ::testing;
 using namespace ov;
@@ -35,25 +35,13 @@ namespace {
 const std::string test_config_path = "test_debug_config_path.json";
 const std::string device_name = "SOME_DEVICE";
 
-void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
-    nlohmann::json jsonConfig;
-    for (const auto& item : config) {
-        std::string deviceName = item.first;
-        for (const auto& option : item.second) {
-            // primary property
-            std::stringstream strm;
-            option.second.print(strm);
-            auto property_string = strm.str();
-            jsonConfig[deviceName][option.first] = property_string;
-        }
-    }
-
+void dump_config(const std::string& filename, const std::string& config_content) {
     std::ofstream ofs(filename);
     if (!ofs.is_open()) {
-        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+        throw std::runtime_error("Can't save config file \"" + filename + "\".");
     }
 
-    ofs << jsonConfig;
+    ofs << config_content;
 }
 
 }  // namespace
@@ -320,14 +308,9 @@ TEST(plugin_config, can_read_from_config) {
     const std::filesystem::path filepath = test_config_path;
     try {
         NotEmptyTestConfig cfg;
-        ov::AnyMap config {
-            int_property(10),
-    #ifdef ENABLE_DEBUG_CAPS
-            debug_property(20),
-    #endif
-        };
+        std::string config = "{\"SOME_DEVICE\":{\"DEBUG_PROPERTY\":\"20\",\"INT_PROPERTY\":\"10\"}}";
 
-        dump_config(filepath.generic_string(), {{device_name, config }});
+        dump_config(filepath.generic_string(), config);
 
         ASSERT_EQ(cfg.get_int_property(), -1); // config is applied after finalization only for build with debug caps
     #ifdef ENABLE_DEBUG_CAPS
