@@ -243,7 +243,8 @@ public:
 
 protected:
     virtual void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {}
-    virtual void apply_debug_options(const IRemoteContext* context);
+    void apply_env_options();
+    void apply_config_options(std::string_view device_name, std::string_view config_path = "");
     virtual void finalize_impl(const IRemoteContext* context) {}
 
     template <typename T, PropertyMutability mutability>
@@ -269,7 +270,7 @@ protected:
         }
     }
 
-    ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
+    ov::AnyMap read_config_file(std::string_view filename, std::string_view target_device_name) const;
     ov::AnyMap read_env() const;
     static ov::Any read_env(const std::string& option_name, const std::string& prefix, const ConfigOptionBase* option);
     void cleanup_unsupported(ov::AnyMap& config) const;
