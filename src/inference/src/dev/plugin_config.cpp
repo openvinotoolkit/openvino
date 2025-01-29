@@ -64,10 +64,7 @@ ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility all
 void PluginConfig::set_property(const ov::AnyMap& config) {
     OPENVINO_ASSERT(!m_is_finalized, "Setting property after config finalization is prohibited");
 
-    for (auto& kv : config) {
-        auto& name = kv.first;
-        auto& val = kv.second;
-
+    for (auto& [name, val] : config) {
         get_option_ptr(name)->set_any(val);
     }
 }
@@ -75,10 +72,7 @@ void PluginConfig::set_property(const ov::AnyMap& config) {
 void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility allowed_visibility, bool throw_on_error) {
     OPENVINO_ASSERT(!m_is_finalized, "Setting property after config finalization is prohibited");
 
-    for (auto& kv : config) {
-        auto& name = kv.first;
-        auto& val = kv.second;
-
+    for (auto& [name, val] : config) {
         auto option = get_option_ptr(name);
         if ((allowed_visibility & option->get_visibility()) != option->get_visibility()) {
             if (throw_on_error)
@@ -144,8 +138,8 @@ void PluginConfig::apply_debug_options(const IRemoteContext* context) {
         ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
         cleanup_unsupported(config_properties);
 #ifdef ENABLE_DEBUG_CAPS
-        for (auto& prop : config_properties) {
-            std::cout << "Non default config value for " << prop.first << " = " << prop.second.as<std::string>() << std::endl;
+        for (auto& [name, val] : config_properties) {
+            std::cout << "Non default config value for " << name << " = " << val.as<std::string>() << std::endl;
         }
 #endif
         set_user_property(config_properties, allowed_visibility, throw_on_error);
@@ -154,8 +148,8 @@ void PluginConfig::apply_debug_options(const IRemoteContext* context) {
     ov::AnyMap env_properties = read_env();
     cleanup_unsupported(env_properties);
 #ifdef ENABLE_DEBUG_CAPS
-    for (auto& prop : env_properties) {
-        std::cout << "Non default env value for " << prop.first << " = " << prop.second.as<std::string>() << std::endl;
+    for (auto& [name, val] : env_properties) {
+        std::cout << "Non default env value for " << name << " = " << val.as<std::string>() << std::endl;
     }
 #endif
     set_user_property(env_properties, allowed_visibility, throw_on_error);
@@ -219,10 +213,10 @@ ov::Any PluginConfig::read_env(const std::string& option_name, const std::string
 ov::AnyMap PluginConfig::read_env() const {
     ov::AnyMap config;
 
-    for (auto& kv : m_options_map) {
-        auto val = read_env(kv.first, m_allowed_env_prefix, kv.second);
+    for (auto& [name, option] : m_options_map) {
+        auto val = read_env(name, m_allowed_env_prefix, option);
         if (!val.empty()) {
-            config[kv.first] = val;
+            config[name] = val;
         }
     }
 
@@ -247,12 +241,12 @@ std::string PluginConfig::to_string() const {
     ss << "-----------------------------------------\n";
     ss << "PROPERTIES:\n";
 
-    for (const auto& option : m_options_map) {
-        ss << "\t" << option.first << ": " << option.second->get_any().as<std::string>() << std::endl;
+    for (const auto& [name, option] : m_options_map) {
+        ss << "\t" << name << ": " << option->get_any().as<std::string>() << std::endl;
     }
     ss << "USER PROPERTIES:\n";
-    for (const auto& user_prop : m_user_properties) {
-        ss << "\t" << user_prop.first << ": " << user_prop.second.as<std::string>() << std::endl;
+    for (const auto& [name, val] : m_user_properties) {
+        ss << "\t" << name << ": " << val.as<std::string>() << std::endl;
     }
 
     return ss.str();
