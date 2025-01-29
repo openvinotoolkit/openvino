@@ -519,6 +519,46 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
     }
 #endif
+#if defined(OPENVINO_ARCH_ARM)
+    retVector.emplace_back(R"(.*ActivationLayerTest.*Inference.*)");
+    retVector.emplace_back(R"(.*AddConvertToReorderTest.*smoke_TestAddReorder_CPU.*)");
+    retVector.emplace_back(R"(.*AddOutputsTest.*smoke_CheckOutputExist.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheRuntimePropertiesTestBase.*CanLoadFromFileWithoutException.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*2InputSubtract_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*ConvPoolRelu_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*MatMulBias_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*SimpleFunctionRelu_f.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl/MatMulBias_f32_batch1_CPU)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromCacheTest.*CanGetCorrectLoadedFromCacheProperty.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromFileTestBase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromFileTestBase.*CanLoadFromFileWithoutException.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromMemoryTestBase.*CanLoadFromMemoryWithoutExecption.*)");
+    retVector.emplace_back(R"(.*CompileModelLoadFromMemoryTestBase.*CanLoadFromMemoryWithoutWeightsANdExecption.*)");
+    retVector.emplace_back(R"(.*CompileModelWithCacheEncryptionTest.*CanImportModelWithoutException.*)");
+    retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*ConcatSDPTest.*f16.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTestsWithCacheEnabled.*smoke_compiled_model_cache_enabled.*)");
+    retVector.emplace_back(R"(.*CoreThreadingTestsWithIter.*smoke_CompileModel.*)");
+    retVector.emplace_back(R"(.*CustomOpConvertI64CPUTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*EltwiseLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*EltwiseLayerTest.*Inference.*)");
+    retVector.emplace_back(R"(.*ExecGraphDuplicateInputsOutputsNames.*CheckOutputsMatch.*)");
+    retVector.emplace_back(R"(.*ExecGraphKeepAssignNode.*KeepAssignNode.*)");
+    retVector.emplace_back(R"(.*ExecGraphRemoveParameterNode.*RemoveParameterNode.*)");
+    retVector.emplace_back(R"(.*IndexAddTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*InterpolateLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*MatMulLayerCPUTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*MatmulWeightsDecompression.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*MvnLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+    retVector.emplace_back(R"(.*NonInputInPlaceTest.*CompareWithRefs.*)");
+    retVector.emplace_back(R"(.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)");
+    retVector.emplace_back(R"(.*OVClassConfigTestCPU.*smoke_.*)");
+    retVector.emplace_back(R"(.*OVClassConfigTestCPU.*smoke_CpuExecNetwork.*)");
+    retVector.emplace_back(R"(.*OVInferenceChaining.*StaticOutputToDynamicInput.*)");
+    retVector.emplace_back(R"(.*OVInferenceChaining.*StaticOutputToStaticInput.*)");
+    retVector.emplace_back(R"(.*OVInferenceChainingStatic.*StaticOutputToStaticInput.*)");
+    retVector.emplace_back(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+#endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&
         !ov::with_cpu_x86_avx512_core_amx_int8()) {

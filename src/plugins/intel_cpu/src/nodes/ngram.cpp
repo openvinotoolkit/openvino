@@ -52,8 +52,9 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 }
 
 void Ngram::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
     if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
@@ -134,8 +135,9 @@ void Ngram::execute(const dnnl::stream& strm) {
                        srcData + srcBatchBias + srcWindowBias,
                        dataSize * sizeof(float));
             dstWindowBias += dataSize + curRightPad;
-            if (curLeftPad == 0)
+            if (curLeftPad == 0) {
                 srcWindowBias += windowStride;
+            }
         }
     });
 }

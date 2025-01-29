@@ -55,11 +55,13 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5)
+    if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+    }
 
-    if (getOriginalOutputsNumber() != 1)
+    if (getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+    }
 
     auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
@@ -98,18 +100,21 @@ void DetectionOutput::prepareParams() {
     locNumForClasses = isShareLoc ? 1 : classesNum;
 
     const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
-    if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
+    if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1])) {
         THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of location predictions (",
                            priorsNum * locNumForClasses * 4,
                            " vs ",
                            idLocDims[1],
                            ")");
+    }
 
-    if (priorsNum * classesNum != static_cast<int>(idConfDims.back()))
+    if (priorsNum * classesNum != static_cast<int>(idConfDims.back())) {
         THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of confidence predictions.");
+    }
 
-    if (decreaseClassId && backgroundClassId != 0)
+    if (decreaseClassId && backgroundClassId != 0) {
         THROW_CPU_NODE_ERR("cannot use decrease_label_id and background_label_id parameter simultaneously.");
+    }
 
     imgNum = static_cast<int>(idConfDims[0]);
 
@@ -118,8 +123,9 @@ void DetectionOutput::prepareParams() {
     indicesBuffer.resize(imgNum * classesNum * priorsNum);
     indices.resize(imgNum * classesNum * priorsNum);
     // prior info for shared_location
-    if (isShareLoc)
+    if (isShareLoc) {
         confInfoForPrior.resize(imgNum * priorsNum);
+    }
 
     // confs...count...indices for caffe style and sparsity case.
     // caffe: filter(conf_info for sparsity or indices for dense) --> topk(buffer) --> nms(indices)
@@ -136,13 +142,15 @@ void DetectionOutput::prepareParams() {
 }
 
 void DetectionOutput::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
@@ -151,10 +159,12 @@ struct ConfidenceComparatorDO {
     explicit ConfidenceComparatorDO(const float* confDataIn) : confData(confDataIn) {}
 
     bool operator()(int idx1, int idx2) {
-        if (confData[idx1] > confData[idx2])
+        if (confData[idx1] > confData[idx2]) {
             return true;
-        if (confData[idx1] < confData[idx2])
+        }
+        if (confData[idx1] < confData[idx2]) {
             return false;
+        }
         return idx1 < idx2;
     }
 
@@ -192,8 +202,9 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
         ppriors += varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
         getActualPriorNum(ppriors, numPriorsActualdata, n);
     }
-    if (!isPriorsPerImg && imgNum > 1)
+    if (!isPriorsPerImg && imgNum > 1) {
         std::fill_n(numPriorsActualdata + 1, imgNum - 1, numPriorsActualdata[0]);
+    }
 
     if (!isSparsityWorthwhile) {
         confReorderDense(confData, ARMConfData, reorderedConfData);
@@ -339,8 +350,9 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
                     int* pbuffer = indicesBufData + off;
                     int* pdetections = detectionsData + n * classesNum + c;
 
-                    if (!isSparsityWorthwhile)
+                    if (!isSparsityWorthwhile) {
                         confFilterCF(pconfReorder, pindices, pbuffer, pdetections, n);
+                    }
 
                     const float* pboxes;
                     const float* psizes;
@@ -364,8 +376,9 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
             int* pindices = indicesData + offImg;
             int* pdetections = detectionsData + n * classesNum;
 
-            if (!isSparsityWorthwhile)
+            if (!isSparsityWorthwhile) {
                 confFilterMX(pconf, ARMConfData, pconfReorder, pindices, pbuffer, pdetections, n);
+            }
 
             const float* pboxes = decodedBboxesData + n * 4 * locNumForClasses * priorsNum;
             const float* psizes = bboxSizesData + n * locNumForClasses * priorsNum;
@@ -461,9 +474,10 @@ inline void DetectionOutput::confFilterMX(const float* confData,
             int maxCIdx = 0;
             for (int c = 1; c < classesNum; ++c) {
                 float conf = confData[p * classesNum + c];
-                if (isARMPrior)
+                if (isARMPrior) {
                     conf =
                         (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
+                }
                 if (conf >= confidenceThreshold && conf > maxConf) {
                     maxConf = conf;
                     maxCIdx = c;
@@ -574,13 +588,15 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             if (withAddBoxPred) {
                 const bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
                 bool priorStatusSet = false;
-                if (isShareLoc)
+                if (isShareLoc) {
                     confInfoForPrior[offV + p] = -1;
+                }
                 int confIdxPrior = off + p * classesNum;
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
-                    if (isARMPrior)
+                    if (isARMPrior) {
                         conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                    }
                     if (conf > confidenceThreshold) {
                         const int idx = offH + c * confInfoLen;
                         reorderedConfData[idx + p] = conf;
@@ -597,8 +613,9 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 }
             } else {
                 bool priorStatusSet = false;
-                if (isShareLoc)
+                if (isShareLoc) {
                     confInfoForPrior[offV + p] = -1;
+                }
                 int confIdxPrior = off + p * classesNum;
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
@@ -621,8 +638,9 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         parallel_for(classesNum, [&](size_t c) {
             // in:  conf_h info
             // out: buffer, detectionCount(k)
-            if (c == static_cast<size_t>(backgroundClassId))  // Ignore background class
+            if (c == static_cast<size_t>(backgroundClassId)) {  // Ignore background class
                 return;
+            }
             const int countIdx = offH + c * confInfoLen + priorsNum;
             const int count = reorderedConfDataIndices[countIdx];
             const int k = (topK == -1 ? count : (std::min)(topK, count));
@@ -650,18 +668,21 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
         std::mutex mtx;
         parallel_for(numPriorsActual[n], [&](size_t p) {
             bool isARMPrior = false;
-            if (withAddBoxPred)
+            if (withAddBoxPred) {
                 isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
+            }
             bool priorStatusSet = false;
-            if (isShareLoc)
+            if (isShareLoc) {
                 confInfoForPrior[offV + p] = -1;
+            }
             float maxConf = -1;
             int maxCIdx = 0;
             int confIdxPrior = off + p * classesNum;
             for (int c = 0; c < classesNum; ++c) {
                 float conf = confData[confIdxPrior + c];
-                if (withAddBoxPred && isARMPrior)
+                if (withAddBoxPred && isARMPrior) {
                     conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                }
                 if (conf >= confidenceThreshold) {
                     int idx = off + c * confInfoLen;
                     reorderedConfData[idx + p] = conf;
@@ -923,12 +944,13 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData,
     }
 
     int dstDataSize = 0;
-    if (keepTopK > 0)
+    if (keepTopK > 0) {
         dstDataSize = imgNum * keepTopK * DETECTION_SIZE * sizeof(float);
-    else if (topK > 0)
+    } else if (topK > 0) {
         dstDataSize = imgNum * topK * classesNum * DETECTION_SIZE * sizeof(float);
-    else
+    } else {
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
+    }
 
     if (static_cast<size_t>(dstDataSize) > getChildEdgeAt(0)->getMemory().getSize()) {
         THROW_CPU_NODE_ERR("has insufficient output buffer size.");
