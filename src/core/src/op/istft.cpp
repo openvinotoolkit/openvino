@@ -141,6 +141,10 @@ bool ISTFT::get_center() const {
     return m_center;
 }
 
+void ISTFT::set_center(const bool center) {
+    m_center = center;
+}
+
 }  // namespace v16
 }  // namespace op
 }  // namespace ov

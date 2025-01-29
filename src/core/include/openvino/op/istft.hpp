@@ -19,11 +19,11 @@ public:
     /// \brief Constructs an ISTFT operation with signal length to be inferred
     ///
     /// \param data  Input data
-    /// \param window Window values applied in STFT
+    /// \param window Window values applied in ISTFT
     /// \param frame_size Scalar value representing the size of Fourier Transform
     /// \param frame_step The distance (number of samples) between successive window frames
     /// \param center Flag signaling if the signal input has been padded before STFT
-    /// \param normalized Flag signaling if the STFT result has been normalized.
+    /// \param normalized Flag signaling if the STFT result has been normalized
     ISTFT(const Output<Node>& data,
           const Output<Node>& window,
           const Output<Node>& frame_size,
@@ -39,7 +39,7 @@ public:
     /// \param frame_step The distance (number of samples) between successive window frames
     /// \param signal_length The signal length of the original signal
     /// \param center Flag signaling if the signal input has been padded before STFT
-    /// \param normalized Flag signaling if the STFT result has been normalized.
+    /// \param normalized Flag signaling if the STFT result has been normalized
     ISTFT(const Output<Node>& data,
           const Output<Node>& window,
           const Output<Node>& frame_size,
@@ -53,6 +53,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool get_center() const;
+    void set_center(const bool center);
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
