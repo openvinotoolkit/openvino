@@ -1066,7 +1066,6 @@ using InferRunTestsOnNewerDrivers = InferRequestRunTests;
 TEST_P(InferRunTestsOnNewerDrivers, MultipleCompiledModelsTestsSyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Load CNNNetwork to target plugins
     const int no_of_iterations = 256;
     std::array<ov::CompiledModel, no_of_iterations> compiled_models;
 
@@ -1074,7 +1073,6 @@ TEST_P(InferRunTestsOnNewerDrivers, MultipleCompiledModelsTestsSyncInfers) {
         OV_ASSERT_NO_THROW(compiled_models[i] = core->compile_model(ov_model, target_device, configuration));
     }
 
-    // Create InferRequests
     std::array<ov::InferRequest, no_of_iterations> infer_reqs;
     std::array<std::thread, no_of_iterations> infer_reqs_threads;
     for (int i = 0; i < no_of_iterations; ++i) {
