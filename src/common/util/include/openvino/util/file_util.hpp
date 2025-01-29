@@ -231,15 +231,6 @@ inline bool file_exists(const char* path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
- * @brief      Returns file size for file
- * @param[in]  path  The file name
- * @return     file size
- */
-inline int64_t file_size(const std::wstring path) {
-    return ov::util::file_size(ov::util::Path(path));
-}
-
-/**
  * @brief      Returns true if file exists
  * @param[in]  path  The file name
  * @return     true if file exists
@@ -400,7 +391,7 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
 
-#if defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
+#if defined(_MSC_VER) || defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
 inline ov::util::Path make_path(const wchar_t* file) {
     return {std::wstring(file)};
 }
