@@ -184,4 +184,10 @@ if(ENABLE_KLEIDIAI_FOR_CPU)
     ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
 endif()
 
+if(RISCV64)
+    set(XBYAK_RISCV_V ON)
+    add_subdirectory(xbyak_riscv)
+    ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
+endif()
+
 ov_add_onednn()
