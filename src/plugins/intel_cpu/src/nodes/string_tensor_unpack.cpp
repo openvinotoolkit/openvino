@@ -37,8 +37,9 @@ void StringTensorUnpack::getSupportedDescriptors() {
 }
 
 void StringTensorUnpack::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::string}},
                          {{LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32},

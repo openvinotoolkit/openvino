@@ -13,8 +13,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const ov::AxisSet axis_mapping) {
     auto inputs = p.GetInputInfo(op);
@@ -124,5 +123,4 @@ static void CreateBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
 REGISTER_FACTORY_IMPL(v1, Broadcast);
 REGISTER_FACTORY_IMPL(v3, Broadcast);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

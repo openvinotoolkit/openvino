@@ -166,8 +166,9 @@ MemoryInputBase& MemoryOutputBase::getInputNode() {
 void MemoryOutputBase::getSupportedDescriptors() {}
 
 void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto&& shape = getInputShapeAtPort(0);
     auto precision = getOriginalInputPrecisionAtPort(0);
@@ -458,8 +459,9 @@ MemoryOutputBase& MemoryInputBase::getOutputNode() {
 }
 
 void MemoryInputBase::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto precision = getOriginalOutputPrecisionAtPort(0);
     auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
@@ -522,8 +524,9 @@ void MemoryStatesRegister::registerOutput(MemoryOutputBase* node) {
 }
 
 void MemoryStatesRegister::remove(MemoryNode* node) {
-    if (nullptr == node)
+    if (nullptr == node) {
         return;
+    }
     ov::util::erase_if(memory_inputs, [&](const InputNodesMap::value_type& it) {
         return it.second == node;
     });
@@ -952,8 +955,9 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
     VectorDims order = {2, 0, 1, 3};
-    if (!node->getKVCacheOrder().empty())
+    if (!node->getKVCacheOrder().empty()) {
         order = node->getKVCacheOrder();
+    }
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
 

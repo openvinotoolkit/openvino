@@ -33,8 +33,9 @@ void Tensor::set_shape(ov::Shape new_shape) {
                   vec2str(shape.getStaticDims()),
                   " -> ",
                   new_shape.to_string());
-        if (shape.getStaticDims() == new_shape)
+        if (shape.getStaticDims() == new_shape) {
             return;
+        }
     }
 
     auto desc = m_memptr->getDescPtr();
