@@ -54,7 +54,7 @@ void set_env(const std::string& name, const std::string& value) {
 
 void unset_env(const std::string& name) {
 #ifdef _WIN32
-    _putenv_s(name.c_str(), env_value.c_str());
+    _putenv_s(name.c_str(), "");
 #else
     ::unsetenv(name.c_str());
 #endif
