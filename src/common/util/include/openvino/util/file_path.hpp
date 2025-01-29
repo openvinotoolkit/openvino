@@ -7,7 +7,6 @@
 #include <cstdio>
 
 #include "openvino/util/filesystem.hpp"
-//#include "openvino/util/util.hpp"
 
 namespace ov::util {
 
