@@ -47,6 +47,8 @@ bool pass::BuildBrgemm::run(const snippets::lowered::LinearIR& linear_ir) {
             // fprintf(stderr, "increment: %ld\n", inner_loop_info->get_increment());
             // auto iter_count = inner_loop_info->get_work_amount() / inner_loop_info->get_increment();
             // fprintf(stderr, "iter_count: %ld\n", iter_count);
+            // const auto& inputs = expr->get_node()->inputs();
+            // fprintf(stderr, "Number of inputs: %lu\n", inputs.size());
         }
 
     }
