@@ -235,8 +235,8 @@ inline bool file_exists(const char* path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline int64_t file_size(const wchar_t* path) {
-    return ov::util::file_size(std::wstring(path));
+inline int64_t file_size(const std::wstring path) {
+    return ov::util::file_size(ov::util::Path(path));
 }
 
 /**
