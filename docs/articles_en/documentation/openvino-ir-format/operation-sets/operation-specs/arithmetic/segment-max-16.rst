@@ -45,11 +45,11 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
 
 * **2**: ``segment_ids`` - 1D Tensor of sorted non-negative numbers of type *T_IDX1*. Its size is equal to the size of the first dimension of the ``data`` input tensor. The values must be smaller than ``num_segments``. **Required.**
 
-* **3**: ``num_segments`` - A scalar value of type *T_IDX2* representing the segments count, used for shape inference. **Optional.**
+* **3**: ``num_segments`` - A scalar value of type *T_IDX2* representing the segments count, used for shape inference. Defaults to ``max(segment_ids) + 1``. If ``num_segments < max(segment_ids) + 1`` then the extra segments defined in ``segment_ids`` are not included in the output.  **Optional.**
 
 **Outputs**
 
-* **1**: The output tensor has same rank and dimensions as the ``data`` input tensor except for the first dimension which is calculated as ``max(segment_ids) + 1`` 
+* **1**: The output tensor has same rank and dimensions as the ``data`` input tensor except for the first dimension which is equal to the value of ``num_segments``.
 
 **Types**
 
@@ -72,13 +72,13 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
             <port id="1" precision="I32">   <!-- segment_ids with 4 segments: [0, 0, 2, 3, 3] -->
                 <dim>5</dim> 
             </port>
-            <port id="2" precision="I64">   <!-- number of segments -->
+            <port id="2" precision="I64">   <!-- number of segments: 8 -->
                 <dim>0</dim> 
             </port>
         </input>
         <output>
             <port id="3" precision="F32">
-                <dim>4</dim>
+                <dim>8</dim>
             </port>
         </output>
     </layer>
