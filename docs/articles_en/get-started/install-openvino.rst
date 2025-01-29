@@ -16,6 +16,7 @@ Install OpenVINO™ 2025.0
    OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
    OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
    Create an OpenVINO Yocto Image <install-openvino/install-openvino-yocto>
+   Additional Hardware Setup and Troubleshooting <install-openvino/configurations>
 
 .. raw:: html
 

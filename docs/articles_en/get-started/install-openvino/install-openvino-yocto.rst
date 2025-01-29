@@ -104,7 +104,7 @@ If the image build is successful, it will return the list of packages as below:
 Additional Resources
 ####################
 
-- :doc:`Troubleshooting Guide <../troubleshooting-install-config>`
+- :doc:`Troubleshooting Guide <./configurations/troubleshooting-install-config>`
 - `Official Yocto Project documentation <https://docs.yoctoproject.org/>`__
 - `BitBake Tool <https://docs.yoctoproject.org/bitbake/>`__
 - `Poky <https://git.yoctoproject.org/poky>`__

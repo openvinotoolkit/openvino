@@ -74,5 +74,5 @@ Building a local distribution will require more detailed information, and you wi
 
 .. note::
 
-   Depending on your target OpenVINO devices, the following configuration might be needed for deployed machines: :doc:`Configurations for GPU <../get-started/configurations/configurations-intel-gpu>`.
+   Depending on your target OpenVINO devices, the following configuration might be needed for deployed machines: :doc:`Configurations for GPU <../get-started/install-openvino/configurations/configurations-intel-gpu>`.
 
