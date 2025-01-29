@@ -19,10 +19,10 @@ static constexpr Property<bool, PropertyMutability::RW> bool_property{"BOOL_PROP
 static constexpr Property<int32_t, PropertyMutability::RW> int_property{"INT_PROPERTY"};
 static constexpr Property<std::string, PropertyMutability::RW> high_level_property{"HIGH_LEVEL_PROPERTY"};
 static constexpr Property<std::string, PropertyMutability::RW> low_level_property{"LOW_LEVEL_PROPERTY"};
-static constexpr Property<uint8_t, PropertyMutability::RW> release_internal_property{"RELEASE_INTERNAL_PROPERTY"};
-static constexpr Property<uint8_t, PropertyMutability::RW> debug_property{"DEBUG_PROPERTY"};
+static constexpr Property<int64_t, PropertyMutability::RW> release_internal_property{"RELEASE_INTERNAL_PROPERTY"};
 
 #ifdef ENABLE_DEBUG_CAPS
+static constexpr Property<int64_t, PropertyMutability::RW> debug_property{"DEBUG_PROPERTY"};
 static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property{"DEBUG_GLOBAL_PROPERTY"};
 #endif
 
@@ -236,7 +236,9 @@ TEST(plugin_config, can_copy_config) {
 TEST(plugin_config, set_property_throw_for_non_release_options) {
     NotEmptyTestConfig cfg;
     ASSERT_ANY_THROW(cfg.set_user_property({release_internal_property(10)}, OptionVisibility::RELEASE));
+#ifdef ENABLE_DEBUG_CAPS
     ASSERT_ANY_THROW(cfg.set_user_property({debug_property(10)}, OptionVisibility::RELEASE));
+#endif
 }
 
 TEST(plugin_config, visibility_is_correct) {
@@ -249,6 +251,26 @@ TEST(plugin_config, visibility_is_correct) {
 #endif
 }
 
+TEST(plugin_config, can_read_from_env) {
+    NotEmptyTestConfig cfg;
+    ASSERT_EQ(cfg.get_int_property(), -1);
+    std::string env_var1 = "OV_INT_PROPERTY=10";
+    ::putenv(env_var1.data());
+    ASSERT_EQ(cfg.get_int_property(), -1); // env is applied after finalization only
+
+#ifdef ENABLE_DEBUG_CAPS
+    std::string env_var2 = "OV_DEBUG_PROPERTY=20";
+    ::putenv(env_var2.data());
+    ASSERT_EQ(cfg.get_debug_property(), 2); // same for debug option
+#endif
+
+    cfg.finalize(nullptr, nullptr);
+    ASSERT_EQ(cfg.get_int_property(), 10);
+#ifdef ENABLE_DEBUG_CAPS
+    ASSERT_EQ(cfg.get_debug_property(), 20);
+#endif
+}
+
 #ifdef ENABLE_DEBUG_CAPS
 TEST(plugin_config, can_get_global_property) {
     NotEmptyTestConfig cfg;
@@ -256,14 +278,13 @@ TEST(plugin_config, can_get_global_property) {
 }
 
 TEST(plugin_config, global_property_read_env_on_each_call) {
-    NotEmptyTestConfig cfg;
-    ASSERT_EQ(cfg.get_debug_global_property(), 4);
+    ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 4);
     std::string env_var1 = "OV_DEBUG_GLOBAL_PROPERTY=10";
     ::putenv(env_var1.data());
-    ASSERT_EQ(cfg.get_debug_global_property(), 10);
+    ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 10);
 
     std::string env_var2 = "OV_DEBUG_GLOBAL_PROPERTY=20";
     ::putenv(env_var2.data());
-    ASSERT_EQ(cfg.get_debug_global_property(), 20);
+    ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 20);
 }
 #endif
