@@ -55,6 +55,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, usm_policy, 0, "0: default, 1: use 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_batch_limit, std::numeric_limits<int32_t>::max(), "Max number of batch elements to dump")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_profiling_data_per_iter, false, "Save profiling data w/o per-iteration aggregation")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, log_to_file, "", "Save verbose log to specified file")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug config in json format")
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")

@@ -98,12 +98,6 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
     if (model)
         apply_model_specific_options(context, *model);
 
-#ifdef ENABLE_DEBUG_CAPS
-    // For now we apply env/config only for build with debug caps, but it can be updated in the future to allow
-    // reading release options for any build type
-    apply_debug_options(context);
-#endif // ENABLE_DEBUG_CAPS
-
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
     // E.g num_streams=AUTO && hint=THROUGHPUT
@@ -115,6 +109,10 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
     }
 
     finalize_impl(context);
+
+#ifdef ENABLE_DEBUG_CAPS
+    apply_env_options();
+#endif
 
     // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side finalization
     m_user_properties.clear();
@@ -131,39 +129,35 @@ bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-void PluginConfig::apply_debug_options(const IRemoteContext* context) {
-    const bool throw_on_error = false;
-#ifdef ENABLE_DEBUG_CAPS
-    constexpr const auto allowed_visibility = OptionVisibility::ANY;
-#else
-    constexpr const auto allowed_visibility = OptionVisibility::RELEASE;
-#endif
+void PluginConfig::apply_env_options() {
+    ov::AnyMap env_properties = read_env();
+    cleanup_unsupported(env_properties);
+    for (auto& [name, val] : env_properties) {
+        std::cout << "Non default env value for " << name << " = " << val.as<std::string>() << std::endl;
+    }
+    set_property(env_properties);
+}
 
-    if (context) {
-        ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
+void PluginConfig::apply_config_options(std::string_view device_name, std::string_view config_path) {
+    if (!config_path.empty()) {
+        ov::AnyMap config_properties = read_config_file(std::string(config_path), device_name);
         cleanup_unsupported(config_properties);
 #ifdef ENABLE_DEBUG_CAPS
         for (auto& [name, val] : config_properties) {
             std::cout << "Non default config value for " << name << " = " << val.as<std::string>() << std::endl;
         }
 #endif
-        set_user_property(config_properties, allowed_visibility, throw_on_error);
+        set_property(config_properties);
     }
-
-    ov::AnyMap env_properties = read_env();
-    cleanup_unsupported(env_properties);
-#ifdef ENABLE_DEBUG_CAPS
-    for (auto& [name, val] : env_properties) {
-        std::cout << "Non default env value for " << name << " = " << val.as<std::string>() << std::endl;
-    }
-#endif
-    set_user_property(env_properties, allowed_visibility, throw_on_error);
 }
 
-ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std::string& target_device_name) const {
+ov::AnyMap PluginConfig::read_config_file(std::string_view filename, std::string_view target_device_name) const {
+    if (filename.empty())
+        return {};
+
     ov::AnyMap config;
 
-    std::ifstream ifs(filename);
+    std::ifstream ifs(std::string{filename});
     if (!ifs.is_open()) {
         return config;
     }
@@ -175,7 +169,7 @@ ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std
         return config;
     }
 
-    DeviceIDParser parser(target_device_name);
+    DeviceIDParser parser(std::string{target_device_name});
     for (auto item = json_config.cbegin(), end = json_config.cend(); item != end; ++item) {
         const std::string& device_name = item.key();
         if (DeviceIDParser(device_name).get_device_name() != parser.get_device_name())

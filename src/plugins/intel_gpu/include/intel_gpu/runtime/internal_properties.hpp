@@ -90,6 +90,7 @@ static constexpr Property<bool, PropertyMutability::RW> use_onednn{"USE_ONEDNN"}
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> verbose_color{"VERBOSE_COLOR"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> debug_config{"DEBUG_CONFIG"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> log_to_file{"GPU_LOG_TO_FILE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_usm{"GPU_DISABLE_USM"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_onednn_post_ops_opt{"DISABLE_ONEDNN_POST_OPS_OPT"};
