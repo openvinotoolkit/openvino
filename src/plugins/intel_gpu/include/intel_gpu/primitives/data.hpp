@@ -221,17 +221,11 @@ private:
 
             topology topology(input_layout("input", reorder_rep.input_layout),
                               reorder("reorder", input_info("input"), reorder_rep.output_layout));
-            ExecutionConfig config{};
-            if (engine.get_device_info().supports_immad) {
-                config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-            }
-
-            ov::intel_gpu::ImplementationDesc reorder_ref = {reorder_rep.output_layout.format, "reorder_data"};
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_ref} }));
-            cldnn::network network(engine, topology, config);
+            cldnn::network network(engine, topology, {});
             network.set_input_data("input", input_mem);
             network.set_output_memory("reorder", dst_mem);
             auto outputs = network.execute();
+            network.reset_execution(true);
             OPENVINO_ASSERT(outputs.size() == 1);
         } else {
             copy_to_dst_mem(dst_mem, get_intermediate_data());
