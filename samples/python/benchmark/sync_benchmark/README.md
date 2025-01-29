@@ -19,7 +19,7 @@ The following Python API is used in the application:
 
 | Feature                   | API                                             | Description                                  |
 | --------------------------| ------------------------------------------------|----------------------------------------------|
-| OpenVINO Runtime Version  | [openvino.runtime.get_version]                  | Get Openvino API version.                    |
+| OpenVINO API Version      | [openvino.\_\_version__]                          | Get Openvino API version.                    |
 | Basic Infer Flow          | [openvino.runtime.Core],                        | Common API to do inference: compile a model, |
 |                           | [openvino.runtime.Core.compile_model],          | configure input tensors.                     |
 |                           | [openvino.runtime.InferRequest.get_tensor]      |                                              |
