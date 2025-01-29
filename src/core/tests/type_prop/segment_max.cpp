@@ -157,11 +157,17 @@ TEST_F(TypePropSegmentMaxTest, interval_num_segments_from_graph) {
 
 TEST_F(TypePropSegmentMaxTest, segment_ids_from_graph) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{3, 12, 81});
-    const auto segment_ids_input = std::make_shared<Constant>(element::i32, Shape{5}, std::vector<int32_t>{0, 1, 2, 3, 4});
+    const auto segment_ids_input =
+        std::make_shared<Constant>(element::i32, Shape{5}, std::vector<int32_t>{0, 1, 2, 3, 4});
     const auto begin = Constant::create(element::i64, Shape{1}, {0});
     const auto end = Constant::create(element::i64, Shape{1}, {3});
     const auto stride = Constant::create(element::i64, Shape{1}, {1});
-    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input,
+                                                                    begin,
+                                                                    end,
+                                                                    stride,
+                                                                    std::vector<int64_t>{0},
+                                                                    std::vector<int64_t>{0});
 
     const auto op = make_op(data, segment_ids, op::FillMode::ZERO);
     op->validate_and_infer_types();
@@ -176,7 +182,12 @@ TEST_F(TypePropSegmentMaxTest, dynamic_segment_ids_from_graph) {
     const auto begin = Constant::create(element::i64, Shape{1}, {0});
     const auto end = Constant::create(element::i64, Shape{1}, {3});
     const auto stride = Constant::create(element::i64, Shape{1}, {1});
-    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input,
+                                                                    begin,
+                                                                    end,
+                                                                    stride,
+                                                                    std::vector<int64_t>{0},
+                                                                    std::vector<int64_t>{0});
 
     const auto op = make_op(data, segment_ids, op::FillMode::ZERO);
     op->validate_and_infer_types();
@@ -191,7 +202,12 @@ TEST_F(TypePropSegmentMaxTest, interval_segment_ids_from_graph) {
     const auto begin = Constant::create(element::i64, Shape{1}, {0});
     const auto end = Constant::create(element::i64, Shape{1}, {3});
     const auto stride = Constant::create(element::i64, Shape{1}, {1});
-    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input, begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
+    const auto segment_ids = std::make_shared<op::v1::StridedSlice>(segment_ids_input,
+                                                                    begin,
+                                                                    end,
+                                                                    stride,
+                                                                    std::vector<int64_t>{0},
+                                                                    std::vector<int64_t>{0});
 
     const auto op = make_op(data, segment_ids, op::FillMode::ZERO);
     op->validate_and_infer_types();

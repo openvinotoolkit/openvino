@@ -44,9 +44,9 @@ void SegmentMax::validate_and_infer_types() {
     if (inputs().size() == 3) {
         const auto& num_segments_element_type = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
-                          num_segments_element_type == element::i32 || num_segments_element_type == element::i64,
-                          "The element type of the num_segments input be i32 or i64. Got: ",
-                          num_segments_element_type);
+                              num_segments_element_type == element::i32 || num_segments_element_type == element::i64,
+                              "The element type of the num_segments input be i32 or i64. Got: ",
+                              num_segments_element_type);
     }
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));

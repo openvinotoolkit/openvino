@@ -23,9 +23,9 @@ OPENVINO_API EnumNames<ov::op::PadMode>& EnumNames<ov::op::PadMode>::get() {
 
 template <>
 OPENVINO_API EnumNames<ov::op::FillMode>& EnumNames<ov::op::FillMode>::get() {
-    static auto enum_names = EnumNames<ov::op::FillMode>("ov::op::FillMode",
-                                                        {{"zero", ov::op::FillMode::ZERO},
-                                                         {"lowest", ov::op::FillMode::LOWEST}});
+    static auto enum_names =
+        EnumNames<ov::op::FillMode>("ov::op::FillMode",
+                                    {{"zero", ov::op::FillMode::ZERO}, {"lowest", ov::op::FillMode::LOWEST}});
     return enum_names;
 }
 
