@@ -45,14 +45,7 @@ Napi::Value Output<ov::Node>::get_partial_shape(const Napi::CallbackInfo& info) 
 }
 
 Napi::Value Output<ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
-    std::string name;
-    if (_output.get_names().empty()) {
-        name = _output.get_node()->get_name();
-    } else {
-        name = _output.get_any_name();
-    }
-
-    return Napi::String::New(info.Env(), name);
+    return Napi::String::New(info.Env(), _output.get_node()->get_name());
 }
 
 Output<const ov::Node>::Output(const Napi::CallbackInfo& info)
@@ -95,11 +88,5 @@ Napi::Value Output<const ov::Node>::get_partial_shape(const Napi::CallbackInfo& 
 }
 
 Napi::Value Output<const ov::Node>::get_any_name(const Napi::CallbackInfo& info) {
-    std::string name;
-    if (_output.get_names().empty()) {
-        name = _output.get_node()->get_name();
-    } else {
-        name = _output.get_any_name();
-    }
-    return Napi::String::New(info.Env(), name);
+    return Napi::String::New(info.Env(), _output.get_node()->get_name());
 }
