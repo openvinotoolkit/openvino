@@ -57,7 +57,7 @@ VectorDims BrgemmExternalRepackingAdjuster::get_blk_shape(const VectorDims& plan
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
     const auto new_K = snippets::utils::div_up(K, vnni_factor);
-    const auto new_N = snippets::utils::rnd_up(N, brgemm_utils::repacking::compute_inner_n_block(prc));
+    const auto new_N = brgemm_utils::repacking::compute_repacked_n_dim(N, prc);
     VectorDims blk_shape(planar_shape.begin(), planar_shape.end() - brgemm_kernel_rank);
     blk_shape.insert(blk_shape.end(), {new_K, new_N, vnni_factor});
     return blk_shape;
