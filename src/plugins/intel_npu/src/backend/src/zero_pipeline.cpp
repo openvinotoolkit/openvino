@@ -31,10 +31,6 @@ Pipeline::Pipeline(const Config& config,
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _event_pool{
-          std::make_shared<EventPool>(_init_structs->getDevice(),
-                                      _init_structs->getContext(),
-                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()),
       _group_ordinal(group_ordinal) {
@@ -51,16 +47,31 @@ Pipeline::Pipeline(const Config& config,
 
     _ze_queue_priority = zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>());
 
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
+
+    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _event_pool =
+            std::make_shared<EventPool>(_init_structs->getDevice(),
+                                        _init_structs->getContext(),
+                                        _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
+
+        _events.reserve(_number_of_command_lists);
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+        }
+    }
+
     _command_lists.reserve(_number_of_command_lists);
-    _events.reserve(_number_of_command_lists);
-    _fences.resize(_number_of_command_lists);
-    _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
             std::make_unique<CommandList>(_init_structs,
                                           group_ordinal,
                                           _init_structs->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+    }
+
+    if (_sync_output_with_fences) {
+        _fences.resize(_number_of_command_lists);
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
