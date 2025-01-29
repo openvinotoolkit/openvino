@@ -8,7 +8,7 @@ AUTO is a meta plugin in OpenVINO that doesn’t bind to a specific type of hard
 
 The logic behind the choice is as follows:
 * Check what supported devices are available.
-* Check performance hint of input setting (For detailed information of performance hint, please read more on the [ov::hint::PerformanceMode](https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/high-level-performance-hints.html)).
+* Check performance hint of input setting (For detailed information of performance hint, please read more on the [ov::hint::PerformanceMode](https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/high-level-performance-hints.html)).
 * Check precisions of the input model.
 * Select the highest-priority device capable of supporting the given model for LATENCY hint and THROUGHPUT hint. Or Select all devices capable of supporting the given model for CUMULATIVE THROUGHPUT hint.
 * If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
@@ -21,7 +21,7 @@ The AUTO plugin is also the default plugin for OpenVINO, if the user does not se
 
 Compiling the model to accelerator-optimized kernels may take some time. When AUTO selects one accelerator, it can start inference with the system's CPU by default, as it provides very low latency and can start inference with no additional delays. While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 
-![alt text](https://docs.openvino.ai/2024/_images/autoplugin_accelerate.svg "AUTO cuts first inference latency (FIL) by running inference on the CPU until the GPU is ready")
+![alt text](https://docs.openvino.ai/2025/_images/autoplugin_accelerate.svg "AUTO cuts first inference latency (FIL) by running inference on the CPU until the GPU is ready")
 
 The user can disable this acceleration feature by excluding CPU from the priority list or disabling `ov::intel_auto::enable_startup_fallback`. Its default value is `true`.
 

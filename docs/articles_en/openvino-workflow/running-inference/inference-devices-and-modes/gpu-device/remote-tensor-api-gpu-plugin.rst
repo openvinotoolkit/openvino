@@ -669,6 +669,6 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
-* `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
+* `ov::Core <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__
+* `ov::RemoteTensor <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
 

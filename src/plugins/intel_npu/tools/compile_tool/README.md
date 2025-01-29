@@ -3,12 +3,12 @@
 This page demonstrates how to use NPU Compile Tool to convert OpenVINO™ Intermediate Representation (IR) of an AI model or a model in ONNX format to a "blob" file that is compiled by NPU NN Compiler and serialized to the format accessible for NPU Driver and NPU Runtime to execute.
 
 
-## Description 
+## Description
 
 Compile tool is a C++ application that enables you to compile a model for inference on a specific device and export the compiled representation to a binary file.
-With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, i.e. without NPU driver and Runtime loading, and then transfer a generated file to any machine with the target inference device available. 
+With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, i.e. without NPU driver and Runtime loading, and then transfer a generated file to any machine with the target inference device available.
 
-Using Compile Tool is not a basic approach to end-to-end execution and/or application but mostly suitable for debugging and validation and some specific use cases. If one is looking for the standard way of reducing application startup delays by exporting and reusing the compiled model automatically, refer to [Model Caching article](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html#model-caching)
+Using Compile Tool is not a basic approach to end-to-end execution and/or application but mostly suitable for debugging and validation and some specific use cases. If one is looking for the standard way of reducing application startup delays by exporting and reusing the compiled model automatically, refer to [Model Caching article](https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html#model-caching)
 
 ## Workflow of the Compile tool
 
@@ -18,17 +18,17 @@ First, the application reads command-line parameters and loads a model to the Op
 
 ### Within NPU Plugin build
 
-See [How to build](https://github.com/openvinotoolkit/openvino/wiki#how-to-build). If `ENABLE_INTEL_NPU=ON` is provided, no additional steps are required for Compile Tool. It will be built unconditionally with every NPU Plugin build. It can be found in `bin` folder.  
+See [How to build](https://github.com/openvinotoolkit/openvino/wiki#how-to-build). If `ENABLE_INTEL_NPU=ON` is provided, no additional steps are required for Compile Tool. It will be built unconditionally with every NPU Plugin build. It can be found in `bin` folder.
 
 If you need to configure a release package layout and have Compile Tool in it, use `cmake --install <dir> --component npu_internal` from your `build` folder. After installation compile_tool executable can be found in `<install_dir>/tools/compile_tool` folder.
 
 ### Standalone build
 
-#### Prerequisites 
-* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2024/get-started/install-openvino.html)
+#### Prerequisites
+* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2025/get-started/install-openvino.html)
 
 #### Build instructions
-1. Download and install OpenVINO™ Runtime package 
+1. Download and install OpenVINO™ Runtime package
 2. Build Compile Tool
     ```sh
     mkdir compile_tool_build && cd compile_tool_build
@@ -36,21 +36,21 @@ If you need to configure a release package layout and have Compile Tool in it, u
     cmake --build . --config Release
     cmake --install . --prefix <compile_tool_install_dir>
     ```
-    > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)  
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling `setupvars` script might not be needed. Refer [documentation](https://docs.openvino.ai/2024/get-started/install-openvino.html) for details.  
+    > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling `setupvars` script might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
     > Note 3: `<compile_tool_install_dir>` can be any directory on your filesystem that you want to use for installation including `<openvino_install_dir>` if you wish to extend OpenVINO package
 3. Verify the installation
     ```sh
     source <openvino_install_dir>/setupvars.sh
     <compile_tool_install_dir>/tools/compile_tool/compile_tool -h
     ```
-    > Note 1: command line might differ depending on your platform  
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2024/get-started/install-openvino.html) for details.  
+    > Note 1: command line might differ depending on your platform
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
 
     Successful build will show the information about Compile Tool CLI options
 
 
-## How to run 
+## How to run
 
 Running the application with the `-h` option yields the following usage message:
 ```

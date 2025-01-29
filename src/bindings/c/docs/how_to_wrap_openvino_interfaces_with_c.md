@@ -78,4 +78,4 @@ The tensor create needs to specify the shape info, so C shape need to be convert
  ## See also
  * [OpenVINO™ README](../../../../README.md)
  * [C API developer guide](../README.md)
- * [C API Reference](https://docs.openvino.ai/2024/api/api_reference.html)
+ * [C API Reference](https://docs.openvino.ai/2025/api/api_reference.html)

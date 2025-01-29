@@ -11,7 +11,7 @@ flowchart LR
     openvino(openvino library)
     ir--Read ir---ir_fe
     ir_fe--Create ov::Model--->openvino
-    click ir "https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html"
+    click ir "https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets.html"
 ```
 
 The primary function of the OpenVINO IR Frontend is to load an OpenVINO IR into memory.
