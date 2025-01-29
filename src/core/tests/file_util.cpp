@@ -530,6 +530,19 @@ protected:
                 outfile << "This is a test file." << std::endl;
             }
         }
+        {
+            std::ofstream outfile("test_file_raw_bytes_746.txt", std::ios::binary);
+            std::vector<char> buffer(746, 0);
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 255);
+
+            std::generate(buffer.begin(), buffer.end(), [&]() {
+                return static_cast<char>(dis(gen));
+            });
+
+            outfile.write(buffer.data(), buffer.size());
+        }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         {
@@ -584,6 +597,7 @@ protected:
         // Remove the temporary files after testing
         std::filesystem::remove("test_file_0.txt");
         std::filesystem::remove("test_file_21.txt");
+        std::filesystem::remove("test_file_raw_bytes_746.txt");
         std::filesystem::remove("test_file_21x1000.txt");
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         std::filesystem::remove(u8"这是_u8_.txt");
@@ -630,6 +644,12 @@ TEST_F(FileUtilTest, FileSizeTest) {
     EXPECT_EQ(ov::util::file_size("test_file_21.txt"s), 21);
     EXPECT_EQ(ov::util::file_size(L"test_file_21.txt"), 21);
     EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_21.txt")), 21);
+}
+
+TEST_F(FileUtilTest, FileSizeRawBytesTest) {
+    EXPECT_EQ(ov::util::file_size("test_file_raw_bytes_746.txt"s), 746);
+    EXPECT_EQ(ov::util::file_size(L"test_file_raw_bytes_746.txt"), 746);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_raw_bytes_746.txt")), 746);
 }
 
 TEST_F(FileUtilTest, LargeFileSizeTest) {
