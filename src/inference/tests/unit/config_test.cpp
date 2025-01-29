@@ -3,13 +3,17 @@
 //
 
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 #include <string>
+#include <fstream>
 
 using namespace ::testing;
 using namespace ov;
@@ -25,6 +29,38 @@ static constexpr Property<int64_t, PropertyMutability::RW> release_internal_prop
 static constexpr Property<int64_t, PropertyMutability::RW> debug_property{"DEBUG_PROPERTY"};
 static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property{"DEBUG_GLOBAL_PROPERTY"};
 #endif
+
+namespace {
+void dump_config(const std::string& filename, const std::map<std::string, ov::AnyMap>& config) {
+    nlohmann::json jsonConfig;
+    for (const auto& item : config) {
+        std::string deviceName = item.first;
+        for (const auto& option : item.second) {
+            // primary property
+            std::stringstream strm;
+            option.second.print(strm);
+            auto property_string = strm.str();
+            jsonConfig[deviceName][option.first] = property_string;
+        }
+    }
+
+    std::ofstream ofs(filename);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    ofs << jsonConfig;
+}
+class DummyRemoteContext : public ov::IRemoteContext {
+public:
+    const std::string& get_device_name() const override { static const std::string device_name = "SOME_DEVICE"; return device_name; }
+    const ov::AnyMap& get_property() const override { OPENVINO_NOT_IMPLEMENTED; };
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                                       const ov::Shape& shape,
+                                                       const ov::AnyMap& params = {}) override { OPENVINO_NOT_IMPLEMENTED; }
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override { OPENVINO_NOT_IMPLEMENTED; }
+};
+}  // namespace
 
 struct EmptyTestConfig : public ov::PluginConfig {
     std::vector<std::string> get_supported_properties() const {
@@ -251,12 +287,12 @@ TEST(plugin_config, visibility_is_correct) {
 #endif
 }
 
-TEST(plugin_config, can_read_from_env) {
+TEST(plugin_config, can_read_from_env_with_debug_caps) {
     NotEmptyTestConfig cfg;
     ASSERT_EQ(cfg.get_int_property(), -1);
     std::string env_var1 = "OV_INT_PROPERTY=10";
     ::putenv(env_var1.data());
-    ASSERT_EQ(cfg.get_int_property(), -1); // env is applied after finalization only
+    ASSERT_EQ(cfg.get_int_property(), -1); // env is applied after finalization only for build with debug caps
 
 #ifdef ENABLE_DEBUG_CAPS
     std::string env_var2 = "OV_DEBUG_PROPERTY=20";
@@ -265,10 +301,44 @@ TEST(plugin_config, can_read_from_env) {
 #endif
 
     cfg.finalize(nullptr, nullptr);
-    ASSERT_EQ(cfg.get_int_property(), 10);
+
 #ifdef ENABLE_DEBUG_CAPS
+    ASSERT_EQ(cfg.get_int_property(), 10);
     ASSERT_EQ(cfg.get_debug_property(), 20);
+#else
+    ASSERT_EQ(cfg.get_int_property(), -1); // no effect
 #endif
+}
+
+TEST(plugin_config, can_read_from_config) {
+    const std::filesystem::path filepath = "config.json";
+    try {
+        NotEmptyTestConfig cfg;
+        ov::AnyMap config {
+            int_property(10),
+    #ifdef ENABLE_DEBUG_CAPS
+            debug_property(20),
+    #endif
+        };
+
+        DummyRemoteContext ctx;
+        dump_config(filepath.generic_string(), {{ctx.get_device_name(), config }});
+
+        ASSERT_EQ(cfg.get_int_property(), -1); // config is applied after finalization only for build with debug caps
+    #ifdef ENABLE_DEBUG_CAPS
+        ASSERT_EQ(cfg.get_debug_property(), 2); // same for debug option
+    #endif
+
+        cfg.finalize(&ctx, nullptr);
+    #ifdef ENABLE_DEBUG_CAPS
+        ASSERT_EQ(cfg.get_int_property(), 10);
+        ASSERT_EQ(cfg.get_debug_property(), 20);
+    #else
+        ASSERT_EQ(cfg.get_int_property(), -1); // no effect
+    #endif
+    } catch (std::exception&) { }
+
+    std::filesystem::remove(filepath);
 }
 
 #ifdef ENABLE_DEBUG_CAPS

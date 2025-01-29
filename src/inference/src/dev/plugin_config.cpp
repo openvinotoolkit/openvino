@@ -98,7 +98,12 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
     if (model)
         apply_model_specific_options(context, *model);
 
+#ifdef ENABLE_DEBUG_CAPS
+    // For now we apply env/config only for build with debug caps, but it can be updated in the future to allow
+    // reading release options for any build type
     apply_debug_options(context);
+#endif // ENABLE_DEBUG_CAPS
+
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
     // E.g num_streams=AUTO && hint=THROUGHPUT
