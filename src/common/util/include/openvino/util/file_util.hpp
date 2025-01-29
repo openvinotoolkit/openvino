@@ -199,11 +199,8 @@ file_size(const char* path) {
 
 inline int64_t file_size(const ov::util::Path& path) {
     std::error_code ec;
-    if (const std::uintmax_t size = std::filesystem::file_size(path, ec); ec) {
-        return -1;
-    } else {
-        return static_cast<int64_t>(size);
-    }
+    const auto size = std::filesystem::file_size(path, ec);
+    return ec ? -1 : static_cast<int64_t>(size);
 }
 
 /**
