@@ -5,21 +5,20 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.Model tests', () => {
-  let testXml = null;
+  const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    await isModelAvailable(testModelFP32);
     core = new ov.Core();
   });
 
   beforeEach(() => {
-    model = core.readModelSync(testXml);
+    model = core.readModelSync(testModelFP32.xml);
   });
 
   describe('Model.isDynamic()', () => {

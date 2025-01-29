@@ -4,7 +4,7 @@ const util = require('node:util');
 const assert = require('node:assert');
 const { exec } = require('child_process');
 const execPromise = util.promisify(exec);
-const { testModels, downloadTestModel } = require('../unit/utils.js');
+const { testModels, downloadTestModel } = require('../utils.js');
 
 describe('E2E testing for OpenVINO as an Electron dependency.', function() {
   this.timeout(50000);
