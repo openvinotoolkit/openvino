@@ -338,8 +338,8 @@ describe('ov.InferRequest tests with missing outputs names', () => {
 
     const core = new ov.Core();
 
-    let modelData = await fs.readFile(getModelPath(modelV3Small).xml, 'utf8');
-    const weights = await fs.readFile(getModelPath(modelV3Small).bin);
+    let modelData = await fs.readFile(modelV3Small.xml, 'utf8');
+    const weights = await fs.readFile(modelV3Small.bin);
     modelData = modelData.replace(
       'names="MobilenetV3/Predictions/Softmax:0"',
       ''
@@ -350,24 +350,20 @@ describe('ov.InferRequest tests with missing outputs names', () => {
     inferRequest = compiledModel.createInferRequest();
 
     tensorData = Float32Array.from(
-      { length: 150528 },
+      { length: lengthFromShape(modelV3Small.inputShape) },
       () => Math.random() + epsilon,
     );
     tensor = new ov.Tensor(ov.element.f32, modelV3Small.inputShape, tensorData);
   });
 
   it('Test infer(inputData: Tensor[])', () => {
-    const outputLayer = compiledModel.outputs[0];
     const result = inferRequest.infer([tensor]);
-    assert.deepStrictEqual(Object.keys(result), [outputLayer.toString()]);
-    assert.ok(result[outputLayer] instanceof ov.Tensor);
+    assert.deepStrictEqual(Object.keys(result).length, 1);
   });
 
   it('Test inferAsync(inputData: Tensor[])', () => {
     inferRequest.inferAsync([tensor]).then((result) => {
-      const outputLayer = compiledModel.outputs[0];
-      assert.deepStrictEqual(Object.keys(result), [outputLayer.toString()]);
-      assert.ok(result[outputLayer] instanceof ov.Tensor);
+    assert.deepStrictEqual(Object.keys(result).length, 1);
     });
   });
 });

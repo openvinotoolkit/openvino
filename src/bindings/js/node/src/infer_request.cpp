@@ -146,7 +146,7 @@ std::map<std::string, ov::Tensor> get_js_infer_result(ov::InferRequest* infer_re
         auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(new_tensor);
         const auto name = output.get_names().empty() ? output.get_node()->get_name() : output.get_any_name();
-        
+
         auto key = name;
         int counter = 1;
         while (outputs.find(key) != outputs.end()) {
