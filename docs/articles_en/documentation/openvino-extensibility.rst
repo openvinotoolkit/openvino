@@ -187,6 +187,6 @@ See Also
 ########
 
 * :doc:`OpenVINO Transformations <openvino-extensibility/transformation-api>`
-* :doc:`Using OpenVINO Runtime Samples <../learn-openvino/openvino-samples>`
-* :doc:`Hello Shape Infer SSD sample <../learn-openvino/openvino-samples/hello-reshape-ssd>`
+* :doc:`Using OpenVINO Runtime Samples <../get-started/learn-openvino/openvino-samples>`
+* :doc:`Hello Shape Infer SSD sample <../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`
 
