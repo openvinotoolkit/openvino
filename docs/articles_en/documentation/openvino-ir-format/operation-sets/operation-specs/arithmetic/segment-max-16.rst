@@ -50,7 +50,7 @@ For ``empty_segment_value`` equal to 0, the operator output would be ``[max(Segm
 **Types**
 
 * *T*: any supported numerical data type.
-* *T_IDX*: ``int64`` or ``int32``.
+* *T_IDX1*, *T_IDX2*: ``int64`` or ``int32``.
 
 **Examples**
 
