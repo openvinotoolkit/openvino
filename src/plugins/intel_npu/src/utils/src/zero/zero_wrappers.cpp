@@ -14,8 +14,8 @@ EventPool::EventPool(ze_device_handle_t device_handle, const ze_context_handle_t
                                             nullptr,
                                             ZE_EVENT_POOL_FLAG_HOST_VISIBLE,
                                             event_count};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventPoolCreate",
-                                zeEventPoolCreate(context, &event_pool_desc, 1, &device_handle, &_handle));
+    auto result = zeEventPoolCreate(context, &event_pool_desc, 1, &device_handle, &_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeEventPoolCreate", result);
 }
 EventPool::~EventPool() {
     auto result = zeEventPoolDestroy(_handle);
@@ -30,25 +30,28 @@ Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
     : _event_pool(event_pool),
       _log("Event", Logger::global().level()) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(_event_pool->handle(), &event_desc, &_handle));
+    auto result = zeEventCreate(_event_pool->handle(), &event_desc, &_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", result);
 }
 void Event::AppendSignalEvent(CommandList& command_list) const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendSignalEvent",
-                                zeCommandListAppendSignalEvent(command_list.handle(), _handle));
+    auto result = zeCommandListAppendSignalEvent(command_list.handle(), _handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendSignalEvent", result);
 }
 void Event::AppendWaitOnEvent(CommandList& command_list) {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWaitOnEvents",
-                                zeCommandListAppendWaitOnEvents(command_list.handle(), 1, &_handle));
+    auto result = zeCommandListAppendWaitOnEvents(command_list.handle(), 1, &_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWaitOnEvents", result);
 }
 void Event::AppendEventReset(CommandList& command_list) const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendEventReset",
-                                zeCommandListAppendEventReset(command_list.handle(), _handle));
+    auto result = zeCommandListAppendEventReset(command_list.handle(), _handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendEventReset", result);
 }
 void Event::hostSynchronize() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostSynchronize", zeEventHostSynchronize(_handle, UINT64_MAX));
+    auto result = zeEventHostSynchronize(_handle, UINT64_MAX);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostSynchronize", result);
 }
 void Event::reset() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostReset", zeEventHostReset(_handle));
+    auto result = zeEventHostReset(_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostReset", result);
 }
 Event::~Event() {
     auto result = zeEventDestroy(_handle);
@@ -66,24 +69,24 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeCommandListCreate",
-        zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
+    auto result = zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListCreate", result);
 
     if (mtci_is_supported) {
         ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
                                                              nullptr,
                                                              ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT};
-        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
-                                    zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id));
+        result = zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id);
+        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result);
     }
 }
 void CommandList::reset() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListReset", zeCommandListReset(_handle));
+    auto result = zeCommandListReset(_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListReset", result);
 }
 void CommandList::appendMemoryCopy(void* dst, const void* src, const std::size_t size) const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendMemoryCopy",
-                                zeCommandListAppendMemoryCopy(_handle, dst, src, size, nullptr, 0, nullptr));
+    auto result = zeCommandListAppendMemoryCopy(_handle, dst, src, size, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendMemoryCopy", result);
 }
 void CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) const {
     ze_result_t result =
@@ -97,14 +100,16 @@ void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _init_structs->getGraphDdiTable());
 }
 void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp",
-                                zeCommandListAppendWriteGlobalTimestamp(_handle, timestamp_buff, nullptr, 0, nullptr));
+    auto result = zeCommandListAppendWriteGlobalTimestamp(_handle, timestamp_buff, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp", result);
 }
 void CommandList::appendBarrier() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendBarrier", zeCommandListAppendBarrier(_handle, nullptr, 0, nullptr));
+    auto result = zeCommandListAppendBarrier(_handle, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendBarrier", result);
 }
 void CommandList::close() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListClose", zeCommandListClose(_handle));
+    auto result = zeCommandListClose(_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListClose", result);
 }
 CommandList::~CommandList() {
     auto result = zeCommandListDestroy(_handle);
@@ -130,8 +135,8 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
                                                                   &desc,
                                                                   0};
 
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
-                                zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
+    auto result = zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp", result);
 }
 
 CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -152,24 +157,22 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         }
     }
 
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeCommandQueueCreate",
-        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
+    auto result = zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueCreate", result);
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
-                                zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr));
+    auto result = zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists", result);
 }
 void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
-                                zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
+    auto result = zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle());
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists", result);
 }
 
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workload_type) const {
     if (_init_structs->getCommandQueueDdiTable().version()) {
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeSetWorkloadType",
-            _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workload_type));
+        auto result = _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workload_type);
+        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType", result);
     } else {
         OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
     }
@@ -186,13 +189,16 @@ CommandQueue::~CommandQueue() {
 
 Fence::Fence(const CommandQueue& command_queue) : _log("Fence", Logger::global().level()) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(command_queue.handle(), &fence_desc, &_handle));
+    auto result = zeFenceCreate(command_queue.handle(), &fence_desc, &_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", result);
 }
 void Fence::reset() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceReset", zeFenceReset(_handle));
+    auto result = zeFenceReset(_handle);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceReset", result);
 }
 void Fence::hostSynchronize() const {
-    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
+    auto result = zeFenceHostSynchronize(_handle, UINT64_MAX);
+    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceHostSynchronize", result);
 }
 Fence::~Fence() {
     auto result = zeFenceDestroy(_handle);
