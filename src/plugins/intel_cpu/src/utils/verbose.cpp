@@ -45,7 +45,7 @@ bool Verbose::shouldBePrinted() const {
  * Can be rewritten in pure C++ if necessary
  */
 void Verbose::printInfo() {
-    enum Color { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
+    enum Color : uint8_t { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
 
     auto colorize = [&](const Color color, const std::string& str) {
         if (!colorUp) {
