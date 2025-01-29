@@ -137,6 +137,10 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
+if(ENABLE_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME}_s PUBLIC ENABLE_DEBUG_CAPS)
+endif()
+
 set_target_properties(${TARGET_NAME}_s PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # LTO
