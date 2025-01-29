@@ -61,7 +61,7 @@ Operation Class
 
       4. Override ``evaluate`` method, which enables fallback of a CPU device to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
 
-      5. Override the ``clone_with_new_inputs`` method, which enables graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
+      5. Override the ``clone_with_new_inputs``, which is an optional method that graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
 
 
 Based on that, declaration of an operation class can look as follows:
