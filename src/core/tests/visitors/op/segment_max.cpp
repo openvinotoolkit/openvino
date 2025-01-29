@@ -22,7 +22,7 @@ TEST(attributes, segment_max_v16_with_num_segments) {
     NodeBuilder builder(op, {data, segment_ids, num_segments});
     auto g_op = ov::as_type_ptr<SegmentMax>(builder.create());
 
-    EXPECT_EQ(g_op->get_empty_segment_value(), op->get_empty_segment_value());
+    EXPECT_EQ(g_op->get_fill_mode(), op->get_fill_mode());
 }
 
 TEST(attributes, segment_max_v16_without_num_segments) {
@@ -34,5 +34,5 @@ TEST(attributes, segment_max_v16_without_num_segments) {
     NodeBuilder builder(op, {data, segment_ids});
     auto g_op = ov::as_type_ptr<SegmentMax>(builder.create());
 
-    EXPECT_EQ(g_op->get_empty_segment_value(), op->get_empty_segment_value());
+    EXPECT_EQ(g_op->get_fill_mode(), op->get_fill_mode());
 }

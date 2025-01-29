@@ -21,28 +21,28 @@ public:
     ///
     /// \param data Input tensor with data
     /// \param segment_ids Indices of segments in the data input tensor
-    /// \param empty_segment_value The value assigned to segments which are empty
-    SegmentMax(const Output<Node>& data, const Output<Node>& segment_ids, const int64_t empty_segment_value);
+    /// \param fill_mode The value assigned to segments which are empty
+    SegmentMax(const Output<Node>& data, const Output<Node>& segment_ids, const op::FillMode fill_mode);
 
     /// \brief Constructs a SegmentMax operation.
     ///
     /// \param data Input tensor with data
     /// \param segment_ids Indices of segments in the data input tensor
     /// \param num_segments The segments count
-    /// \param empty_segment_value The value assigned to segments which are empty
+    /// \param fill_mode The value assigned to segments which are empty
     SegmentMax(const Output<Node>& data,
                const Output<Node>& segment_ids,
                const Output<Node>& num_segments,
-               const int64_t empty_segment_value);
+               const op::FillMode fill_mode);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    const int64_t get_empty_segment_value() const;
+    const op::FillMode get_fill_mode() const;
 
 private:
-    int64_t m_empty_segment_value;
+    op::FillMode m_fill_mode;
 };
 
 }  // namespace v16

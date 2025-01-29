@@ -13,24 +13,24 @@ namespace ov {
 namespace op {
 namespace v16 {
 
-SegmentMax::SegmentMax(const Output<Node>& data, const Output<Node>& segment_ids, const int64_t empty_segment_value)
+SegmentMax::SegmentMax(const Output<Node>& data, const Output<Node>& segment_ids, const op::FillMode fill_mode)
     : Op({data, segment_ids}),
-      m_empty_segment_value(empty_segment_value) {
+      m_fill_mode(fill_mode) {
     constructor_validate_and_infer_types();
 }
 
 SegmentMax::SegmentMax(const Output<Node>& data,
                        const Output<Node>& segment_ids,
                        const Output<Node>& num_segments,
-                       const int64_t empty_segment_value)
+                       const op::FillMode fill_mode)
     : Op({data, segment_ids, num_segments}),
-      m_empty_segment_value(empty_segment_value) {
+      m_fill_mode(fill_mode) {
     constructor_validate_and_infer_types();
 }
 
 bool SegmentMax::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(v16_SegmentMax_visit_attributes);
-    visitor.on_attribute("empty_segment_value", m_empty_segment_value);
+    visitor.on_attribute("fill_mode", m_fill_mode);
     return true;
 }
 
@@ -57,14 +57,14 @@ std::shared_ptr<Node> SegmentMax::clone_with_new_inputs(const ov::OutputVector& 
     OV_OP_SCOPE(v16_SegmentMax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
-        return std::make_shared<SegmentMax>(new_args.at(0), new_args.at(1), new_args.at(2), m_empty_segment_value);
+        return std::make_shared<SegmentMax>(new_args.at(0), new_args.at(1), new_args.at(2), m_fill_mode);
     } else {
-        return std::make_shared<SegmentMax>(new_args.at(0), new_args.at(1), m_empty_segment_value);
+        return std::make_shared<SegmentMax>(new_args.at(0), new_args.at(1), m_fill_mode);
     }
 }
 
-const int64_t SegmentMax::get_empty_segment_value() const {
-    return m_empty_segment_value;
+const op::FillMode SegmentMax::get_fill_mode() const {
+    return m_fill_mode;
 }
 
 }  // namespace v16

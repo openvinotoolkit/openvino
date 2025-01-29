@@ -17,6 +17,9 @@ namespace op {
 /// \brief Modes for the `Pad` operator.
 enum class PadMode { CONSTANT = 0, EDGE, REFLECT, SYMMETRIC };
 
+/// \brief Fill modes for the `SegmentMax` operator.
+enum class FillMode { ZEROS = 0, LOWEST};
+
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const PadMode& type);
 
@@ -217,6 +220,14 @@ public:
     AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PadMode>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<op::FillMode> : public EnumAttributeAdapterBase<op::FillMode> {
+public:
+    AttributeAdapter(op::FillMode& value) : EnumAttributeAdapterBase<op::FillMode>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<FillMode>");
 };
 
 template <>
