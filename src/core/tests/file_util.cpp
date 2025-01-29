@@ -459,6 +459,8 @@ TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
 #endif
 }
 
+#if defined(__ANDROID__) || defined(ANDROID)
+
 class CutAndroidPathTests : public ::testing::TestWithParam<std::tuple<ov::util::Path, ov::util::Path>> {};
 
 TEST_P(CutAndroidPathTests, HandlesStringPaths) {
@@ -507,6 +509,8 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(ov::util::Path(u8"~/いろはにほへど/狗!.txt"), ov::util::Path(u8"~/いろはにほへど/狗")),
         std::make_tuple(ov::util::Path(u"~/いろはにほへど/狗!.txt"), ov::util::Path(u"~/いろはにほへど/狗")),
         std::make_tuple(ov::util::Path(U"D:\\いろはにほへど\\猫!.txt"), ov::util::Path(U"D:\\いろはにほへど\\猫"))));
+
+#endif
 
 class FileUtilTest : public ::testing::Test {
 protected:

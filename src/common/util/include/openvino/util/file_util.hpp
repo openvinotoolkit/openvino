@@ -161,6 +161,7 @@ bool directory_exists(const std::string& path);
 bool directory_exists(const std::wstring& path);
 #endif
 
+#if defined(__ANDROID__) || defined(ANDROID)
 inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
     const auto& file_name_native = file_name.native();
 
@@ -170,6 +171,7 @@ inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
         return file_name;
     }
 }
+#endif
 
 /**
  * @brief      Returns file size for file
