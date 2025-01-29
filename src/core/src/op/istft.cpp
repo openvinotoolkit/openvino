@@ -144,7 +144,18 @@ bool ISTFT::get_center() const {
 }
 
 void ISTFT::set_center(const bool center) {
+    OV_OP_SCOPE(v16_ISTFT_set_center);
     m_center = center;
+}
+
+bool ISTFT::get_normalized() const {
+    OV_OP_SCOPE(v16_ISTFT_get_normalized);
+    return m_normalized;
+}
+
+void ISTFT::set_normalized(const bool normalized) {
+    OV_OP_SCOPE(v16_ISTFT_set_normalized);
+    m_normalized = normalized;
 }
 
 }  // namespace v16
