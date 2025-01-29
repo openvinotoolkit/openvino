@@ -33,13 +33,13 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
                            segment_ids_shape.rank().compatible(1),
                            "segment_ids must be a 1D input. Got: ",
                            segment_ids_shape);
-    const auto segment_ids = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
     if (is_segment_ids_rank_static && is_data_shape_rank_static) {
         NODE_SHAPE_INFER_CHECK(op,
                                 input_shapes,
                                 data_shape[0].compatible(segment_ids_shape[0]),
                                 "The number of elements in segment_ids must match the first dimension of data.");
     }
+    const auto segment_ids = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
     if (segment_ids) {
         NODE_VALIDATION_CHECK(op,
                                 std::is_sorted(segment_ids->begin(), segment_ids->end()),
@@ -51,8 +51,6 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
     const auto num_segments = num_segments_available
                                       ? ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)
                                       : ov::optional<std::vector<int64_t>>{};
-    auto output_shapes = std::vector<TRShape>{data_shape};
-    auto& output_shape = output_shapes[0];
     if (num_segments_available) {
         const auto& num_segments_shape = input_shapes[2];
         NODE_SHAPE_INFER_CHECK(op,
@@ -60,30 +58,22 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
                                num_segments_shape.rank().compatible(0),
                                "num_segments must be a scalar input. Got: ",
                                num_segments_shape);
-        if (num_segments && is_data_shape_rank_static) {
-            output_shape[0] = (*num_segments)[0];
-            return output_shapes;
-        }
     }
 
-    // if num_segments is not given, attempt to infer the first dimension from segment_ids
-    if (segment_ids && is_data_shape_rank_static) {
-        auto max_segment_id = *std::max_element(segment_ids->begin(), segment_ids->end());
-        output_shape[0] = max_segment_id + 1;
-        return output_shapes;
-    }
-
-    if (is_data_shape_rank_static) {
-        if (segment_ids) {
-            auto max_segment_id = *std::max_element(segment_ids->begin(), segment_ids->end());
-            output_shape[0] = max_segment_id + 1;
-            return output_shapes;
-        }
-        output_shape[0] = Dimension::dynamic();
-        return output_shapes;
-    } else {
+    if (!is_data_shape_rank_static) {
         return {PartialShape::dynamic()};
     }
+    using TDim = typename TShape::value_type;
+    auto output_shapes = std::vector<TRShape>{data_shape};
+    auto& output_shape = output_shapes[0];
+    if (num_segments) {
+        output_shape[0] = TDim((*num_segments)[0]);
+    } else if (segment_ids) {
+        output_shape[0] = TDim(*std::max_element(segment_ids->begin(), segment_ids->end()) + 1);
+    } else {
+        output_shape[0] = Dimension::dynamic();
+    }
+    return output_shapes;
 }
 }  // namespace v16
 }  // namespace op
