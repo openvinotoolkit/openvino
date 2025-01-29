@@ -87,10 +87,12 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     std::vector<TRShape> output_shapes;
     if (inputs_count == 5) {
         const auto& length_shape = input_shapes[4];
+        const bool has_len_valid_shape =
+            length_shape.rank().is_dynamic() || (length_shape.size() == 0 || length_shape[0].compatible(1));
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               length_shape.rank().compatible(0),
-                               "The shape of length input must be a scalar.");
+                               has_len_valid_shape,
+                               "The shape of 'signal_length' input must be a scalar or single element 1D tensor.");
 
         const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
         if (sig_len_in) {  // Set desired length of the signal dimension, if provided

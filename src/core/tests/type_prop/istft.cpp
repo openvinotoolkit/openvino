@@ -203,6 +203,34 @@ TEST_F(TypePropISTFTTest, istft_shape_length_const_out_2D) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 36}));
 }
 
+TEST_F(TypePropISTFTTest, istft_shape_of_length_out_2D_with_symbols) {
+    auto marked_signal = Dimension(36);
+    auto symbol_s = std::make_shared<Symbol>();
+    marked_signal.set_symbol(symbol_s);
+
+    auto marked_batch = Dimension(4);
+    auto symbol_b = std::make_shared<Symbol>();
+    marked_batch.set_symbol(symbol_b);
+
+    auto param_0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{marked_signal});
+    auto signal_length = std::make_shared<op::v0::ShapeOf>(param_0);
+
+    const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{marked_batch, 6, 13, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {3});
+
+    const auto op = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized);
+    EXPECT_EQ(op->get_output_size(), 1);
+
+    const auto& output_shape = op->get_output_partial_shape(0);
+    EXPECT_EQ(output_shape, (PartialShape{marked_batch, marked_signal}));
+
+    EXPECT_EQ(output_shape[0].get_symbol(), symbol_b);
+    EXPECT_EQ(output_shape[1].get_symbol(), symbol_s);
+    EXPECT_NE(output_shape[0].get_symbol(), output_shape[1].get_symbol());
+}
+
 TEST_F(TypePropISTFTTest, data_incompatible_shape) {
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{8});
     const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
@@ -273,6 +301,27 @@ TEST_F(TypePropISTFTTest, frame_step_incompatible_shape) {
         OV_EXPECT_THROW(std::ignore = make_op(in_data, window, frame_size, frame_step, center, normalized),
                         NodeValidationFailure,
                         HasSubstr("The shape of frame_step must be a scalar"));
+    }
+}
+
+TEST_F(TypePropISTFTTest, signal_length_incompatible_shape) {
+    const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{9, 3, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{16});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    {
+        const auto signal_length = std::make_shared<Parameter>(element::i64, PartialShape{2});
+        OV_EXPECT_THROW(
+            std::ignore = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized),
+            NodeValidationFailure,
+            HasSubstr("The shape of 'signal_length' input must be a scalar or single element 1D tensor"));
+    }
+    {
+        const auto signal_length = std::make_shared<Parameter>(element::i64, PartialShape{1, 2});
+        OV_EXPECT_THROW(
+            std::ignore = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized),
+            NodeValidationFailure,
+            HasSubstr("The shape of 'signal_length' input must be a scalar or single element 1D tensor"));
     }
 }
 
