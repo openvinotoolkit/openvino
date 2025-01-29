@@ -150,8 +150,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
                                                                            data_type::f32);
         }
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -185,8 +184,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
         this->postamble();
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16->emit_data();
+        uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceAnd || jcp_.reduce_mode == Algorithm::ReduceL1 ||
             jcp_.reduce_mode == Algorithm::ReduceMax || jcp_.reduce_mode == Algorithm::ReduceMin ||
@@ -1006,9 +1004,15 @@ private:
             uni_vmovups(op, vmm_dst);
             break;
         case memory::data_type::bf16:
-            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                         {static_cast<size_t>(ymm_dst.getIdx())});
-            vmovdqu16(op, ymm_dst);
+            if (isa == cpu::x64::avx512_core) {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
+            } else {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
+                uni_vmovdqu(op, xmm_dst);
+            }
             break;
         case memory::data_type::f16:
             vcvtps2ph(op, vmm_dst, 0x4);
@@ -1237,8 +1241,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
                                                                            data_type::f32);
         }
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
 
         this->preamble();
 
@@ -1292,8 +1295,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
         this->postamble();
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16->emit_data();
+        uni_vcvtneps2bf16->emit_data();
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector->prepare_table();
@@ -1723,9 +1725,15 @@ private:
             uni_vmovups(op, vmm_dst);
             break;
         case memory::data_type::bf16:
-            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                         {static_cast<size_t>(ymm_dst.getIdx())});
-            vmovdqu16(op, ymm_dst);
+            if (isa == cpu::x64::avx512_core) {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
+            } else {
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
+                uni_vmovdqu(op, xmm_dst);
+            }
             break;
         case memory::data_type::f16:
             vcvtps2ph(op, vmm_dst, 0x4);
