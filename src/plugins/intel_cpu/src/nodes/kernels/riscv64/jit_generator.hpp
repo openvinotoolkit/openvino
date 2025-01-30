@@ -9,9 +9,14 @@
 
 #include "openvino/core/except.hpp"
 
+
 namespace ov {
 namespace intel_cpu {
 namespace riscv64 {
+
+#define DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_name) \
+    const char *name() const override { return #jit_name; } \
+    const char *source_file() const override { return __FILE__; }
 
 // RISCV-64 specific registers mapping
 // reg    | ABI Name | descripion             | saved by
@@ -38,15 +43,6 @@ namespace riscv64 {
 // f12-17 | fa2-7    | FP Function arguments  |  Caller
 // f18-27 | fs2-11   | FP Saved registers     |  Callee
 // f28-31 | ft8-11   | FP Temporaries         |  Caller
-
-// Callee-saved registers
-constexpr Xbyak_riscv::Reg abi_save_gpr_regs[] = {Xbyak_riscv::s0, Xbyak_riscv::s1, Xbyak_riscv::s2, Xbyak_riscv::s3,
-                                                  Xbyak_riscv::s4, Xbyak_riscv::s5, Xbyak_riscv::s6, Xbyak_riscv::s7,
-                                                  Xbyak_riscv::s8, Xbyak_riscv::s9, Xbyak_riscv::s10, Xbyak_riscv::s11};
-
-static const Xbyak_riscv::Reg abi_param1(Xbyak_riscv::a0), abi_param2(Xbyak_riscv::a1), abi_param3(Xbyak_riscv::a2),
-                              abi_param4(Xbyak_riscv::a3), abi_param5(Xbyak_riscv::a4), abi_param6(Xbyak_riscv::a5),
-                              abi_param7(Xbyak_riscv::a6), abi_param8(Xbyak_riscv::a7);
 
 class jit_generator : public Xbyak_riscv::CodeGenerator {
 public:
@@ -79,15 +75,36 @@ public:
 
     // Disallow char-based labels completely
     void L(const char *label) = delete;
+    void L(Xbyak_riscv::Label &label) {
+        Xbyak_riscv::CodeGenerator::L(label);
+    }
 
     jit_generator(const jit_generator &) = delete;
     jit_generator &operator=(const jit_generator &) = delete;
+
+    virtual const char *name() const = 0;
+    virtual const char *source_file() const = 0;
+
+    // Callee-saved registers
+    static constexpr Xbyak_riscv::Reg abi_save_gpr_regs[] = {Xbyak_riscv::s0, Xbyak_riscv::s1, Xbyak_riscv::s2, Xbyak_riscv::s3,
+                                                             Xbyak_riscv::s4, Xbyak_riscv::s5, Xbyak_riscv::s6, Xbyak_riscv::s7,
+                                                             Xbyak_riscv::s8, Xbyak_riscv::s9, Xbyak_riscv::s10, Xbyak_riscv::s11};
+    static constexpr Xbyak_riscv::FReg abi_save_fp_gpr_regs[] = {Xbyak_riscv::fs0, Xbyak_riscv::fs1, Xbyak_riscv::fs2, Xbyak_riscv::fs3,
+                                                                 Xbyak_riscv::fs4, Xbyak_riscv::fs5, Xbyak_riscv::fs6, Xbyak_riscv::fs7,
+                                                                 Xbyak_riscv::fs8, Xbyak_riscv::fs9, Xbyak_riscv::fs10, Xbyak_riscv::fs11};
+    // ABI-arguments registers
+    static constexpr Xbyak_riscv::Reg abi_param_regs[] = {Xbyak_riscv::a0, Xbyak_riscv::a1, Xbyak_riscv::a2, Xbyak_riscv::a3,
+                                                          Xbyak_riscv::a4, Xbyak_riscv::a5, Xbyak_riscv::a6, Xbyak_riscv::a7};
 
 protected:
     virtual void generate() = 0;
     
     const uint8_t *jit_ker_ = nullptr;
 
+    // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
+    const size_t sp_aligment = 16;
+    // Vector register count
+    const size_t vec_count = 32;
     // integer gpr byte size
     const size_t xlen = Xbyak_riscv::CPU().getXlen() / 8;
     // fp gpr byte size
@@ -97,6 +114,8 @@ protected:
 
     const size_t num_abi_save_gpr_regs
             = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
+    const size_t num_abi_save_fp_gpr_regs
+            = sizeof(abi_save_fp_gpr_regs) / sizeof(abi_save_fp_gpr_regs[0]);
 
 private:
     const uint8_t* getCode() {

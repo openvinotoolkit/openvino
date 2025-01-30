@@ -1,0 +1,124 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "jit_generator.hpp"
+
+#include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/general_utils.h"
+
+namespace ov {
+namespace intel_cpu {
+namespace riscv64 {
+
+struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
+public:
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
+
+    jit_uni_eltwise_generic(jit_eltwise_params jep, std::vector<EltwiseData> eltwise_data);
+    jit_uni_eltwise_generic() = default;
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override;
+
+private:
+    // Register mapping in the kernel:
+    // x0-x4 | system | not used
+    // x5    | temp   | reg_tmp_0 / reg_work_amount
+    // x6    | temp   | reg_tmp_1 / reg_vlen
+    // x7    | temp   | reg_offsets / reg_loop_step
+    // x8    | saved  |
+    // x9    | saved  | dst_gpr
+    // x10   | abi    | reg_const_params
+    // x11   | abi    | reg_indexes
+    // x12   | abi    |
+    // x13   | abi    |
+    // x14   | abi    |
+    // x15   | abi    |
+    // x16   | abi    |
+    // x17   | abi    |
+    // x18   | saved  | src_gpr
+    // x19   | saved  | src_gpr
+    // x20   | saved  | src_gpr
+    // x21   | saved  | src_gpr
+    // x22   | saved  | src_gpr
+    // x23   | saved  | src_gpr
+    // x24   | saved  | src_gpr
+    // x25   | saved  | src_aux_gpr
+    // x26   | saved  | src_aux_gpr
+    // x27   | saved  | src_aux_gpr
+    // x28   | temp   | src_aux_gpr
+    // x29   | temp   | src_aux_gpr
+    // x30   | temp   | src_aux_gpr
+    // x31   | temp   | src_aux_gpr
+
+    inline Xbyak_riscv::Reg dst_gpr() const {
+        // x9
+        return Xbyak_riscv::Reg(9);
+    }
+
+    inline Xbyak_riscv::Reg src_gpr(const int idx) const {
+        // x18-24
+        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src reg " + std::to_string(idx) + " is not supported");
+        return Xbyak_riscv::Reg(18 + idx);
+    }
+
+    inline Xbyak_riscv::Reg src_aux_gpr(const int idx) const {
+        // saved registers: x25-x31
+        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src aux reg " + std::to_string(idx) + " is not supported");
+        return Xbyak_riscv::Reg(25 + idx);
+    }
+
+    inline Xbyak_riscv::VReg dst_vec() const {
+        return Xbyak_riscv::VReg(0);
+    }
+
+    inline Xbyak_riscv::VReg src_vec(const int idx, const Xbyak_riscv::LMUL lmul) const {
+        const auto vec_idx = (idx + 1) * lmul2int(lmul);
+        OPENVINO_ASSERT(vec_idx >= 0 && static_cast<size_t>(vec_idx) < vec_count,
+                        "src vector reg " + std::to_string(vec_idx) + " is not supported");
+        return Xbyak_riscv::VReg(vec_idx);
+    }
+
+    //inline Xbyak_riscv::VReg aux_vec(const int idx) {
+    //    OPENVINO_ASSERT(idx >= 0 && (idx + 8 < vec_count), "aux vector reg " + std::to_string(idx) + " is not supported");
+    //    return Xbyak_riscv::VReg(idx + 8);
+    //}
+
+    std::shared_ptr<jit_emitter> create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec);
+
+    Xbyak_riscv::Reg reg_const_params = Xbyak_riscv::a0;
+    Xbyak_riscv::Reg reg_indexes = Xbyak_riscv::a1;
+
+    Xbyak_riscv::Reg reg_tmp_0 = Xbyak_riscv::t0;
+    Xbyak_riscv::Reg reg_tmp_1 = Xbyak_riscv::t1;
+    Xbyak_riscv::Reg reg_offsets = Xbyak_riscv::t2;
+    Xbyak_riscv::Reg reg_work_amount = reg_tmp_0;
+    Xbyak_riscv::Reg reg_vlen = reg_tmp_1;
+    Xbyak_riscv::Reg reg_loop_step = reg_offsets;
+
+    void compute_eltwise_op(const Xbyak_riscv::LMUL lmul);
+    void apply_post_ops(const Xbyak_riscv::LMUL lmul);
+    void emit_data() const;
+
+    int lmul2int(const Xbyak_riscv::LMUL lmul) const;
+
+    const std::vector<EltwiseData> eltwise_data_;
+    const std::vector<ov::intel_cpu::Type> ops_list_;
+
+    std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
+    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
+};
+
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

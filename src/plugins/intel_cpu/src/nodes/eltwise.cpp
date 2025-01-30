@@ -53,6 +53,10 @@
 #    include "kernels/x64/jit_uni_eltwise_generic.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "kernels/riscv64/jit_uni_eltwise_generic.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
@@ -688,6 +692,7 @@ public:
         }
 #endif  // OPENVINO_ARCH_ARM64
 
+        _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic(jep, eltwise_data));
         if (_pKernel) {
             _pKernel->create_ker();
         }
@@ -1465,6 +1470,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #else
     OPENVINO_THROW("Unknow CPU architecture");
 #endif
+
+    const bool useJit = getAlgorithm() == Algorithm::EltwiseAdd;
+    implType = useJit ? EltwiseImplType::optimized : EltwiseImplType::reference;
 
 #if defined(OV_CPU_WITH_ACL)
     auto filterPrecision = [&](const ov::element::Type& prc, const ov::element::Type& forcedPrec) {
