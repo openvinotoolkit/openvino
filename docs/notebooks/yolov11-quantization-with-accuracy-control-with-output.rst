@@ -14,7 +14,7 @@ quantization flow allows to apply 8-bit quantization to the model with
 control of accuracy metric. This is achieved by keeping the most
 impactful operations within the model in the original precision. The
 flow is based on the `Basic 8-bit
-quantization <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
+quantization <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
 and has the following differences:
 
 -  Besides the calibration dataset, a validation dataset is required to
