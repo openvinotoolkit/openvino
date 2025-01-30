@@ -23,8 +23,10 @@ using namespace testing;
 using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
+// Issue: 163348
+using DISABLED_CpuReservationTest = ::testing::Test;
 
-TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
+TEST_F(DISABLED_CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -60,7 +62,7 @@ TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     }
 }
 
-TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
+TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -77,7 +79,7 @@ TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
 }
 
 #if defined(__linux__)
-TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
+TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_CpuPinning) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
