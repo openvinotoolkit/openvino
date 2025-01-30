@@ -22,11 +22,15 @@ bool evaluate_index_type(const std::shared_ptr<ov::op::v16::SegmentMax>& op,
     const auto output_shape =
         ov::op::v16::shape_infer(op.get(), input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     outputs.front().set_shape(output_shape);
+    const auto empty_segment_value = op->get_fill_mode() == ov::op::FillMode::ZERO ? 
+                                     T_data(0) : 
+                                     std::numeric_limits<T_data>::lowest();
     ov::reference::segment_max(inputs[0].data<const T_data>(),
                           inputs[0].get_shape(),
                           inputs[1].data<const T_idx>(),
                           outputs[0].data<T_data>(),
-                          op->get_empty_segment_value());
+                          outputs[0].get_shape(),
+                          empty_segment_value);
     return true;
 }
 

@@ -536,7 +536,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SegmentMa
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 9});
     const auto segment_ids = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {4, 4});
     const auto num_segments = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {5});
-    const auto SegmentMaxNode = std::make_shared<ov::op::v16::SegmentMax>(data, segment_ids, num_segments, 0);
+    const auto SegmentMaxNode = std::make_shared<ov::op::v16::SegmentMax>(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(SegmentMaxNode)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "SegmentMaxGraph");
 }
