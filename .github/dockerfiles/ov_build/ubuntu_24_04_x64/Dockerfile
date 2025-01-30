@@ -31,12 +31,6 @@ RUN apt-get update && \
         python3-full \
         # For Java API
         default-jdk \
-        # Compiler \
-        clang-18 \
-        # Static analyzer
-        clang-tidy-18 \
-        # clang-tidy uses clang-format as a dependency
-        clang-format-18 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -45,12 +39,6 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-RUN update-alternatives --install /usr/bin/clang-format clang-format $(which clang-format-18) 100 && \
-    update-alternatives --set clang-format $(which clang-format-18)
-
-RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy $(which clang-tidy-18) 100 && \
-    update-alternatives --set clang-tidy $(which clang-tidy-18)
 
 # Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
