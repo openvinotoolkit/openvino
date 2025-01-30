@@ -7,7 +7,7 @@ About OpenVINO
 
    about-openvino/key-features
    about-openvino/performance-benchmarks
-   Tool Ecosystem <about-openvino/openvino-ecosystem>
+   OpenVINO Ecosystem <about-openvino/openvino-ecosystem>
    about-openvino/contributing
    Release Notes <about-openvino/release-notes-openvino>
 
