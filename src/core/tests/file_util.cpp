@@ -518,13 +518,13 @@ protected:
         // Create a temporary files for testing
         { std::ofstream outfile("test_file_0.txt"); }
         {
-            std::ofstream outfile("test_file_21.txt");
-            outfile << "This is a test file." << std::endl;
+            std::ofstream outfile("test_file_20.txt");
+            outfile << "This is a test file.";
         }
         {
-            std::ofstream outfile("test_file_21x1000.txt");
+            std::ofstream outfile("test_file_20x1000.txt");
             for (int i = 0; i < 1000; ++i) {
-                outfile << "This is a test file." << std::endl;
+                outfile << "This is a test file.";
             }
         }
         {
@@ -543,27 +543,27 @@ protected:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         {
-            std::ofstream outfile(ov::util::Path(u8"这是_u8_.txt"));
-            outfile << "This is a test file." << std::endl;
+            std::ofstream outfile("这是_u8_.txt");
+            outfile << "This is a test file.";
         }
         {
             std::ofstream outfile(ov::util::Path(U"这是_u16_.txt"));
-            outfile << "This is a test file." << std::endl;
+            outfile << "This is a test file.";
         }
         {
             std::ofstream outfile(ov::util::Path(U"这是_u32_.txt"));
-            outfile << "This is a test file." << std::endl;
+            outfile << "This is a test file.";
         }
         {
             std::ofstream outfile(ov::util::make_path(L"这是_wstring_.txt"));
-            outfile << "This is a test file." << std::endl;
+            outfile << "This is a test file.";
         }
 #endif
 
 #if defined(__ANDROID__) || defined(ANDROID)
         {
-            std::ofstream outfile("android_test_file_21.txt");
-            outfile << "This is a test file." << std::endl;
+            std::ofstream outfile("android_test_file_20.txt");
+            outfile << "This is a test file.";
         }
 #endif
     }
@@ -571,9 +571,9 @@ protected:
     void TearDown() override {
         // Remove the temporary files after testing
         std::filesystem::remove("test_file_0.txt");
-        std::filesystem::remove("test_file_21.txt");
+        std::filesystem::remove("test_file_20.txt");
         std::filesystem::remove("test_file_raw_bytes_746.txt");
-        std::filesystem::remove("test_file_21x1000.txt");
+        std::filesystem::remove("test_file_20x1000.txt");
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         std::filesystem::remove(u8"这是_u8_.txt");
         std::filesystem::remove(u"这是_u16_.txt");
@@ -581,7 +581,7 @@ protected:
         std::filesystem::remove(ov::util::make_path(L"这是_wstring_.txt"));
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
-        std::filesystem::remove("android_test_file_21.txt");
+        std::filesystem::remove("android_test_file_20.txt");
 #endif
     }
 };
@@ -609,9 +609,9 @@ TEST_F(FileUtilTest, EmptyFileSizeTest) {
 }
 
 TEST_F(FileUtilTest, FileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("test_file_21.txt"s), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"test_file_21.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_21.txt")), 21);
+    EXPECT_EQ(ov::util::file_size("test_file_20.txt"s), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"test_file_20.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_20.txt")), 20);
 }
 
 TEST_F(FileUtilTest, FileSizeRawBytesTest) {
@@ -621,56 +621,56 @@ TEST_F(FileUtilTest, FileSizeRawBytesTest) {
 }
 
 TEST_F(FileUtilTest, LargeFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("test_file_21x1000.txt"s), 21 * 1000);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"test_file_21x1000.txt")), 21 * 1000);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_21x1000.txt")), 21 * 1000);
+    EXPECT_EQ(ov::util::file_size("test_file_20x1000.txt"s), 20 * 1000);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"test_file_20x1000.txt")), 20 * 1000);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("test_file_20x1000.txt")), 20 * 1000);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_F(FileUtilTest, u8FileSizeTest) {
 #    ifdef OPENVINO_CPP_VER_AT_LEAST_20
-    EXPECT_EQ(ov::util::file_size(u8"这是_u8_.txt"), 21);
+    EXPECT_EQ(ov::util::file_size(u8"这是_u8_.txt"), 20);
 #    endif
-    EXPECT_EQ(ov::util::file_size("这是_u8_.txt"s), 21);
-    EXPECT_EQ(ov::util::file_size(u"这是_u8_.txt"), 21);
-    EXPECT_EQ(ov::util::file_size(U"这是_u8_.txt"), 21);
-    EXPECT_EQ(ov::util::file_size(std::wstring(L"这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(u"这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(std::wstring(L"这是_u8_.txt"))), 21);
+    EXPECT_EQ(ov::util::file_size("这是_u8_.txt"s), 20);
+    EXPECT_EQ(ov::util::file_size(u"这是_u8_.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(U"这是_u8_.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(std::wstring(L"这是_u8_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u8_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u"这是_u8_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u8_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(std::wstring(L"这是_u8_.txt"))), 20);
 }
 
 TEST_F(FileUtilTest, u16FileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_u16_.txt"s), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u16_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u16_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size("这是_u16_.txt"s), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u16_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u16_.txt")), 20);
 }
 
 TEST_F(FileUtilTest, u32FileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_u32_.txt"s), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u32_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u32_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size("这是_u32_.txt"s), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u32_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u32_.txt")), 20);
 }
 
 TEST_F(FileUtilTest, wstringFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_wstring_.txt"s), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_wstring_.txt")), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_wstring_.txt")), 21);
+    EXPECT_EQ(ov::util::file_size("这是_wstring_.txt"s), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_wstring_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_wstring_.txt")), 20);
 }
 #endif
 
 #if defined(__ANDROID__) || defined(ANDROID)
 TEST_F(FileUtilTest, androidFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("android_test_file_21.txt"s), 21);
-    EXPECT_EQ(ov::util::file_size(L"android_test_file_21.txt"), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_21.txt")), 21);
+    EXPECT_EQ(ov::util::file_size("android_test_file_20.txt"s), 20);
+    EXPECT_EQ(ov::util::file_size(L"android_test_file_20.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_20.txt")), 20);
 }
 TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("android_test_file_21.txt!_to_cut.jar"s), 21);
-    EXPECT_EQ(ov::util::file_size(L"android_test_file_21.txt!_to_cut.jar"), 21);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_21.txt!_to_cut.jar")), 21);
+    EXPECT_EQ(ov::util::file_size("android_test_file_20.txt!_to_cut.jar"s), 20);
+    EXPECT_EQ(ov::util::file_size(L"android_test_file_20.txt!_to_cut.jar"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_20.txt!_to_cut.jar")), 20);
 }
 #endif
