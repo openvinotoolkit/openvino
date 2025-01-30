@@ -47,6 +47,10 @@ public:
     ~ConsoleDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
+
+private:
+    ov::threading::ThreadLocal<uint64_t> m_accumulation;
+    ov::threading::ThreadLocal<uint32_t> m_iteration;
 };
 
 /**
