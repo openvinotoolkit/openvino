@@ -28,8 +28,8 @@ GraphContext::GraphContext(Config config,
       m_auxiliaryNetworkMemoryControl(std::make_shared<NetworkMemoryControl>()),
       m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit()) {
     if (m_streamExecutor) {
-        auto cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_streamExecutor);
-        m_numaNodeId = cpuStreamExecutor ? cpuStreamExecutor->get_numa_node_id() : 0;
+        m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_streamExecutor);
+        m_numaNodeId = m_cpuStreamExecutor ? m_cpuStreamExecutor->get_numa_node_id() : 0;
         auto nNumaNodes = get_num_numa_nodes();
         if (m_numNumaNodes < nNumaNodes) {
             m_numNumaNodes = nNumaNodes;
