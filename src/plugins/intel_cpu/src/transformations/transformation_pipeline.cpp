@@ -1059,7 +1059,8 @@ void Transformations::MainSnippets(void) {
 
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSnippets);
+        // todo: we don't need to disable this pass on LLMs. check for regressions on the whole llm scope
+        //CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
@@ -1294,6 +1295,8 @@ void Transformations::MainSnippets(void) {
         snippets::pass::ExplicitTransposeMatMulInputs);
 
     snippetsManager.run_passes(model);
+//    ov::pass::Serialize(std::string("snsdebug_tokenization.xml"),
+//                        std::string("snsdebug_tokenization.bin")).run_on_model(model);
 }
 
 void Transformations::PostSnippets(void) {

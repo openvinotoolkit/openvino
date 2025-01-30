@@ -20,8 +20,11 @@ ov::snippets::pass::TokenizeMLPSnippets::TokenizeMLPSnippets(const SnippetsToken
 
     ov::pass::pattern::op::NodePredicate fc_pred = [](const std::shared_ptr<ov::Node>& n){
         if (auto mm = ov::as_type_ptr<ov::opset1::MatMul>(n)) {
-            return ov::is_type<opset1::Constant>(mm->get_input_node_shared_ptr(1)) &&
-                   mm->get_transpose_b();
+            const bool has_const_weights = ov::is_type<opset1::Constant>(mm->get_input_node_shared_ptr(1));
+            const bool is_transposed = mm->get_transpose_b();
+            return has_const_weights && is_transposed;
+//            return ov::is_type<opset1::Constant>(mm->get_input_node_shared_ptr(1)) &&
+//                   mm->get_transpose_b();
         }
         return false;
     };
