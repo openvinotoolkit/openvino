@@ -95,7 +95,7 @@ Step 1: Download and Install OpenVINO Core Components
 
 Congratulations, you have finished the installation! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <../configurations>`
+:doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
 The ``C:\Program Files (x86)\Intel\openvino_2024`` folder now contains the core components for OpenVINO.

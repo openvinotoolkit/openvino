@@ -12,8 +12,6 @@ GET STARTED
    :hidden:
 
    Install OpenVINO <get-started/install-openvino>
-   Additional Hardware Setup <get-started/configurations>
-   Troubleshooting <get-started/troubleshooting-install-config>
    System Requirements <./about-openvino/release-notes-openvino/system-requirements>
 
 
@@ -30,7 +28,7 @@ GET STARTED
 
 
 For a quick reference, check out
-`the Quick Start Guide [pdf] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+`the Quick Start Guide [pdf] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
 .. _quick-start-example:
