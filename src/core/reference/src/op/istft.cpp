@@ -9,11 +9,8 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/reference/add.hpp"
-#include "openvino/reference/divide.hpp"
 #include "openvino/reference/fft.hpp"
 #include "openvino/reference/irdft.hpp"
-#include "openvino/reference/multiply.hpp"
 #include "openvino/reference/transpose.hpp"
 
 namespace ov {
@@ -84,12 +81,11 @@ void istft(const float* in_data,
                              frame_size_dim_shape,
                              frame_size);
 
-            reference::add(result + out_frame_start,
-                           frame_signal.data(),
-                           result + out_frame_start,
-                           frame_size_dim_shape,
-                           frame_size_dim_shape,
-                           op::AutoBroadcastType::NUMPY);
+            std::transform(frame_signal.begin(),
+                           frame_signal.end(),
+                           mid_result.begin() + out_frame_start,
+                           mid_result.begin() + out_frame_start,
+                           std::plus<float>());
 
             std::transform(window_sum.begin() + out_frame_start,
                            window_sum.begin() + out_frame_end,
