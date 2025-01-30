@@ -26,7 +26,6 @@ namespace utils {
 class Dumper {
 public:
     Dumper() = default;
-    Dumper(const Dumper&) = delete;
     virtual ~Dumper() = default;
 
     void init(const std::string &params);
