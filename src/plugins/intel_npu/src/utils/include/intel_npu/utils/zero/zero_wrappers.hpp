@@ -145,10 +145,6 @@ private:
     ze_command_queue_handle_t _handle = nullptr;
 };
 
-static std::array<std::array<std::array<std::shared_ptr<CommandQueue>, workload::WORKLOAD_COUNT>, turbo::TURBO_COUNT>,
-                  priority::PRIORITY_COUNT>
-    _gloabal_command_queues;
-
 class CommandQueueManager {
 public:
     CommandQueueManager();
@@ -173,6 +169,10 @@ private:
     Logger _log;
 
     std::mutex _mutex;
+
+    std::array<std::array<std::array<std::shared_ptr<CommandQueue>, workload::WORKLOAD_COUNT>, turbo::TURBO_COUNT>,
+               priority::PRIORITY_COUNT>
+        _gloabal_command_queues;
 };
 
 }  // namespace intel_npu

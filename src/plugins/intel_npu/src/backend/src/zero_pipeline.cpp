@@ -41,12 +41,6 @@ Pipeline::Pipeline(const Config& config,
         profiling_query.create(profiling_pool._handle);
     }
 
-    if (_config.has<TURBO>()) {
-        _turbo = _config.get<TURBO>();
-    }
-
-    _ze_queue_priority = zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>());
-
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
@@ -70,8 +64,29 @@ Pipeline::Pipeline(const Config& config,
                                           _init_structs->getMutableCommandListVersion() ? true : false));
     }
 
+    _ze_queue_priority = zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>());
+
+    if (_config.has<TURBO>()) {
+        _turbo = _config.get<TURBO>();
+    }
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+    }
+
+    _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
+                                                                        _ze_queue_priority,
+                                                                        _graph->get_ze_workload_type(),
+                                                                        _group_ordinal,
+                                                                        _turbo);
+
     if (_sync_output_with_fences) {
         _fences.resize(_number_of_command_lists);
+
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _logger.debug("Pipeline - getCommandQueue() - create new fence");
+            _fences[i] = std::make_unique<Fence>(*_command_queue);
+        }
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
@@ -168,41 +183,36 @@ Pipeline::Pipeline(const Config& config,
 void Pipeline::getCommandQueue() {
     _logger.debug("Pipeline - getCommandQueue() started");
 
-    _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
-                                                                        _ze_queue_priority,
-                                                                        _graph->get_ze_workload_type(),
-                                                                        _group_ordinal,
-                                                                        _turbo);
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
-        if (_ze_workload_type != _graph->get_ze_workload_type()) {
-            if (_ze_workload_type.has_value()) {
-                // fences created for the old command queue shall be destroyed and make new ones
-                if (_sync_output_with_fences) {
-                    for (size_t i = 0; i < _number_of_command_lists; i++) {
-                        if (_fences[i] != nullptr) {
-                            _logger.debug("Pipeline - getCommandQueue() - destroy old fence");
-                            _fences[i].reset();
-                        }
-                    }
+    if (_ze_workload_type != _graph->get_ze_workload_type()) {
+        // fences created for the old command queue shall be destroyed and make new ones
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _number_of_command_lists; i++) {
+                if (_fences[i] != nullptr) {
+                    _logger.debug("Pipeline - getCommandQueue() - destroy old fence");
+                    _fences[i].reset();
                 }
-
-                _logger.debug("Pipeline - getCommandQueue() - free command queue");
-                CommandQueueManager::getInstance().freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
             }
-
-            _ze_workload_type = _graph->get_ze_workload_type();
         }
+
+        _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
+                                                                            _ze_queue_priority,
+                                                                            _graph->get_ze_workload_type(),
+                                                                            _group_ordinal,
+                                                                            _turbo);
 
         if (_sync_output_with_fences) {
             for (size_t i = 0; i < _number_of_command_lists; i++) {
-                if (_fences[i] == nullptr) {
-                    _logger.debug("Pipeline - getCommandQueue() - create new fence");
-                    _fences[i] = std::make_unique<Fence>(*_command_queue);
-                }
+                _logger.debug("Pipeline - getCommandQueue() - create new fence");
+                _fences[i] = std::make_unique<Fence>(*_command_queue);
             }
         }
+
+        _logger.debug("Pipeline - getCommandQueue() - free previous command queue");
+        CommandQueueManager::getInstance().freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
+
+        _ze_workload_type = _graph->get_ze_workload_type();
     }
 
     _logger.debug("Pipeline - getCommandQueue() completed");
