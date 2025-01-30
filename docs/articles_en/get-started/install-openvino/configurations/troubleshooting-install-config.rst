@@ -37,8 +37,8 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    This error may appear on systems lacking C++ components. Since it is almost exclusively a
    Windows case, installing `Microsoft Visual C++ Redistributable [vc_redist.x64] <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__
    package may fix it. For more information on dependencies, check
-   :doc:`System Requirements <../about-openvino/release-notes-openvino/system-requirements>` and
-   :doc:`Additional Hardware Configurations <./configurations>`
+   :doc:`System Requirements <../../../about-openvino/release-notes-openvino/system-requirements>` and
+   :doc:`Additional Hardware Configurations and Troubleshooting <../configurations>`
 
 .. dropdown:: Proxy issues installing OpenVINO on Linux from Docker
 
@@ -122,10 +122,10 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
 .. dropdown:: Check if proper drivers are installed
 
-   :doc:`Additional configurations <configurations>` may be
+   :doc:`Additional configurations <../configurations>` may be
    required in order to use OpenVINO with different hardware, such as Intel® GPU and NPU.
    Make sure that the device you want to use for inference has the required driver installed,
-   as described in :doc:`additional configurations for GPU <configurations/configurations-intel-gpu>`.
+   as described in :doc:`additional configurations for GPU <./configurations-intel-gpu>`.
 
 .. dropdown:: Check firewall and network settings
 
