@@ -213,7 +213,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 You can find more details about OpenVINO LLM inference using HuggingFace
 Optimum API in `LLM inference
-guide <https://docs.openvino.ai/2024/openvino-workflow-generative.html>`__.
+guide <https://docs.openvino.ai/2025/openvino-workflow-generative.html>`__.
 
 .. code:: ipython3
 

@@ -11,7 +11,7 @@ Benchmark Tool
 This page demonstrates how to use the Benchmark Tool to estimate deep learning inference
 performance on supported devices. Note that the MULTI plugin mentioned here is considered
 a legacy tool and currently is just a mapping of the
-:doc:`AUTO plugin <../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`.
+:doc:`AUTO plugin <../../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`.
 
 .. note::
 
@@ -27,13 +27,13 @@ Basic Usage
       :sync: python
 
       The Python ``benchmark_app`` is automatically installed when you install OpenVINO
-      using :doc:`PyPI <../../get-started/install-openvino/install-openvino-pip>`.
+      using :doc:`PyPI <../../../get-started/install-openvino/install-openvino-pip>`.
       Before running ``benchmark_app``, make sure the ``openvino_env`` virtual
       environment is activated, and navigate to the directory where your model is located.
 
       The benchmarking application works with models in the OpenVINO IR
       (``model.xml`` and ``model.bin``) and ONNX (``model.onnx``) formats.
-      Make sure to :doc:`convert your models <../../openvino-workflow/model-preparation/convert-model-to-ir>`
+      Make sure to :doc:`convert your models <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
       if necessary.
 
       To run benchmarking with default options on a model, use the following command:
@@ -59,7 +59,7 @@ Basic Usage
 
       The benchmarking application works with models in the OpenVINO IR, TensorFlow,
       TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it,
-      OpenVINO also allows you to :doc:`convert your models <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
+      OpenVINO also allows you to :doc:`convert your models <../../../openvino-workflow/model-preparation/convert-model-to-ir>`.
 
       To run benchmarking with default options on a model, use the following command:
 
@@ -182,10 +182,10 @@ parallel inference requests to utilize all the threads available on the device.
 On GPU, it automatically sets the inference batch size to fill up the GPU memory available.
 
 For more information on performance hints, see the
-:doc:`High-level Performance Hints <../../openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` page.
+:doc:`High-level Performance Hints <../../../openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` page.
 For more details on optimal runtime configurations and how they are automatically
 determined using performance hints, see
-:doc:`Runtime Inference Optimizations <../../openvino-workflow/running-inference/optimize-inference>`.
+:doc:`Runtime Inference Optimizations <../../../openvino-workflow/running-inference/optimize-inference>`.
 
 
 Device
@@ -220,7 +220,7 @@ You may also specify ``AUTO`` as the device, in which case the ``benchmark_app``
 automatically select the best device for benchmarking and support it with the
 CPU at the model loading stage. This may result in increased performance, thus,
 should be used purposefully. For more information, see the
-:doc:`Automatic device selection <../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>` page.
+:doc:`Automatic device selection <../../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>` page.
 
 .. note::
 
@@ -934,4 +934,4 @@ Additional Resources
 
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
+- :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`

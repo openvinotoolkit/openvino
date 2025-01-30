@@ -322,7 +322,7 @@ redistributed in the "Saved model" format, converted to a frozen graph using the
 Inference
 +++++++++
 
-The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../learn-openvino/openvino-samples/benchmark-tool>`.
+The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 
 .. code-block:: sh
 
