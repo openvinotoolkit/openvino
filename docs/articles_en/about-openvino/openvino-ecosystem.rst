@@ -68,7 +68,7 @@ without the need to convert.
 
 | **OpenVINO Training Extensions**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/training_extensions>`
-  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2025/documentation/openvino-ecosystem/openvino-training-extensions.html>`
+  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2025/about-openvino/openvino-ecosystem/openvino-training-extensions.html>`
 
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™
 toolkit for optimized inference.
@@ -77,7 +77,7 @@ toolkit for optimized inference.
 
 | **OpenVINO Security Addon**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/security_addon>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/documentation/openvino-ecosystem/openvino-security-add-on.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/about-openvino/openvino-ecosystem/openvino-security-add-on.html>`
 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and
 secure model execution.
@@ -86,7 +86,7 @@ secure model execution.
 
 | **Datumaro**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/datumaro>`
-  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2025/documentation/openvino-ecosystem/datumaro.html>`
+  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2025/about-openvino/openvino-ecosystem/datumaro.html>`
 
 A framework and a CLI tool for building, transforming, and analyzing datasets.
 |hr|

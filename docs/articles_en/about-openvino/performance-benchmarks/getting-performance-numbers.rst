@@ -165,7 +165,7 @@ as:
    benchmark_app -m <model> -d <device> -i <input>
 
 
-Each of the :doc:`OpenVINO supported devices <../compatibility-and-support/supported-devices>`
+Each of the :doc:`OpenVINO supported devices <../../documentation/compatibility-and-support/supported-devices>`
 offers performance settings that contain command-line equivalents in the Benchmark app.
 
 While these settings provide really low-level control for the optimal model performance on a

@@ -97,7 +97,7 @@ Performance Information F.A.Q.
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
-   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>` article.
+   For more details, see the :doc:`Supported Devices <../../documentation/compatibility-and-support/supported-devices>` article.
 
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
