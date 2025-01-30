@@ -146,6 +146,13 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 }  // namespace
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+#if defined(OV_CPU_WITH_ACL)
+    auto maxPoolOpBase = ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op);
+    if (!one_of(maxPoolOpBase->get_rounding_type(), op::RoundingType::CEIL, op::RoundingType::FLOOR)) {
+        errorMessage = "ACL supports only CEIL and FLOOR rounding for MaxPool";
+        return false;
+    }
+#endif
     try {
         if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
