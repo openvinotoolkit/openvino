@@ -631,7 +631,7 @@ Compress model weights
 ----------------------
 
 The `Weights
-Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
+Compression <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__
 algorithm is aimed at compressing the weights of the models and can be
 used to optimize the model footprint and performance of large models
 where the size of weights is relatively larger than the size of
@@ -1012,7 +1012,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 You can find more details about OpenVINO LLM inference using HuggingFace
 Optimum API in `LLM inference
-guide <https://docs.openvino.ai/2024/openvino-workflow-generative.html>`__.
+guide <https://docs.openvino.ai/2025/openvino-workflow-generative.html>`__.
 
 .. code:: ipython3
 
@@ -1109,7 +1109,7 @@ decoding methods in this
 generation updates conversation history for next conversation step. it
 makes stronger connection of next question with previously provided and
 allows user to make clarifications regarding previously provided
-answers.https://docs.openvino.ai/2024/openvino-workflow-generative.html
+answers.https://docs.openvino.ai/2025/openvino-workflow-generative.html
 
 | There are several parameters that can control text generation quality:
   \* ``Temperature`` is a parameter used to control the level of
@@ -1160,7 +1160,7 @@ answers.https://docs.openvino.ai/2024/openvino-workflow-generative.html
    heavily than a token that has appeared only one time. A value of 1
    means that there is no penalty and values larger than 1 discourage
    repeated
-   tokens.https://docs.openvino.ai/2024/openvino-workflow-generative.html
+   tokens.https://docs.openvino.ai/2025/openvino-workflow-generative.html
 
 .. code:: ipython3
 

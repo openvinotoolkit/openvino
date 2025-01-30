@@ -86,4 +86,4 @@ Additional Resources
 ####################
 
 * :doc:`Get Started with Samples <openvino-samples/get-started-demos>`
-* :doc:`OpenVINO Runtime User Guide <../openvino-workflow/running-inference>`
+* :doc:`OpenVINO Runtime User Guide <../../openvino-workflow/running-inference>`

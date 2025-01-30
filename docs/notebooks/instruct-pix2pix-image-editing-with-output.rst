@@ -97,7 +97,7 @@ First, we load the pre-trained weights of all components of the model.
         StableDiffusionInstructPix2PixPipeline,
         EulerAncestralDiscreteScheduler,
     )
-    
+
     model_id = "timbrooks/instruct-pix2pix"
     pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(model_id, torch_dtype=torch.float32, safety_checker=None)
     scheduler_config = pipe.scheduler.config
@@ -107,7 +107,7 @@ First, we load the pre-trained weights of all components of the model.
     unet.eval()
     vae = pipe.vae
     vae.eval()
-    
+
     del pipe
 
 Convert Models to OpenVINO IR
@@ -116,7 +116,7 @@ Convert Models to OpenVINO IR
 
 
 OpenVINO supports PyTorch models using `Model Conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__
 to convert the model to IR format. ``ov.convert_model`` function accepts
 PyTorch model object and example input and then converts it to
 ``ov.Model`` class instance that ready to use for loading on device or
@@ -161,12 +161,12 @@ hidden states.
     from pathlib import Path
     import openvino as ov
     import gc
-    
+
     core = ov.Core()
-    
+
     TEXT_ENCODER_OV_PATH = Path("text_encoder.xml")
-    
-    
+
+
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -174,8 +174,8 @@ hidden states.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
-    
+
+
     def convert_encoder(text_encoder: torch.nn.Module, ir_path: Path):
         """
         Convert Text Encoder mode.
@@ -189,7 +189,7 @@ hidden states.
         input_ids = torch.ones((1, 77), dtype=torch.long)
         # switch model to inference mode
         text_encoder.eval()
-    
+
         # disable gradients calculation for reducing memory consumption
         with torch.no_grad():
             # Export model to IR format
@@ -204,13 +204,13 @@ hidden states.
         del ov_model
         cleanup_torchscript_cache()
         print(f"Text Encoder successfully converted to IR and saved to {ir_path}")
-    
-    
+
+
     if not TEXT_ENCODER_OV_PATH.exists():
         convert_encoder(text_encoder, TEXT_ENCODER_OV_PATH)
     else:
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
-    
+
     del text_encoder
     gc.collect();
 
@@ -236,8 +236,8 @@ into two independent models.
 .. code:: ipython3
 
     VAE_ENCODER_OV_PATH = Path("vae_encoder.xml")
-    
-    
+
+
     def convert_vae_encoder(vae: torch.nn.Module, ir_path: Path):
         """
         Convert VAE model for encoding to IR format.
@@ -249,15 +249,15 @@ into two independent models.
         Returns:
             None
         """
-    
+
         class VAEEncoderWrapper(torch.nn.Module):
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-    
+
             def forward(self, image):
                 return self.vae.encode(x=image)["latent_dist"].sample()
-    
+
         vae_encoder = VAEEncoderWrapper(vae)
         vae_encoder.eval()
         image = torch.zeros((1, 3, 512, 512))
@@ -267,16 +267,16 @@ into two independent models.
         del ov_model
         cleanup_torchscript_cache()
         print(f"VAE encoder successfully converted to IR and saved to {ir_path}")
-    
-    
+
+
     if not VAE_ENCODER_OV_PATH.exists():
         convert_vae_encoder(vae, VAE_ENCODER_OV_PATH)
     else:
         print(f"VAE encoder will be loaded from {VAE_ENCODER_OV_PATH}")
-    
+
     VAE_DECODER_OV_PATH = Path("vae_decoder.xml")
-    
-    
+
+
     def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
         """
         Convert VAE model for decoding to IR format.
@@ -288,18 +288,18 @@ into two independent models.
         Returns:
             None
         """
-    
+
         class VAEDecoderWrapper(torch.nn.Module):
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-    
+
             def forward(self, latents):
                 return self.vae.decode(latents)
-    
+
         vae_decoder = VAEDecoderWrapper(vae)
         latents = torch.zeros((1, 4, 64, 64))
-    
+
         vae_decoder.eval()
         with torch.no_grad():
             ov_model = ov.convert_model(vae_decoder, example_input=latents, input=[((1, 4, 64, 64),)])
@@ -307,13 +307,13 @@ into two independent models.
         del ov_model
         cleanup_torchscript_cache()
         print(f"VAE decoder successfully converted to IR and saved to {ir_path}")
-    
-    
+
+
     if not VAE_DECODER_OV_PATH.exists():
         convert_vae_decoder(vae, VAE_DECODER_OV_PATH)
     else:
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
-    
+
     del vae
     gc.collect();
 
@@ -335,12 +335,12 @@ Model predicts the ``sample`` state for the next step.
 .. code:: ipython3
 
     import numpy as np
-    
+
     UNET_OV_PATH = Path("unet.xml")
-    
+
     dtype_mapping = {torch.float32: ov.Type.f32, torch.float64: ov.Type.f64}
-    
-    
+
+
     def convert_unet(unet: torch.nn.Module, ir_path: Path):
         """
         Convert U-net model to IR format.
@@ -362,7 +362,7 @@ Model predicts the ``sample`` state for the next step.
             shape = ov.PartialShape(tuple(input_tensor.shape))
             element_type = dtype_mapping[input_tensor.dtype]
             input_info.append((shape, element_type))
-    
+
         unet.eval()
         with torch.no_grad():
             ov_model = ov.convert_model(unet, example_input=dummy_inputs, input=input_info)
@@ -370,8 +370,8 @@ Model predicts the ``sample`` state for the next step.
         del ov_model
         cleanup_torchscript_cache()
         print(f"Unet successfully converted to IR and saved to {ir_path}")
-    
-    
+
+
     if not UNET_OV_PATH.exists():
         convert_unet(unet, UNET_OV_PATH)
         gc.collect()
@@ -416,13 +416,13 @@ decoder part of the variational auto encoder.
     from typing import Union, List, Optional, Tuple
     import PIL
     import cv2
-    
-    
+
+
     def scale_fit_to_window(dst_width: int, dst_height: int, image_width: int, image_height: int):
         """
         Preprocessing helper function for calculating image size for resize with peserving original aspect ratio
         and fitting image to specific window size
-    
+
         Parameters:
           dst_width (int): destination window width
           dst_height (int): destination window height
@@ -434,15 +434,15 @@ decoder part of the variational auto encoder.
         """
         im_scale = min(dst_height / image_height, dst_width / image_width)
         return int(im_scale * image_width), int(im_scale * image_height)
-    
-    
+
+
     def preprocess(image: PIL.Image.Image):
         """
         Image preprocessing function. Takes image in PIL.Image format, resizes it to keep aspect ration and fits to model input window 512x512,
         then converts it to np.ndarray and adds padding with zeros on right or bottom side of image (depends from aspect ratio), after that
         converts data to float32 data type and change range of values from [0, 255] to [-1, 1], finally, converts data layout from planar NHWC to NCHW.
         The function returns preprocessed input tensor and padding size, which can be used in postprocessing.
-    
+
         Parameters:
           image (PIL.Image.Image): input image
         Returns:
@@ -460,15 +460,15 @@ decoder part of the variational auto encoder.
         image = 2.0 * image - 1.0
         image = image.transpose(0, 3, 1, 2)
         return image, pad
-    
-    
+
+
     def randn_tensor(
         shape: Union[Tuple, List],
         dtype: Optional[np.dtype] = np.float32,
     ):
         """
         Helper function for generation random values tensor with given shape and data type
-    
+
         Parameters:
           shape (Union[Tuple, List]): shape for filling random values
           dtype (np.dtype, *optiona*, np.float32): data type for result
@@ -476,15 +476,15 @@ decoder part of the variational auto encoder.
           latents (np.ndarray): tensor with random values with given data type and shape (usually represents noise in latent space)
         """
         latents = np.random.randn(*shape).astype(dtype)
-    
+
         return latents
-    
-    
+
+
     class OVInstructPix2PixPipeline(DiffusionPipeline):
         """
         OpenVINO inference pipeline for InstructPix2Pix
         """
-    
+
         def __init__(
             self,
             tokenizer: CLIPTokenizer,
@@ -501,7 +501,7 @@ decoder part of the variational auto encoder.
             self.vae_scale_factor = 8
             self.scheduler = scheduler
             self.load_models(core, device, text_encoder, vae_encoder, unet, vae_decoder)
-    
+
         def load_models(
             self,
             core: ov.Core,
@@ -513,7 +513,7 @@ decoder part of the variational auto encoder.
         ):
             """
             Function for loading models on device using OpenVINO
-    
+
             Parameters:
               core (Core): OpenVINO runtime Core class instance
               device (str): inference device
@@ -534,7 +534,7 @@ decoder part of the variational auto encoder.
             self.unet_out = self.unet.output(0)
             self.vae_decoder = core.compile_model(vae_decoder, device, ov_config)
             self.vae_decoder_out = self.vae_decoder.output(0)
-    
+
         def __call__(
             self,
             prompt: Union[str, List[str]],
@@ -548,7 +548,7 @@ decoder part of the variational auto encoder.
         ):
             """
             Function invoked when calling the pipeline for generation.
-    
+
             Parameters:
                 prompt (`str` or `List[str]`):
                     The prompt or prompts to guide the image generation.
@@ -577,9 +577,9 @@ decoder part of the variational auto encoder.
                     [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
             Returns:
                 image ([List[Union[np.ndarray, PIL.Image.Image]]): generaited images
-    
+
             """
-    
+
             # 1. Define call parameters
             batch_size = 1 if isinstance(prompt, str) else len(prompt)
             # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
@@ -588,25 +588,25 @@ decoder part of the variational auto encoder.
             do_classifier_free_guidance = guidance_scale > 1.0 and image_guidance_scale >= 1.0
             # check if scheduler is in sigmas space
             scheduler_is_in_sigma_space = hasattr(self.scheduler, "sigmas")
-    
+
             # 2. Encode input prompt
             text_embeddings = self._encode_prompt(prompt)
-    
+
             # 3. Preprocess image
             orig_width, orig_height = image.size
             image, pad = preprocess(image)
             height, width = image.shape[-2:]
-    
+
             # 4. set timesteps
             self.scheduler.set_timesteps(num_inference_steps)
             timesteps = self.scheduler.timesteps
-    
+
             # 5. Prepare Image latents
             image_latents = self.prepare_image_latents(
                 image,
                 do_classifier_free_guidance=do_classifier_free_guidance,
             )
-    
+
             # 6. Prepare latent variables
             num_channels_latents = 4
             latents = self.prepare_latents(
@@ -617,7 +617,7 @@ decoder part of the variational auto encoder.
                 text_embeddings.dtype,
                 latents,
             )
-    
+
             # 7. Denoising loop
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
             with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -626,14 +626,14 @@ decoder part of the variational auto encoder.
                     # The latents are expanded 3 times because for pix2pix the guidance\
                     # is applied for both the text and the input image.
                     latent_model_input = np.concatenate([latents] * 3) if do_classifier_free_guidance else latents
-    
+
                     # concat latents, image_latents in the channel dimension
                     scaled_latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
                     scaled_latent_model_input = np.concatenate([scaled_latent_model_input, image_latents], axis=1)
-    
+
                     # predict the noise residual
                     noise_pred = self.unet([scaled_latent_model_input, t, text_embeddings])[self.unet_out]
-    
+
                     # Hack:
                     # For karras style schedulers the model does classifier free guidance using the
                     # predicted_original_sample instead of the noise_pred. So we need to compute the
@@ -642,7 +642,7 @@ decoder part of the variational auto encoder.
                         step_index = (self.scheduler.timesteps == t).nonzero().item()
                         sigma = self.scheduler.sigmas[step_index].numpy()
                         noise_pred = latent_model_input - sigma * noise_pred
-    
+
                     # perform guidance
                     if do_classifier_free_guidance:
                         noise_pred_text, noise_pred_image, noise_pred_uncond = (
@@ -655,7 +655,7 @@ decoder part of the variational auto encoder.
                             + guidance_scale * (noise_pred_text - noise_pred_image)
                             + image_guidance_scale * (noise_pred_image - noise_pred_uncond)
                         )
-    
+
                     # For karras style schedulers the model does classifier free guidance using the
                     # predicted_original_sample instead of the noise_pred. But the scheduler.step function
                     # expects the noise_pred and computes the predicted_original_sample internally. So we
@@ -663,26 +663,26 @@ decoder part of the variational auto encoder.
                     # predicted_original_sample is correct.
                     if scheduler_is_in_sigma_space:
                         noise_pred = (noise_pred - latents) / (-sigma)
-    
+
                     # compute the previous noisy sample x_t -> x_t-1
                     latents = self.scheduler.step(torch.from_numpy(noise_pred), t, torch.from_numpy(latents)).prev_sample.numpy()
-    
+
                     # call the callback, if provided
                     if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                         progress_bar.update()
-    
+
             # 8. Post-processing
             image = self.decode_latents(latents, pad)
-    
+
             # 9. Convert to PIL
             if output_type == "pil":
                 image = self.numpy_to_pil(image)
                 image = [img.resize((orig_width, orig_height), PIL.Image.Resampling.LANCZOS) for img in image]
             else:
                 image = [cv2.resize(img, (orig_width, orig_width)) for img in image]
-    
+
             return image
-    
+
         def _encode_prompt(
             self,
             prompt: Union[str, List[str]],
@@ -691,7 +691,7 @@ decoder part of the variational auto encoder.
         ):
             """
             Encodes the prompt into text encoder hidden states.
-    
+
             Parameters:
                 prompt (str or list(str)): prompt to be encoded
                 num_images_per_prompt (int): number of images that should be generated per prompt
@@ -700,7 +700,7 @@ decoder part of the variational auto encoder.
                 text_embeddings (np.ndarray): text encoder hidden states
             """
             batch_size = len(prompt) if isinstance(prompt, list) else 1
-    
+
             # tokenize input prompts
             text_inputs = self.tokenizer(
                 prompt,
@@ -710,15 +710,15 @@ decoder part of the variational auto encoder.
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-    
+
             text_embeddings = self.text_encoder(text_input_ids)[self.text_encoder_out]
-    
+
             # duplicate text embeddings for each generation per prompt, using mps friendly method
             if num_images_per_prompt != 1:
                 bs_embed, seq_len, _ = text_embeddings.shape
                 text_embeddings = np.tile(text_embeddings, (1, num_images_per_prompt, 1))
                 text_embeddings = np.reshape(text_embeddings, (bs_embed * num_images_per_prompt, seq_len, -1))
-    
+
             # get unconditional embeddings for classifier free guidance
             if do_classifier_free_guidance:
                 uncond_tokens: List[str]
@@ -731,21 +731,21 @@ decoder part of the variational auto encoder.
                     truncation=True,
                     return_tensors="np",
                 )
-    
+
                 uncond_embeddings = self.text_encoder(uncond_input.input_ids)[self.text_encoder_out]
-    
+
                 # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
                 seq_len = uncond_embeddings.shape[1]
                 uncond_embeddings = np.tile(uncond_embeddings, (1, num_images_per_prompt, 1))
                 uncond_embeddings = np.reshape(uncond_embeddings, (batch_size * num_images_per_prompt, seq_len, -1))
-    
+
                 # For classifier free guidance, you need to do two forward passes.
                 # Here, you concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 text_embeddings = np.concatenate([text_embeddings, uncond_embeddings, uncond_embeddings])
-    
+
             return text_embeddings
-    
+
         def prepare_image_latents(
             self,
             image,
@@ -755,7 +755,7 @@ decoder part of the variational auto encoder.
         ):
             """
             Encodes input image to latent space using VAE Encoder
-    
+
             Parameters:
                image (np.ndarray): input image tensor
                num_image_per_prompt (int, *optional*, 1): number of image generated for promt
@@ -763,12 +763,12 @@ decoder part of the variational auto encoder.
             Returns:
                image_latents: image encoded to latent space
             """
-    
+
             image = image.astype(np.float32)
-    
+
             batch_size = batch_size * num_images_per_prompt
             image_latents = self.vae_encoder(image)[self.vae_encoder_out]
-    
+
             if batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] == 0:
                 # expand image_latents for batch_size
                 additional_image_per_prompt = batch_size // image_latents.shape[0]
@@ -777,13 +777,13 @@ decoder part of the variational auto encoder.
                 raise ValueError(f"Cannot duplicate `image` of batch size {image_latents.shape[0]} to {batch_size} text prompts.")
             else:
                 image_latents = np.concatenate([image_latents], axis=0)
-    
+
             if do_classifier_free_guidance:
                 uncond_image_latents = np.zeros_like(image_latents)
                 image_latents = np.concatenate([image_latents, image_latents, uncond_image_latents], axis=0)
-    
+
             return image_latents
-    
+
         def prepare_latents(
             self,
             batch_size: int,
@@ -796,7 +796,7 @@ decoder part of the variational auto encoder.
             """
             Preparing noise to image generation. If initial latents are not provided, they will be generated randomly,
             then prepared latents scaled by the standard deviation required by the scheduler
-    
+
             Parameters:
                batch_size (int): input batch size
                num_channels_latents (int): number of channels for noise generation
@@ -817,15 +817,15 @@ decoder part of the variational auto encoder.
                 latents = randn_tensor(shape, dtype=dtype)
             else:
                 latents = latents
-    
+
             # scale the initial noise by the standard deviation required by the scheduler
             latents = latents * self.scheduler.init_noise_sigma.numpy()
             return latents
-    
+
         def decode_latents(self, latents: np.array, pad: Tuple[int]):
             """
             Decode predicted image from latent space using VAE Decoder and unpad image result
-    
+
             Parameters:
                latents (np.ndarray): image encoded in diffusion latent space
                pad (Tuple[int]): each side padding sizes obtained on preprocessing step
@@ -846,8 +846,8 @@ decoder part of the variational auto encoder.
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-    
-    
+
+
     def visualize_results(
         orig_img: PIL.Image.Image,
         processed_img: PIL.Image.Image,
@@ -856,7 +856,7 @@ decoder part of the variational auto encoder.
     ):
         """
         Helper function for results visualization
-    
+
         Parameters:
            orig_img (PIL.Image.Image): original image
            processed_img (PIL.Image.Image): processed image after editing
@@ -899,16 +899,16 @@ can provide device selecting one from available in dropdown list.
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -923,10 +923,10 @@ can provide device selecting one from available in dropdown list.
 .. code:: ipython3
 
     from transformers import CLIPTokenizer
-    
+
     tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
     scheduler = EulerAncestralDiscreteScheduler.from_config(scheduler_config)
-    
+
     ov_pipe = OVInstructPix2PixPipeline(
         tokenizer,
         scheduler,
@@ -951,7 +951,7 @@ seed for latent state initialization and number of steps.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     style = {"description_width": "initial"}
     text_prompt = widgets.Text(value=" Make it in galaxy", description="your text")
     num_steps = widgets.IntSlider(min=1, max=100, value=10, description="steps:")
@@ -975,7 +975,7 @@ seed for latent state initialization and number of steps.
 
     import io
     import requests
-    
+
     default_url = "https://user-images.githubusercontent.com/29454499/223343459-4ac944f0-502e-4acf-9813-8e9f0abc8a16.jpg"
     # read uploaded image
     image = PIL.Image.open(io.BytesIO(image_widget.value[-1]["content"]) if image_widget.value else requests.get(default_url, stream=True).raw)
@@ -1053,9 +1053,9 @@ improve model inference speed.
 .. code:: ipython3
 
     from notebook_utils import quantization_widget
-    
+
     to_quantize = quantization_widget()
-    
+
     to_quantize
 
 
@@ -1074,12 +1074,12 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
@@ -1095,29 +1095,29 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     from tqdm.notebook import tqdm
     from transformers import Pipeline
     from typing import Any, Dict, List
-    
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model, prob: float, data_cache: List[Any] = None):
             super().__init__(compiled_model)
             self.data_cache = data_cache if data_cache else []
             self.prob = np.clip(prob, 0, 1)
-    
+
         def __call__(self, *args, **kwargs):
             if np.random.rand() >= self.prob:
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
-    
+
     def collect_calibration_data(pix2pix_pipeline: Pipeline, subset_size: int) -> List[Dict]:
         original_unet = pix2pix_pipeline.unet
         pix2pix_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
         dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True).shuffle(seed=42)
         pix2pix_pipeline.set_progress_bar_config(disable=True)
-    
+
         # Run inference for data collection
         pbar = tqdm(total=subset_size)
         diff = 0
@@ -1131,7 +1131,7 @@ model inputs for calibration we should customize ``CompiledModel``.
                 break
             pbar.update(collected_subset_size - diff)
             diff = collected_subset_size
-    
+
         calibration_dataset = pix2pix_pipeline.unet.data_cache
         pix2pix_pipeline.set_progress_bar_config(disable=False)
         pix2pix_pipeline.unet = original_unet
@@ -1140,7 +1140,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     UNET_INT8_OV_PATH = Path("unet_int8.xml")
     if not UNET_INT8_OV_PATH.exists():
         subset_size = 300
@@ -1172,9 +1172,9 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     if UNET_INT8_OV_PATH.exists():
         print("Loading quantized model")
         quantized_unet = core.read_model(UNET_INT8_OV_PATH)
@@ -1217,16 +1217,16 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     print('Pipeline settings')
     print(f'Input text: {text_prompt.value}')
     print(f'Seed: {seed.value}')
     print(f'Number of steps: {num_steps.value}')
     np.random.seed(seed.value)
-    
+
     int8_pipe = OVInstructPix2PixPipeline(tokenizer, scheduler, core, TEXT_ENCODER_OV_PATH, VAE_ENCODER_OV_PATH, UNET_INT8_OV_PATH, VAE_DECODER_OV_PATH, device=device.value)
     int8_processed_image = int8_pipe(text_prompt.value, image, num_steps.value)
-    
+
     fig = visualize_results(processed_image[0], int8_processed_image[0], img1_title="FP16 result", img2_title="INT8 result")
 
 
@@ -1263,9 +1263,9 @@ models, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
+
     calibration_dataset = datasets.load_dataset("fusing/instructpix2pix-1000-samples", split="train", streaming=True)
     validation_data = []
     validation_size = 10
@@ -1274,7 +1274,7 @@ models, we use median inference time on calibration subset.
         prompt = batch["edit_prompt"]
         input_image = batch["input_image"].convert("RGB")
         validation_data.append((prompt, input_image))
-    
+
     def calculate_inference_time(pix2pix_pipeline, calibration_dataset, size=10):
         inference_time = []
         pix2pix_pipeline.set_progress_bar_config(disable=True)
@@ -1289,7 +1289,7 @@ models, we use median inference time on calibration subset.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp_latency = calculate_inference_time(ov_pipe, validation_data)
     int8_latency = calculate_inference_time(int8_pipe, validation_data)
     print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
@@ -1316,7 +1316,7 @@ Interactive demo with Gradio
         description="Precision:",
         disabled=False,
     )
-    
+
     pipe_precision
 
 
@@ -1332,28 +1332,28 @@ Interactive demo with Gradio
 
     import gradio as gr
     import numpy as np
-    
+
     pipeline = int8_pipe if pipe_precision.value == "INT8" else ov_pipe
-    
-    
+
+
     def generate(img, text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
         if img is None:
             raise gr.Error("Please upload an image or choose one from the examples list")
         np.random.seed(seed)
         result = pipeline(text, img, num_steps)[0]
         return result
-    
-    
+
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/instruct-pix2pix-image-editing/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=generate)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

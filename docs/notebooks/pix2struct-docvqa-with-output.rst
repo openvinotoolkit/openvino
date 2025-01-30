@@ -147,10 +147,10 @@ applicable for other models from pix2struct family.
     import gc
     from pathlib import Path
     from optimum.intel.openvino import OVModelForPix2Struct
-    
+
     model_id = "google/pix2struct-docvqa-base"
     model_dir = Path(model_id.split("/")[-1])
-    
+
     if not model_dir.exists():
         ov_model = OVModelForPix2Struct.from_pretrained(model_id, export=True, compile=False)
         ov_model.half()
@@ -168,16 +168,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -210,7 +210,7 @@ by ``Pix2StructProcessor.decode``
 .. code:: ipython3
 
     from transformers import Pix2StructProcessor
-    
+
     processor = Pix2StructProcessor.from_pretrained(model_id)
     ov_model = OVModelForPix2Struct.from_pretrained(model_dir, device=device.value)
 
@@ -224,26 +224,26 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2024/get-started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2025/get-started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 
     import requests
     from PIL import Image
     from io import BytesIO
-    
-    
+
+
     def load_image(image_file):
         response = requests.get(image_file)
         image = Image.open(BytesIO(response.content)).convert("RGB")
         return image
-    
-    
+
+
     test_image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/aa46ef0c-c14d-4bab-8bb7-3b22fe73f6bc"
-    
+
     image = load_image(test_image_url)
     text = "What performance hints do?"
-    
+
     inputs = processor(images=image, text=text, return_tensors="pt")
     display(image)
 
@@ -287,16 +287,16 @@ Interactive demo
         inputs = processor(images=img, text=question, return_tensors="pt")
         predictions = ov_model.generate(**inputs, max_new_tokens=256)
         return processor.decode(predictions[0], skip_special_tokens=True)
-    
-    
+
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/pix2struct-docvqa/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(fn=generate)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

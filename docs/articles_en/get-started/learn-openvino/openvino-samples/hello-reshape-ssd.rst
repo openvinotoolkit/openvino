@@ -9,7 +9,7 @@ Hello Reshape SSD Sample
 
 
 This sample demonstrates how to do synchronous inference of object detection models
-using :doc:`Shape Inference feature <../../openvino-workflow/running-inference/changing-input-shape>`. Before
+using :doc:`Shape Inference feature <../../../openvino-workflow/running-inference/changing-input-shape>`. Before
 using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
@@ -46,7 +46,7 @@ As a result, the program creates an output image, logging each step in a standar
 
 
 You can see the explicit description of
-each sample step at :doc:`Integration Steps <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
+each sample step at :doc:`Integration Steps <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
 ####################
@@ -84,10 +84,10 @@ To run the sample, you need to specify a model and an image:
      reconvert your model using model conversion API with ``reverse_input_channels``
      argument specified. For more information about the argument, refer to the
      **Color Conversion** section of
-     :doc:`Preprocessing API <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
+     :doc:`Preprocessing API <../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
    - Before running the sample with a trained model, make sure the model is
      converted to the intermediate representation (IR) format (\*.xml + \*.bin)
-     using :doc:`model conversion API <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
+     using :doc:`model conversion API <../../../openvino-workflow/model-preparation/convert-model-to-ir>`.
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
 Example
@@ -201,10 +201,10 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
+- :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
 - `Hello Reshape SSD Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_reshape_ssd/README.md>`__
 - `Hello Reshape SSD C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_reshape_ssd/README.md>`__
 
