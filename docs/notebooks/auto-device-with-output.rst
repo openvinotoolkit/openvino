@@ -6,7 +6,7 @@ device <https://docs.openvino.ai/2025/openvino-workflow/running-inference/infere
 (or AUTO in short) selects the most suitable device for inference by
 considering the model precision, power efficiency and processing
 capability of the available `compute
-devices <https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html>`__.
+devices <https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html>`__.
 The model precision (such as ``FP32``, ``FP16``, ``INT8``, etc.) is the
 first consideration to filter out the devices that cannot run the
 network efficiently.
