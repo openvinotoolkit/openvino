@@ -15,6 +15,21 @@
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "zero_remote_tensor.hpp"
 
+namespace {
+
+template <class t>
+bool compare_shared_ptr(const std::shared_ptr<t>& a, const std::shared_ptr<t>& b) {
+    if (a == b) {
+        return true;
+    }
+    if (a && b) {
+        return a.get() == b.get();
+    }
+    return false;
+}
+
+}  // namespace
+
 namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
@@ -32,8 +47,7 @@ Pipeline::Pipeline(const Config& config,
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _npu_profiling(npu_profiling),
-      _logger("Pipeline", _config.get<LOG_LEVEL>()),
-      _group_ordinal(group_ordinal) {
+      _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
 
@@ -64,34 +78,20 @@ Pipeline::Pipeline(const Config& config,
                                           _init_structs->getMutableCommandListVersion() ? true : false));
     }
 
-    _ze_queue_priority = zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>());
-
-    if (_config.has<TURBO>()) {
-        _turbo = _config.get<TURBO>();
-    }
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
-    }
-
-    _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
-                                                                        _ze_queue_priority,
-                                                                        _graph->get_ze_workload_type(),
-                                                                        _group_ordinal,
-                                                                        _turbo);
+    _command_queue = _graph->get_command_queue();
 
     if (_sync_output_with_fences) {
         _fences.resize(_number_of_command_lists);
 
         for (size_t i = 0; i < _number_of_command_lists; i++) {
             _logger.debug("Pipeline - getCommandQueue() - create new fence");
-            _fences[i] = std::make_unique<Fence>(*_command_queue);
+            _fences[i] = std::make_unique<Fence>(_command_queue);
         }
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         size_t io_index = 0;
-        for (const auto& desc : graph->get_input_descriptors()) {
+        for (const auto& desc : _graph->get_input_descriptors()) {
             if (input_tensors.at(io_index).size() > 1) {
                 void* data = nullptr;
                 auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(i));
@@ -101,7 +101,7 @@ Pipeline::Pipeline(const Config& config,
                     data = remote_tensor->get_original_memory();
                 }
 
-                graph->set_argument_value(desc.idx, data);
+                _graph->set_argument_value(desc.idx, data);
 
                 ++io_index;
                 continue;
@@ -115,7 +115,7 @@ Pipeline::Pipeline(const Config& config,
                 data = remote_tensor->get_original_memory();
             }
 
-            graph->set_argument_value(
+            _graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
                     (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
@@ -124,7 +124,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         io_index = 0;
-        for (const auto& desc : graph->get_output_descriptors()) {
+        for (const auto& desc : _graph->get_output_descriptors()) {
             void* data = nullptr;
             auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors.at(io_index));
             if (remote_tensor == nullptr) {
@@ -133,7 +133,7 @@ Pipeline::Pipeline(const Config& config,
                 data = remote_tensor->get_original_memory();
             }
 
-            graph->set_argument_value(
+            _graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
                     (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
@@ -152,7 +152,7 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
         }
 
-        _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
+        _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(_graph->get_handle()),
                                                  profiling_query.getHandle());
 
         /// append timestamp command if feature was activated
@@ -185,34 +185,15 @@ void Pipeline::getCommandQueue() {
 
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_ze_workload_type != _graph->get_ze_workload_type()) {
-        // fences created for the old command queue shall be destroyed and make new ones
-        if (_sync_output_with_fences) {
-            for (size_t i = 0; i < _number_of_command_lists; i++) {
-                if (_fences[i] != nullptr) {
-                    _logger.debug("Pipeline - getCommandQueue() - destroy old fence");
-                    _fences[i].reset();
-                }
-            }
-        }
-
-        _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
-                                                                            _ze_queue_priority,
-                                                                            _graph->get_ze_workload_type(),
-                                                                            _group_ordinal,
-                                                                            _turbo);
+    if (!compare_shared_ptr(_command_queue, _graph->get_command_queue())) {
+        _command_queue = _graph->get_command_queue();
 
         if (_sync_output_with_fences) {
             for (size_t i = 0; i < _number_of_command_lists; i++) {
                 _logger.debug("Pipeline - getCommandQueue() - create new fence");
-                _fences[i] = std::make_unique<Fence>(*_command_queue);
+                _fences[i] = std::make_unique<Fence>(_command_queue);
             }
         }
-
-        _logger.debug("Pipeline - getCommandQueue() - free previous command queue");
-        CommandQueueManager::getInstance().freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
-
-        _ze_workload_type = _graph->get_ze_workload_type();
     }
 
     _logger.debug("Pipeline - getCommandQueue() completed");
@@ -329,21 +310,5 @@ void Pipeline::closeCommandListIndex(size_t command_list_index) {
 
     _command_lists.at(command_list_index)->close();
 };
-
-Pipeline::~Pipeline() {
-    if (_command_queue) {
-        if (_sync_output_with_fences) {
-            // fences shall be destroyed before the command queue is destroyed
-            for (size_t i = 0; i < _number_of_command_lists; i++) {
-                if (_fences[i] != nullptr) {
-                    _fences[i].reset();
-                }
-            }
-        }
-
-        _command_queue.reset();
-        CommandQueueManager::getInstance().freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
-    }
-}
 
 }  // namespace intel_npu

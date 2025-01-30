@@ -38,6 +38,8 @@ public:
     ~PluginGraph() override;
 
 private:
+    void create_new_command_queue() override;
+
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 

@@ -192,7 +192,8 @@ void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t
     _logger.debug("initialize_graph_through_command_list init start - create graph_command_list");
     CommandList graph_command_list(_zeroInitStruct, groupOrdinal);
     _logger.debug("initialize_graph_through_command_list - create graph_command_queue");
-    CommandQueue graph_command_queue(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, groupOrdinal, false);
+    auto graph_command_queue =
+        std::make_shared<CommandQueue>(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, groupOrdinal, false);
     _logger.debug("initialize_graph_through_command_list - create fence");
     Fence fence(graph_command_queue);
 
@@ -202,7 +203,7 @@ void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t
     graph_command_list.close();
 
     _logger.debug("initialize_graph_through_command_list - performing executeCommandList");
-    graph_command_queue.executeCommandList(graph_command_list, fence);
+    graph_command_queue->executeCommandList(graph_command_list, fence);
     _logger.debug("initialize_graph_through_command_list - performing hostSynchronize");
     fence.hostSynchronize();
     _logger.debug("initialize_graph_through_command_list - hostSynchronize completed");

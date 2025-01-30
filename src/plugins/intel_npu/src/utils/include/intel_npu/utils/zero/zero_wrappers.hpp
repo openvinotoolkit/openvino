@@ -17,6 +17,12 @@ namespace intel_npu {
 class CommandList;
 class CommandQueue;
 
+struct CommandQueueDesc {
+    size_t priority;
+    size_t workload;
+    bool turbo;
+};
+
 class EventPool {
 public:
     EventPool() = delete;
@@ -98,7 +104,7 @@ private:
 class Fence {
 public:
     Fence() = delete;
-    Fence(const CommandQueue& command_queue);
+    Fence(const std::shared_ptr<CommandQueue>& command_queue);
     Fence(const Fence&) = delete;
     Fence(Fence&&) = delete;
     Fence& operator=(const Fence&) = delete;
@@ -112,6 +118,8 @@ public:
     }
 
 private:
+    std::shared_ptr<CommandQueue> _command_queue;
+
     ze_fence_handle_t _handle = nullptr;
 
     Logger _log;
@@ -145,15 +153,15 @@ private:
     ze_command_queue_handle_t _handle = nullptr;
 };
 
-class CommandQueueManager {
+class CommandQueuePool {
 public:
-    CommandQueueManager();
-    CommandQueueManager(const CommandQueueManager& other) = delete;
-    CommandQueueManager(CommandQueueManager&& other) = delete;
-    void operator=(const CommandQueueManager&) = delete;
-    void operator=(CommandQueueManager&&) = delete;
+    CommandQueuePool();
+    CommandQueuePool(const CommandQueuePool& other) = delete;
+    CommandQueuePool(CommandQueuePool&& other) = delete;
+    void operator=(const CommandQueuePool&) = delete;
+    void operator=(CommandQueuePool&&) = delete;
 
-    static CommandQueueManager& getInstance();
+    static CommandQueuePool& getInstance();
 
     std::shared_ptr<CommandQueue> getCommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                                   const ze_command_queue_priority_t& priority,
@@ -161,18 +169,14 @@ public:
                                                   const uint32_t& group_ordinal,
                                                   bool turbo);
 
-    void freeCommandQueue(const ze_command_queue_priority_t& priority,
-                          const std::optional<ze_command_queue_workload_type_t>& workload_type,
-                          bool turbo);
-
 private:
+    int computeHash(CommandQueueDesc desc);
+
+    std::unordered_map<int, std::weak_ptr<CommandQueue>> _pool;
+
     Logger _log;
 
     std::mutex _mutex;
-
-    std::array<std::array<std::array<std::shared_ptr<CommandQueue>, workload::WORKLOAD_COUNT>, turbo::TURBO_COUNT>,
-               priority::PRIORITY_COUNT>
-        _gloabal_command_queues;
 };
 
 }  // namespace intel_npu

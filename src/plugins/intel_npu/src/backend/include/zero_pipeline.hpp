@@ -27,7 +27,7 @@ public:
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    ~Pipeline();
+    virtual ~Pipeline() = default;
 
     void push();
     void pull();
@@ -66,11 +66,7 @@ protected:
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;
 
-    uint32_t _group_ordinal;
     std::mutex _mutex;
-    bool _turbo = false;
-    ze_command_queue_priority_t _ze_queue_priority;
-    std::optional<ze_command_queue_workload_type_t> _ze_workload_type = std::nullopt;
 };
 
 }  // namespace intel_npu

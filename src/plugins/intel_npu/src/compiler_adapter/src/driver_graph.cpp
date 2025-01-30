@@ -99,11 +99,6 @@ void DriverGraph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-
     _zeGraphExt->initializeGraph(_handle);
 
     _logger.debug("Graph initialize finish");
@@ -112,6 +107,25 @@ void DriverGraph::initialize(const Config& config) {
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
+
+    // Find the corresponding command queue group.
+    ze_device_properties_t deviceProperties = {};
+    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
+    _group_ordinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
+
+    _ze_queue_priority = zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>());
+
+    if (config.has<TURBO>()) {
+        _turbo = config.get<TURBO>();
+    }
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+    }
+
+    create_new_command_queue();
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batch_size = get_batch_size(_metadata);
@@ -122,6 +136,14 @@ void DriverGraph::initialize(const Config& config) {
 
         _last_submitted_event.resize(number_of_command_lists);
     }
+}
+
+void DriverGraph::create_new_command_queue() {
+    _command_queue = CommandQueuePool::getInstance().getCommandQueue(_zeroInitStruct,
+                                                                     _ze_queue_priority,
+                                                                     _ze_workload_type,
+                                                                     _group_ordinal,
+                                                                     _turbo);
 }
 
 bool DriverGraph::release_blob(const Config& config) {

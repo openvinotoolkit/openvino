@@ -187,9 +187,11 @@ CommandQueue::~CommandQueue() {
     _handle = nullptr;
 }
 
-Fence::Fence(const CommandQueue& command_queue) : _log("Fence", Logger::global().level()) {
+Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue)
+    : _command_queue(command_queue),
+      _log("Fence", Logger::global().level()) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
-    auto result = zeFenceCreate(command_queue.handle(), &fence_desc, &_handle);
+    auto result = zeFenceCreate(command_queue->handle(), &fence_desc, &_handle);
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", result);
 }
 void Fence::reset() const {
@@ -209,58 +211,54 @@ Fence::~Fence() {
     _handle = nullptr;
 }
 
-CommandQueueManager::CommandQueueManager() : _log("CommandQueue", Logger::global().level()) {}
-CommandQueueManager& CommandQueueManager::getInstance() {
-    static CommandQueueManager instance;
+CommandQueuePool::CommandQueuePool() : _log("CommandQueue", Logger::global().level()) {}
+int CommandQueuePool::computeHash(CommandQueueDesc desc) {
+    return (desc.priority & 0xFF) | (desc.workload & 0xFF) << 8 | (desc.turbo << 16);
+}
+CommandQueuePool& CommandQueuePool::getInstance() {
+    static CommandQueuePool instance;
     return instance;
 }
-std::shared_ptr<CommandQueue> CommandQueueManager::getCommandQueue(
+std::shared_ptr<CommandQueue> CommandQueuePool::getCommandQueue(
     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     const ze_command_queue_priority_t& priority,
     const std::optional<ze_command_queue_workload_type_t>& workload_type,
     const uint32_t& group_ordinal,
     bool turbo) {
+    CommandQueueDesc desc = {zeroUtils::toPriorityVal(priority), zeroUtils::toWorkloadVal(workload_type), turbo};
+
+    int hash = computeHash(desc);
+
     std::lock_guard<std::mutex> lock(_mutex);
-
-    if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workload_type)] == nullptr) {
-        _log.debug("Create new command queue");
-        _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workload_type)] =
-                                   std::make_shared<CommandQueue>(init_structs, priority, group_ordinal, turbo);
-
-        if (zeroUtils::toWorkloadEnum(workload_type) != workload::NOT_SET) {
-            try {
-                _log.debug("Set workload type");
-                _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                       [zeroUtils::toWorkloadEnum(workload_type)]
-                                           ->setWorkloadType(*workload_type);
-            } catch (const std::exception& ex) {
-                _log.error("Destroy pipeline if workload type is not supported!");
-                _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                       [zeroUtils::toWorkloadEnum(workload_type)]
-                                           .reset();
-                OPENVINO_THROW(ex.what());
-            }
+    if (_pool.find(hash) != _pool.end()) {
+        // found one weak pointer in the pool
+        // is it valid?
+        auto obj = _pool.at(hash).lock();
+        if (obj) {
+            _log.debug("Get Command Queue");
+            return obj;
         }
-    }
+    }  // otherwise create a new object
 
-    return _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                                  [zeroUtils::toWorkloadEnum(workload_type)];
-}
-void CommandQueueManager::freeCommandQueue(const ze_command_queue_priority_t& priority,
-                                           const std::optional<ze_command_queue_workload_type_t>& workload_type,
-                                           bool turbo) {
-    std::lock_guard<std::mutex> lock(_mutex);
+    // Create shared_ptr with a deleter
+    _log.debug("Create Command Queue");
+    auto new_obj = std::shared_ptr<CommandQueue>(
+        new CommandQueue(init_structs, priority, group_ordinal, turbo),
+        [this, hash](CommandQueue* ptr) {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (_pool.at(hash).lock()) {
+                _log.debug("Don't destroy the command queue in case the shared ptr is in use!");
+                return;
+            }
+            _pool.erase(hash);
+            _log.debug("Destroy Command Queue");
+            delete ptr;
+        });
 
-    if (_gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workload_type)]
-                                   .use_count() == 1) {
-        _log.debug("Destroy command queue");
-        _gloabal_command_queues[zeroUtils::toPriorityEnum(priority)][zeroUtils::toTurboEnum(turbo)]
-                               [zeroUtils::toWorkloadEnum(workload_type)]
-                                   .reset();
-    }
+    auto pair = std::make_pair(hash, new_obj);
+    _pool.emplace(pair);
+
+    return new_obj;
 }
 
 }  // namespace intel_npu

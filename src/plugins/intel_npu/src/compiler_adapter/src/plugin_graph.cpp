@@ -99,12 +99,26 @@ void PluginGraph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
+    _zeGraphExt->initializeGraph(_handle);
+
+    // Find the corresponding command queue group.
     ze_device_properties_t deviceProperties = {};
     deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
+    _group_ordinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
-    _zeGraphExt->initializeGraph(_handle);
+    _ze_queue_priority = zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>());
+
+    if (config.has<TURBO>()) {
+        _turbo = config.get<TURBO>();
+    }
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+    }
+
+    create_new_command_queue();
 
     if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
         _batch_size = get_batch_size(_metadata);
@@ -117,6 +131,14 @@ void PluginGraph::initialize(const Config& config) {
     }
 
     _logger.debug("Graph initialize finish");
+}
+
+void PluginGraph::create_new_command_queue() {
+    _command_queue = CommandQueuePool::getInstance().getCommandQueue(_zeroInitStruct,
+                                                                     _ze_queue_priority,
+                                                                     _ze_workload_type,
+                                                                     _group_ordinal,
+                                                                     _turbo);
 }
 
 PluginGraph::~PluginGraph() {

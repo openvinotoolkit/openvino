@@ -235,11 +235,13 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
 
         OV_ASSERT_NO_THROW(req3.infer());
 
+        req1 = {};
+
         ov::AnyMap modelConfiguration;
         modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
         OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
         ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::DEFAULT);
-        OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request())
         OV_ASSERT_NO_THROW(req2.infer());
 
         modelConfiguration[workload_type.name()] = WorkloadType::EFFICIENT;
@@ -254,7 +256,6 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
         OV_ASSERT_NO_THROW(req2.wait());
         ASSERT_TRUE(isCalled);
 
-        req1 = {};
         req2 = {};
         req3 = {};
 
@@ -372,6 +373,7 @@ TEST_P(OVCompileAndInferRequesOnNewerDrivers, MultipleCompiledModelsTestsSyncInf
                 OV_ASSERT_NO_THROW(infer_reqs[i].infer());
 
                 infer_reqs[i] = {};
+                compiled_models[i] = {};
             });
         }
 

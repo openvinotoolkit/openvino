@@ -21,11 +21,7 @@ IGraph::IGraph(ze_graph_handle_t handle,
     : _handle(handle),
       _metadata(std::move(metadata)),
       _blobPtr(std::move(blobPtr)),
-      _logger("IGraph", config.get<LOG_LEVEL>()) {
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
-    }
-}
+      _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
@@ -47,8 +43,16 @@ const std::vector<ArgumentDescriptor>& IGraph::get_output_descriptors() const {
     return _output_descriptors;
 }
 
+const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
+    return _command_queue;
+}
+
 void IGraph::set_workload_type(const ov::WorkloadType workloadType) {
-    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(workloadType);
+    if (_command_queue) {
+        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(workloadType);
+
+        create_new_command_queue();
+    }
 }
 
 std::mutex& IGraph::get_mutex() {
@@ -135,10 +139,6 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {
 
 const std::optional<std::size_t> IGraph::get_batch_size() const {
     return _batch_size;
-}
-
-const std::optional<ze_command_queue_workload_type_t> IGraph::get_ze_workload_type() const {
-    return _ze_workload_type;
 }
 
 }  // namespace intel_npu

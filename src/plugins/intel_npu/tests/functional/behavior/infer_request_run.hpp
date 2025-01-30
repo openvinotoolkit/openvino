@@ -1080,9 +1080,10 @@ TEST_P(InferRunTestsOnNewerDrivers, MultipleCompiledModelsTestsSyncInfers) {
     }
 
     for (int i = 0; i < no_of_iterations; ++i) {
-        infer_reqs_threads[i] = std::thread([&infer_reqs, i]() -> void {
+        infer_reqs_threads[i] = std::thread([&compiled_models, &infer_reqs, i]() -> void {
             OV_ASSERT_NO_THROW(infer_reqs[i].infer());
             infer_reqs[i] = {};
+            compiled_models[i] = {};
         });
     }
 

@@ -17,29 +17,6 @@
 
 namespace intel_npu {
 
-enum priority {
-    NORMAL,
-    LOW,
-    HIGH,
-
-    PRIORITY_COUNT
-};
-
-enum turbo {
-    DISABLED,
-    ENABLED,
-
-    TURBO_COUNT
-};
-
-enum workload {
-    NOT_SET,
-    DEFAULT,
-    EFFICIENT,
-
-    WORKLOAD_COUNT
-};
-
 struct ArgumentDescriptor {
     ze_graph_argument_properties_3_t info;
     uint32_t idx;
@@ -75,37 +52,29 @@ namespace zeroUtils {
                        ze_result_to_description(result)); \
     }
 
-static inline priority toPriorityEnum(const ze_command_queue_priority_t& val) {
+static inline size_t toPriorityVal(const ze_command_queue_priority_t& val) {
     switch (val) {
     case ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW:
-        return priority::LOW;
+        return 0;
     case ZE_COMMAND_QUEUE_PRIORITY_NORMAL:
-        return priority::NORMAL;
+        return 1;
     case ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH:
-        return priority::HIGH;
+        return 2;
     default:
         OPENVINO_THROW("Incorrect queue priority.");
     }
 }
 
-static inline turbo toTurboEnum(bool val) {
-    if (val) {
-        return turbo::ENABLED;
-    }
-
-    return turbo::DISABLED;
-}
-
-static inline workload toWorkloadEnum(const std::optional<ze_command_queue_workload_type_t>& val) {
+static inline size_t toWorkloadVal(const std::optional<ze_command_queue_workload_type_t>& val) {
     if (!val.has_value()) {
-        return workload::NOT_SET;
+        return 0;
     }
 
     switch (*val) {
     case ZE_WORKLOAD_TYPE_DEFAULT:
-        return workload::DEFAULT;
+        return 1;
     case ZE_WORKLOAD_TYPE_BACKGROUND:
-        return workload::EFFICIENT;
+        return 2;
     default:
         OPENVINO_THROW("Incorrect workload type.");
     }
