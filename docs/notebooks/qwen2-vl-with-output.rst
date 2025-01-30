@@ -104,11 +104,11 @@ Prerequisites
 
     from pathlib import Path
     import requests
-    
+
     if not Path("ov_qwen2_vl.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/qwen2-vl/ov_qwen2_vl.py")
         open("ov_qwen2_vl.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -126,9 +126,9 @@ using widget bellow:
 .. code:: ipython3
 
     from ov_qwen2_vl import model_selector
-    
+
     model_id = model_selector()
-    
+
     model_id
 
 
@@ -172,7 +172,7 @@ Convert and Optimize model
 Qwen2VL is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
 conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
@@ -276,7 +276,7 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
 .. raw:: html
 
@@ -285,20 +285,20 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from ov_qwen2_vl import convert_qwen2vl_model
-    
+
     # uncomment these lines to see model conversion code
     # convert_qwen2vl_model??
 
 .. code:: ipython3
 
     import nncf
-    
+
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_ASYM,
         "group_size": 128,
         "ratio": 1.0,
     }
-    
+
     convert_qwen2vl_model(pt_model_id, model_dir, compression_configuration)
 
 
@@ -431,7 +431,7 @@ Intel <https://huggingface.co/docs/optimum/intel/index>`__
 .. code:: ipython3
 
     from ov_qwen2_vl import OVQwen2VLModel
-    
+
     # Uncomment below lines to see the model inference class code
     # OVQwen2VLModel??
 
@@ -443,9 +443,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="AUTO", exclude=["NPU"])
-    
+
     device
 
 
@@ -472,25 +472,25 @@ Run model inference
     from transformers import AutoProcessor, AutoTokenizer
     from qwen_vl_utils import process_vision_info
     from transformers import TextStreamer
-    
-    
+
+
     min_pixels = 256 * 28 * 28
     max_pixels = 1280 * 28 * 28
     processor = AutoProcessor.from_pretrained(model_dir, min_pixels=min_pixels, max_pixels=max_pixels)
-    
+
     if processor.chat_template is None:
         tok = AutoTokenizer.from_pretrained(model_dir)
         processor.chat_template = tok.chat_template
-    
+
     example_image_url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
     example_image_path = Path("demo.jpeg")
-    
+
     if not example_image_path.exists():
         Image.open(requests.get(example_image_url, stream=True).raw).save(example_image_path)
-    
+
     image = Image.open(example_image_path)
     question = "Describe this image."
-    
+
     messages = [
         {
             "role": "user",
@@ -503,7 +503,7 @@ Run model inference
             ],
         }
     ]
-    
+
     # Preparation for inference
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
@@ -514,12 +514,12 @@ Run model inference
         padding=True,
         return_tensors="pt",
     )
-    
+
     display(image)
     print("Question:")
     print(question)
     print("Answer:")
-    
+
     generated_ids = model.generate(**inputs, max_new_tokens=100, streamer=TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True))
 
 
@@ -562,10 +562,10 @@ click ``Submit`` to start communication.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
-    
+
+
     demo = make_demo(model, processor)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -578,9 +578,9 @@ click ``Submit`` to start communication.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     Thanks for being a Gradio user! If you have questions or feedback, please join our Discord server and chat with us: https://discord.gg/feTf9x3ZSB
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

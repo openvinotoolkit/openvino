@@ -32,8 +32,8 @@ then trained in the highly compressed latent space.
 -  `Select inference device <#select-inference-device>`__
 -  `Building the pipeline <#building-the-pipeline>`__
 -  `Inference <#inference>`__
--  `Interactive inference <#interactive-inference>`__ 
-   
+-  `Interactive inference <#interactive-inference>`__
+
 
 
 This is a self-contained example that relies solely on its own code.
@@ -71,10 +71,10 @@ Load and run the original pipeline
 
     import torch
     from diffusers import StableCascadeDecoderPipeline, StableCascadePriorPipeline
-    
+
     prompt = "an image of a shiba inu, donning a spacesuit and helmet"
     negative_prompt = ""
-    
+
     prior = StableCascadePriorPipeline.from_pretrained("stabilityai/stable-cascade-prior", torch_dtype=torch.float32)
     decoder = StableCascadeDecoderPipeline.from_pretrained("stabilityai/stable-cascade", torch_dtype=torch.float32)
 
@@ -104,14 +104,14 @@ it, turn it.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    
+
+
     run_original_inference = widgets.Checkbox(
         value=False,
         description="Run original inference",
         disabled=False,
     )
-    
+
     run_original_inference
 
 
@@ -136,7 +136,7 @@ it, turn it.
             num_images_per_prompt=1,
             num_inference_steps=20,
         )
-    
+
         decoder_output = decoder(
             image_embeddings=prior_output.image_embeddings,
             prompt=prompt,
@@ -163,21 +163,21 @@ Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
 Representation object and ``ov.save_model`` function to save it as XML
 file. We use ``nncf.compress_weights`` to `compress model
-weights <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html#compress-model-weights>`__
+weights <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html#compress-model-weights>`__
 to 8-bit to reduce model size.
 
 .. code:: ipython3
 
     import gc
     from pathlib import Path
-    
+
     import openvino as ov
     import nncf
-    
-    
+
+
     MODELS_DIR = Path("models")
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input, input_shape=None):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -191,12 +191,12 @@ to 8-bit to reduce model size.
             converted_model = nncf.compress_weights(converted_model)
             ov.save_model(converted_model, xml_path)
             del converted_model
-    
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
             torch.jit._state._clear_class_state()
-    
+
             gc.collect()
 
 
@@ -217,20 +217,20 @@ here, we always use fixed shapes in conversion by using an
 .. code:: ipython3
 
     PRIOR_TEXT_ENCODER_OV_PATH = MODELS_DIR / "prior_text_encoder_model.xml"
-    
+
     prior.text_encoder.config.output_hidden_states = True
-    
-    
+
+
     class TextEncoderWrapper(torch.nn.Module):
         def __init__(self, text_encoder):
             super().__init__()
             self.text_encoder = text_encoder
-    
+
         def forward(self, input_ids, attention_mask):
             outputs = self.text_encoder(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
             return outputs["text_embeds"], outputs["last_hidden_state"], outputs["hidden_states"]
-    
-    
+
+
     convert(
         TextEncoderWrapper(prior.text_encoder),
         PRIOR_TEXT_ENCODER_OV_PATH,
@@ -287,7 +287,7 @@ here, we always use fixed shapes in conversion by using an
 .. code:: ipython3
 
     PRIOR_PRIOR_MODEL_OV_PATH = MODELS_DIR / "prior_prior_model.xml"
-    
+
     convert(
         prior.prior,
         PRIOR_PRIOR_MODEL_OV_PATH,
@@ -343,7 +343,7 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. code:: ipython3
 
     DECODER_TEXT_ENCODER_MODEL_OV_PATH = MODELS_DIR / "decoder_text_encoder_model.xml"
-    
+
     convert(
         TextEncoderWrapper(decoder.text_encoder),
         DECODER_TEXT_ENCODER_MODEL_OV_PATH,
@@ -353,7 +353,7 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
         },
         input_shape={"input_ids": ((1, 77),), "attention_mask": ((1, 77),)},
     )
-    
+
     del decoder.text_encoder
     gc.collect();
 
@@ -384,7 +384,7 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. code:: ipython3
 
     DECODER_DECODER_MODEL_OV_PATH = MODELS_DIR / "decoder_decoder_model.xml"
-    
+
     convert(
         decoder.decoder,
         DECODER_DECODER_MODEL_OV_PATH,
@@ -426,17 +426,17 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. code:: ipython3
 
     VQGAN_PATH = MODELS_DIR / "vqgan_model.xml"
-    
-    
+
+
     class VqganDecoderWrapper(torch.nn.Module):
         def __init__(self, vqgan):
             super().__init__()
             self.vqgan = vqgan
-    
+
         def forward(self, h):
             return self.vqgan.decode(h)
-    
-    
+
+
     convert(
         VqganDecoderWrapper(decoder.vqgan),
         VQGAN_PATH,
@@ -480,16 +480,16 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -513,19 +513,19 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     from collections import namedtuple
-    
+
     core = ov.Core()
-    
-    
+
+
     BaseModelOutputWithPooling = namedtuple("BaseModelOutputWithPooling", ["text_embeds", "last_hidden_state", "hidden_states"])
-    
-    
+
+
     class TextEncoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, text_encoder_path, device):
             self.text_encoder = core.compile_model(text_encoder_path, device.value)
-    
+
         def __call__(self, input_ids, attention_mask, output_hidden_states=True):
             output = self.text_encoder({"input_ids": input_ids, "attention_mask": attention_mask})
             text_embeds = output[0]
@@ -540,7 +540,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             self.prior = core.compile_model(prior_path, device.value)
             self.config = namedtuple("PriorWrapperConfig", ["clip_image_in_channels", "in_channels"])(768, 16)  # accessed in the original workflow
             self.parameters = lambda: (torch.zeros(i, dtype=torch.float32) for i in range(1))  # accessed in the original workflow
-    
+
         def __call__(self, sample, timestep_ratio, clip_text_pooled, clip_text=None, clip_img=None, **kwargs):
             inputs = {
                 "sample": sample,
@@ -556,10 +556,10 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 
     class DecoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, decoder_path, device):
             self.decoder = core.compile_model(decoder_path, device.value)
-    
+
         def __call__(self, sample, timestep_ratio, clip_text_pooled, effnet, **kwargs):
             inputs = {"sample": sample, "timestep_ratio": timestep_ratio, "clip_text_pooled": clip_text_pooled, "effnet": effnet}
             output = self.decoder(inputs)
@@ -568,14 +568,14 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     VqganOutput = namedtuple("VqganOutput", "sample")
-    
-    
+
+
     class VqganWrapper:
         config = namedtuple("VqganWrapperConfig", "scale_factor")(0.3764)  # accessed in the original workflow
-    
+
         def __init__(self, vqgan_path, device):
             self.vqgan = core.compile_model(vqgan_path, device.value)
-    
+
         def decode(self, h):
             output = self.vqgan(h)[0]
             output = torch.tensor(output)
@@ -607,7 +607,7 @@ Inference
         num_images_per_prompt=1,
         num_inference_steps=20,
     )
-    
+
     decoder_output = decoder(
         image_embeddings=prior_output.image_embeddings,
         prompt=prompt,
@@ -654,7 +654,7 @@ Interactive inference
             num_inference_steps=20,
             generator=generator,
         )
-    
+
         decoder_output = decoder(
             image_embeddings=prior_output.image_embeddings,
             prompt=prompt,
@@ -664,23 +664,23 @@ Interactive inference
             num_inference_steps=10,
             generator=generator,
         ).images[0]
-    
+
         return decoder_output
 
 .. code:: ipython3
 
     import requests
-    
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-cascade-image-generation/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(generate)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -693,7 +693,7 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

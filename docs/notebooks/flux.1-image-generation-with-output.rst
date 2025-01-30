@@ -60,15 +60,15 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w").write(r.text)
-    
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generation/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -106,16 +106,16 @@ FLUX.1-dev version using widget bellow.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     model_ids = ["black-forest-labs/FLUX.1-schnell", "black-forest-labs/FLUX.1-dev"]
-    
+
     model_selector = widgets.Dropdown(
         options=model_ids,
         default=model_ids[0],
         description="Model:",
     )
-    
-    
+
+
     model_selector
 
 
@@ -141,9 +141,9 @@ FLUX.1-dev version using widget bellow.
 .. code:: ipython3
 
     # uncomment these lines to login to huggingfacehub to get access to pretrained model
-    
+
     # from huggingface_hub import notebook_login, whoami
-    
+
     # try:
     #     whoami()
     #     print('Authorization token already provided')
@@ -211,7 +211,7 @@ Compress model weights
 
 For reducing model memory consumption we will use weights compression.
 The `Weights
-Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
+Compression <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__
 algorithm is aimed at compressing the weights of the models and can be
 used to optimize the model footprint and performance of large models
 where the size of weights is relatively larger than the size of
@@ -228,7 +228,7 @@ introduces a minor drop in prediction quality. We will use
         description="Weight compression",
         disabled=False,
     )
-    
+
     to_compress
 
 
@@ -243,12 +243,12 @@ introduces a minor drop in prediction quality. We will use
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     model_id = model_selector.value
-    
+
     model_base_dir = Path(model_id.split("/")[-1])
     additional_args = {}
-    
+
     if to_compress.value:
         model_dir = model_base_dir / "INT4"
         additional_args.update({"weight-format": "int4", "group-size": "64", "ratio": "1.0"})
@@ -259,7 +259,7 @@ introduces a minor drop in prediction quality. We will use
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-    
+
     if not model_dir.exists():
         optimum_cli(model_id, model_dir, additional_args=additional_args)
 
@@ -280,7 +280,7 @@ additionally will trigger model conversion).
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget(default="CPU", exclude=["NPU"])
     device
 
@@ -296,14 +296,14 @@ additionally will trigger model conversion).
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     model_available = (model_base_dir / "INT4").is_dir()
     use_quantized_models = widgets.Checkbox(
         value=model_available,
         description="Use compressed models",
         disabled=not model_available,
     )
-    
+
     use_quantized_models
 
 
@@ -318,9 +318,9 @@ additionally will trigger model conversion).
 .. code:: ipython3
 
     from optimum.intel.openvino import OVDiffusionPipeline
-    
+
     model_dir = model_base_dir / "INT4" if use_quantized_models.value else model_base_dir / "FP16"
-    
+
     ov_pipe = OVDiffusionPipeline.from_pretrained(model_dir, device=device.value)
 
 
@@ -334,17 +334,17 @@ additionally will trigger model conversion).
     2024-10-28 18:12:30.761443: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
     You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
-    
+
 
 .. code:: ipython3
 
     import torch
-    
+
     prompt = "A cat holding a sign that says hello OpenVINO"
     image = ov_pipe(
         prompt, guidance_scale=0.0, num_inference_steps=4, max_sequence_length=256, generator=torch.Generator("cpu").manual_seed(0), height=256, width=256
     ).images[0]
-    
+
     image
 
 
@@ -368,9 +368,9 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     demo = make_demo(ov_pipe)
-    
+
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:

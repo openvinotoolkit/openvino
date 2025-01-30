@@ -89,7 +89,7 @@ is the interface between the
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
 It provides ease-to-use cli interface for exporting models to `OpenVINO
 Intermediate Representation
-(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+(IR) <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
 format.
 
 The command bellow demonstrates basic command for model export with

@@ -111,14 +111,14 @@ Import required utility functions. The lower cell will download the
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, VideoPlayer, device_widget
 
@@ -166,7 +166,7 @@ Let us consider the examples:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     model_id = [
         "yolo11n-pose",
         "yolo11s-pose",
@@ -179,9 +179,9 @@ Let us consider the examples:
         "yolov8l-pose",
         "yolov8x-pose",
     ]
-    
+
     model_name = widgets.Dropdown(options=model_id, value=model_id[0], description="Model")
-    
+
     model_name
 
 
@@ -197,12 +197,12 @@ Let us consider the examples:
 
     from PIL import Image
     from ultralytics import YOLO
-    
+
     POSE_MODEL_NAME = model_name.value
-    
+
     pose_model = YOLO(f"{POSE_MODEL_NAME}.pt")
     label_map = pose_model.model.names
-    
+
     res = pose_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
@@ -219,7 +219,7 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    
+
     image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 480x640 1 person, 57.1ms
     Speed: 2.0ms preprocess, 57.1ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
 
@@ -251,16 +251,16 @@ preserve dynamic shapes in the model.
 .. parsed-literal::
 
     Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
-    
+
     PyTorch: starting from 'yolo11n-pose.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 56, 8400) (6.0 MB)
-    
+
     OpenVINO: starting export with openvino 2024.5.0-16993-9c432a3641a...
     OpenVINO: export success ✅ 2.0s, saved as 'yolo11n-pose_openvino_model/' (6.0 MB)
-    
+
     Export complete (2.1s)
     Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
-    Predict:         yolo predict task=pose model=yolo11n-pose_openvino_model imgsz=640 half 
-    Validate:        yolo val task=pose model=yolo11n-pose_openvino_model imgsz=640 data=/ultralytics/ultralytics/cfg/datasets/coco-pose.yaml half 
+    Predict:         yolo predict task=pose model=yolo11n-pose_openvino_model imgsz=640 half
+    Validate:        yolo val task=pose model=yolo11n-pose_openvino_model imgsz=640 data=/ultralytics/ultralytics/cfg/datasets/coco-pose.yaml half
     Visualize:       https://netron.app
 
 
@@ -283,7 +283,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     device = device_widget()
-    
+
     device
 
 
@@ -306,28 +306,28 @@ ready to check model prediction.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     pose_ov_model = core.read_model(pose_model_path)
-    
+
     ov_config = {}
     if device.value != "CPU":
         pose_ov_model.reshape({0: [1, 3, 640, 640]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     pose_compiled_model = core.compile_model(pose_ov_model, device.value, ov_config)
-    
+
     pose_model = YOLO(pose_model_path.parent, task="pose")
-    
+
     if pose_model.predictor is None:
         custom = {"conf": 0.25, "batch": 1, "save": False, "mode": "predict"}  # method defaults
         args = {**pose_model.overrides, **custom}
         pose_model.predictor = pose_model._smart_load("predictor")(overrides=args, _callbacks=pose_model.callbacks)
         pose_model.predictor.setup_model(model=pose_model.model)
-    
+
     pose_model.predictor.model.ov_compiled_model = pose_compiled_model
-    
-    
+
+
     res = pose_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
@@ -337,7 +337,7 @@ ready to check model prediction.
     Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
-    
+
     image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 20.1ms
     Speed: 2.6ms preprocess, 20.1ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -398,16 +398,16 @@ improve model inference speed.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     int8_model_pose_path = Path(f"{POSE_MODEL_NAME}_openvino_int8_model/{POSE_MODEL_NAME}.xml")
     quantized_pose_model = None
-    
+
     to_quantize = widgets.Checkbox(
         value=True,
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -429,7 +429,7 @@ Let’s load ``skip magic`` extension to skip quantization if
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Reuse validation dataloader in accuracy testing for quantization. For
@@ -439,51 +439,51 @@ transformation function for getting only input tensors.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
     from typing import Dict
-    
+
     from zipfile import ZipFile
-    
+
     from ultralytics.data.utils import DATASETS_DIR
     from ultralytics.utils import DEFAULT_CFG
     from ultralytics.cfg import get_cfg
     from ultralytics.data.utils import check_det_dataset
     from ultralytics.models.yolo.pose import PoseValidator
     from ultralytics.utils.metrics import OKS_SIGMA
-    
+
     if not int8_model_pose_path.exists():
-    
+
         DATA_URL = "https://ultralytics.com/assets/coco8-pose.zip"
         CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco8-pose.yaml"
-    
+
         OUT_DIR = DATASETS_DIR
-    
+
         DATA_PATH = OUT_DIR / "val2017.zip"
         CFG_PATH = OUT_DIR / "coco8-pose.yaml"
-    
+
         download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
         download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
+
         if not (OUT_DIR / "coco8-pose/labels").exists():
             with ZipFile(DATA_PATH, "r") as zip_ref:
                 zip_ref.extractall(OUT_DIR)
-    
+
         args = get_cfg(cfg=DEFAULT_CFG)
         args.data = "coco8-pose.yaml"
-    
+
         pose_validator = PoseValidator(args=args)
         pose_validator.data = check_det_dataset(args.data)
         pose_validator.stride = 32
         pose_data_loader = pose_validator.get_dataloader(OUT_DIR / "coco8-pose", 1)
-    
+
         pose_validator.is_coco = True
         pose_validator.names = label_map
         pose_validator.metrics.names = pose_validator.names
         pose_validator.nc = 1
         pose_validator.sigma = OKS_SIGMA
-    
-    
+
+
         def transform_fn(data_item:Dict):
             """
             Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -494,8 +494,8 @@ transformation function for getting only input tensors.
             """
             input_tensor = pose_validator.preprocess(data_item)['img'].numpy()
             return input_tensor
-    
-    
+
+
         quantization_dataset = nncf.Dataset(pose_data_loader, transform_fn)
 
 
@@ -527,9 +527,9 @@ point precision, using the ``ignored_scope`` parameter.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not int8_model_pose_path.exists():
-    
+
         ignored_scope = nncf.IgnoredScope(  # post-processing
             subgraphs=[
                 nncf.Subgraph(inputs=[f"__module.model.{22 if 'v8' in POSE_MODEL_NAME else 23}/aten::cat/Concat",
@@ -539,7 +539,7 @@ point precision, using the ``ignored_scope`` parameter.
                               outputs=[f"__module.model.{22 if 'v8' in POSE_MODEL_NAME else 23}/aten::cat/Concat_9"])
             ]
         )
-    
+
         # Detection model
         quantized_pose_model = nncf.quantize(
             pose_ov_model,
@@ -566,7 +566,7 @@ point precision, using the ``ignored_scope`` parameter.
     INFO:nncf:Not adding activation input quantizer for operation: 178 __module.model.23/aten::slice/Slice_5
     INFO:nncf:Not adding activation input quantizer for operation: 195 __module.model.23/aten::mul/Multiply_4
     215 __module.model.23/aten::add/Add_8
-    
+
     INFO:nncf:Not adding activation input quantizer for operation: 196 __module.model.23/aten::sigmoid/Sigmoid_1
     INFO:nncf:Not adding activation input quantizer for operation: 232 __module.model.23/aten::mul/Multiply_5
     INFO:nncf:Not adding activation input quantizer for operation: 216 __module.model.23/aten::cat/Concat_8
@@ -584,7 +584,7 @@ point precision, using the ``ignored_scope`` parameter.
     INFO:nncf:Not adding activation input quantizer for operation: 280 __module.model.23/aten::add/Add_6
     INFO:nncf:Not adding activation input quantizer for operation: 291 __module.model.23/aten::add/Add_7
     304 __module.model.23/aten::div/Divide
-    
+
     INFO:nncf:Not adding activation input quantizer for operation: 292 __module.model.23/aten::sub/Subtract_1
     INFO:nncf:Not adding activation input quantizer for operation: 305 __module.model.23/aten::cat/Concat_5
     INFO:nncf:Not adding activation input quantizer for operation: 265 __module.model.23/aten::mul/Multiply_3
@@ -637,33 +637,33 @@ on the image.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     device
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if quantized_pose_model is None:
         quantized_pose_model = core.read_model()
-    
+
     ov_config = {}
     if device.value != "CPU":
         quantized_pose_model.reshape({0: [1, 3, 640, 640]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     quantized_pose_compiled_model = core.compile_model(quantized_pose_model, device.value, ov_config)
-    
+
     pose_model = YOLO(pose_model_path.parent, task="pose")
-    
+
     if pose_model.predictor is None:
         custom = {"conf": 0.25, "batch": 1, "save": False, "mode": "predict"}  # method defaults
         args = {**pose_model.overrides, **custom}
         pose_model.predictor = pose_model._smart_load("predictor")(overrides=args, _callbacks=pose_model.callbacks)
         pose_model.predictor.setup_model(model=pose_model.model)
-    
+
     pose_model.predictor.model.ov_compiled_model = pose_compiled_model
-    
+
     res = pose_model(IMAGE_PATH)
     display(Image.fromarray(res[0].plot()[:, :, ::-1]))
 
@@ -673,7 +673,7 @@ on the image.
     Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     Loading yolo11n-pose_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
-    
+
     image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/intel_rnb.jpg: 640x640 1 person, 31.8ms
     Speed: 4.6ms preprocess, 31.8ms inference, 1.1ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -692,7 +692,7 @@ Compare performance of the Original and Quantized Models
 
 Finally, use the OpenVINO
 `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -708,7 +708,7 @@ models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     device
 
 .. code:: ipython3
@@ -725,12 +725,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -785,7 +785,7 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 32.87 ms
@@ -815,12 +815,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -875,7 +875,7 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 25.15 ms
@@ -944,8 +944,8 @@ The following code runs model inference on a video:
     from IPython import display
     import cv2
     import numpy as np
-    
-    
+
+
     def run_keypoint_detection(
         source=0,
         flip=False,
@@ -955,22 +955,22 @@ The following code runs model inference on a video:
         device=device.value,
     ):
         player = None
-    
+
         ov_config = {}
         if device != "CPU":
             model.reshape({0: [1, 3, 640, 640]})
         if "GPU" in device or ("AUTO" in device and "GPU" in core.available_devices):
             ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
         compiled_model = core.compile_model(model, device, ov_config)
-    
+
         if pose_model.predictor is None:
             custom = {"conf": 0.25, "batch": 1, "save": False, "mode": "predict"}  # method defaults
             args = {**seg_model.overrides, **custom}
             pose_model.predictor = pose_model._smart_load("predictor")(overrides=args, _callbacks=pose_model.callbacks)
             pose_model.predictor.setup_model(model=pose_model.model)
-    
+
         pose_model.predictor.model.ov_compiled_model = compiled_model
-    
+
         try:
             # Create a video player to play with target fps.
             player = VideoPlayer(source=source, flip=flip, fps=30, skip_first_frames=skip_first_frames)
@@ -979,7 +979,7 @@ The following code runs model inference on a video:
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -999,18 +999,18 @@ The following code runs model inference on a video:
                     )
                 # Get the results
                 input_image = np.array(frame)
-    
+
                 start_time = time.time()
-    
+
                 detections = pose_model(input_image, verbose=False)
                 stop_time = time.time()
                 frame = detections[0].plot()
-    
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-    
+
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000

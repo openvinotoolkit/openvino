@@ -187,7 +187,7 @@ The pipeline consists of four important parts:
 
 For reducing model memory consumption and improving performance we will
 use weights compression. The `Weights
-Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
+Compression <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__
 algorithm is aimed at compressing the weights of the models and can be
 used to optimize the model footprint and performance of large models
 where the size of weights is relatively larger than the size of

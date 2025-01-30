@@ -78,18 +78,18 @@ Prerequisites
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
     )
     open("cmd_helper.py", "w").write(r.text)
-    
-    
+
+
     %pip install -q "gradio>=4.19" "openvino>=2024.3.0" wheel "gradio-litmodel3d==0.0.1"
     %pip install -q "torch>=2.2.2" torchvision "transformers>=4.42.3" "open_clip_torch==2.24.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "omegaconf==2.4.0.dev3"
@@ -102,12 +102,12 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     from cmd_helper import clone_repo
-    
-    
+
+
     clone_repo("https://github.com/Stability-AI/stable-fast-3d", "4a8597ad34e5101f307aa8f443b4ce830b205aa8")
-    
+
     %pip install -q {Path("stable-fast-3d/texture_baker/")}
     %pip install -q {Path("stable-fast-3d/uv_unwrapper/")}
 
@@ -117,8 +117,8 @@ Get the original model
 .. code:: ipython3
 
     from sf3d.system import SF3D
-    
-    
+
+
     model = SF3D.from_pretrained(
         "stabilityai/stable-fast-3d",
         config_name="config.yaml",
@@ -132,7 +132,7 @@ Convert the model to OpenVINO IR
 
 SF3D is PyTorch model. OpenVINO supports PyTorch models via conversion
 to OpenVINO Intermediate Representation (IR). `OpenVINO model conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
@@ -214,10 +214,10 @@ As illustrated in SF3D Overview image, SF3D has 5 main components:
         convert_image_estimator,
         convert_decoder,
     )
-    
+
     # uncomment the code below to see the model conversion code of convert_image_tokenizer.
     # replace the function name if you want see the code for another model
-    
+
     # ??convert_image_tokenizer
 
 .. code:: ipython3
@@ -230,8 +230,8 @@ As illustrated in SF3D Overview image, SF3D has 5 main components:
     IMAGE_ESTIMATOR_OV_PATH = Path("models/image_estimator_ir.xml")
     INCLUDE_DECODER_OV_PATH = Path("models/include_decoder_ir.xml")
     EXCLUDE_DECODER_OV_PATH = Path("models/exclude_decoder_ir.xml")
-    
-    
+
+
     convert_image_tokenizer(model.image_tokenizer, IMAGE_TOKENIZER_OV_PATH)
     convert_tokenizer(model.tokenizer, TOKENIZER_OV_PATH)
     convert_backbone(model.backbone, BACKBONE_OV_PATH)
@@ -250,9 +250,9 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 ``get_compiled_model`` function defined in ``ov_ov_stable_fast_3d.py``
@@ -263,8 +263,8 @@ device and directories with converted models as arguments.
 .. code:: ipython3
 
     from ov_stable_fast_3d_helper import get_compiled_model
-    
-    
+
+
     model = get_compiled_model(
         model,
         device,
@@ -287,15 +287,15 @@ It’s taken from the original
 .. code:: ipython3
 
     import requests
-    
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-fast-3d/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     from gradio_helper import make_demo
-    
+
     demo = make_demo(model=model)
-    
+
     try:
         demo.launch(debug=True)
     except Exception:

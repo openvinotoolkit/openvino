@@ -61,23 +61,23 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     if not Path("ov_mllama_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mllama3.2/ov_mllama_helper.py")
         open("ov_mllama_helper.py", "w").write(r.text)
-    
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mllama3.2/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     if not Path("ov_mllama_compression.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mllama3.2/ov_mllama_compression.py")
         open("ov_mllama_compression.py", "w").write(r.text)
-    
+
     if not Path("data_preprocessing.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mllama3.2/data_preprocessing.py")
         open("data_preprocessing", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -89,7 +89,7 @@ Convert model
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
@@ -158,7 +158,7 @@ and updating the cache values in a more device-friendly representation.
 It helps to reduce memory consumption and additionally optimize model
 performance. More details about stateful models and working with state
 can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2024/openvino-workflow/running-inference/stateful-models.html>`__.
+documentation <https://docs.openvino.ai/2025/openvino-workflow/running-inference/stateful-models.html>`__.
 
 ``image_encoder`` is represented in Llama-3.2-Vision by pretrained VIT
 model.
@@ -192,9 +192,9 @@ Let’s convert each model part.
 .. code:: ipython3
 
     # uncomment these lines to login to huggingfacehub to get access to pretrained model
-    
+
     # from huggingface_hub import notebook_login, whoami
-    
+
     # try:
     #     whoami()
     #     print('Authorization token already provided')
@@ -205,10 +205,10 @@ Let’s convert each model part.
 
     from pathlib import Path
     from ov_mllama_helper import convert_mllama
-    
+
     model_id = "meta-llama/Llama-3.2-11B-Vision-Instruct"
     model_dir = Path(model_id.split("/")[-1]) / "OV"
-    
+
     # uncomment the line to see model conversion code
     # convert_mllama??
 
@@ -283,9 +283,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget("CPU", exclude=["NPU"])
-    
+
     device
 
 
@@ -347,7 +347,7 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
 .. raw:: html
 
@@ -363,7 +363,7 @@ compression using widget bellow
 .. code:: ipython3
 
     from ov_mllama_compression import compress
-    
+
     # uncomment the line to see compression code
     # compress??
 
@@ -376,9 +376,9 @@ compression using widget bellow
 .. code:: ipython3
 
     from ov_mllama_compression import compression_widgets_helper
-    
+
     compression_scenario, compress_args = compression_widgets_helper()
-    
+
     compression_scenario
 
 
@@ -393,7 +393,7 @@ compression using widget bellow
 .. code:: ipython3
 
     compression_kwargs = {key: value.value for key, value in compress_args.items()}
-    
+
     language_model_path = compress(model_dir, **compression_kwargs)
 
 
@@ -411,7 +411,7 @@ While weight compression is the great tool for large language models
 memory footprint reduction, for smaller size models like Image Encoder,
 it may be more efficient to apply INT8 Post-training quantization. You
 can find more details about post-training quantization in `OpenVINO
-documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training.html>`__.
+documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/quantizing-models-post-training.html>`__.
 
 Basically model quantization process consists of 3 steps: 1. Prepare
 quantization dataset 2. Perform model quantization using
@@ -426,9 +426,9 @@ quantization dataset 2. Perform model quantization using
 .. code:: ipython3
 
     from ov_mllama_compression import vision_encoder_selection_widget
-    
+
     vision_encoder_options = vision_encoder_selection_widget(device.value)
-    
+
     vision_encoder_options
 
 
@@ -446,17 +446,17 @@ quantization dataset 2. Perform model quantization using
     import nncf
     import openvino as ov
     import gc
-    
+
     from data_preprocessing import prepare_dataset_vision
-    
+
     processor = AutoProcessor.from_pretrained(model_dir)
     core = ov.Core()
-    
+
     fp_vision_encoder_path = model_dir / "openvino_vision_encoder.xml"
     int8_vision_encoder_path = model_dir / fp_vision_encoder_path.name.replace(".xml", "_int8.xml")
     int8_wc_vision_encoder_path = model_dir / fp_vision_encoder_path.name.replace(".xml", "_int8_wc.xml")
-    
-    
+
+
     if vision_encoder_options.value == "INT8 quantization":
         if not int8_vision_encoder_path.exists():
             calibration_data = prepare_dataset_vision(processor, 100)
@@ -474,7 +474,7 @@ quantization dataset 2. Perform model quantization using
             del calibration_dataset
             del calibration_data
             gc.collect()
-    
+
         vision_encoder_path = int8_vision_encoder_path
     elif vision_encoder_options.value == "INT8 weights compression":
         if not int8_wc_vision_encoder_path.exists():
@@ -522,10 +522,10 @@ blog <https://blog.openvino.ai/blog-posts/large-language-model-graph-customizati
 .. code:: ipython3
 
     from ov_mllama_helper import OVMLlamaForConditionalGeneration
-    
+
     # Uncomment this line to see model inference code
     # OVMLlamaForConditionalGeneration??
-    
+
     ov_model = OVMLlamaForConditionalGeneration(
         model_dir, device=device.value, language_model_name=language_model_path.name, image_encoder_name=vision_encoder_path.name
     )
@@ -542,16 +542,16 @@ blog <https://blog.openvino.ai/blog-posts/large-language-model-graph-customizati
     from PIL import Image
     from transformers import TextStreamer
     import numpy as np
-    
+
     question = "What is unusual on this image?"
-    
+
     messages = [
         {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": question}]},
     ]
     text = processor.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
     raw_image = Image.open(requests.get(url, stream=True).raw)
-    
+
     inputs = processor(text=text, images=[raw_image], return_tensors="pt")
     streamer = TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
     print(f"Question: {question}")
@@ -585,10 +585,10 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     processor.chat_template = processor.tokenizer.chat_template
     demo = make_demo(ov_model, processor)
-    
+
     try:
         demo.launch(debug=False)
     except Exception:

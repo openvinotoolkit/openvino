@@ -4,11 +4,11 @@ Convert a TensorFlow Model to OpenVINO™
 This short tutorial shows how to convert a TensorFlow
 `MobileNetV3 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v3-small-1.0-224-tf/README.md>`__
 image classification model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
+Representation <https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets.html>`__
 (OpenVINO IR) format, using `Model Conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
+Runtime <https://docs.openvino.ai/2025/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
 
@@ -78,25 +78,25 @@ Imports
     import os
     import time
     from pathlib import Path
-    
+
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     import tensorflow as tf
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file, device_widget
 
 Settings
@@ -109,9 +109,9 @@ Settings
     # The paths of the source and converted models.
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     model_path = Path("model/v3-small_224_1.0_float")
-    
+
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
 Download model
@@ -157,7 +157,7 @@ model directory and returns OpenVINO Model class instance which
 represents this model. Obtained model is ready to use and to be loaded
 on a device using ``ov.compile_model`` or can be saved on a disk using
 the ``ov.save_model`` function. See the
-`tutorial <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__
+`tutorial <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__
 for more information about using model conversion API with TensorFlow
 models.
 
@@ -233,16 +233,16 @@ network.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         directory="data",
     )
-    
+
     # The MobileNet network expects images in RGB format.
     image = cv2.cvtColor(cv2.imread(filename=str(image_filename)), code=cv2.COLOR_BGR2RGB)
-    
+
     # Resize the image to the network input shape.
     resized_image = cv2.resize(src=image, dsize=(224, 224))
-    
+
     # Transpose the image to the network input shape.
     input_image = np.expand_dims(resized_image, 0)
-    
+
     plt.imshow(image);
 
 
@@ -264,7 +264,7 @@ Do Inference
 .. code:: ipython3
 
     result = compiled_model(input_image)[output_key]
-    
+
     result_index = np.argmax(result)
 
 .. code:: ipython3
@@ -274,10 +274,10 @@ Do Inference
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
         directory="data",
     )
-    
+
     # Convert the inference result to a class name.
     imagenet_classes = image_filename.read_text().splitlines()
-    
+
     imagenet_classes[result_index]
 
 
@@ -303,22 +303,22 @@ Timing
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the
 `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 in OpenVINO. Note that many optimizations are possible to improve the
 performance.
 
 .. code:: ipython3
 
     num_images = 1000
-    
+
     start = time.perf_counter()
-    
+
     for _ in range(num_images):
         compiled_model([input_image])
-    
+
     end = time.perf_counter()
     time_ir = end - start
-    
+
     print(f"IR model in OpenVINO Runtime/CPU: {time_ir/num_images:.4f} " f"seconds per image, FPS: {num_images/time_ir:.2f}")
 
 

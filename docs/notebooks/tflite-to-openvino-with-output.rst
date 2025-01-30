@@ -8,10 +8,10 @@ machine learning models to edge devices.
 This short tutorial shows how to convert a TensorFlow Lite
 `EfficientNet-Lite-B0 <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
 image classification model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
+Representation <https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets.html>`__
 (OpenVINO IR) format, using Model Converter. After creating the OpenVINO
 IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
+Runtime <https://docs.openvino.ai/2025/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
 
@@ -58,14 +58,14 @@ Install requirements
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python requests tqdm kagglehub Pillow
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
@@ -94,7 +94,7 @@ Imports
     import numpy as np
     from PIL import Image
     import openvino as ov
-    
+
     from notebook_utils import download_file, load_image, device_widget
 
 Download TFLite model
@@ -105,10 +105,10 @@ Download TFLite model
 .. code:: ipython3
 
     import kagglehub
-    
+
     model_dir = kagglehub.model_download("tensorflow/efficientnet/tfLite/lite0-fp32")
     tflite_model_path = Path(model_dir) / "2.tflite"
-    
+
     ov_model_path = tflite_model_path.with_suffix(".xml")
 
 
@@ -131,9 +131,9 @@ using ``ov.save_model`` function, reducing loading time for next
 running. By default, model weights are compressed to FP16 during
 serialization by ``ov.save_model``. For more information about model
 conversion, see this
-`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
+`page <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__.
 For TensorFlow Lite models support, refer to this
-`tutorial <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow-lite.html>`__.
+`tutorial <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-tensorflow-lite.html>`__.
 
 .. code:: ipython3
 
@@ -160,7 +160,7 @@ this `tutorial <openvino-api-with-output.html>`__.
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     ov_model = core.read_model(tflite_model_path)
 
 Run OpenVINO model inference
@@ -190,7 +190,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     device = device_widget()
-    
+
     device
 
 
@@ -211,11 +211,11 @@ select device from dropdown list for running inference using OpenVINO
 
     imagenet_classes_file_path = download_file("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt")
     imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
-    
+
     top1_predicted_cls_id = np.argmax(predicted_scores)
     top1_predicted_score = predicted_scores[0][top1_predicted_cls_id]
     predicted_label = imagenet_classes[top1_predicted_cls_id]
-    
+
     display(image.resize((640, 512)))
     print(f"Predicted label: {predicted_label} with probability {top1_predicted_score :2f}")
 
@@ -239,7 +239,7 @@ Estimate Model Performance
 --------------------------
 
 `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
 
@@ -264,12 +264,12 @@ GPU.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -322,7 +322,7 @@ GPU.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 7.31 ms

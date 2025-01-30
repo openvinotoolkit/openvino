@@ -14,7 +14,7 @@ scratch; the data is from
 This third tutorial in the series shows how to:
 
 -  Convert an Original model to OpenVINO IR with `model conversion
-   API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
+   API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__
 -  Quantize a PyTorch model with NNCF
 -  Evaluate the F1 score metric of the original model and the quantized
    model
@@ -120,9 +120,9 @@ Imports
     import zipfile
     from pathlib import Path
     from typing import Union
-    
+
     warnings.filterwarnings("ignore", category=UserWarning)
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import monai
@@ -134,19 +134,19 @@ Imports
     from nncf.common.logging.logger import set_log_level
     from torchmetrics import F1Score as F1
     import requests
-    
-    
+
+
     set_log_level(logging.ERROR)  # Disables all NNCF info and warning messages
-    
+
     # Fetch `notebook_utils` module
     r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
-    
+
     if not Path("./custom_segmentation.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/ct-segmentation-quantize/custom_segmentation.py")
     from custom_segmentation import SegmentationModel
-    
+
     if not Path("./async_pipeline.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/ct-segmentation-quantize/async_pipeline.py")
     from async_pipeline import show_live_inference
@@ -199,13 +199,13 @@ notebook <pytorch-monai-training.ipynb>`__.
     state_dict_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/kidney-segmentation-kits19/unet_kits19_state_dict.pth"
     state_dict_file = download_file(state_dict_url, directory="pretrained_model")
     state_dict = torch.load(state_dict_file, map_location=torch.device("cpu"))
-    
+
     new_state_dict = {}
     for k, v in state_dict.items():
         new_key = k.replace("_model.", "")
         new_state_dict[new_key] = v
     new_state_dict.pop("loss_function.pos_weight")
-    
+
     model = monai.networks.nets.BasicUNet(spatial_dims=2, in_channels=1, out_channels=1).eval()
     model.load_state_dict(new_state_dict)
 
@@ -293,8 +293,8 @@ method to display the images in the expected orientation:
     def rotate_and_flip(image):
         """Rotate `image` by 90 degrees and flip horizontally"""
         return cv2.flip(cv2.rotate(image, rotateCode=cv2.ROTATE_90_CLOCKWISE), flipCode=1)
-    
-    
+
+
     class KitsDataset:
         def __init__(self, basedir: str):
             """
@@ -303,35 +303,35 @@ method to display the images in the expected orientation:
             with each subdirectory containing directories imaging_frames, with jpg images, and
             segmentation_frames with segmentation masks as png files.
             See [data-preparation-ct-scan](./data-preparation-ct-scan.ipynb)
-    
+
             :param basedir: Directory that contains the prepared CT scans
             """
             masks = sorted(BASEDIR.glob("case_*/segmentation_frames/*png"))
-    
+
             self.basedir = basedir
             self.dataset = masks
             print(f"Created dataset with {len(self.dataset)} items. " f"Base directory for data: {basedir}")
-    
+
         def __getitem__(self, index):
             """
             Get an item from the dataset at the specified index.
-    
+
             :return: (image, segmentation_mask)
             """
             mask_path = self.dataset[index]
             image_path = str(mask_path.with_suffix(".jpg")).replace("segmentation_frames", "imaging_frames")
-    
+
             # Load images with MONAI's LoadImage to match data loading in training notebook
             mask = LoadImage(image_only=True, dtype=np.uint8)(str(mask_path)).numpy()
             img = LoadImage(image_only=True, dtype=np.float32)(str(image_path)).numpy()
-    
+
             if img.shape[:2] != (512, 512):
                 img = cv2.resize(img.astype(np.uint8), (512, 512)).astype(np.float32)
                 mask = cv2.resize(mask, (512, 512))
-    
+
             input_image = np.expand_dims(img, axis=0)
             return input_image, mask
-    
+
         def __len__(self):
             return len(self.dataset)
 
@@ -349,10 +349,10 @@ kidney pixels to verify that the annotations look correct:
     image_data, mask = next(item for item in dataset if np.count_nonzero(item[1]) > 5000)
     # Remove extra image dimension and rotate and flip the image for visualization
     image = rotate_and_flip(image_data.squeeze())
-    
+
     # The data loader returns annotations as (index, mask) and mask in shape (H,W)
     mask = rotate_and_flip(mask)
-    
+
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
     ax[0].imshow(image, cmap="gray")
     ax[1].imshow(mask, cmap="gray");
@@ -431,7 +431,7 @@ this notebook.
 
     fp32_ir_path = MODEL_DIR / Path("unet_kits19_fp32.xml")
     dummy_input = torch.randn(1, 1, 512, 512)
-    
+
     fp32_ir_model = ov.convert_model(model, example_input=dummy_input, input=dummy_input.shape)
     ov.save_model(fp32_ir_model, str(fp32_ir_path))
 
@@ -476,8 +476,8 @@ steps:
         """
         images, _ = data_item
         return images
-    
-    
+
+
     data_loader = torch.utils.data.DataLoader(dataset)
     calibration_dataset = nncf.Dataset(data_loader, transform_fn)
     quantized_model = nncf.quantize(
@@ -534,7 +534,7 @@ Convert quantized model to OpenVINO IR model and save it.
       if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
-    
+
     Mismatched elements: 250458 / 262144 (95.5%)
     Greatest absolute difference: 3.8674159049987793 at index (0, 0, 351, 76) (up to 1e-05 allowed)
     Greatest relative difference: 12206.866810726728 at index (0, 0, 144, 31) (up to 1e-05 allowed)
@@ -562,7 +562,7 @@ Compare File Size
 
     fp32_ir_model_size = fp32_ir_path.with_suffix(".bin").stat().st_size / 1024
     quantized_model_size = int8_ir_path.with_suffix(".bin").stat().st_size / 1024
-    
+
     print(f"FP32 IR model size: {fp32_ir_model_size:.2f} KB")
     print(f"INT8 model size: {quantized_model_size:.2f} KB")
 
@@ -583,7 +583,7 @@ Select Inference Device
     core = ov.Core()
     # By default, benchmark on MULTI:CPU,GPU if a GPU is available, otherwise on CPU.
     device_list = ["MULTI:CPU,GPU" if "GPU" in core.available_devices else "AUTO"]
-    
+
     device = device_widget(device_list[0], added=device_list)
     device
 
@@ -605,7 +605,7 @@ Compare Metrics for the original model and the quantized model to be sure that t
 
     int8_compiled_model = core.compile_model(int8_ir_model, device.value)
     int8_f1 = compute_f1(int8_compiled_model, dataset)
-    
+
     print(f"FP32 F1: {fp32_f1:.3f}")
     print(f"INT8 F1: {int8_f1:.3f}")
 
@@ -623,7 +623,7 @@ Compare Performance of the FP32 IR Model and Quantized Models
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - OpenVINO’s inference performance measurement tool. Benchmark tool is a
 command line application, part of OpenVINO development tools, that can
 be run in the notebook with ``! benchmark_app`` or
@@ -653,12 +653,12 @@ be run in the notebook with ``! benchmark_app`` or
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
@@ -711,7 +711,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 48.49 ms
@@ -740,12 +740,12 @@ be run in the notebook with ``! benchmark_app`` or
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.4.0-16579-c3152d32c9c-releases/2024/4
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.LATENCY.
     [Step 4/11] Reading model files
@@ -798,7 +798,7 @@ be run in the notebook with ``! benchmark_app`` or
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference synchronously, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 29.18 ms
@@ -845,11 +845,11 @@ seed is displayed to enable reproducing specific runs of this cell.
     # to binary segmentation masks
     def sigmoid(x):
         return np.exp(-np.logaddexp(0, -x))
-    
-    
+
+
     num_images = 4
     colormap = "gray"
-    
+
     # Load FP32 and INT8 models
     core = ov.Core()
     fp_model = core.read_model(fp32_ir_path)
@@ -858,11 +858,11 @@ seed is displayed to enable reproducing specific runs of this cell.
     compiled_model_int8 = core.compile_model(int8_model, device_name=device.value)
     output_layer_fp = compiled_model_fp.output(0)
     output_layer_int8 = compiled_model_int8.output(0)
-    
+
     # Create subset of dataset
     background_slices = (item for item in dataset if np.count_nonzero(item[1]) == 0)
     kidney_slices = (item for item in dataset if np.count_nonzero(item[1]) > 50)
-    
+
     background_slices_l = list(background_slices)
     kidney_slices_l = list(kidney_slices)
     if len(background_slices_l) != 0:
@@ -872,13 +872,13 @@ seed is displayed to enable reproducing specific runs of this cell.
     else:
         kidkey_id = np.random.choice(len(kidneyslices_l), 2)
         data_subset = [kidney_slices_l[idx] for idx in kidney_id]
-    
+
     # Set seed to current time. To reproduce specific results, copy the printed seed
     # and manually set `seed` to that value.
     seed = int(time.time())
     np.random.seed(seed)
     print(f"Visualizing results with seed {seed}")
-    
+
     fig, ax = plt.subplots(nrows=num_images, ncols=4, figsize=(24, num_images * 4))
     for i, (image, mask) in enumerate(data_subset):
         display_image = rotate_and_flip(image.squeeze())
@@ -887,13 +887,13 @@ seed is displayed to enable reproducing specific runs of this cell.
         input_image = np.expand_dims(image, 0)
         res_fp = compiled_model_fp([input_image])
         res_int8 = compiled_model_int8([input_image])
-    
+
         # Process inference outputs and convert to binary segementation masks
         result_mask_fp = sigmoid(res_fp[output_layer_fp]).squeeze().round().astype(np.uint8)
         result_mask_int8 = sigmoid(res_int8[output_layer_int8]).squeeze().round().astype(np.uint8)
         result_mask_fp = rotate_and_flip(result_mask_fp)
         result_mask_int8 = rotate_and_flip(result_mask_int8)
-    
+
         # Display images, annotations, FP32 result and INT8 result
         ax[i, 0].imshow(display_image, cmap=colormap)
         ax[i, 1].imshow(target_mask, cmap=colormap)
@@ -947,7 +947,7 @@ overlay of the segmentation mask on the original image/frame.
 .. code:: ipython3
 
     CASE = 117
-    
+
     segmentation_model = SegmentationModel(ie=core, model_path=int8_ir_path, sigmoid=True, rotate_and_flip=True)
     case_path = BASEDIR / f"case_{CASE:05d}"
     image_paths = sorted(case_path.glob("imaging_frames/*jpg"))

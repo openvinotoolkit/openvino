@@ -145,7 +145,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
-      Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      Visit the :doc:`Tutorials <../../../get-started/learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
       * `OpenVINO Python API Tutorial <../../notebooks/openvino-api-with-output.html>`__
       * `Basic image classification program with Hello Image Classification <../../notebooks/hello-world-with-output.html>`__
@@ -154,15 +154,15 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions on building and running a basic image classification C++ application.
+      Try the :doc:`C++ Quick Start Example <../../../get-started/learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
 
       Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
-      * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
+      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`
+      * :doc:`Object classification sample <../../../get-started/learn-openvino/openvino-samples/hello-classification>`
 
 Uninstalling Intel® Distribution of OpenVINO™ Toolkit
 #####################################################
@@ -189,5 +189,5 @@ Additional Resources
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../install-openvino>`
 * :doc:`Convert models for use with OpenVINO™ <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
 * :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
-* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
+* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../get-started/learn-openvino/openvino-samples>`
 * Pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__

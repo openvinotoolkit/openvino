@@ -31,7 +31,7 @@ of ``ov::available_devices``, the string name of ``AVAILABLE_DEVICES`` and the t
    static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 
-Refer to the :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>`
+Refer to the :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`
 sources for an example of using the setting and getting properties in user applications.
 
 

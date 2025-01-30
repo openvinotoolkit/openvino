@@ -79,13 +79,13 @@ Prerequisites
 .. code:: ipython3
 
     import requests
-    
-    
+
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
     )
@@ -94,8 +94,8 @@ Prerequisites
 .. code:: ipython3
 
     from cmd_helper import clone_repo
-    
-    
+
+
     clone_repo("https://github.com/google-research/vision_transformer.git")
 
 .. code:: ipython3
@@ -108,28 +108,28 @@ Prerequisites
     import PIL
     import jax
     import numpy as np
-    
+
     from vit_jax import checkpoint
     from vit_jax import models_vit
     from vit_jax import models_mixer
     from vit_jax.configs import models as models_config
-    
+
     import openvino as ov
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     available_models = ["ViT-B_32", "Mixer-B_16"]
-    
-    
+
+
     model_to_use = widgets.Select(
         options=available_models,
         value=available_models[0],
         description="Select model:",
         disabled=False,
     )
-    
+
     model_to_use
 
 
@@ -151,12 +151,12 @@ Download a pre-trained model.
 .. code:: ipython3
 
     from notebook_utils import download_file
-    
-    
+
+
     model_name = model_to_use.value
     model_config = models_config.MODEL_CONFIGS[model_name]
-    
-    
+
+
     if model_name.startswith("Mixer"):
         # Download model trained on imagenet2012
         model_name_path = download_file(f"https://storage.googleapis.com/mixer_models/imagenet1k/{model_name}.npz", filename=f"{model_name}_imagenet2012.npz")
@@ -187,8 +187,8 @@ Get imagenet labels.
 .. code:: ipython3
 
     from notebook_utils import download_file
-    
-    
+
+
     imagenet_labels_path = download_file("https://storage.googleapis.com/bit_models/ilsvrc2012_wordnet_lemmas.txt")
     imagenet_labels = dict(enumerate(open(imagenet_labels_path)))
 
@@ -233,7 +233,7 @@ Run the original model inference
     # Predict on a batch with a single item (note very efficient TPU usage...)
     data = (np.array(img) / 128 - 1)[None, ...]
     (logits,) = model.apply(dict(params=params), data, train=False)
-    
+
     preds = np.array(jax.nn.softmax(logits))
     for idx in preds.argsort()[:-11:-1]:
         print(f"{preds[idx]:.5f} : {imagenet_labels[idx]}", end="")
@@ -251,7 +251,7 @@ Run the original model inference
     0.00021 : snowmobile
     0.00017 : mountain_bike, all-terrain_bike, off-roader
     0.00017 : mountain_tent
-    
+
 
 Convert the model to OpenVINO IR
 --------------------------------
@@ -260,7 +260,7 @@ Convert the model to OpenVINO IR
 
 OpenVINO supports JAX models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original JAX model instance and example input for tracing and returns
 ``ov.Model`` representing this model in OpenVINO framework. Converted
@@ -282,17 +282,17 @@ it create a wrapper function ``model_apply`` that calls
 .. code:: ipython3
 
     from pathlib import Path
-    
-    
+
+
     model_path = Path(f"models/{model_name}.xml")
-    
-    
+
+
     def model_apply(x):
         return model.apply(dict(params=params), x, train=False)
-    
-    
+
+
     jaxpr = jax.make_jaxpr(model_apply)((np.array(img) / 128 - 1)[None, ...])
-    
+
     converted_model = ov.convert_model(jaxpr)
     ov.save_model(converted_model, model_path)
 
@@ -306,12 +306,12 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
-    
+
+
     core = ov.Core()
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -333,7 +333,7 @@ Run OpenVINO model inference
 .. code:: ipython3
 
     (logits_ov,) = list(compiled_model(data).values())[0]
-    
+
     preds = np.array(jax.nn.softmax(logits_ov))
     for idx in preds.argsort()[:-11:-1]:
         print(f"{preds[idx]:.5f} : {imagenet_labels[idx]}", end="")
@@ -351,4 +351,4 @@ Run OpenVINO model inference
     0.00021 : snowmobile
     0.00017 : mountain_bike, all-terrain_bike, off-roader
     0.00017 : mountain_tent
-    
+

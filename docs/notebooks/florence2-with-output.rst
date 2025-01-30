@@ -63,16 +63,16 @@ Prerequisites
 
     import requests
     from pathlib import Path
-    
+
     if not Path("ov_florence2_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/florence2/ov_florence2_helper.py")
         open("ov_florence2_helper.py", "w").write(r.text)
-    
-    
+
+
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/florence2/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-    
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
@@ -92,9 +92,9 @@ available model. By default, we will use
 .. code:: ipython3
 
     from ov_florence2_helper import convert_florence2, get_model_selector
-    
+
     model_selector = get_model_selector()
-    
+
     model_selector
 
 
@@ -122,7 +122,7 @@ Convert model
 Florence2 is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
 conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
@@ -169,7 +169,7 @@ pipeline.
 
     model_id = model_selector.value
     model_path = Path(model_id.split("/")[-1])
-    
+
     # Uncomment the line to see conversion code
     # ??convert_florence2
 
@@ -363,9 +363,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -390,7 +390,7 @@ will use ``generate`` method.
 .. code:: ipython3
 
     from ov_florence2_helper import OVFlorence2Model
-    
+
     # Uncomment the line to see model class code
     # ??OVFlorence2Model
 
@@ -407,16 +407,16 @@ responsible for input data preparation and decoding model output.
 
     import requests
     from PIL import Image
-    
+
     from transformers import AutoProcessor
-    
+
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-    
+
     prompt = "<OD>"
-    
+
     url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
     image = Image.open(requests.get(url, stream=True).raw)
-    
+
     image
 
 
@@ -431,16 +431,16 @@ Let’s check model capabilities in Object Detection.
 .. code:: ipython3
 
     inputs = processor(text=prompt, images=image, return_tensors="pt")
-    
+
     generated_ids = model.generate(input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"], max_new_tokens=1024, do_sample=False, num_beams=3)
     generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
-    
+
     parsed_answer = processor.post_process_generation(generated_text, task="<OD>", image_size=(image.width, image.height))
 
 .. code:: ipython3
 
     from gradio_helper import plot_bbox
-    
+
     fig = plot_bbox(image, parsed_answer["<OD>"])
 
 
@@ -610,9 +610,9 @@ image, providing both text and region information.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     demo = make_demo(model, processor)
-    
+
     try:
         demo.launch(debug=False, height=600)
     except Exception:
@@ -625,7 +625,7 @@ image, providing both text and region information.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

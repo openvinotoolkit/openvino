@@ -110,22 +110,22 @@ Import required utility functions. The lower cell will download the
 
     from pathlib import Path
     import requests
-    
-    
+
+
     if not Path("notebook_utils.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
-    
+
         open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file, VideoPlayer, device_widget, quantization_widget
 
 .. code:: ipython3
 
     # Download a test sample
     IMAGE_PATH = Path("./data/coco_bike.jpg")
-    
+
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
         filename=IMAGE_PATH.name,
@@ -158,11 +158,11 @@ You can select one of represented model using widget bellow:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     model_id = ["yolo11n", "yolo11s", "yolo11m", "yolo11l", "yolo11x", "yolov8n", "yolov8s", "yolov8m", "yolov8l", "yolov8x"]
-    
+
     model_name = widgets.Dropdown(options=model_id, value=model_id[0], description="Model")
-    
+
     model_name
 
 
@@ -185,13 +185,13 @@ Let us consider the examples:
 
     from PIL import Image
     from ultralytics import YOLO
-    
+
     DET_MODEL_NAME = model_name.value
-    
+
     det_model = YOLO(f"{DET_MODEL_NAME}.pt")
     det_model.to("cpu")
     label_map = det_model.model.names
-    
+
     res = det_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
@@ -208,7 +208,7 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    
+
     image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 2 dogs, 79.9ms
     Speed: 2.5ms preprocess, 79.9ms inference, 1.0ms postprocess per image at shape (1, 3, 480, 640)
 
@@ -240,16 +240,16 @@ preserve dynamic shapes in the model.
 .. parsed-literal::
 
     Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
-    
+
     PyTorch: starting from 'yolo11n.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 84, 8400) (5.4 MB)
-    
+
     OpenVINO: starting export with openvino 2024.5.0-16993-9c432a3641a...
     OpenVINO: export success ✅ 1.8s, saved as 'yolo11n_openvino_model/' (5.4 MB)
-    
+
     Export complete (1.9s)
     Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
-    Predict:         yolo predict task=detect model=yolo11n_openvino_model imgsz=640 half 
-    Validate:        yolo val task=detect model=yolo11n_openvino_model imgsz=640 data=/usr/src/ultralytics/ultralytics/cfg/datasets/coco.yaml half 
+    Predict:         yolo predict task=detect model=yolo11n_openvino_model imgsz=640 half
+    Validate:        yolo val task=detect model=yolo11n_openvino_model imgsz=640 data=/usr/src/ultralytics/ultralytics/cfg/datasets/coco.yaml half
     Visualize:       https://netron.app
 
 
@@ -272,7 +272,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     device = device_widget()
-    
+
     device
 
 
@@ -295,11 +295,11 @@ ready to check model prediction for object detection.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     det_ov_model = core.read_model(det_model_path)
-    
+
     ov_config = {}
     if device.value != "CPU":
         det_ov_model.reshape({0: [1, 3, 640, 640]})
@@ -307,15 +307,15 @@ ready to check model prediction for object detection.
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     det_compiled_model = core.compile_model(det_ov_model, device.value, ov_config)
     det_model = YOLO(det_model_path.parent, task="detect")
-    
+
     if det_model.predictor is None:
         custom = {"conf": 0.25, "batch": 1, "save": False, "mode": "predict"}  # method defaults
         args = {**det_model.overrides, **custom}
         det_model.predictor = det_model._smart_load("predictor")(overrides=args, _callbacks=det_model.callbacks)
         det_model.predictor.setup_model(model=det_model.model)
-    
+
     det_model.predictor.model.ov_compiled_model = det_compiled_model
-    
+
     res = det_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
@@ -325,7 +325,7 @@ ready to check model prediction for object detection.
     Ultralytics 8.3.0 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
     Loading yolo11n_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
-    
+
     image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 19.3ms
     Speed: 2.2ms preprocess, 19.3ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -360,9 +360,9 @@ improve model inference speed.
 
     int8_model_det_path = Path(f"{DET_MODEL_NAME}_openvino_int8_model/{DET_MODEL_NAME}.xml")
     quantized_det_model = None
-    
+
     to_quantize = quantization_widget()
-    
+
     to_quantize
 
 
@@ -384,51 +384,51 @@ Let’s load ``skip magic`` extension to skip quantization if
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
         )
         open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from ultralytics.utils import DEFAULT_CFG
     from ultralytics.cfg import get_cfg
     from ultralytics.data.converter import coco80_to_coco91_class
     from ultralytics.data.utils import check_det_dataset
     from zipfile import ZipFile
-    
+
     from ultralytics.data.utils import DATASETS_DIR
-    
-    
+
+
     DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
     LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
     CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco.yaml"
-    
+
     OUT_DIR = DATASETS_DIR
-    
+
     DATA_PATH = OUT_DIR / "val2017.zip"
     LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
     CFG_PATH = OUT_DIR / "coco.yaml"
-    
+
     if not int8_model_det_path.exists():
         download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
         download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
         download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
+
         if not (OUT_DIR / "coco/labels").exists():
             with ZipFile(LABELS_PATH, "r") as zip_ref:
                 zip_ref.extractall(OUT_DIR)
             with ZipFile(DATA_PATH, "r") as zip_ref:
                 zip_ref.extractall(OUT_DIR / "coco/images")
-    
-    
+
+
         args = get_cfg(cfg=DEFAULT_CFG)
         args.data = str(CFG_PATH)
         det_validator = det_model.task_map[det_model.task]["validator"](args=args)
         det_validator.data = check_det_dataset(args.data)
         det_validator.stride = 32
         det_data_loader = det_validator.get_dataloader(OUT_DIR / "coco", 1)
-    
+
         det_validator.is_coco = True
         det_validator.class_map = coco80_to_coco91_class()
         det_validator.names = label_map
@@ -448,14 +448,14 @@ transformation function for getting only input tensors.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
     from typing import Dict
-    
-    
+
+
     if not int8_model_det_path.exists():
-    
-    
+
+
         def transform_fn(data_item:Dict):
             """
             Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -466,8 +466,8 @@ transformation function for getting only input tensors.
             """
             input_tensor = det_validator.preprocess(data_item)['img'].numpy()
             return input_tensor
-    
-    
+
+
         quantization_dataset = nncf.Dataset(det_data_loader, transform_fn)
 
 
@@ -494,7 +494,7 @@ point precision, using the ``ignored_scope`` parameter.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not int8_model_det_path.exists():
         ignored_scope = nncf.IgnoredScope( # post-processing
             subgraphs=[
@@ -504,7 +504,7 @@ point precision, using the ``ignored_scope`` parameter.
                             outputs=[f"__module.model.{22 if 'v8' in DET_MODEL_NAME else 23}/aten::cat/Concat_7"])
             ]
         )
-    
+
         # Detection model
         quantized_det_model = nncf.quantize(
             det_ov_model,
@@ -538,7 +538,7 @@ point precision, using the ``ignored_scope`` parameter.
     INFO:nncf:Not adding activation input quantizer for operation: 254 __module.model.23/aten::add/Add_6
     INFO:nncf:Not adding activation input quantizer for operation: 264 __module.model.23/aten::add/Add_7
     275 __module.model.23/aten::div/Divide
-    
+
     INFO:nncf:Not adding activation input quantizer for operation: 265 __module.model.23/aten::sub/Subtract_1
     INFO:nncf:Not adding activation input quantizer for operation: 276 __module.model.23/aten::cat/Concat_5
     INFO:nncf:Not adding activation input quantizer for operation: 240 __module.model.23/aten::mul/Multiply_3
@@ -591,39 +591,39 @@ on the image.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     device
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if quantized_det_model is None and int8_model_det_path.exists():
         quantized_det_model = core.read_model(int8_model_det_path)
-    
+
     ov_config = {}
     if device.value != "CPU":
         quantized_det_model.reshape({0: [1, 3, 640, 640]})
     if "GPU" in device.value or ("AUTO" in device.value and "GPU" in core.available_devices):
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     quantized_det_compiled_model = core.compile_model(quantized_det_model, device.value, ov_config)
-    
-    
+
+
     if det_model.predictor is None:
         custom = {"conf": 0.25, "batch": 1, "save": False, "mode": "predict"}  # method defaults
         args = {**det_model.overrides, **custom}
         det_model.predictor = det_model._smart_load("predictor")(overrides=args, _callbacks=det_model.callbacks)
         det_model.predictor.setup_model(model=det_model.model)
-    
+
     det_model.predictor.model.ov_compiled_model = det_compiled_model
-    
+
     res = det_model(IMAGE_PATH)
     display(Image.fromarray(res[0].plot()[:, :, ::-1]))
 
 
 .. parsed-literal::
 
-    
+
     image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 17.6ms
     Speed: 1.8ms preprocess, 17.6ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
@@ -643,7 +643,7 @@ Compare performance object detection models
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -659,7 +659,7 @@ models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     device
 
 .. code:: ipython3
@@ -676,12 +676,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -736,7 +736,7 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 29.82 ms
@@ -766,12 +766,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -826,7 +826,7 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 24.01 ms
@@ -873,8 +873,8 @@ The following code runs model inference on a video:
     from IPython import display
     import cv2
     import numpy as np
-    
-    
+
+
     # Main processing function to run object detection.
     def run_object_detection(
         source=0,
@@ -892,15 +892,15 @@ The following code runs model inference on a video:
         if "GPU" in device or ("AUTO" in device and "GPU" in core.available_devices):
             ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
         compiled_model = core.compile_model(model, device, ov_config)
-    
+
         if det_model.predictor is None:
             custom = {"conf": 0.25, "batch": 1, "save": False, "mode": "predict"}  # method defaults
             args = {**det_model.overrides, **custom}
             det_model.predictor = det_model._smart_load("predictor")(overrides=args, _callbacks=det_model.callbacks)
             det_model.predictor.setup_model(model=det_model.model)
-    
+
         det_model.predictor.model.ov_compiled_model = compiled_model
-    
+
         try:
             # Create a video player to play with target fps.
             player = VideoPlayer(source=source, flip=flip, fps=30, skip_first_frames=skip_first_frames)
@@ -909,7 +909,7 @@ The following code runs model inference on a video:
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -917,11 +917,11 @@ The following code runs model inference on a video:
                 if frame is None:
                     print("Source ended")
                     break
-    
+
                 if video_width:
                     # If the frame is larger than video_width, reduce size to improve the performance.
                     # If more, increase size for better demo expirience.
-    
+
                     scale = video_width / max(frame.shape)
                     frame = cv2.resize(
                         src=frame,
@@ -930,20 +930,20 @@ The following code runs model inference on a video:
                         fy=scale,
                         interpolation=cv2.INTER_AREA,
                     )
-    
+
                 # Get the results.
                 input_image = np.array(frame)
-    
+
                 start_time = time.time()
                 detections = det_model(input_image, verbose=False)
                 stop_time = time.time()
                 frame = detections[0].plot()
-    
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-    
+
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000
@@ -1010,7 +1010,7 @@ Run the object detection:
 .. code:: ipython3
 
     WEBCAM_INFERENCE = False
-    
+
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:

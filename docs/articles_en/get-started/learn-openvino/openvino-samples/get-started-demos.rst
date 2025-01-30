@@ -9,9 +9,9 @@ Get Started with Samples
 
 To use OpenVINO samples, install OpenVINO using one of the following distributions:
 
-* Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino/install-openvino-archive-macos>`
-* :doc:`APT <../../get-started/install-openvino/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino/install-openvino-yum>` for Linux
-* :doc:`Docker image <../../get-started/install-openvino/install-openvino-docker-linux>`
+* Archive files (recommended) - :doc:`Linux <../../../get-started/install-openvino/install-openvino-archive-linux>` | :doc:`Windows <../../../get-started/install-openvino/install-openvino-archive-windows>` | :doc:`macOS <../../../get-started/install-openvino/install-openvino-archive-macos>`
+* :doc:`APT <../../../get-started/install-openvino/install-openvino-apt>` or :doc:`YUM <../../../get-started/install-openvino/install-openvino-yum>` for Linux
+* :doc:`Docker image <../../../get-started/install-openvino/install-openvino-docker-linux>`
 * `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
 
 If you install OpenVINO Runtime via archive files, sample applications are created in the following directories:
@@ -23,7 +23,7 @@ If you install OpenVINO Runtime via archive files, sample applications are creat
 .. note::
    If you install OpenVINO without samples, you can still get them directly from `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__.
 
-Before you build samples, refer to the :doc:`system requirements <../../about-openvino/release-notes-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
+Before you build samples, refer to the :doc:`system requirements <../../../about-openvino/release-notes-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
 
 1. :ref:`Build Samples <build-samples>`.
 2. :ref:`Select a Sample <select-sample>`.
@@ -262,7 +262,7 @@ You need a model that is specific for your inference task. You can get it from o
 Convert the Model
 --------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2025/learn-openvino/openvino-samples/get-started-demos.html>`__ for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/get-started-demos.html>`__ for information how to do it.
 
 .. _download-media:
 
@@ -409,7 +409,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 .. note::
 
-   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../get-started/install-openvino/configurations/configurations-intel-gpu>`, as described earlier on this page.
+   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../../get-started/install-openvino/configurations/configurations-intel-gpu>`, as described earlier on this page.
    * Running on GPU is not compatible with macOS.
 
 .. tab-set::
@@ -469,7 +469,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
-.. image:: ../../assets/images/dog.png
+.. image:: ../../../assets/images/dog.png
 
 .. code-block:: sh
 
