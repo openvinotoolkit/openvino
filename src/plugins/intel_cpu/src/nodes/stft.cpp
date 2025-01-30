@@ -53,8 +53,9 @@ void STFT::getSupportedDescriptors() {
 }
 
 void STFT::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
     if (!one_of(dataPrecision, ov::element::f32)) {

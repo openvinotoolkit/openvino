@@ -158,7 +158,7 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
 Testing Performance of the Hints with the Benchmark_App
 #######################################################
 
-Using the :doc:`benchmark_app sample <../../../learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the functionality of the performance hints for a particular device:
+Using the :doc:`benchmark_app sample <../../../get-started/learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the functionality of the performance hints for a particular device:
 
 * benchmark_app **-hint tput** -d 'device' -m 'path to your model'
 * benchmark_app **-hint latency** -d 'device' -m 'path to your model'

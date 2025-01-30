@@ -19,13 +19,13 @@ is used instead. Mixing different ABIs is not possible as doing so will result i
 
 To try OpenVINO GenAI with different dependencies versions (which are **not** prebuilt packages
 as archives or python wheels), build OpenVINO GenAI library from
-`Source <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/3/src/docs/BUILD.md#build-openvino-openvino-tokenizers-and-openvino-genai-from-source>`__.
+`Source <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/0/src/docs/BUILD.md#build-openvino-openvino-tokenizers-and-openvino-genai-from-source>`__.
 
 Additional Resources
 #######################
 
-* :doc:`OpenVINO GenAI Installation Guide <../install-openvino/install-openvino-genai>`
+* :doc:`OpenVINO GenAI Installation Guide <../install-openvino-genai>`
 * `OpenVINO GenAI repository <https://github.com/openvinotoolkit/openvino.genai>`__
-* :doc:`OpenVINO Installation Guide <../install-openvino>`
-* :doc:`OpenVINO Tokenizers <../../openvino-workflow-generative/ov-tokenizers>`
+* :doc:`OpenVINO Installation Guide <../../install-openvino>`
+* :doc:`OpenVINO Tokenizers <../../../openvino-workflow-generative/ov-tokenizers>`
 

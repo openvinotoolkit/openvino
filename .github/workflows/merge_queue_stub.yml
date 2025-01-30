@@ -1,6 +1,8 @@
 on:
   merge_group:
 
+permissions: read-all
+
 jobs:
   merge_group_stub_check:
     name: ci/jenkins
