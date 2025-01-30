@@ -125,10 +125,12 @@ struct ConfidenceComparator {
     explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
 
     bool operator()(int idx1, int idx2) {
-        if (_conf_data[idx1] > _conf_data[idx2])
+        if (_conf_data[idx1] > _conf_data[idx2]) {
             return true;
-        if (_conf_data[idx1] < _conf_data[idx2])
+        }
+        if (_conf_data[idx1] < _conf_data[idx2]) {
             return false;
+        }
         return idx1 < idx2;
     }
 
@@ -266,13 +268,15 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
 }
 
 void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::f32},
