@@ -564,7 +564,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
 #endif
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
-                                    ov::snippets::lowered::pass::AllocateBuffers,
+                                    ov::intel_cpu::pass::GemmCPUBlocking,
                                     ov::intel_cpu::pass::BuildBrgemm);
 
 #undef SNIPPETS_REGISTER_PASS_RELATIVE

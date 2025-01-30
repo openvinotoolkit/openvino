@@ -95,7 +95,7 @@ size_t BrgemmBlockingBase::get_default_m_blk(size_t m) const {
     return 32;
 }
 size_t BrgemmBlockingBase::get_default_n_blk(size_t n) const {
-    return 64;
+    return 2048;
 }
 size_t BrgemmBlockingBase::get_default_k_blk(size_t k) const {
     return !utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;

@@ -38,6 +38,7 @@ Checks: >
   performance-*,
   google-*,
   modernize-pass-by-value,
+  misc-include-cleaner,
   cppcoreguidelines-prefer-member-initializer,
   -bugprone-easily-swappable-parameters,
   -bugprone-fold-init-type,

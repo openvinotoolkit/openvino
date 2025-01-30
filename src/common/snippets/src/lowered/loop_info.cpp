@@ -136,20 +136,29 @@ void validate_new_target_ports(const std::vector<ExpressionPort>& target_ports, 
 } // namespace
 
 void LoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
+    fprintf(stderr, "  -> LoopInfo::replace_with_new_ports 0\n");
     const auto& actual_port_type = actual_port.get_expr_port()->get_type();
     validate_new_target_ports(target_ports, actual_port_type);
 
     auto& ports = actual_port_type == ExpressionPort::Input ? m_input_ports : m_output_ports;
     auto port_it = find_loop_port(actual_port);
+    fprintf(stderr, "portss 1: %zu\n", ports.size());
     port_it = ports.erase(port_it);
+    fprintf(stderr, "portss 2: %zu\n", ports.size());
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
+    fprintf(stderr, "portss 1: %zu\n", ports.size());
 }
 
 void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
+    fprintf(stderr, "  -> LoopInfo::replace_with_new_ports 1\n");
     const auto& actual_port_type = actual_port.get_type();
+    fprintf(stderr, "             =: %d\n", get_input_ports().size());
     validate_new_target_ports(target_ports, actual_port_type);
+    fprintf(stderr, "             =2: %d\n", get_input_ports().size());
 
     auto& ports = actual_port_type == ExpressionPort::Input ? m_input_ports : m_output_ports;
+    fprintf(stderr, "actual_port expr_port type: %d\n", actual_port.get_type());
+    fprintf(stderr, "actual_port expr_port index: %zu\n", actual_port.get_index());
     auto port_it = find_loop_port(actual_port);
     // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
     // For example, not all inner loop ports are ports of outer loops
@@ -166,6 +175,7 @@ void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const s
                    });
     port_it = ports.erase(port_it);
     ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
+    fprintf(stderr, "             =5: %d\n", get_input_ports().size());
 }
 
 std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports) {
@@ -362,6 +372,7 @@ void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t n
 }
 
 void UnifiedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
+    fprintf(stderr, "  -> UnifiedLoopInfo::replace_with_new_ports 2\n");
     const auto& actual_port_type = actual_port.get_expr_port()->get_type();
     validate_new_target_ports(target_ports, actual_port_type);
 
@@ -380,19 +391,25 @@ void UnifiedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const 
 }
 
 void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
+    fprintf(stderr, "  -> UnifiedLoopInfo::replace_with_new_ports 3\n");
+    fprintf(stderr, "UnifiedLoopInfo::replace_with_new_ports 0: %zu\n", get_input_ports_info().size());
     const auto& actual_port_type = actual_port.get_type();
     validate_new_target_ports(target_ports, actual_port_type);
 
     const auto is_input = actual_port.get_type() == ExpressionPort::Input;
     auto& ports = is_input ? m_input_ports : m_output_ports;
     auto port_it = find_loop_port(actual_port);
+    fprintf(stderr, "UnifiedLoopInfo::replace_with_new_ports 1: %zu\n", get_input_ports_info().size());
     // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
     // For example, not all inner loop ports are ports of outer loops
     if (port_it == ports.end())
         return;
+    fprintf(stderr, "UnifiedLoopInfo::replace_with_new_ports 2: %zu\n", get_input_ports_info().size());
 
     replace_with_cloned_descs(std::distance(ports.begin(), port_it), target_ports.size(), is_input);
+    // fprintf(stderr, "UnifiedLoopInfo::replace_with_new_ports 3: %zu\n", get_input_ports_info().size());
     LoopInfo::replace_with_new_ports(actual_port, target_ports);
+    fprintf(stderr, "UnifiedLoopInfo::replace_with_new_ports 4: %zu\n", get_input_ports_info().size());
 
     // Sort ports
     sort_ports();
@@ -536,12 +553,14 @@ void ExpandedLoopInfo::update_finalization_offsets(const std::vector<int64_t>& n
 }
 
 void ExpandedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
+    fprintf(stderr, "  -> ExpandedLoopInfo::replace_with_new_ports 4\n");
     OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
     LoopInfo::replace_with_new_ports(actual_port, target_ports);
     sort_ports();
 }
 
 void ExpandedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
+    fprintf(stderr, "  -> ExpandedLoopInfo::replace_with_new_ports 5\n");
     OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
     LoopInfo::replace_with_new_ports(actual_port, target_ports);
     sort_ports();

@@ -113,6 +113,23 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 
     const auto input_port_infos = loop_info->get_input_ports_info();
     const auto output_port_infos = loop_info->get_output_ports_info();
+    for (const auto& input_port_info : input_port_infos) {
+        int tmp;
+        try {
+            tmp = input_port_info.port.get_dim_idx();
+        } catch (...) {
+            tmp = -1;
+        }
+        fprintf(stderr, "Input Port Info - is_incremented: %d, ptr_increment: %zu, finalization_offset: %zu, idx: %zu\n",
+                input_port_info.port.is_incremented(),
+                tmp,
+                input_port_info.desc.ptr_increment,
+                input_port_info.desc.finalization_offset);
+    }
+    fprintf(stderr, "Input Port Infos size: %zu\n", input_port_infos.size());
+    fprintf(stderr, "Output Port Infos size: %zu\n", output_port_infos.size());
+    fprintf(stderr, "LoopEnd input num: %zu\n", loop_end->get_input_num());
+    fprintf(stderr, "LoopEnd output num: %zu\n", loop_end->get_output_num());
     OPENVINO_ASSERT(input_port_infos.size() == loop_end->get_input_num() &&
                     output_port_infos.size() == loop_end->get_output_num(),
                     "Incompatible LoopEnd and the corresponding LoopInfo");

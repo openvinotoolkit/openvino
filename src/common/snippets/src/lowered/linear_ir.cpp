@@ -367,6 +367,7 @@ LinearIR::exprIt LinearIR::replace_with_node(const std::vector<ExpressionPtr>& o
                    "Failed to replace node: node output port count is not equal to output count of last old expression");
 
     std::vector<PortConnectorPtr> new_inputs(new_node->get_input_size());
+    fprintf(stderr, "new_node->get_input_size(): %zu\n", new_node->get_input_size());
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         const auto& source = new_node->get_input_source_output(i);
         new_inputs[i] = get_expr_by_node(source.get_node_shared_ptr())->get_output_port_connector(source.get_index());
@@ -395,6 +396,7 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
                    "Failed to replace expressions: new expr output port count is not equal to output count of last old expression");
 
     const auto& new_inputs = new_expr->get_input_port_connectors();
+    fprintf(stderr, "new_expr->get_inputs_count() 2s: %zu\n", new_expr->get_input_count());
 
     auto is_old_expr = [&old_exprs](const ExpressionPtr& expr) {
         return std::find(old_exprs.cbegin(), old_exprs.cend(), expr) != old_exprs.cend();
@@ -424,20 +426,36 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
             }
         }
     }
+    fprintf(stderr, "new_expr->get_inputs_count() 3s: %zu\n", new_expr->get_input_count());
 
     update_consumers_and_regs(new_expr, consumers);
 
+    fprintf(stderr, "new_expr->get_inputs_count() 4s: %zu\n", new_expr->get_input_count());
     const auto new_expr_it = insert(place, new_expr);
     const auto& loop_ids = new_expr_it->get()->get_loop_ids();
     const auto input_ports = new_expr_it->get()->get_input_ports();
+    fprintf(stderr, "b input_ports: %zu\n", input_ports.size());
     const auto output_ports = new_expr_it->get()->get_output_ports();
+    fprintf(stderr, "b output_ports: %zu\n", output_ports.size());
+    const auto& inner_loop_info = m_loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids.front());
+    fprintf(stderr, "=== loop id %zu (inputs count: %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size());
     for (const auto& old_expr : old_exprs) {
-        for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_input_port(i), input_ports);
-        for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_output_port(i), output_ports);
+        fprintf(stderr, "=1a loop id %zu (inputs count: %zu %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size(), inner_loop_info->get_input_count());
+        for (size_t i = 0; i < old_expr->get_input_count(); ++i) {
+            printf("    ty: %zu\n", old_expr->get_input_port(i).get_type() == ExpressionPort::Input);
+            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_input_port(i), {new_expr_it->get()->get_input_port(i)});
+        }
+        fprintf(stderr, "=1b loop id %zu (inputs count: %zu %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size(), inner_loop_info->get_input_count());
+        for (size_t i = 0; i < old_expr->get_output_count(); ++i)
+            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_output_port(i), {new_expr_it->get()->get_output_port(i)});
+        fprintf(stderr, "=1c loop id %zu (inputs count: %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size());
         erase(find(old_expr));
+        fprintf(stderr, "=1d loop id %zu (inputs count: %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size());
     }
+    fprintf(stderr, "==2 loop id %zu (inputs count: %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size());
+    fprintf(stderr, "a input_ports: %zu\n", input_ports.size());
+    fprintf(stderr, "a output_ports: %zu\n", output_ports.size());
+    fprintf(stderr, "new_expr->get_inputs_count() 5s: %zu\n", new_expr->get_input_count());
     return new_expr_it;
 }
 

@@ -16,14 +16,13 @@ namespace pass {
  * @brief The pass explicitly insert LoadBegin and LoadEnd in Linear IR using UnifiedLoopInfo from Loop markup algorithm
  * @ingroup snippets
  */
-class BuildBrgemm : public snippets::lowered::pass::ConstPass {
+class BuildBrgemm : public snippets::lowered::pass::RangedPass {
 public:
-    OPENVINO_RTTI("BuildBrgemm", "", ConstPass)
+    OPENVINO_RTTI("BuildBrgemm", "", snippets::lowered::pass::RangedPass)
     BuildBrgemm() = default;
-    bool run(const snippets::lowered::LinearIR& linear_ir) override;
-    const std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr>& get_affected_loops() {
-        return m_affected_loops;
-    }
+    bool run(snippets::lowered::LinearIR& linear_ir,
+             snippets::lowered::LinearIR::constExprIt begin,
+             snippets::lowered::LinearIR::constExprIt end) override;
 
 private:
     std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr> m_affected_loops;

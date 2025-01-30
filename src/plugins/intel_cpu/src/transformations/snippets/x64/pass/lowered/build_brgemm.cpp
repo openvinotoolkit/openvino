@@ -26,12 +26,21 @@
 namespace ov {
 namespace intel_cpu {
 
-bool pass::BuildBrgemm::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustBrgemmCopyBLoopPorts")
+bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
+                            snippets::lowered::LinearIR::constExprIt begin,
+                            snippets::lowered::LinearIR::constExprIt end) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BuildBrgemm")
     bool modified = false;
-    for (const auto& expr : linear_ir) {
+
+    fprintf(stderr, "Dumping Linear IR <before>:\n");
+    for (auto it = begin; it != end; ++it) {
+        const auto& expr = *it;
+        fprintf(stderr, "%s\n", expr->get_node()->get_friendly_name().c_str());
+    }
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
+        const auto& expr = *expr_it;
         const auto gemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
-        if (!gemm_node || gemm_node->is_dynamic()) {
+        if (!gemm_node || gemm_node->is_dynamic() || with_repacking(gemm_node->get_type())) {
             continue;
         }
         const auto& loop_manager = linear_ir.get_loop_manager();
@@ -42,37 +51,54 @@ bool pass::BuildBrgemm::run(const snippets::lowered::LinearIR& linear_ir) {
             continue;
         }
 
-        const auto& gemm_in0_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(gemm_node->input(0));
-        const auto& gemm_in1_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(gemm_node->input(1));
-        const auto& gemm_out_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(gemm_node->output(0));
+        // TODO: get input port descriptor
+        const auto& gemm_in0_desc = expr->get_input_port_descriptor(0);
+        const auto& gemm_in1_desc = expr->get_input_port_descriptor(1);
+        const auto& gemm_out_desc = expr->get_output_port_descriptor(0);
+
+        // const auto& interm_connector = expr->get_input_port_connector(0);
+        // const auto gemm_expr = interm_connector->get_source().get_expr();
 
         // Get innermost loop info
-        auto loop_expr = loop_manager->get_loop_bounds(linear_ir, loop_ids.back()).first;
+        // TODO: check K-loop
         const auto& inner_loop_info = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids.front());
+        fprintf(stderr, "inner_loop_info for loop id %zu (inputs count: %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size());
+        for (size_t i = 0; i < inner_loop_info->get_input_ports_info().size(); ++i) {
+            fprintf(stderr, "Input port %zu is_processed: %d\n", i, inner_loop_info->get_input_ports_info()[i].port.is_processed());
+        }
+        // fprintf(stderr, "Output port 0 is_processed: %d\n", inner_loop_info->get_output_ports_info()[1].port.is_processed());
+        if (inner_loop_info->get_work_amount() % inner_loop_info->get_increment() != 0) {
+            continue;
+        }
         auto iter_count = inner_loop_info->get_work_amount() / inner_loop_info->get_increment();
-        auto brgemm_node = std::make_shared<BrgemmCPU>(gemm_node->input_value(0),
-                                                       gemm_node->input_value(1),
-                                                       iter_count,
-                                                       gemm_node->get_type(),
-                                                       gemm_node->get_offset_a(),
-                                                       gemm_node->get_offset_b(),
-                                                       gemm_node->get_offset_c(),
-                                                       gemm_in0_desc->get_layout(),
-                                                       gemm_in1_desc->get_layout(),
-                                                       gemm_out_desc->get_layout());
-        // TODO: replace node
+        auto brgemm_node =
+            std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
+                                        expr->get_input_port_connector(1)->get_source().get_expr()->get_node(),
+                                        iter_count,
+                                        gemm_node->get_type(),
+                                        gemm_node->get_offset_a(),
+                                        gemm_node->get_offset_b(),
+                                        gemm_node->get_offset_c(),
+                                        gemm_in0_desc->get_layout(),
+                                        gemm_in1_desc->get_layout(),
+                                        gemm_out_desc->get_layout());
+        // Replace GemmCPU node with BrgemmCPU
+        auto live_regs = expr->get_live_regs();
+        expr_it = linear_ir.replace_with_node({expr}, brgemm_node, expr->get_loop_ids(), linear_ir.find(expr));
+        expr_it->get()->set_live_regs(std::move(live_regs));
+        const auto loop_ids2 = (*expr_it)->get_loop_ids();
+        const auto& inner_loop_info2 = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids2.front());
+        fprintf(stderr, "inner_loop_info2 for loop id %zu (inputs count: %zu):\n", loop_ids2.front(), inner_loop_info2->get_input_ports_info().size());
+        for (size_t i = 0; i < inner_loop_info2->get_input_ports_info().size(); ++i) {
+            fprintf(stderr, "Input port %zu is_processed: %d\n", i, inner_loop_info2->get_input_ports_info()[i].port.is_processed());
+        }
 
-        // Transfer ports
-        snippets::lowered::PortDescriptorUtils::set_port_descriptor(gemm_node->input(0), gemm_in0_desc->get_subtensor(), gemm_in0_desc->get_layout());
-        snippets::lowered::PortDescriptorUtils::set_port_descriptor(gemm_node->input(1), gemm_in1_desc->get_subtensor(), gemm_in1_desc->get_layout());
-        snippets::lowered::PortDescriptorUtils::set_port_descriptor(gemm_node->output(0), gemm_out_desc->get_subtensor(), gemm_out_desc->get_layout());
-
-        // need to run validate_and_infer_types manually: either input shapes were updated or
-        // output Layout was updated (out shape will be updated in validate_and_infer_types())
-        gemm_node->validate_and_infer_types();
-        brgemm_node->validate_and_infer_types();
-
-        const auto& inputs = expr->get_node()->inputs();
+        modified |= true;
+    }
+    fprintf(stderr, "Dumping Linear IR <after>:\n");
+    for (auto it = begin; it != end; ++it) {
+        const auto& expr = *it;
+        fprintf(stderr, "%s\n", expr->get_node()->get_friendly_name().c_str());
     }
 
     return modified;
