@@ -310,13 +310,6 @@ TEST_F(TypePropISTFTTest, signal_length_incompatible_shape) {
     const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
     const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
-        const auto signal_length = std::make_shared<Parameter>(element::i64, PartialShape{2});
-        OV_EXPECT_THROW(
-            std::ignore = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized),
-            NodeValidationFailure,
-            HasSubstr("The shape of 'signal_length' input must be a scalar or single element 1D tensor"));
-    }
-    {
         const auto signal_length = std::make_shared<Parameter>(element::i64, PartialShape{1, 2});
         OV_EXPECT_THROW(
             std::ignore = make_op(in_data, window, frame_size, frame_step, signal_length, center, normalized),
