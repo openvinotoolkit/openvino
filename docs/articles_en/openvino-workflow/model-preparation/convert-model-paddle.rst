@@ -152,7 +152,7 @@ Supported PaddlePaddle Layers
 #############################
 
 For the list of supported standard layers, refer to the
-:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations>`
+:doc:`Supported Operations <../../documentation/compatibility-and-support/supported-operations>`
 page.
 
 
