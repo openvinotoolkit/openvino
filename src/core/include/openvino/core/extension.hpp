@@ -29,16 +29,56 @@ public:
     virtual ~Extension();
 };
 
-class OPENVINO_API FrontendExtension : public Extension {
-public:
-    virtual std::string get_frontend_name() = 0;
-};
-}  // namespace ov
-
 #ifndef OV_CREATE_EXTENSION
 #    define OV_CREATE_EXTENSION create_extensions
 #endif
 
+template <class T, class... FEs>
+class OPENVINO_API FeExtension : public T, public FEs... {
+public:
+    using T::T;
+};
+
+// All FEs should be added here as IsFeName structures
+struct OPENVINO_API IsIr {
+    virtual ~IsIr();
+};
+
+struct OPENVINO_API IsOnnx {
+    virtual ~IsOnnx();
+};
+
+struct OPENVINO_API IsTf {
+    virtual ~IsTf();
+};
+
+// These classes can be defined in customer code
+template <class T>
+class OPENVINO_API IrFeExtension : public FeExtension<T, IsIr> {
+public:
+    using FeExtension<T, IsIr>::FeExtension;
+};
+
+template <class T>
+class OPENVINO_API OnnxFeExtension : public FeExtension<T, IsOnnx> {
+public:
+    using FeExtension<T, IsOnnx>::FeExtension;
+};
+
+template <class T>
+class OPENVINO_API TfFeExtension : public FeExtension<T, IsTf> {
+public:
+    using FeExtension<T, IsTf>::FeExtension;
+};
+
+// As example. It is possible to create extensions for several FEs
+template <class T>
+class OPENVINO_API IrAndOnnxFeExtension : public FeExtension<T, IsIr, IsOnnx> {
+public:
+    using FeExtension<T, IsIr, IsOnnx>::FeExtension;
+};
+
+}  // namespace ov
 /**
  * @brief The entry point for library with OpenVINO extensions
  *

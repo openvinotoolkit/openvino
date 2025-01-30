@@ -5,6 +5,8 @@
 #include "model_reader.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/extension.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/frontend/manager.hpp"
@@ -111,13 +113,27 @@ namespace {
     std::vector<ov::Extension::Ptr> filter_extensions_for_fronend(const ov::frontend::FrontEnd::Ptr& fe, const std::vector<ov::Extension::Ptr>& ov_exts) {
         auto fe_name = fe->get_name();
         std::vector<ov::Extension::Ptr> result;
-        for (auto& ext : ov_exts) {
-            if (auto fe_ext = ov::as_type_ptr<FrontendExtension>(ext)){
-                if (!fe_name.compare(fe_ext->get_frontend_name())){
-                    result.push_back(ext);
-                }
+        for (const auto& ext : ov_exts) {
+            ov::Extension::Ptr ext_to_check;
+
+            if (auto so_ext = ov::as_type_ptr<ov::detail::SOExtension>(ext)) {
+                ext_to_check = so_ext->extension();
+            } else {
+                ext_to_check = ext;
             }
-            result.push_back(ext);
+
+            if (auto fe_ext = ov::as_type_ptr<ov::IsIr>(ext_to_check)){
+                if (!fe_name.compare("ir"))
+                    result.push_back(ext);
+            } else if (auto fe_ext = ov::as_type_ptr<ov::IsOnnx>(ext_to_check)){
+                if (!fe_name.compare("onnx"))
+                    result.push_back(ext);
+            } else if (auto fe_ext = ov::as_type_ptr<ov::IsTf>(ext_to_check)){
+                if (!fe_name.compare("tf"))
+                    result.push_back(ext);
+            } else {
+                result.push_back(ext);
+            }
         }
         return result;
     }
