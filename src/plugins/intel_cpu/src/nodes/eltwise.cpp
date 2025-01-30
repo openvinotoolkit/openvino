@@ -1438,10 +1438,10 @@ struct EltwiseKey {
                 seed = hash_combine(seed, item.back() == 1);
             }
         } else {
-            seed = get_vector_hash(seed, outOrder);
-            seed = get_vector_hash(seed, outBlkDims);
+            seed = get_array_hash(seed, outOrder.data(), outOrder.size());
+            seed = get_array_hash(seed, outBlkDims.data(), outBlkDims.size());
             for (auto&& item : inpDims) {
-                seed = get_vector_hash(seed, item);
+                seed = get_array_hash(seed, item.data(), item.size());
             }
         }
         std::for_each(inpPrc.begin(), inpPrc.end(), [&](const ov::element::Type& item) {

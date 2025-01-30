@@ -38,9 +38,9 @@ void binary_convolve_3D_channels(const ConvolutionParams& p,
     const int64_t dilated_filter_size_y = filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1);
     const int64_t dilated_filter_size_x = filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1);
 
-    const Shape input_channel_shape(++batch_shape.begin(), batch_shape.end());
+    const Shape input_channel_shape(batch_shape.begin() + 1, batch_shape.end());
     const size_t input_channel_size = shape_size(input_channel_shape);
-    const Shape filter_channel_shape(++filter_shape.begin(), filter_shape.end());
+    const Shape filter_channel_shape(filter_shape.begin() + 1, filter_shape.end());
     const size_t filter_channel_size = shape_size(filter_channel_shape);
     const T_IN bit_count = static_cast<T_IN>(filter_channel_size);
 
@@ -124,11 +124,11 @@ void binary_convolution(const T_IN* in,
     }
 
     const size_t batches_count = input_shape[in_batch_axis];
-    const Shape batch_shape(++input_shape.begin(), input_shape.end());
+    const Shape batch_shape(input_shape.begin() + 1, input_shape.end());
     const size_t batch_size = shape_size(batch_shape);
 
     const size_t filters_count = filters_shape[filter_out_ch_axis];
-    const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
+    const Shape filter_shape(filters_shape.begin() + 1, filters_shape.end());
     const size_t filter_size = shape_size(filter_shape);
 
     auto batch = in;

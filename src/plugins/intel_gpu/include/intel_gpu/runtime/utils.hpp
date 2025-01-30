@@ -148,45 +148,62 @@ inline derived_type& downcast(base_type& base) {
     throw std::runtime_error("downcast failed with unhandled exception");
 }
 
-template <typename T, class A>
-inline bool all_ones(const std::vector<T, A> vec) {
-    return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
+template <typename Container>
+inline bool all_ones(const Container& container) {
+    return std::all_of(container.begin(), container.end(), [](const auto& val) {
+        return val == 1;
+    });
 }
 
-template <typename T, class A>
-inline bool all_zeroes(const std::vector<T, A> vec) {
-    return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val == 0; });
+template <typename Container>
+inline bool all_zeroes(const Container& container) {
+    return std::all_of(container.begin(), container.end(), [](const auto& val) {
+        return val == 0;
+    });
 }
 
-template <typename T, class A>
-inline bool all_not_zeroes(const std::vector<T, A> vec) {
-    return std::all_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
+template <typename Container>
+inline bool all_not_zeroes(const Container& container) {
+    return std::all_of(container.begin(), container.end(), [](const auto& val) {
+        return val != 0;
+    });
 }
 
-template <typename T, class A>
-inline bool any_one(const std::vector<T, A> vec) {
-    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 1; });
+template <typename Container>
+inline bool any_one(const Container& container) {
+    return std::any_of(container.begin(), container.end(), [](const auto& val) {
+        return val == 1;
+    });
 }
 
-template <typename T, class A>
-inline bool any_zero(const std::vector<T, A> vec) {
-    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val == 0; });
+template <typename Container>
+inline bool any_zero(const Container& container) {
+    return std::any_of(container.begin(), container.end(), [](const auto& val) {
+        return val == 0;
+    });
 }
 
-template <typename T, class A>
-inline bool any_not_one(const std::vector<T, A> vec) {
-    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 1; });
+template <typename Container>
+inline bool any_not_one(const Container& container) {
+    return std::any_of(container.begin(), container.end(), [](const auto& val) {
+        return val != 1;
+    });
 }
 
-template <typename T, class A>
-inline bool any_not_zero(const std::vector<T, A> vec) {
-    return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
+template <typename Container>
+inline bool any_not_zero(const Container& container) {
+    return std::any_of(container.begin(), container.end(), [](const auto& val) {
+        return val != 0;
+    });
 }
 
-template <typename T>
-inline bool one_of(const T& val, const std::vector<T>& vec) {
-    return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
+template <typename T, typename Container = std::initializer_list<T>>
+inline bool one_of(const T& val, const Container& container) {
+    return std::any_of(container.begin(), container.end(), [&val](const auto& v) {
+        return v == val;
+    });
 }
+
 template <typename T, typename... T1>
 inline bool one_of(const T& val, T1... args) {
     return one_of(val, std::vector<T>{args...});

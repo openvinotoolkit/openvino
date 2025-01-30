@@ -134,7 +134,7 @@ dnnl::memory::dim DnnlExtensionUtils::convertToDnnlDim(const Dim& dim) {
 }
 
 VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
-    std::vector<size_t> vecResult(dims.size());
+    VectorDims vecResult(dims.size());
     std::transform(dims.begin(), dims.end(), vecResult.begin(), convertToDim);
     return vecResult;
 }

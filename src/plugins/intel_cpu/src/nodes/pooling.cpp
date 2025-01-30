@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pooling.h"
+
 #include <memory_desc/cpu_memory_desc_utils.h>
 
 #include <memory>
@@ -17,7 +19,6 @@
 #include "onednn/dnnl.h"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "pooling.h"
 #include "utils/general_utils.h"
 
 // to access and change C pooling primitive desc internal padding field

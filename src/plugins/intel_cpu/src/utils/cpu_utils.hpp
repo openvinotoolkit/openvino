@@ -39,7 +39,6 @@ struct is_any_of<T, U, Rest...>
 inline VectorDims getNormalizedDimsBySize(const VectorDims& dims, size_t ndims) {
     if (dims.size() >= ndims)
         return dims;
-    }
 
     VectorDims normalizedDims = dims;
     for (size_t i = 0; i < (ndims - dims.size()); i++) {
@@ -174,8 +173,8 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
  * - reshapeToRank<2>({1, 2, 3, 4, 5}) == {1*2*3*4, 5}   == {24, 5}
  * - reshapeToRank<4>({1, 2, 3, 4, 5}) == {1*2, 3, 4, 5} == {2, 3, 4, 5}
  */
-template <typename T, class A>
-std::vector<T, A> reshapeDownToRank(const std::vector<T, A>& dims, size_t rank) {
+template <typename T>
+T reshapeDownToRank(const T& dims, size_t rank) {
     OPENVINO_ASSERT(rank > 0, "Rank greater than zero is expected");
 
     if (dims.size() <= rank) {
@@ -183,16 +182,16 @@ std::vector<T, A> reshapeDownToRank(const std::vector<T, A>& dims, size_t rank) 
     }
 
     const auto accEnd = dims.begin() + (dims.size() - rank + 1);
-    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<T>());
+    const auto acc = std::accumulate(dims.begin(), accEnd, decltype(dims[0]){1}, std::multiplies());
 
-    std::vector<T, A> result{acc};
+    T result{acc};
     result.insert(result.end(), accEnd, dims.end());
 
     return result;
 }
 
-template <size_t rank, typename T, class A>
-std::vector<T, A> reshapeDownToRank(const std::vector<T, A>& dims) {
+template <size_t rank, typename T>
+T reshapeDownToRank(const T& dims) {
     return reshapeDownToRank(dims, rank);
 }
 

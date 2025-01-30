@@ -69,6 +69,18 @@ std::string vec2str(const std::vector<T, A>& vec) {
     return std::string("()");
 }
 
+template <typename T, class A>
+std::string vec2str(const ov::inplace_vector<T, A>& vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return std::string("()");
+}
+
 /**
  * @brief Compares that two dims are equal and defined
  * @param lhs

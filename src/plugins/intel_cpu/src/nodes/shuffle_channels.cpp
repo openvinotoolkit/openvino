@@ -37,8 +37,8 @@ size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
     seed = hash_combine(seed, spatialRank);
     seed = hash_combine(seed, group);
     seed = hash_combine(seed, dataSize);
-    seed = get_vector_hash(seed, srcDims);
-    seed = get_vector_hash(seed, srcBlockedDims);
+    seed = get_array_hash(seed, srcDims.data(), srcDims.size());
+    seed = get_array_hash(seed, srcBlockedDims.data(), srcBlockedDims.size());
 
     return seed;
 }

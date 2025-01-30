@@ -3,6 +3,7 @@
 //
 
 #include "brgemm_copy_b.hpp"
+
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"

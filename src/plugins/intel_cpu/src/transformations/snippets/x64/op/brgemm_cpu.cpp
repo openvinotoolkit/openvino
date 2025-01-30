@@ -3,6 +3,7 @@
 //
 
 #include "brgemm_cpu.hpp"
+
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/snippets_isa.hpp"

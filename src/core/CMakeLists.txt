@@ -52,7 +52,7 @@ target_include_directories(openvino_core_dev INTERFACE
 target_include_directories(openvino_core_dev SYSTEM INTERFACE
     $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
 
-target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
+target_link_libraries(openvino_core_dev INTERFACE absl::base absl::throw_delegate absl::inlined_vector openvino::itt openvino::util )
 
 set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
 ov_developer_package_export_targets(TARGET openvino::core::dev

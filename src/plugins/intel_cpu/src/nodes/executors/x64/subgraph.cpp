@@ -111,7 +111,6 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
             init_offset = [](const auto& offsets, const std::vector<size_t>& indexes, size_t& offset) {
                 for (size_t j = 0; j < indexes.size(); j++)
                     offset += offsets[j] * indexes[j];
-                }
             };
         }
     }

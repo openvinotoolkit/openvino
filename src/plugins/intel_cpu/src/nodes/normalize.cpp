@@ -64,7 +64,7 @@ size_t NormalizeKey::hash() const {
     seed = hash_combine(seed, attrs.output_prec.hash());
 
     seed = hash_combine(seed, get_attr_hash(*kernel_attrs.get()));
-    seed = get_vector_hash(seed, dims);
+    seed = get_array_hash(seed, dims.data(), dims.size());
     return seed;
 }
 

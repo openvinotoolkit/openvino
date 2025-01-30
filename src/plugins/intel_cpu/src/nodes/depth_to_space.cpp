@@ -31,7 +31,7 @@ size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
     seed = hash_combine(seed, blockStep);
     seed = hash_combine(seed, dataSize);
     seed = hash_combine(seed, nSpatialDims);
-    seed = get_vector_hash(seed, srcBlockedDims);
+    seed = get_array_hash(seed, srcBlockedDims.data(), srcBlockedDims.size());
 
     return seed;
 }
@@ -227,10 +227,10 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     PermuteParams params;
     params.data_size = attrs.dataSize;
     params.order.resize(reshapedRank, 0);
-    params.src_block_order.resize(reshapedRank);
-    params.dst_block_order.resize(reshapedRank);
-    params.dst_block_dims.resize(reshapedRank);
-    params.src_block_dims.resize(reshapedRank);
+    params.src_block_order.resize(reshapedRank, {});
+    params.dst_block_order.resize(reshapedRank, {});
+    params.dst_block_dims.resize(reshapedRank, {});
+    params.src_block_dims.resize(reshapedRank, {});
     params.src_block_dims[0] = attrs.srcBlockedDims[0];
 
     // reshaping of src dimensions and creating the permutation order for each layout:

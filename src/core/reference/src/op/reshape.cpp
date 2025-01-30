@@ -295,7 +295,7 @@ void reshape_6D(const char* in,
 template <class T>
 T reorder(const T& origin, const AxisVector& order) {
     T reordered = origin;
-    auto out = begin(reordered);
+    auto out = reordered.begin();
     OPENVINO_ASSERT(origin.size() <= order.size());
     for (size_t i = 0; i < origin.size(); ++i) {
         *out = origin.at(order[i]);
@@ -317,7 +317,7 @@ void reshape_ND(const char* in,
         if (output >= output_end) {
             break;
         }
-        const auto elem_offset = std::inner_product(begin(coordinate), end(coordinate), begin(axis_strides), 0ll);
+        const auto elem_offset = std::inner_product(coordinate.begin(), coordinate.end(), axis_strides.begin(), 0ll);
         const auto input = in + elem_offset * elem_size;
         copy_element(output, input, elem_size);
         output += elem_size;

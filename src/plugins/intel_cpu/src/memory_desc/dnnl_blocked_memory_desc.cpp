@@ -189,6 +189,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
         if (!inner_pad_offsets_is_zero) {
             OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: ",
                            offsetPaddingToData);
+        }
         auto dnnlPaddedOffsets = DnnlExtensionUtils::convertToDnnlDims(offsetPaddingToData);
         std::copy(dnnlPaddedOffsets.begin(), dnnlPaddedOffsets.begin() + outer_ndims, desc.get()->padded_offsets);
     } else {
@@ -250,8 +251,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
 
     dnnl::impl::memory_desc_wrapper::compute_blocking(dnnl::memory::convert_to_c(format), perm, inner_blks, inner_idxs);
 
-    order.resize(0);
-    auto it = order.insert(order.end(), perm.begin(), perm.end());
+    order.resize(perm.size());
+    auto it = std::copy(perm.begin(), perm.end(), order.begin());
     order.insert(it, inner_idxs.begin(), inner_idxs.end());
 
     if (shape.hasZeroDims()) {
@@ -438,7 +439,7 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     if (shape.getRank() != order.size()) {
         return false;
     }
-    if (!std::is_sorted(order.begin(), --order.end())) {
+    if (!std::is_sorted(order.begin(), order.end() - 1)) {
         return false;
     }
     if (order.back() != 1) {

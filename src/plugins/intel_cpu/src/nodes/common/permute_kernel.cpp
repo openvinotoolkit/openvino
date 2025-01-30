@@ -260,11 +260,11 @@ size_t PermuteParams::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
-    seed = get_vector_hash(seed, src_block_dims);
-    seed = get_vector_hash(seed, dst_block_dims);
-    seed = get_vector_hash(seed, src_block_order);
-    seed = get_vector_hash(seed, dst_block_order);
-    seed = get_vector_hash(seed, order);
+    seed = get_array_hash(seed, src_block_dims.data(), src_block_dims.size());
+    seed = get_array_hash(seed, dst_block_dims.data(), dst_block_dims.size());
+    seed = get_array_hash(seed, src_block_order.data(), src_block_order.size());
+    seed = get_array_hash(seed, dst_block_order.data(), dst_block_order.size());
+    seed = get_array_hash(seed, order.data(), order.size());
     seed = hash_combine(seed, data_size);
     return seed;
 }

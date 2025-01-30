@@ -4,12 +4,13 @@
 
 #pragma once
 
+#include <absl/container/inlined_vector.h>
+
 #include <cstdio>
 #include <numeric>
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
-// #include "openvino/core/axis_set.hpp"
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
@@ -26,8 +27,9 @@ struct BasicAllocator : public std::allocator<T> {
     };
 };
 
-template <typename T>
-using inplace_vector = std::vector<T, BasicAllocator<T>>;
+template <typename T, class A = std::allocator<T>>
+using inplace_vector = absl::InlinedVector<T, 8, A>;
+
 /**
  * @brief Shape for a tensor.
  * @ingroup ov_model_cpp_api

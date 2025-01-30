@@ -1657,9 +1657,9 @@ size_t InterpolateKey::hash() const {
     seed = hash_combine(seed, nodeAttrs.inPrc.hash());
     seed = hash_combine(seed, nodeAttrs.outPrc.hash());
 
-    seed = get_vector_hash(seed, srcDims);
-    seed = get_vector_hash(seed, dstDims);
-    seed = get_vector_hash(seed, dataScales);
+    seed = get_array_hash(seed, srcDims.data(), srcDims.size());
+    seed = get_array_hash(seed, dstDims.data(), dstDims.size());
+    seed = get_array_hash(seed, dataScales.data(), dataScales.size());
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     return seed;

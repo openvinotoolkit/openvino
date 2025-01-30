@@ -107,10 +107,10 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
                     found_step = true;
                     size_t strides_size = inverted_idx + 1;
                     // Set right size
-                    src_str.resize(strides_size + 1);
-                    dst_str.resize(strides_size + 1);
-                    max_pos.resize(strides_size + 1);
-                    cur_pos.resize(strides_size + 1);
+                    src_str.resize(strides_size + 1, 0);
+                    dst_str.resize(strides_size + 1, 0);
+                    max_pos.resize(strides_size + 1, 0);
+                    cur_pos.resize(strides_size + 1, 0);
                     // In case of default continuous strides we can copy several elements
                     // In other case only one element
                     size_t dim = 1;

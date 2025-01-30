@@ -217,7 +217,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     }
 
     auto are_multiply_from_decompression = [&](const ov::Input<ov::Node> consumer) {
-        if (!cldnn::one_of(consumer.get_node()->get_type_info(), { ov::op::v1::Multiply::get_type_info_static() }))
+        if (!cldnn::one_of(consumer.get_node()->get_type_info(), {ov::op::v1::Multiply::get_type_info_static()}))
             return false;
         const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
 

@@ -41,7 +41,7 @@ bool ReorgYolo::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void ReorgYolo::set_strides(const size_t stride) {
-    m_strides.resize(2);
+    m_strides.resize(2, 0);
     std::fill_n(m_strides.begin(), 2, stride);
 }
 }  // namespace v0

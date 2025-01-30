@@ -166,6 +166,12 @@ inline size_t get_output_dim_idx(const std::vector<T, A>& layout, size_t dim_idx
     return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
 }
 
+template <class T, class A>
+inline size_t get_output_dim_idx(const ov::inplace_vector<T, A>& layout, size_t dim_idx) {
+    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
+}
+
 // dim_idx starts from the layout end
 size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 

@@ -532,7 +532,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
     size_t num_of_axes = m_axes.size();
 
     const CoordinateTransformBasic output_transform{m_out_shape};
-    Shape indices_shape{num_of_axes, 4};
+    Shape indices_shape(num_of_axes, 4);
 
     for (const Coordinate& output_coord : output_transform) {
         std::map<size_t, std::array<float, 4>> cubic_coeffs;

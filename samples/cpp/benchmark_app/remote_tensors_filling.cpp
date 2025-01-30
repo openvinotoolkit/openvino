@@ -101,8 +101,8 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
 
                 // Creating and filling shared buffers
                 cl_int err;
-                auto elementsNum = std::accumulate(begin(input.second.dataShape),
-                                                   end(input.second.dataShape),
+                auto elementsNum = std::accumulate(std::begin(input.second.dataShape),
+                                                   std::end(input.second.dataShape),
                                                    1,
                                                    std::multiplies<size_t>());
                 auto inputSize = elementsNum * input.second.type.bitwidth() / 8;
@@ -223,8 +223,8 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
                                << std::string((input.second.is_image() ? "image" : "some binary data"))
                                << " is expected)" << slog::endl;
 
-                    auto elementsNum = std::accumulate(begin(input.second.dataShape),
-                                                       end(input.second.dataShape),
+                    auto elementsNum = std::accumulate(std::begin(input.second.dataShape),
+                                                       std::end(input.second.dataShape),
                                                        1,
                                                        std::multiplies<size_t>());
 

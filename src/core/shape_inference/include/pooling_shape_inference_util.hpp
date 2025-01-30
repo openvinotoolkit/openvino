@@ -84,11 +84,11 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
 template <class TContainer>
 void resize_empty_padding(const size_t num_spatial, TContainer& pads_begin, TContainer& pads_end) {
     if (pads_begin.empty()) {
-        pads_begin.resize(num_spatial);
+        pads_begin.resize(num_spatial, 0);
     }
 
     if (pads_end.empty()) {
-        pads_end.resize(num_spatial);
+        pads_end.resize(num_spatial, 0);
     }
 }
 

@@ -39,14 +39,14 @@ size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs) {
     using namespace dnnl::impl::primitive_hashing;
 
     for (const auto& order : attrs->inMemOrders) {
-        seed = get_vector_hash(seed, order);
+        seed = get_array_hash(seed, order.data(), order.size());
     }
     for (const auto& prec : attrs->inMemPrecs) {
         seed = hash_combine(seed, prec.hash());
     }
 
     for (const auto& order : attrs->outMemOrders) {
-        seed = get_vector_hash(seed, order);
+        seed = get_array_hash(seed, order.data(), order.size());
     }
     for (const auto& prec : attrs->outMemPrecs) {
         seed = hash_combine(seed, prec.hash());

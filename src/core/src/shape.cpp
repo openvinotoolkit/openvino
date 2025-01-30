@@ -57,9 +57,7 @@ ov::Shape::Shape(const std::string& value) {
 ov::Shape::~Shape() = default;
 
 ov::Shape& ov::Shape::operator=(const Shape& v) {
-    inplace_vector<size_t>::operator=(v);
-    // Shape::inplace_vector<size_t>::operator=(v);
-    // static_cast<ov::inplace_vector<size_t>*>(this)->operator=(v);
+    static_cast<ov::inplace_vector<size_t>*>(this)->operator=(v);
     return *this;
 }
 

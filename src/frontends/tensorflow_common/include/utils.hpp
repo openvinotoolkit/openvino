@@ -73,6 +73,25 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T, A>
                     " cannot be folded to Constant for node " + node_name + " of type " + node_type);
 }
 
+template <typename T, class A>
+void get_const_input(const NodeContext& node, int input_index, ov::inplace_vector<T, A>* vector) {
+    auto input_size = static_cast<int>(node.get_input_size());
+    auto node_name = node.get_name();
+    auto node_type = node.get_op_type();
+    FRONT_END_GENERAL_CHECK(0 <= input_index && input_index < input_size,
+                            "[TensorFlow Frontend] Internal error: Node " + node_name + " has " +
+                                std::to_string(input_size) + " inputs, but requested input port index to be " +
+                                std::to_string(input_size));
+    auto ov_input = node.get_input(input_index);
+    if (auto constant = ov::util::get_constant_from_source(ov_input)) {
+        auto tmp = constant->cast_vector<T>();
+        *vector = ov::inplace_vector<T, A>(tmp.begin(), tmp.end());
+        return;
+    }
+    FRONT_END_THROW("[TensorFlow Frontend] Internal error: Input " + std::to_string(input_index) +
+                    " cannot be folded to Constant for node " + node_name + " of type " + node_type);
+}
+
 ov::op::PadType convert_tf_padding(const NodeContext& node, const std::string& tf_padding);
 
 ov::OutputVector translate_convolution_op(const NodeContext& node, size_t spatial_dims_num);
