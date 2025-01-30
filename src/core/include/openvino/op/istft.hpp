@@ -58,6 +58,9 @@ public:
     bool get_normalized() const;
     void set_normalized(const bool normalized);
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
+
 private:
     bool m_center = false;
     bool m_normalized = false;
