@@ -430,11 +430,11 @@ Convert PyTorch model to Openvino Intermediate Representation format
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to `OpenVINO Intermediate Representation (IR)
-format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+format <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
 to take the advantage of advanced OpenVINO optimization tools and
 features. You need to provide a model object, input data for model
 tracing to `OpenVINO Model Conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-to-ir.html>`__.
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-to-ir.html>`__.
 ``ov.convert_model`` function convert PyTorch model instance to
 ``ov.Model`` object that can be used for compilation on device or saved
 on disk using ``ov.save_model`` in compressed to FP16 format.

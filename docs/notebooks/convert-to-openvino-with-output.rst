@@ -74,13 +74,13 @@ These model formats can be read, compiled, and converted to OpenVINO IR,
 either automatically or explicitly.
 
 For more details, refer to `Model
-Preparation <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
+Preparation <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__
 documentation.
 
 .. code:: ipython3
 
     # OVC CLI tool parameters description
-    
+
     ! ovc --help
 
 
@@ -89,12 +89,12 @@ documentation.
     usage: ovc INPUT_MODEL... [-h] [--output_model OUTPUT_MODEL]
                [--compress_to_fp16 [True | False]] [--version] [--input INPUT]
                [--output OUTPUT] [--extension EXTENSION] [--verbose]
-    
+
     positional arguments:
       INPUT_MODEL           Input model file(s) from TensorFlow, ONNX,
                             PaddlePaddle. Use openvino.convert_model in Python to
                             convert models from PyTorch.
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --output_model OUTPUT_MODEL
@@ -151,7 +151,7 @@ This notebook uses two models for conversion examples:
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # create a directory for models files
     MODEL_DIRECTORY_PATH = Path("model")
     MODEL_DIRECTORY_PATH.mkdir(exist_ok=True)
@@ -164,14 +164,14 @@ NLP model from Hugging Face and export it in ONNX format:
 
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
     import torch
-    
+
     ONNX_NLP_MODEL_PATH = MODEL_DIRECTORY_PATH / "distilbert.onnx"
-    
+
     # download model
     hf_model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
     # initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-    
+
     if not ONNX_NLP_MODEL_PATH.exists():
         inputs = tokenizer("Hi, how are you?", return_tensors="pt")
         input_names = list(inputs.keys())
@@ -202,7 +202,7 @@ CV classification model from torchvision:
 .. code:: ipython3
 
     from torchvision.models import resnet50, ResNet50_Weights
-    
+
     # create model object
     pytorch_model = resnet50(weights=ResNet50_Weights.DEFAULT)
     # switch model from training to inference mode
@@ -398,9 +398,9 @@ Convert PyTorch model to ONNX format:
 
     import torch
     import warnings
-    
+
     ONNX_CV_MODEL_PATH = MODEL_DIRECTORY_PATH / "resnet.onnx"
-    
+
     if ONNX_CV_MODEL_PATH.exists():
         print(f"ONNX model {ONNX_CV_MODEL_PATH} already exists.")
     else:
@@ -425,11 +425,11 @@ To convert a model to OpenVINO IR, use the following API:
 .. code:: ipython3
 
     import openvino as ov
-    
+
     # ov.convert_model returns an openvino.runtime.Model object
     print(ONNX_NLP_MODEL_PATH)
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
-    
+
     # then model can be serialized to *.xml & *.bin files
     ov.save_model(ov_model, MODEL_DIRECTORY_PATH / "distilbert.xml")
 
@@ -473,13 +473,13 @@ inputs. Doing so at the model preparation stage, not at runtime, can be
 beneficial in terms of performance and memory consumption.
 
 For more information refer to `Setting Input
-Shapes <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting-input-shapes.html>`__
+Shapes <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/setting-input-shapes.html>`__
 documentation.
 
 .. code:: ipython3
 
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, 128]), ("attention_mask", [1, 128])])
 
 .. code:: ipython3
@@ -512,7 +512,7 @@ conversion API parameter as ``-1`` or ``?`` when using ``ovc``:
 .. code:: ipython3
 
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, -1]), ("attention_mask", [1, -1])])
 
 .. code:: ipython3
@@ -547,10 +547,10 @@ sequence length dimension:
 .. code:: ipython3
 
     import openvino as ov
-    
-    
+
+
     sequence_length_dim = ov.Dimension(10, 128)
-    
+
     ov_model = ov.convert_model(
         ONNX_NLP_MODEL_PATH,
         input=[
@@ -593,7 +593,7 @@ disabled by setting ``compress_to_fp16`` flag to ``False``:
 .. code:: ipython3
 
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
     ov.save_model(ov_model, MODEL_DIRECTORY_PATH / "distilbert.xml", compress_to_fp16=False)
 
@@ -623,18 +623,18 @@ Convert Models from memory
 
 Model conversion API supports passing original framework Python object
 directly. More details can be found in
-`PyTorch <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html>`__,
-`TensorFlow <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__,
-`PaddlePaddle <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__
+`PyTorch <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-pytorch.html>`__,
+`TensorFlow <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__,
+`PaddlePaddle <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-paddle.html>`__
 frameworks conversion guides.
 
 .. code:: ipython3
 
     import openvino as ov
     import torch
-    
+
     example_input = torch.rand(1, 3, 224, 224)
-    
+
     ov_model = ov.convert_model(pytorch_model, example_input=example_input, input=example_input.shape)
 
 
@@ -646,15 +646,15 @@ frameworks conversion guides.
 .. code:: ipython3
 
     import os
-    
+
     import openvino as ov
     import tensorflow_hub as hub
-    
+
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-    
+
     model = hub.load("https://www.kaggle.com/models/google/movenet/frameworks/TensorFlow2/variations/singlepose-lightning/versions/4")
     movenet = model.signatures["serving_default"]
-    
+
     ov_model = ov.convert_model(movenet)
 
 
@@ -679,7 +679,7 @@ OVC or can be replaced with functionality from ``ov.PrePostProcessor``
 class. Refer to `Optimize Preprocessing
 notebook <optimize-preprocessing-with-output.html>`__ for
 more information about `Preprocessing
-API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing.html>`__.
+API <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing.html>`__.
 Here is the migration guide from legacy model preprocessing to
 Preprocessing API.
 
@@ -693,7 +693,7 @@ for both inputs and outputs. Some preprocessing requires to set input
 layouts, for example, setting a batch, applying mean or scales, and
 reversing input channels (BGR<->RGB). For the layout syntax, check the
 `Layout API
-overview <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview.html>`__.
+overview <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview.html>`__.
 To specify the layout, you can use the layout option followed by the
 layout value.
 
@@ -704,9 +704,9 @@ Resnet50 model that was exported to the ONNX format:
 
     # Converter API
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-    
+
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
@@ -735,9 +735,9 @@ and the layout of an original model:
 
     # Converter API
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-    
+
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nhwc"))
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
@@ -771,14 +771,14 @@ more examples.
 
     # Converter API
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-    
+
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nchw"))
     prep.input("input.1").preprocess().mean([255 * x for x in [0.485, 0.456, 0.406]])
     prep.input("input.1").preprocess().scale([255 * x for x in [0.229, 0.224, 0.225]])
-    
+
     ov_model = prep.build()
 
 .. code:: python
@@ -809,9 +809,9 @@ the color channels before inference.
 
     # Converter API
     import openvino as ov
-    
+
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-    
+
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nchw"))
     prep.input("input.1").preprocess().reverse_channels()

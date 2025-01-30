@@ -149,7 +149,7 @@ your web browser.
 Get started with Python
 +++++++++++++++++++++++
 
-Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more
+Visit the :doc:`Tutorials <../../../get-started/learn-openvino/interactive-tutorials-python>` page for more
 Jupyter Notebooks to get you started with OpenVINO, such as:
 
 * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2025/notebooks/openvino-api-with-output.html>`__
