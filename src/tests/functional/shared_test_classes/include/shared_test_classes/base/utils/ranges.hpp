@@ -34,7 +34,7 @@ struct Range {
         max_known_port = std::max(static_cast<int>(max_known_port), 1);
         for (size_t port = 0; port < max_known_port; port++) {
             std::map<ov::element::Type, ov::test::utils::InputGenerateData> type_map;
-            for (const auto& type : ov::element::Type::get_known_types()) {
+            for (const auto& type : get_known_types()) {
                 ov::test::utils::InputGenerateData new_range = rangeByType.get_range(type);
                 if (type.is_real() && port < real_port_ranges.size()) {
                     new_range.correct_range(real_port_ranges.at(port));

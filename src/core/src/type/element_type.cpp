@@ -172,18 +172,12 @@ static constexpr auto known_types = [] {
 }();
 }  // namespace
 
-template <>
 std::vector<const Type*> Type::get_known_types() {
     std::vector<const Type*> result(known_types.size());
     for (size_t i = 0; i < known_types.size(); ++i) {
         result[i] = &known_types[i];
     }
     return result;
-}
-
-template <>
-std::vector<Type> Type::get_known_types() {
-    return {known_types.begin(), known_types.end()};
 }
 
 Type::Type(const std::string& type) : Type(type_from_string(type)) {}
