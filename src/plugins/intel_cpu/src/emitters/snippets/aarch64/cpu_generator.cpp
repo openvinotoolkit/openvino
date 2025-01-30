@@ -157,6 +157,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[snippets::op::ConvertSaturation::get_type_info_static()] =
         CREATE_CPU_EMITTER(jit_convert_saturation_emitter);
 
+    // logical operations
+    jitters[op::v1::LogicalAnd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_and_emitter);
+    jitters[op::v1::LogicalOr::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_or_emitter);
+    jitters[op::v1::LogicalXor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
+    jitters[op::v1::LogicalNot::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_not_emitter);
+    
     // memory access
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_broadcast_emitter);
