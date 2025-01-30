@@ -24,10 +24,13 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                           input_subscripts.size() == input_shapes.size(),
                           "Equation must contain a number of subscripts equal to a number of Einsum inputs.");
 
+    const auto output_labels = Einsum::extract_labels(output_subscript);
+    const auto has_out_ellipsis = std::any_of(output_labels.begin(), output_labels.end(), [](std::string label) {
+        return label == "...";
+    });
     // create a dictionary with dimension sizes (or ranges in case of dynamic shapes) for each label
     // and check their compatibility in case of repeating labels
     std::unordered_map<std::string, TRShape> label_to_shape;
-
     for (size_t input_idx = 0; input_idx < input_shapes.size(); ++input_idx) {
         const auto& pshape = input_shapes[input_idx];
         const auto labels = Einsum::extract_labels(input_subscripts[input_idx]);
@@ -78,16 +81,11 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                 }
             }
         } else {
-            if (has_ellipsis) {
+            if (has_ellipsis && has_out_ellipsis) {
                 // Shape has dynamic rank and ellipsis
                 return {pshape};
             }
             for (auto const& label : labels) {
-                NODE_VALIDATION_CHECK(op,
-                                      label != "...",
-                                      "The subscript corresponding to a dynamic rank input must "
-                                      "not contain ellipsis.");
-
                 if (label_to_shape.find(label) == label_to_shape.end()) {
                     label_to_shape[label] = ov::PartialShape{Dimension::dynamic()};
                 }
@@ -96,7 +94,6 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
     }
 
     // compute the output shape
-    const auto output_labels = Einsum::extract_labels(output_subscript);
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 

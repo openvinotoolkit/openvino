@@ -478,6 +478,66 @@ TEST_F(TypePropEinsumTest, all_dynamic_rank_ellipsis) {
     EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), Each(nullptr));
 }
 
+TEST_F(TypePropEinsumTest, lhs_dynamic_rank_ellipsis) {
+    const std::string equation = "a...b,b...->...a";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{PartialShape::dynamic(), {3, 11, 7, 4}};
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), Each(nullptr));
+}
+
+TEST_F(TypePropEinsumTest, rhs_dynamic_rank_ellipsis) {
+    const std::string equation = "a...b,b...->...a";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{{3, 11, 7, 4}, PartialShape::dynamic()};
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), Each(nullptr));
+}
+
+TEST_F(TypePropEinsumTest, lhs_dynamic_rank_ellipsis_reduced_out_ellipsis) {
+    const std::string equation = "a...b,b...->a";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{PartialShape::dynamic(), {3, 11, 7, 4}};
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({ov::Dimension::dynamic()}));
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), Each(nullptr));
+}
+
+TEST_F(TypePropEinsumTest, rhs_dynamic_rank_ellipsis_reduced_out_ellipsis) {
+    const std::string equation = "a...b,b...->a";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{{3, 11, 7, 4}, PartialShape::dynamic()};
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({3}));
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), Each(nullptr));
+}
+
 TEST_F(TypePropEinsumTest, broadcasting_same_symbol_common) {
     const std::string equation = "ab,ba->b";
     constexpr auto et = element::i32;
