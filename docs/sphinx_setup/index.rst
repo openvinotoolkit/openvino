@@ -196,5 +196,5 @@ Key Features
    LEARN OPENVINO <learn-openvino>
    HOW TO USE - MAIN WORKFLOW <openvino-workflow>
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
-   DOCUMENTATION <documentation>
+   REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>
