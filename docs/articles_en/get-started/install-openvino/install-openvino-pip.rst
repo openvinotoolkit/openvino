@@ -104,7 +104,7 @@ If installation was successful, you will see the list of available devices.
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <../configurations>`
+:doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
 
@@ -149,7 +149,7 @@ your web browser.
 Get started with Python
 +++++++++++++++++++++++
 
-Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more
+Visit the :doc:`Tutorials <../../../get-started/learn-openvino/interactive-tutorials-python>` page for more
 Jupyter Notebooks to get you started with OpenVINO, such as:
 
 * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2025/notebooks/openvino-api-with-output.html>`__
