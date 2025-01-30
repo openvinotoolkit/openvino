@@ -36,7 +36,7 @@ void istft(const float* in_data,
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
-    const auto final_signal_length = length > 0 ? length : (center ? (signal_length - frame_size) : signal_length);
+    const int64_t final_signal_length = length > 0 ? length : (center ? (signal_length - frame_size) : signal_length);
 
     std::vector<float> mid_result(batch_size * signal_length, 0);
     float* result = mid_result.data();
@@ -119,8 +119,12 @@ void istft(const float* in_data,
                        });
 
         if (center) {
-            std::copy(result + batch_out_start + (frame_size / 2),
-                      result + batch_out_start + (frame_size / 2) + final_signal_length,
+            const int64_t margin = (frame_size / 2);
+            const size_t result_start = batch_out_start + margin;
+            const int64_t data_end = signal_length - (frame_size / 2);
+            int64_t signal_end = final_signal_length < data_end ? final_signal_length : data_end;
+            std::copy(result + result_start,
+                      result + result_start + signal_end,
                       final_result + (batch * final_signal_length));
         } else {
             std::copy(result + batch_out_start,
