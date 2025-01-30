@@ -26,7 +26,6 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
-  HF_SHARE_PATH_WIN: "C:\\mount\\caches\\huggingface"
 
 jobs:
   JAX_Layer_Tests:
@@ -68,7 +67,16 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-  
+          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
+
+      - name: Setup HuggingFace Cache Directory (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+
+      - name: Check HF Share
+        if: runner.os == 'Windows'
+        run: dir ${{ env.HF_HUB_CACHE }}
+
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz

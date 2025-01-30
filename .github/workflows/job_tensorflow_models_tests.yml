@@ -61,12 +61,12 @@ jobs:
           echo "TFHUB_CACHE_DIR=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/tfhub_models" >> "$GITHUB_ENV"
           echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
 
-      - name: Check HF share
-        run: ls -la ${{ env.HF_HUB_CACHE }}
+      - name: Setup HuggingFace Cache Directory (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Extract OpenVINO artifacts (Linux and macOS)
-        run: |
-          pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
