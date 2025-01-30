@@ -115,8 +115,12 @@ void PluginGraph::initialize(const Config& config) {
     }
 
     if (config.has<WORKLOAD_TYPE>()) {
-        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+        if (!_zeroInitStruct->getCommandQueueDdiTable().version()) {
+            OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+        }
     }
+
+    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
 
     create_new_command_queue();
 
@@ -131,6 +135,18 @@ void PluginGraph::initialize(const Config& config) {
     }
 
     _logger.debug("Graph initialize finish");
+}
+
+void PluginGraph::set_workload_type(const ov::WorkloadType workloadType) {
+    if (!_zeroInitStruct->getCommandQueueDdiTable().version()) {
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    }
+
+    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(workloadType);
+
+    if (_command_queue) {
+        create_new_command_queue();
+    }
 }
 
 void PluginGraph::create_new_command_queue() {

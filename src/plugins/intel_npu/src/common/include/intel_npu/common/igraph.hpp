@@ -45,7 +45,7 @@ public:
 
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
 
-    void set_workload_type(const ov::WorkloadType workloadType);
+    virtual void set_workload_type(const ov::WorkloadType workloadType) = 0;
 
     std::mutex& get_mutex();
 
@@ -105,7 +105,7 @@ protected:
 
     std::shared_ptr<CommandQueue> _command_queue;
     uint32_t _group_ordinal;
-    std::optional<ze_command_queue_workload_type_t> _ze_workload_type = std::nullopt;
+    ze_command_queue_workload_type_t _ze_workload_type;
     bool _turbo = false;
     ze_command_queue_priority_t _ze_queue_priority;
 

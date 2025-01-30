@@ -47,14 +47,6 @@ const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     return _command_queue;
 }
 
-void IGraph::set_workload_type(const ov::WorkloadType workloadType) {
-    if (_command_queue) {
-        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(workloadType);
-
-        create_new_command_queue();
-    }
-}
-
 std::mutex& IGraph::get_mutex() {
     return _mutex;
 }

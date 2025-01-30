@@ -140,17 +140,23 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
 }
 
 CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                           const ze_command_queue_priority_t& priority,
-                           const uint32_t& group_ordinal,
-                           bool turbo)
+                           const CommandQueueDesc desc,
+                           const uint32_t& group_ordinal)
     : _init_structs(init_structs),
       _log("CommandQueue", Logger::global().level()) {
-    ze_command_queue_desc_t queue_desc =
-        {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC,
+                                          nullptr,
+                                          group_ordinal,
+                                          0,
+                                          0,
+                                          ZE_COMMAND_QUEUE_MODE_DEFAULT,
+                                          desc.priority};
 
-    if (turbo) {
+    if (desc.turbo) {
         if (_init_structs->getCommandQueueDdiTable().version()) {
-            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT,
+                                                         nullptr,
+                                                         desc.turbo};
             queue_desc.pNext = &turbo_cfg;
         } else {
             OPENVINO_THROW("Turbo is not supported by the current driver");
@@ -159,6 +165,11 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
 
     auto result = zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle);
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueCreate", result);
+
+    if (_init_structs->getCommandQueueDdiTable().version()) {
+        auto result = _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, desc.workload);
+        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType", result);
+    }
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     auto result = zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr);
@@ -213,7 +224,8 @@ Fence::~Fence() {
 
 CommandQueuePool::CommandQueuePool() : _log("CommandQueue", Logger::global().level()) {}
 int CommandQueuePool::computeHash(CommandQueueDesc desc) {
-    return (desc.priority & 0xFF) | (desc.workload & 0xFF) << 8 | (desc.turbo << 16);
+    return (static_cast<size_t>(desc.priority) & 0xFF) | (static_cast<size_t>(desc.workload) & 0xFF) << 8 |
+           (desc.turbo << 16);
 }
 CommandQueuePool& CommandQueuePool::getInstance() {
     static CommandQueuePool instance;
@@ -222,10 +234,10 @@ CommandQueuePool& CommandQueuePool::getInstance() {
 std::shared_ptr<CommandQueue> CommandQueuePool::getCommandQueue(
     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     const ze_command_queue_priority_t& priority,
-    const std::optional<ze_command_queue_workload_type_t>& workload_type,
+    const ze_command_queue_workload_type_t& workload_type,
     const uint32_t& group_ordinal,
     bool turbo) {
-    CommandQueueDesc desc = {zeroUtils::toPriorityVal(priority), zeroUtils::toWorkloadVal(workload_type), turbo};
+    CommandQueueDesc desc = {priority, workload_type, turbo};
 
     int hash = computeHash(desc);
 
@@ -243,7 +255,7 @@ std::shared_ptr<CommandQueue> CommandQueuePool::getCommandQueue(
     // Create shared_ptr with a deleter
     _log.debug("Create Command Queue");
     auto new_obj = std::shared_ptr<CommandQueue>(
-        new CommandQueue(init_structs, priority, group_ordinal, turbo),
+        new CommandQueue(init_structs, desc, group_ordinal),
         [this, hash](CommandQueue* ptr) {
             std::lock_guard<std::mutex> lock(_mutex);
             if (_pool.at(hash).lock()) {

@@ -18,8 +18,8 @@ class CommandList;
 class CommandQueue;
 
 struct CommandQueueDesc {
-    size_t priority;
-    size_t workload;
+    ze_command_queue_priority_t priority;
+    ze_command_queue_workload_type_t workload;
     bool turbo;
 };
 
@@ -129,9 +129,8 @@ class CommandQueue {
 public:
     CommandQueue() = delete;
     CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                 const ze_command_queue_priority_t& priority,
-                 const uint32_t& group_ordinal,
-                 bool turbo = false);
+                 const CommandQueueDesc desc,
+                 const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;
@@ -165,7 +164,7 @@ public:
 
     std::shared_ptr<CommandQueue> getCommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                                   const ze_command_queue_priority_t& priority,
-                                                  const std::optional<ze_command_queue_workload_type_t>& workload_type,
+                                                  const ze_command_queue_workload_type_t& workload_type,
                                                   const uint32_t& group_ordinal,
                                                   bool turbo);
 
