@@ -350,7 +350,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_keras3_backend.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-4-cores-16gb-staging'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       python-version: '3.11'
 
