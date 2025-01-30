@@ -23,25 +23,17 @@ void Dumper::init(const std::string &params) {
 //////////////////utils::ConsoleDumper///////////////
 
 ConsoleDumper::~ConsoleDumper() {
-}
-
-void ConsoleDumper::update(const op::PerfCountEnd* node) {
-    auto accumulation = node->get_accumulation();
-    auto iteration = node->get_iteration();
-    OPENVINO_ASSERT(accumulation.size() == iteration.size(), "accumulation size should be the same as iteration size in perf_count_end node.");
-    auto iterator_iter = iteration.begin();
-    auto iterator_acc = accumulation.begin();
-    int t_num = 0;
+    OPENVINO_ASSERT(m_accumulation.size() == m_iteration.size(),
+                    "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = m_iteration.begin();
+    auto iterator_acc = m_accumulation.begin();
     uint64_t avg_max = 0;
-    std::cout << "Perf count data in perfCountEnd node with name " << node->get_friendly_name() << " is:" << std::endl;
-    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
+    for (; iterator_iter != m_iteration.end(); ++iterator_iter, ++iterator_acc) {
         const auto iter = *iterator_iter;
         const auto acc = *iterator_acc;
         uint64_t avg = iter == 0 ? 0 : acc / iter;
         if (avg > avg_max)
             avg_max = avg;
-        std::cout << "accumulated time:" << acc << "ns, iteration:" << iter << " avg time:" << avg << "ns" << " on thread:" << t_num << std::endl;
-        t_num++;
     }
 
     // max time of all threads: combine for reduce max
@@ -50,10 +42,23 @@ void ConsoleDumper::update(const op::PerfCountEnd* node) {
     };
 
     // max accumulation
-    uint64_t acc_max = accumulation.combine(BinaryFunc);
+    uint64_t acc_max = m_accumulation.combine(BinaryFunc);
     std::cout << "max accumulated time:" << acc_max << "ns" << std::endl;
     // max avg
     std::cout << "max avg time:" << avg_max << "ns" << std::endl;
+}
+
+void ConsoleDumper::update(const op::PerfCountEnd* node) {
+    auto accumulation = node->get_accumulation();
+    auto iteration = node->get_iteration();
+    OPENVINO_ASSERT(accumulation.size() == iteration.size(),
+                    "accumulation size should be the same as iteration size in perf_count_end node.");
+    auto iterator_iter = iteration.begin();
+    auto iterator_acc = accumulation.begin();
+    for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
+        m_accumulation.local() += *iterator_acc;
+        m_iteration.local() += *iterator_iter;
+    }
 }
 
 //////////////////utils::CSVDumper///////////////
