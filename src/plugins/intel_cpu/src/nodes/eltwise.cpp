@@ -53,6 +53,10 @@
 #    include "kernels/x64/jit_uni_eltwise_generic.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "kernels/riscv64/jit_uni_eltwise_generic.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
@@ -686,6 +690,7 @@ public:
         }
 #endif  // OPENVINO_ARCH_ARM64
 
+        _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic(jep, eltwise_data));
         if (_pKernel) {
             _pKernel->create_ker();
         }
@@ -1163,7 +1168,6 @@ static Eltwise::executorPtr buildRefExecutor(const EltwiseKey& key) {
             key.eltwise_data.front(),
             key.outBlkDims,
             key.inpDims);
-#
     case ov::element::i32:
         return std::make_shared<BitwiseRefExecutor<element_type_traits<ov::element::i32>::value_type>>(
             key.eltwise_data.front(),
@@ -1457,6 +1461,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #else
     THROW_CPU_NODE_ERR("Unknown CPU architecture");
 #endif
+
+    const bool useJit = getAlgorithm() == Algorithm::EltwiseAdd;
+    implType = useJit ? EltwiseImplType::optimized : EltwiseImplType::reference;
 
 #if defined(OV_CPU_WITH_ACL)
     auto filterPrecision = [&](const ov::element::Type& prc, const ov::element::Type& forcedPrec) {
