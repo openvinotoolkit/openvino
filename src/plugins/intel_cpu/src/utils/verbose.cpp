@@ -105,7 +105,7 @@ void Verbose::printInfo() {
         written_total += size;
     };
 
-    auto formatMemDesc = [&](const dnnl_memory_desc_t& desc, std::string& prefix) {
+    auto formatDnnlMemDesc = [&](const dnnl_memory_desc_t& desc, std::string& prefix) {
         prefix = colorize(BLUE, prefix);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
         shift(written);
@@ -121,20 +121,47 @@ void Verbose::printInfo() {
         shift(written);
     };
 
+    auto formatDefaultMemDesc = [&](const MemoryDescCPtr& desc, std::string& prefix) {
+        prefix = colorize(BLUE, prefix);
+        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
+        shift(written);
+        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
+        shift(written);
+        const auto& prc = desc->getPrecision().to_string();
+        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prc.c_str());
+        shift(written);
+        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
+        shift(written);
+        // mimic dnnl format
+        const auto& dims = desc->getShape().getDims();
+        if (!dims.empty()) {
+            std::string dims_str = dim2str(dims.front());
+            std::for_each(++(dims.begin()), dims.end(), [&dims_str](size_t dim) {
+                dims_str.append("x" + std::to_string(dim));
+            });
+            written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", dims_str.c_str());
+            shift(written);
+        }
+    };
+
     for (size_t i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(node->getParentEdgeAt(i)->getMemory().getDesc().clone())
-                          ->getDnnlDesc()
-                          .get(),
-                      prefix);
+        const auto& desc = node->getParentEdgeAt(i)->getMemory().getDescPtr();
+        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
+            formatDnnlMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc().get(), prefix);
+        } else {
+            formatDefaultMemDesc(desc, prefix);
+        }
     }
 
     for (size_t i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(node->getChildEdgeAt(i)->getMemory().getDesc().clone())
-                          ->getDnnlDesc()
-                          .get(),
-                      prefix);
+        const auto& desc = node->getChildEdgeAt(i)->getMemory().getDescPtr();
+        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
+            formatDnnlMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc().get(), prefix);
+        } else {
+            formatDefaultMemDesc(desc, prefix);
+        }
     }
 
     std::string post_ops;
