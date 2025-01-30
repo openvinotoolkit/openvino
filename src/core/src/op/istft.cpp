@@ -103,41 +103,6 @@ void ISTFT::validate_and_infer_types() {
     set_output_type(0, data_type, output_shapes[0]);
 }
 
-bool ISTFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v16_ISTFT_evaluate);
-    OPENVINO_ASSERT(outputs.size() == 1);
-
-    const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
-    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
-
-    outputs[0].set_shape(output_shape);
-
-    const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
-    const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
-    int64_t length = -1;
-    if (inputs.size() == 5) {
-        length = ov::get_tensor_data_as<int64_t>(inputs[4]).front();
-    }
-
-    ov::reference::istft(inputs[0].data<const float>(),
-                         inputs[1].data<const float>(),
-                         outputs[0].data<float>(),
-                         inputs[0].get_shape(),
-                         inputs[1].get_shape(),
-                         frame_size,
-                         frame_step,
-                         length,
-                         m_center,
-                         m_normalized);
-    return true;
-}
-
-bool ISTFT::has_evaluate() const {
-    OV_OP_SCOPE(v16_ISTFT_has_evaluate);
-    const auto& input_0_et = get_input_element_type(0);
-    return input_0_et == element::f32;
-}
-
 bool ISTFT::get_center() const {
     OV_OP_SCOPE(v16_ISTFT_get_center);
     return m_center;
