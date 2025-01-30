@@ -27,7 +27,7 @@ class SegmentMaxStaticShapeInferenceTest: public OpStaticShapeInferenceTest<op::
 TEST_F(SegmentMaxStaticShapeInferenceTest, segment_ids_from_tensor_accessor) {
     const auto data = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto segment_ids = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
-    const auto op = make_op(data, segment_ids, 0);
+    const auto op = make_op(data, segment_ids, ov::op::FillMode::ZERO);
 
     int64_t segment_ids_val[] = {0, 0, 1, 1, 4, 4, 5, 5, 5, 5};
     auto const_inputs = std::unordered_map<size_t, Tensor>{{1, {element::i64, ov::Shape{10}, segment_ids_val}}};
@@ -44,7 +44,7 @@ TEST_F(SegmentMaxStaticShapeInferenceTest, segment_ids_from_tensor_accessor_with
     const auto data = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto segment_ids = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto num_segments = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
-    const auto op = make_op(data, segment_ids, num_segments, 0);
+    const auto op = make_op(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
 
     int64_t segment_ids_val[] = {0, 0, 1, 1, 4, 4, 5, 5, 5, 5};
     int64_t num_segments_val[] = {6};
@@ -74,9 +74,9 @@ TEST_P(SegmentMaxStaticTestSuite, SegmentMaxStaticShapeInference) {
     if (use_num_segments) {
         const auto& num_segments_val = param.num_segments_val;
         const auto num_segments = std::make_shared<Constant>(element::i32, ov::Shape{}, num_segments_val);
-        op = std::make_shared<op::v16::SegmentMax>(data, segment_ids, num_segments, -30);
+        op = std::make_shared<op::v16::SegmentMax>(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
     } else {
-        op = std::make_shared<op::v16::SegmentMax>(data, segment_ids, -30);
+        op = std::make_shared<op::v16::SegmentMax>(data, segment_ids, ov::op::FillMode::ZERO);
     }
 
     const auto input_shapes = use_num_segments

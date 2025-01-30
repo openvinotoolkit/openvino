@@ -18,11 +18,11 @@ TEST(attributes, segment_max_v16_with_num_segments) {
     const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::Shape{3});
     const auto num_segments = std::make_shared<Parameter>(ov::element::i64, ov::Shape{});
 
-    const auto op = std::make_shared<SegmentMax>(data, segment_ids, num_segments, 0);
+    const auto op = std::make_shared<SegmentMax>(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
     NodeBuilder builder(op, {data, segment_ids, num_segments});
     auto g_op = ov::as_type_ptr<SegmentMax>(builder.create());
 
-    EXPECT_EQ(g_op->get_empty_segment_value(), op->get_empty_segment_value());
+    EXPECT_EQ(g_op->get_fill_mode(), op->get_fill_mode());
 }
 
 TEST(attributes, segment_max_v16_without_num_segments) {
@@ -30,9 +30,9 @@ TEST(attributes, segment_max_v16_without_num_segments) {
     const auto data = std::make_shared<Parameter>(ov::element::i32, ov::PartialShape{3, 12, 81});
     const auto segment_ids = std::make_shared<Parameter>(ov::element::i64, ov::Shape{3});
 
-    const auto op = std::make_shared<SegmentMax>(data, segment_ids, 0);
+    const auto op = std::make_shared<SegmentMax>(data, segment_ids, ov::op::FillMode::LOWEST);
     NodeBuilder builder(op, {data, segment_ids});
     auto g_op = ov::as_type_ptr<SegmentMax>(builder.create());
 
-    EXPECT_EQ(g_op->get_empty_segment_value(), op->get_empty_segment_value());
+    EXPECT_EQ(g_op->get_fill_mode(), op->get_fill_mode());
 }
