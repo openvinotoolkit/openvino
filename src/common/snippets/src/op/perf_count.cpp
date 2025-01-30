@@ -173,7 +173,7 @@ PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
     : PerfCountEndBase({pc_begin}),
       accumulation(0ul),
       iteration(0u),
-      dumpers(dumpers) {
+      dumpers(std::move(dumpers)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
     for (const auto& dumper : dumpers) {
