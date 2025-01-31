@@ -181,6 +181,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define CREATE_DEBUG_TIMER(x) PrintableTimer x
 
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
+
 /*
  * important debugging tools for accuracy issues
  *   OV_CPU_INFER_PRC_POS_PATTERN : positive regex pattern to filter node type & orgname.
@@ -285,6 +287,8 @@ bool getEnvBool(const char* name);
 #    define DEBUG_LOG_EXT(name, ...)
 
 #    define CREATE_DEBUG_TIMER(x)
+
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
 

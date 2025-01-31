@@ -183,6 +183,7 @@ Plugin::Plugin()
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
@@ -808,7 +809,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             npu_plugin_properties.insert(*it);
         }
     }
-    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+
+    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
+    // ov::internal::cached_model_buffer has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (npu_plugin_properties.count(ov::internal::cached_model_buffer.name())) {
+        modelBuffer =
+            npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        npu_plugin_properties.erase(ov::internal::cached_model_buffer.name());
+    }
+
+    const auto propertiesMap = any_copy(npu_plugin_properties);
 
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
@@ -837,16 +848,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Incompatible blob version!");
         }
 
+        std::unique_ptr<BlobContainer> blobPtr;
         auto graphSize = storedMeta->get_blob_size();
 
-        std::vector<uint8_t> blob(graphSize);
-        stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-        if (!stream) {
-            OPENVINO_THROW("Failed to read data from stream!");
-        }
-        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+        if (modelBuffer == nullptr) {
+            std::vector<uint8_t> blob(graphSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            if (!stream) {
+                OPENVINO_THROW("Failed to read data from stream!");
+            }
+            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto graph = compiler->parse(std::move(blob), localConfig);
+            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+        } else {
+            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+        }
+
+        auto graph = compiler->parse(std::move(blobPtr), localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

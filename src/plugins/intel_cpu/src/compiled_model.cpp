@@ -57,8 +57,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
-    if (!core)
+    if (!core) {
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
+    }
 
     IStreamsExecutor::Config executor_config;
     if (m_cfg.exclusiveAsyncRequests) {
@@ -81,10 +82,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_callback_executor = m_task_executor;
     }
 
-    if (m_task_executor)
+    if (m_task_executor) {
         set_task_executor(m_task_executor);
-    if (m_callback_executor)
+    }
+    if (m_callback_executor) {
         set_callback_executor(m_callback_executor);
+    }
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
@@ -208,15 +211,17 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    if (m_graphs.empty())
+    if (m_graphs.empty()) {
         OPENVINO_THROW("No graph was found");
+    }
 
     return get_graph()._graph.dump();
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (m_graphs.empty())
+    if (m_graphs.empty()) {
         OPENVINO_THROW("No graph was found");
+    }
 
     if (name == ov::loaded_from_cache) {
         return m_loaded_from_cache;
@@ -275,7 +280,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::model_name)::value_type(modelName);
     } else if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig.get_streams();
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(
+        return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig.get_streams();
@@ -283,22 +288,22 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig.get_threads();
-        return decltype(ov::inference_num_threads)::value_type(num_threads);
+        return static_cast<decltype(ov::inference_num_threads)::value_type>(num_threads);
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
-        return decltype(ov::enable_profiling)::value_type(perfCount);
+        return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
     } else if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
-        return decltype(ov::hint::performance_mode)::value_type(config.hintPerfMode);
+        return static_cast<decltype(ov::hint::performance_mode)::value_type>(config.hintPerfMode);
     } else if (name == ov::log::level) {
-        return decltype(ov::log::level)::value_type(config.logLevel);
+        return static_cast<decltype(ov::log::level)::value_type>(config.logLevel);
     } else if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
-        return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
+        return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(use_pin);
     } else if (name == ov::hint::enable_cpu_reservation.name()) {
         const bool use_reserve = config.enableCpuReservation;
-        return decltype(ov::hint::enable_cpu_reservation)::value_type(use_reserve);
+        return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(use_reserve);
     } else if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
@@ -307,21 +312,22 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
-        return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);
+        return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(use_ht);
     } else if (name == ov::hint::execution_mode) {
         return config.executionMode;
     } else if (name == ov::hint::num_requests) {
-        return decltype(ov::hint::num_requests)::value_type(config.hintNumRequests);
+        return static_cast<decltype(ov::hint::num_requests)::value_type>(config.hintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
     } else if (name == ov::intel_cpu::denormals_optimization) {
-        return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode ==
-                                                                           Config::DenormalsOptMode::DO_On);
+        return static_cast<decltype(ov::intel_cpu::denormals_optimization)::value_type>(
+            config.denormalsOptMode == Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
-        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
+        return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
     } else if (name == ov::hint::dynamic_quantization_group_size) {
-        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(config.fcDynamicQuantizationGroupSize);
+        return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(
+            config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
     } else if (name == ov::key_cache_precision) {
@@ -329,9 +335,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::value_cache_precision) {
         return decltype(ov::value_cache_precision)::value_type(config.valueCachePrecision);
     } else if (name == ov::key_cache_group_size) {
-        return decltype(ov::key_cache_group_size)::value_type(config.keyCacheGroupSize);
+        return static_cast<decltype(ov::key_cache_group_size)::value_type>(config.keyCacheGroupSize);
     } else if (name == ov::value_cache_group_size) {
-        return decltype(ov::value_cache_group_size)::value_type(config.valueCacheGroupSize);
+        return static_cast<decltype(ov::value_cache_group_size)::value_type>(config.valueCacheGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }
