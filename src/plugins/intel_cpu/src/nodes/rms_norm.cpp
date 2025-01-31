@@ -122,7 +122,7 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     : Node(op, context, RMSNormShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        THROW_CPU_NODE_ERR(errorMessage);
     }
     const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
     m_eps = static_cast<float>(rms->get_epsilon());

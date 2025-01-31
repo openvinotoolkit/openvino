@@ -169,7 +169,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
-    OPENVINO_THROW("CPU plugin: Subgraphs code-generator is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -281,7 +281,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                     ? context->getConfig().inferencePrecision
                     : originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0) {
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
             }
 
             const auto equalPrecisions =
@@ -301,7 +301,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto precision = getOriginalOutputPrecisionAtPort(i);
             if (supportedPrecisions.count(precision) == 0) {
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
             }
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;

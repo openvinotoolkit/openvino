@@ -485,7 +485,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 void ROIPooling::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
-        OPENVINO_THROW("CPU ROI Pooling node with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 
     refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
@@ -512,7 +512,7 @@ void ROIPooling::execute(const dnnl::stream& strm) {
         const auto& dstMemory = getChildEdgeAt(0)->getMemory();
         execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
-        OPENVINO_THROW("Can't execute ROI Pooling node. Primitive wasn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -525,16 +525,16 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr1 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr0 || !srcMemPtr0->isDefined()) {
-        OPENVINO_THROW("Input memory is undefined.");
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
     }
     if (!srcMemPtr1 || !srcMemPtr1->isDefined()) {
-        OPENVINO_THROW("Input memory is undefined.");
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
     }
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination is undefined.");
+        THROW_CPU_NODE_ERR("Destination is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();

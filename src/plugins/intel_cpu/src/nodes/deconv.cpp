@@ -290,7 +290,7 @@ void Deconvolution::createDnnlCompatibleWeights() {
     MemoryPtr blob = getSrcMemoryAtPort(1);
 
     if (!blob) {
-        OPENVINO_THROW("Cannot get const weights blob for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Cannot get const weights blob.");
     }
 
     weightIsConst = getParentEdgeAt(1)->getParent()->isConstant();
@@ -691,11 +691,11 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -728,10 +728,8 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
         for (size_t i = 0; i < inputShapes.size(); ++i) {
             if (port_mask & 1 << i) {
                 if (outSpDims.size() != getInputShapeAtPort(i).getStaticDims()[0]) {
-                    OPENVINO_THROW("Can't compute output shape for node with name: ",
-                                   getName(),
-                                   ", because the node has 'output_shape' input, but provided output spatial dims "
-                                   "number is incorrect");
+                    THROW_CPU_NODE_ERR(
+                        "the node has 'output_shape' input, but provided output spatial dims number is incorrect");
                 }
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
@@ -745,10 +743,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
 
     auto result = shapeInference->infer(inputShapesRefs, inputValues);
     if (ShapeInferStatus::success != result.status) {
-        OPENVINO_THROW("Unexpected: Unexpected shape inference result status in node of type ",
-                       getTypeStr(),
-                       " with name ",
-                       getName());
+        THROW_CPU_NODE_ERR("Unexpected shape inference result status");
     }
     return std::move(result.dims.back());
 }
@@ -769,7 +764,7 @@ void Deconvolution::execute(const dnnl::stream& strm) {
     }
 
     if (!execPtr) {
-        OPENVINO_THROW("Can't execute Deconvolution node with name: ", getName(), ", because executor is not compiled");
+        THROW_CPU_NODE_ERR("executor is not compiled");
     }
 
     execPtr->exec(primArgs, strm);
@@ -904,17 +899,17 @@ void Deconvolution::prepareParams() {
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
     }
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        OPENVINO_THROW("Input memory is undefined.");
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
     }
     if (!wghMemPtr || !wghMemPtr->isDefined()) {
-        OPENVINO_THROW("Weight memory is undefined.");
+        THROW_CPU_NODE_ERR("Weight memory is undefined.");
     }
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     if (useACL) {

@@ -54,7 +54,7 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul) {
-        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
+        THROW_CPU_NODE_ERR("layer has indices data with invalid rank.");
     }
 }
 
@@ -63,7 +63,6 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions = {ov::element::f32,
                                                                     ov::element::i8,
                                                                     ov::element::u8,
@@ -75,7 +74,7 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
     }
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
@@ -83,7 +82,7 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
                                                                                ov::element::u8,
                                                                                ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     }
 
@@ -112,7 +111,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     int& weightsIdx,
                                     bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag) {
-        OPENVINO_THROW("Invalid embedding bag index.");
+        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
 
     withWeight = true;
