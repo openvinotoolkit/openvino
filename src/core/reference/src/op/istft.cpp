@@ -28,7 +28,7 @@ void istft(const float* in_data,
     const size_t frames_axis = 1 + (is_data_3D ? 0 : 1);
     const size_t batch_size = is_data_3D ? 1 : data_shape[0];
 
-    const auto sqrt_frame_size = std::sqrt(frame_size);
+    const auto sqrt_frame_size = static_cast<float>(std::sqrt(frame_size));
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
