@@ -163,7 +163,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     const auto in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
     const auto in1_shape = snippets::utils::get_planar_vdims(input_pds[1]->get_shape(), input_pds[1]->get_layout());
     auto in0_subtensor = input_pds[0]->get_subtensor();
+    OPENVINO_ASSERT(!in0_subtensor.empty(), "Incorrect in0 subtensor size");
     auto in1_subtensor = input_pds[1]->get_subtensor();
+    OPENVINO_ASSERT(!in1_subtensor.empty(), "Incorrect in1 subtensor size");
 
     // Need to update M, K, N
     // 1. If the original value in subtensor is `FULL_DIM`, it means that

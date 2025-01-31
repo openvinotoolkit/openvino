@@ -51,10 +51,13 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
             continue;
         }
 
-        // TODO: get input port descriptor
         const auto& gemm_in0_desc = expr->get_input_port_descriptor(0);
         const auto& gemm_in1_desc = expr->get_input_port_descriptor(1);
         const auto& gemm_out_desc = expr->get_output_port_descriptor(0);
+
+        const auto in0_subtensor = gemm_in0_desc->get_subtensor();
+        const auto in1_subtensor = gemm_in1_desc->get_subtensor();
+        const auto out_subtensor = gemm_out_desc->get_subtensor();
 
         // const auto& interm_connector = expr->get_input_port_connector(0);
         // const auto gemm_expr = interm_connector->get_source().get_expr();
@@ -85,13 +88,14 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
         // Replace GemmCPU node with BrgemmCPU
         auto live_regs = expr->get_live_regs();
         expr_it = linear_ir.replace_with_node({expr}, brgemm_node, expr->get_loop_ids(), linear_ir.find(expr));
-        expr_it->get()->set_live_regs(std::move(live_regs));
-        const auto loop_ids2 = (*expr_it)->get_loop_ids();
+        const auto& updated_expr = *expr_it;
+        updated_expr->set_live_regs(std::move(live_regs));
+        updated_expr->get_input_port_descriptor(0)->set_subtensor(in0_subtensor);
+        updated_expr->get_input_port_descriptor(1)->set_subtensor(in1_subtensor);
+        updated_expr->get_output_port_descriptor(0)->set_subtensor(out_subtensor);
+
+        const auto loop_ids2 = updated_expr->get_loop_ids();
         const auto& inner_loop_info2 = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids2.front());
-        fprintf(stderr, "inner_loop_info2 for loop id %zu (inputs count: %zu):\n", loop_ids2.front(), inner_loop_info2->get_input_ports_info().size());
-        for (size_t i = 0; i < inner_loop_info2->get_input_ports_info().size(); ++i) {
-            fprintf(stderr, "Input port %zu is_processed: %d\n", i, inner_loop_info2->get_input_ports_info()[i].port.is_processed());
-        }
 
         modified |= true;
     }
