@@ -170,6 +170,8 @@ private:
     void init_brgemm_copy_b_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                                    const BrgemmCopyBKernelConfig& conf) const;
 
+    std::set<snippets::Reg> get_live_regs() const;
+
     static constexpr auto abi_param_regs = dnnl::impl::cpu::x64::abi_param_regs;
     const Xbyak::Reg64 src_reg = abi_param2;
     const Xbyak::Reg64 tr_src_reg = abi_param3;
