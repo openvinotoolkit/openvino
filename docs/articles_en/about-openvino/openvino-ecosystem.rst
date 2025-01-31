@@ -33,7 +33,7 @@ models. Check the LLM-powered Chatbot Jupyter notebook to see how GenAI works.
 
 | **Neural Network Compression Framework**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/nncf>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`
 
 A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy
 drop. NNCF applies quantization, filter pruning, binarization, and sparsity algorithms to PyTorch
@@ -43,7 +43,7 @@ and TensorFlow models during training.
 
 | **OpenVINO Model Server**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/model_server>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/ovms_what_is_openvino_model_server.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/ovms_what_is_openvino_model_server.html>`
 
 A high-performance system that can be used to access the host models via request to the model
 server.
@@ -52,7 +52,7 @@ server.
 
 | **OpenVINO Notebooks**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_notebooks>`
-  :bdg-link-success:`Jupyter Notebook Collection <https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html>`
+  :bdg-link-success:`Jupyter Notebook Collection <https://docs.openvino.ai/2025/learn-openvino/interactive-tutorials-python.html>`
 
 A collection of Jupyter notebooks for learning and experimenting with the OpenVINO™ Toolkit.
 |hr|
@@ -68,7 +68,7 @@ without the need to convert.
 
 | **OpenVINO Training Extensions**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/training_extensions>`
-  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/openvino-training-extensions.html>`
+  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2025/about-openvino/openvino-ecosystem/openvino-training-extensions.html>`
 
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™
 toolkit for optimized inference.
@@ -77,7 +77,7 @@ toolkit for optimized inference.
 
 | **OpenVINO Security Addon**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/security_addon>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/openvino-security-add-on.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/about-openvino/openvino-ecosystem/openvino-security-add-on.html>`
 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and
 secure model execution.
@@ -86,7 +86,7 @@ secure model execution.
 
 | **Datumaro**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/datumaro>`
-  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/datumaro.html>`
+  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2025/about-openvino/openvino-ecosystem/datumaro.html>`
 
 A framework and a CLI tool for building, transforming, and analyzing datasets.
 |hr|

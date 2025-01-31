@@ -123,10 +123,12 @@ std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisi
     const std::shared_ptr<ov::Node>& op) noexcept {
     std::set<std::vector<ov::element::Type>> types;
     if (ov::is_type<snippets::op::Brgemm>(op)) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
             types.insert({element::f16, element::f16});
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        }
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             types.insert({element::bf16, element::bf16});
+        }
     }
     return types;
 }
