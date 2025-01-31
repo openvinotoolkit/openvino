@@ -45,7 +45,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-          
+
       - name: Get target branch
         id: set_target_branch
         run: |
@@ -192,7 +192,7 @@ jobs:
           sparse-checkout: |
             src/bindings/js
           path: 'openvino'
-        
+
       - name: Download OpenVINO artifacts (JS)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -223,7 +223,7 @@ jobs:
         run: call npm test
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
 
       - name: E2E of openvino-node package
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
