@@ -82,6 +82,7 @@ SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfi
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
 
+    m_debug_snippet_config = snippet_config;
     m_tensor_rank = snippet_config->tensor_rank;
     m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(),
                                             m_parallel_exec_domain.cend(),
@@ -93,6 +94,13 @@ SubgraphBaseExecutor::SubgraphBaseExecutor(const std::shared_ptr<CPURuntimeConfi
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size),
                     "Undefined buffer scratchpad size!");
     m_internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
+}
+
+void SubgraphBaseExecutor::print_shapes() {
+    for (auto d : m_debug_snippet_config->master_shape) {
+        std::cout << d << ", ";
+    }
+    std::cout << "\n";
 }
 
 void SubgraphBaseExecutor::init_parallel_domain(const std::vector<size_t>& master_shape,

@@ -50,6 +50,7 @@ public:
                          std::vector<ptrdiff_t> start_offset_out,
                          const BufferScratchpadAllocator& allocator,
                          const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
+    void print_shapes();
     virtual ~SubgraphBaseExecutor() = default;
 
     virtual void execute(const dnnl::stream& strm,
@@ -91,6 +92,7 @@ protected:
     size_t m_tensor_rank = 0;
 
     const size_t rank6D = 6;
+    std::shared_ptr<CPURuntimeConfig> m_debug_snippet_config;
 
     // Count of threads for parallel_nt
     int m_nthreads = 0;
