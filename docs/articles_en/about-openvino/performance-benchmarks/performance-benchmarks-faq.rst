@@ -27,7 +27,7 @@ Performance Information F.A.Q.
 
    All of the performance benchmarks on traditional network models are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
-   called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
+   called :doc:`benchmark_app <../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 
    For diffusers (Stable-Diffusion) and foundational models (aka LLMs) please use the OpenVINO GenAI
    opensource repo `OpenVINO GenAI tools/llm_bench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/llm_bench>`__
@@ -97,7 +97,7 @@ Performance Information F.A.Q.
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
-   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>` article.
+   For more details, see the :doc:`Supported Devices <../../documentation/compatibility-and-support/supported-devices>` article.
 
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?

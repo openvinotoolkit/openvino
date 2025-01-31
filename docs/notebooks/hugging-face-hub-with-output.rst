@@ -96,10 +96,10 @@ Imports
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     import numpy as np
     import torch
-    
+
     from transformers import AutoModelForSequenceClassification
     from transformers import AutoTokenizer
 
@@ -122,9 +122,9 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 .. code:: ipython3
 
     MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-    
+
     tokenizer = AutoTokenizer.from_pretrained(MODEL, return_dict=True)
-    
+
     # The torchscript=True flag is used to ensure the model outputs are tuples
     # instead of ModelOutput (which causes JIT errors).
     model = AutoModelForSequenceClassification.from_pretrained(MODEL, torchscript=True)
@@ -151,20 +151,20 @@ Let’s do a classification of a simple prompt below.
 .. code:: ipython3
 
     text = "HF models run perfectly with OpenVINO!"
-    
+
     encoded_input = tokenizer(text, return_tensors="pt")
     output = model(**encoded_input)
     scores = output[0][0]
     scores = torch.softmax(scores, dim=0).numpy(force=True)
-    
-    
+
+
     def print_prediction(scores):
         for i, descending_index in enumerate(scores.argsort()[::-1]):
             label = model.config.id2label[descending_index]
             score = np.round(float(scores[descending_index]), 4)
             print(f"{i+1}) {label} {score}")
-    
-    
+
+
     print_prediction(scores)
 
 
@@ -180,7 +180,7 @@ Converting the Model to OpenVINO IR format
 
 We use the OpenVINO `Model
 conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 to convert the model (this one is implemented in PyTorch) to OpenVINO
 Intermediate Representation (IR).
 
@@ -190,9 +190,9 @@ Note how we reuse our real ``encoded_input``, passing it to the
 .. code:: ipython3
 
     import openvino as ov
-    
+
     save_model_path = Path("./models/model.xml")
-    
+
     if not save_model_path.exists():
         ov_model = ov.convert_model(model, example_input=dict(encoded_input))
         ov.save_model(ov_model, save_model_path)
@@ -221,16 +221,16 @@ First, we pick a device to do the model inference
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import device_widget
-    
+
     device = device_widget()
-    
+
     device
 
 
@@ -248,16 +248,16 @@ model inference.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     compiled_model = core.compile_model(save_model_path, device.value)
-    
+
     # Compiled model call is performed using the same parameters as for the original model
     scores_ov = compiled_model(encoded_input.data)[0]
-    
+
     scores_ov = torch.softmax(torch.tensor(scores_ov[0]), dim=0).detach().numpy()
-    
+
     print_prediction(scores_ov)
 
 
@@ -363,7 +363,7 @@ inference run.
 .. code:: ipython3
 
     model = OVModelForSequenceClassification.from_pretrained(MODEL, export=True, device=device.value)
-    
+
     # The save_pretrained() method saves the model weights to avoid conversion on the next load.
     model.save_pretrained("./models/optimum_model")
 
@@ -445,17 +445,17 @@ Full list of supported arguments available via ``--help``
                                        [--disable-stateful]
                                        [--disable-convert-tokenizer]
                                        output
-    
+
     optional arguments:
       -h, --help            show this help message and exit
-    
+
     Required arguments:
       -m MODEL, --model MODEL
                             Model ID on huggingface.co or path on disk to load
                             model from.
       output                Path indicating the directory where to store the
                             generated OV model.
-    
+
     Optional arguments:
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
@@ -631,7 +631,7 @@ Model inference is exactly the same as for the original model!
     output = model(**encoded_input)
     scores = output[0][0]
     scores = torch.softmax(scores, dim=0).numpy(force=True)
-    
+
     print_prediction(scores)
 
 

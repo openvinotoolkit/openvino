@@ -73,9 +73,11 @@ size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowe
 size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
     OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "MemoryAccess must have one consumer");
     const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
-    for (const auto& consumer : consumers)
-        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(consumer.get_expr()))
+    for (const auto& consumer : consumers) {
+        if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(consumer.get_expr())) {
             return buffer->get_cluster_id();
+        }
+    }
     return SIZE_MAX;
 }
 
@@ -83,8 +85,9 @@ std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
     OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
                               "If offset is dynamic, memory emitter need to have one aux gpr at least!");
     auto available_aux_gprs = aux_gpr_idxs;
-    if (is_offset_runtime)
+    if (is_offset_runtime) {
         available_aux_gprs.pop_back();
+    }
     return available_aux_gprs;
 }
 
@@ -138,11 +141,12 @@ void jit_load_memory_emitter::emit_data() const {
 jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::BroadcastLoad>(expr->get_node()), "expects BroadcastLoad node");
-    if (src_prc != dst_prc)
+    if (src_prc != dst_prc) {
         OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
                                  src_prc.get_type_name(),
                                  " and ",
                                  dst_prc.get_type_name());
+    }
 }
 
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
