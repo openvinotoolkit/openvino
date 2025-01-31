@@ -15,18 +15,6 @@
 
 namespace ov {
 
-template <class T>
-struct BasicAllocator : public std::allocator<T> {
-    using value_type = typename std::allocator<T>::value_type;
-    using pointer = typename std::allocator<T>::pointer;
-    using const_pointer = typename std::allocator<T>::const_pointer;
-
-    template <class U>
-    struct rebind {
-        typedef BasicAllocator<U> other;
-    };
-};
-
 template <typename T, class A = std::allocator<T>>
 using inplace_vector = absl::InlinedVector<T, 8, A>;
 
