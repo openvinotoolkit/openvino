@@ -164,7 +164,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
-    if (!info.supports_immad || !is_llm)
+    if (!is_llm)
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
 
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
@@ -182,7 +182,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
     const auto& ops = model.get_ops();
 
-    auto process_op = [this](std::shared_ptr<Node> op) {
+    std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {
         if (requires_new_shape_infer(op)) {
             m_allow_new_shape_infer = true;
         }
@@ -197,20 +197,18 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
             m_use_onednn = true;
         }
-    };
 
-    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
-    // So, do not check allow_new_shape_infer for inner program build
-    for (const auto& op : ops) {
         if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 for (auto& sub_op : sub_graph->get_ops()) {
                     process_op(sub_op);
                 }
             }
-        } else {
-            process_op(op);
         }
+    };
+
+    for (const auto& op : ops) {
+        process_op(op);
     }
 
     m_optimize_data = true;

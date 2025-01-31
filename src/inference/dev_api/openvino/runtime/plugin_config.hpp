@@ -134,9 +134,9 @@ struct ConfigOptionBase {
     explicit ConfigOptionBase() {}
     virtual ~ConfigOptionBase() = default;
 
-    virtual void set_any(const ov::Any any) = 0;
+    virtual void set_any(const ov::Any& any) = 0;
     virtual ov::Any get_any() const = 0;
-    virtual bool is_valid_value(ov::Any val) = 0;
+    virtual bool is_valid_value(const ov::Any& val) const = 0;
     virtual OptionVisibility get_visibility() const = 0;
 };
 
@@ -147,7 +147,7 @@ struct ConfigOption : public ConfigOptionBase {
     T value;
     constexpr static const auto visibility = visibility_;
 
-    void set_any(const ov::Any any) override {
+    void set_any(const ov::Any& any) override {
         if (validator)
             OPENVINO_ASSERT(validator(any.as<T>()), "Invalid value: ", any.as<std::string>());
         value = any.as<T>();
@@ -157,7 +157,7 @@ struct ConfigOption : public ConfigOptionBase {
         return ov::Any(value);
     }
 
-    bool is_valid_value(ov::Any val) override {
+    bool is_valid_value(const ov::Any& val) const override {
         try {
             auto v = val.as<T>();
             return validator ? validator(v) : true;
