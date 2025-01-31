@@ -13,12 +13,36 @@ namespace ov {
 namespace test {
 namespace Pooling {
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D, MaxPoolingV14LayerCPUTest,
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D_2x2kernel = {
+        maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
+                                                          ov::element::Type_t::i32, 0,
+                                                          ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_UPPER },
+        maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
+                                                          ov::element::Type_t::i32, 0,
+                                                          ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_LOWER }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_2x2Kernel, MaxPoolingV14LayerCPUTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV144D()),
+                                 ::testing::ValuesIn(paramsMaxV144D_2x2kernel),
                                  ::testing::ValuesIn(inputShapes4D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(filterCPUInfo({CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}})),
+                                 ::testing::ValuesIn(filterCPUInfo(vecCpuConfigsFusing_4D())),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
+
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D_non2x2kernel = {
+            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_non2x2Kernel_ref, MaxPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV144D_non2x2kernel),
+                                 ::testing::ValuesIn(inputShapes4D()),
+                                 ::testing::ValuesIn((inpOutPrecision())),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"}),
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 

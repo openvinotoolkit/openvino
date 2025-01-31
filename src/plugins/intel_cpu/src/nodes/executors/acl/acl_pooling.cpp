@@ -55,8 +55,9 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
+    // TORCH_CEIL is mapped to ACL CEIL type
     DimensionRoundingType round =
-        (poolingAttrs.rounding == op::RoundingType::CEIL) ? DimensionRoundingType::CEIL : DimensionRoundingType::FLOOR;
+        (poolingAttrs.rounding == op::RoundingType::FLOOR) ? DimensionRoundingType::FLOOR : DimensionRoundingType::CEIL;
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {

@@ -360,8 +360,6 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*u8.*)");
-    // Issue: 161622
-    retVector.emplace_back(R"(smoke_MaxPoolV14_CPU_4D/MaxPoolingV14LayerCPUTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?\]\)_TS=\(1.32.8.8\)_\(1.21.8.4\)_\(2.8.8.12\)_\(1.96.125.125\)_Prc=f32_MaxPool_K\(2.2\)_S\(2.2\)_D\(1.1\)_PB\(0.0\)_PE\(0.0\)_Rounding=ceil_torch_AutoPad=same_lower__primitive=ref_any)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
