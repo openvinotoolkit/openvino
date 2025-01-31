@@ -252,20 +252,8 @@ std::shared_ptr<CommandQueue> CommandQueuePool::getCommandQueue(
         }
     }  // otherwise create a new object
 
-    // Create shared_ptr with a deleter
     _log.debug("Create Command Queue");
-    auto new_obj = std::shared_ptr<CommandQueue>(
-        new CommandQueue(init_structs, desc, group_ordinal),
-        [this, hash](CommandQueue* ptr) {
-            std::lock_guard<std::mutex> lock(_mutex);
-            if (_pool.at(hash).lock()) {
-                _log.debug("Don't destroy the command queue in case the shared ptr is in use!");
-                return;
-            }
-            _pool.erase(hash);
-            _log.debug("Destroy Command Queue");
-            delete ptr;
-        });
+    auto new_obj = std::make_shared<CommandQueue>(init_structs, desc, group_ordinal);
 
     auto pair = std::make_pair(hash, new_obj);
     _pool.emplace(pair);
