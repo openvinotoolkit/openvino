@@ -36,9 +36,9 @@ using namespace ov::util;
 
 namespace {
 /**
- * @brief The function deserialize tensor names.
+ * @brief Function deserializing tensor names.
  *
- * The each tensor names is separated be comma. The escaped commas in tensor names are replaced by actual comma.
+ * Each tensor names are separated by comma. Escaped commas in tensor names are replaced by actual comma.
  *
  * @param tensor_names A string view to serialized tensor names.
  * @return A set of unique tensor names.

@@ -1437,7 +1437,7 @@ TEST_F(IRFrontendTests, model_output_name_with_comma) {
                 </port>
             </output>
         </layer>
-        <layer name="output" type="Result" id="2" version="opset1" output_names="relu\,t,custom\,name">
+        <layer name="output" type="Result" id="2" version="opset1" output_names="relu\,t,custom\, name">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -1460,7 +1460,7 @@ TEST_F(IRFrontendTests, model_output_name_with_comma) {
     ASSERT_TRUE(!!model);
 
     {
-        const auto output_tensor = model->output("custom,name");
+        const auto output_tensor = model->output("custom, name");
         EXPECT_EQ(output_tensor.get_names().size(), 2);
         EXPECT_EQ(output_tensor.get_node()->get_friendly_name(), "output");
     }
