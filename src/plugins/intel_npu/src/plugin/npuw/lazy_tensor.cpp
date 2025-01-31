@@ -74,6 +74,7 @@ struct Const {
         write(stream, m_cached_type.to_string());
         write(stream, m_cached_shape);
         write(stream, m_offset);
+        write(stream, m_offset_is_set);
         write(stream, m_byte_size);
     }
     static Const deserialize(std::istream& stream) {
@@ -85,6 +86,7 @@ struct Const {
         c.m_cached_type = ov::element::Type(type_str);
         read(stream, c.m_cached_shape);
         read(stream, c.m_offset);
+        read(stream, c.m_offset_is_set);
         read(stream, c.m_byte_size);
         return c;
     }
