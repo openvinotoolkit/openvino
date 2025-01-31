@@ -299,6 +299,10 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
 }
 
 std::set<snippets::Reg> BrgemmCopyBKernel::get_live_regs() const {
+    // Only the registers `src_reg`, `tr_src_reg` and `comp_reg` should be
+    // saved on each `jit_brgemm_matmul_copy_b_t` binary call.
+    // They're ABI parameter registers (caller saved). So we have to manually
+    // spills only them on each `jit_brgemm_matmul_copy_b_t` binary call
     return {{snippets::RegType::gpr, static_cast<size_t>(src_reg.getIdx())},
             {snippets::RegType::gpr, static_cast<size_t>(tr_src_reg.getIdx())},
             {snippets::RegType::gpr, static_cast<size_t>(comp_reg.getIdx())}};
