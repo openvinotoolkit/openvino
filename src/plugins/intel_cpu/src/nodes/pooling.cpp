@@ -752,7 +752,7 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     for (auto& node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, 1);
             continue;
         }
 

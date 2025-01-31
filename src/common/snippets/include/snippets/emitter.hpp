@@ -60,8 +60,8 @@ public:
      */
     virtual void emit_code(const std::vector<size_t>& in,
                            const std::vector<size_t>& out,
-                           const std::vector<size_t>& pool = {},
-                           const std::vector<size_t>& gpr  = {}) const = 0;
+                           const std::vector<size_t>& pool,
+                           const std::vector<size_t>& gpr) const = 0;
 
     /**
      * @brief called by generator to generate data section, if needed for a specific operation

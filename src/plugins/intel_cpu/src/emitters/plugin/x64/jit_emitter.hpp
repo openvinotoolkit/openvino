@@ -49,8 +49,8 @@ public:
 
     void emit_code(const std::vector<size_t>& in_idxs,
                    const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
+                   const std::vector<size_t>& pool_vec_idxs,
+                   const std::vector<size_t>& pool_gpr_idxs) const override;
     void emit_data() const override;
 
     virtual size_t get_inputs_num() const = 0;

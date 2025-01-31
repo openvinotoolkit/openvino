@@ -273,7 +273,9 @@ void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
     gen.vmovdqu(f8vec, gen.xword[src]);
     cvt.get_f8_e4m3_emu()->vcvt_f8_to_f32(f32vec, f8vec);
     cvt.get_uni_vcvtneps2bf16()->emit_code({static_cast<size_t>(f32vec.getIdx())},
-                                           {static_cast<size_t>(f16vec.getIdx())});
+                                           {static_cast<size_t>(f16vec.getIdx())},
+                                           {},
+                                           {});
     gen.vmovdqu(gen.yword[dst], f16vec);
 }
 
@@ -349,7 +351,9 @@ void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
     gen.vmovdqu(f8vec, gen.xword[src]);
     cvt.get_f8_e5m2_emu()->vcvt_f8_to_f32(f32vec, f8vec);
     cvt.get_uni_vcvtneps2bf16()->emit_code({static_cast<size_t>(f32vec.getIdx())},
-                                           {static_cast<size_t>(f16vec.getIdx())});
+                                           {static_cast<size_t>(f16vec.getIdx())},
+                                           {},
+                                           {});
     gen.vmovdqu(gen.yword[dst], f16vec);
 }
 

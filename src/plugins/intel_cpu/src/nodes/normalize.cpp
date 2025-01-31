@@ -591,7 +591,9 @@ private:
             uni_vmovups(op, vmm_dst);
         } else if (dst_dt == memory::data_type::bf16) {
             uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                         {static_cast<size_t>(ymm_dst.getIdx())});
+                                         {static_cast<size_t>(ymm_dst.getIdx())},
+                                         {},
+                                         {});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -907,13 +909,13 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
     for (auto& node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, 1);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs, 1);
             continue;
         }
 

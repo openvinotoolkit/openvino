@@ -2275,13 +2275,13 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
     for (auto& node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, 1);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, 1);
             continue;
         }
         OPENVINO_THROW("Fusing of ",

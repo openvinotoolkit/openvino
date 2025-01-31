@@ -37,7 +37,7 @@ struct PortMap {
 class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
-    virtual void execute(const dnnl::stream& strm, int n_iter = -1) = 0;
+    virtual void execute(const dnnl::stream& strm, int n_iter) = 0;
 
 protected:
     dnnl::primitive reorder;
