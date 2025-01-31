@@ -60,7 +60,9 @@ TEST_P(range_si_test, shape_infer) {
         auto in_layout = input_layouts[idx];
         if (in_layout.is_static() && (idx < p.vals.size())) {
             auto prim_mem = engine.allocate_memory(in_layout);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             ASSERT_NE(p.out_data_type, data_types::undefined);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             switch (p.out_data_type) {
                 case data_types::f16:
                     set_values(prim_mem, {ov::float16(p.vals[idx]).to_bits()});

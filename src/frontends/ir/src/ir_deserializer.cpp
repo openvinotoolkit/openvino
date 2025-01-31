@@ -756,7 +756,7 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
             port.dims.emplace_back(dim);
         }
 
-        ov::element::Type type(ov::element::Type_t::undefined);
+        ov::element::Type type(ov::element::Type_t::dynamic);
         // Input port hasn't precision
         if (!input) {
             const std::string& preStr = pugixml::get_str_attr(parentNode, "precision");
@@ -836,7 +836,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            "!");
 
         if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
-            ov::element::Type_t::undefined == inputs[i].get_element_type())
+            ov::element::Type_t::dynamic == inputs[i].get_element_type())
             OPENVINO_THROW(params.type,
                            " layer ",
                            params.name,

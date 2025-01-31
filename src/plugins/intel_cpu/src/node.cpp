@@ -1573,7 +1573,7 @@ std::vector<ov::element::Type> Node::getOutputPrecisions() const {
 ov::element::Type Node::getRuntimePrecision() const {
     // Base implementation consider precision only on data path and
     // assumes it is placed on 0-th port (which is true for almost all layers)
-    ov::element::Type runtimePrecision = ov::element::undefined;
+    ov::element::Type runtimePrecision = ov::element::dynamic;
     auto inputPrecisions = getInputPrecisions();
     if (!inputPrecisions.empty()) {
         runtimePrecision = inputPrecisions[0];
@@ -1995,7 +1995,7 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     for (size_t i = 0; i < inPortConfigs.size(); i++) {
         auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
         auto prc =
-            inPortConfigs[i].prc == ov::element::undefined ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+            inPortConfigs[i].prc == ov::element::dynamic ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
         if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs)) {
             return;
         }
@@ -2003,8 +2003,8 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
 
     for (size_t i = 0; i < outPortConfigs.size(); i++) {
         auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-        auto prc = outPortConfigs[i].prc == ov::element::undefined ? getOriginalOutputPrecisionAtPort(i)
-                                                                   : outPortConfigs[i].prc;
+        auto prc =
+            outPortConfigs[i].prc == ov::element::dynamic ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs)) {
             return;
         }

@@ -181,13 +181,15 @@ TEST(pre_post_process, preprocess_assert_input_without_index) {
     EXPECT_ANY_THROW(p.input("some_non_existing_name").preprocess().mean(0.f); f = p.build());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(pre_post_process, convert_element_type_from_unknown) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
-    ASSERT_THROW(p.input().preprocess().convert_element_type(element::dynamic).convert_element_type(element::i32);
-                 f = p.build();
-                 , ov::AssertFailure);
+
+    ASSERT_NO_THROW(p.input().preprocess().convert_element_type(element::undefined).convert_element_type(element::i32);
+                    f = p.build(););
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 TEST(pre_post_process, scale_not_float) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});

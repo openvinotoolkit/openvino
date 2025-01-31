@@ -65,7 +65,7 @@ void Convolution::validate_and_infer_types() {
 
     element::Type result_et;
 
-    if (m_output_type != ov::element::undefined) {
+    if (m_output_type != ov::element::dynamic) {
         result_et = m_output_type;
     } else if (data_batch_et.compatible(filters_et)) {
         NODE_VALIDATION_CHECK(this,

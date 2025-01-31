@@ -61,7 +61,6 @@ private:
     case ov::element::typeM: \
         return _##typeM;
         switch (type) {
-            CASE(undefined)
             CASE(dynamic)
             CASE(boolean)
             CASE(bf16)
@@ -93,7 +92,7 @@ private:
 };
 
 namespace TypeMaskAlias {
-constexpr ov::element::Type fxx(ov::element::Type_t::undefined);
+constexpr ov::element::Type fxx(ov::element::Type_t::dynamic);
 #define DEFINE_TYPE_ALIAS(x) constexpr auto x = TypeMask::Value::x
 // use underscore for naming to avoid conflicts with Precision aliases
 DEFINE_TYPE_ALIAS(_undefined);

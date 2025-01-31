@@ -54,11 +54,11 @@ public:
           m_strides_once{},
           m_ptr{ptr} {
         OPENVINO_ASSERT(shape_size(shape) == 0 || m_ptr != nullptr);
-        OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
+        OPENVINO_ASSERT(m_element_type != element::dynamic && m_element_type.is_static());
     }
 
     void* data(const element::Type& element_type) const override {
-        if (element_type != element::undefined && element_type != element::dynamic &&
+        if (element_type != element::dynamic && element_type != element::dynamic &&
             (element_type.bitwidth() != get_element_type().bitwidth() ||
              element_type.is_real() != get_element_type().is_real() ||
              (element_type == element::string && get_element_type() != element::string) ||

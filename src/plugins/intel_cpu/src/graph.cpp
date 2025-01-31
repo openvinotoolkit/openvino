@@ -1832,7 +1832,7 @@ void Graph::EnforceInferencePrecision() {
 
     const auto inferPrec = getConfig().inferencePrecision;
 
-    if (one_of(inferPrec, element::f32, element::undefined, ov::element::f16)) {
+    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)

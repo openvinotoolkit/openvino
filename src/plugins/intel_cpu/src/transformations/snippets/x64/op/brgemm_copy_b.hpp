@@ -79,7 +79,7 @@ private:
     void validate_element_type(const ov::element::Type& element_type);
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
-    element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
+    element::Type m_src_type = ov::element::dynamic;  // src element type of the corresponding BRGEMM
 };
 }  // namespace intel_cpu
 }  // namespace ov

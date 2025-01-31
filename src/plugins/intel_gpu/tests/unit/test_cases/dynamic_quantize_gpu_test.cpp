@@ -27,14 +27,13 @@ using OutputStorageType = ov::op::internal::DynamicQuantize::OutputStorageType;
 
 class dynamic_quantization_gpu_tests: public ::testing::Test {
 public:
-
     void test_dynamic_quantization(bool is_caching_test,
                                    const ov::PartialShape& input_shape,
                                    const ov::Shape& data_shape,
                                    const QuantizationType quantization_type = QuantizationType::Symmetric,
                                    uint64_t group_size = UINT64_MAX,
                                    data_types quant_dt = data_types::i8,
-                                   data_types zp_dt = data_types::undefined,
+                                   data_types zp_dt = data_types::dynamic,
                                    OutputStorageType storage_type = OutputStorageType::Planar,
                                    const std::string& impl_name = "",
                                    bool set_inner_most_dim_values_zero = false) {
@@ -216,23 +215,51 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_unaligned_dynamic) {
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache) {
-    this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Symmetric, UINT64_MAX,
-                                data_types::i8, data_types::undefined, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false,
+                                    {-1, 8, -1, 96},
+                                    {1, 8, 1, 96},
+                                    QuantizationType::Symmetric,
+                                    UINT64_MAX,
+                                    data_types::i8,
+                                    data_types::dynamic,
+                                    OutputStorageType::Planar,
+                                    "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched) {
-    this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Symmetric, UINT64_MAX,
-                                data_types::i8, data_types::undefined, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false,
+                                    {-1, 4, -1, 64},
+                                    {1, 4, 35, 64},
+                                    QuantizationType::Symmetric,
+                                    UINT64_MAX,
+                                    data_types::i8,
+                                    data_types::dynamic,
+                                    OutputStorageType::Planar,
+                                    "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered) {
-    this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Symmetric, UINT64_MAX,
-                                data_types::i8, data_types::undefined, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false,
+                                    {-1, -1, 8, 96},
+                                    {1, 1, 8, 96},
+                                    QuantizationType::Symmetric,
+                                    UINT64_MAX,
+                                    data_types::i8,
+                                    data_types::dynamic,
+                                    OutputStorageType::Planar,
+                                    "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered) {
-    this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Symmetric, UINT64_MAX,
-                                data_types::i8, data_types::undefined, OutputStorageType::Planar, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false,
+                                    {-1, -1, 4, 64},
+                                    {1, 35, 4, 64},
+                                    QuantizationType::Symmetric,
+                                    UINT64_MAX,
+                                    data_types::i8,
+                                    data_types::dynamic,
+                                    OutputStorageType::Planar,
+                                    "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_asym_planar) {

@@ -332,7 +332,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             void* data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
 
-            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::undefined) {
+            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::dynamic) {
                 auto type = pmem->getDesc().getPrecision();
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);

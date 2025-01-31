@@ -33,7 +33,9 @@ struct ElementTypes {
 
 inline TypeInfo get_type_info(ov::element::Type_t type) {
     switch (type) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
     case ov::element::Type_t::undefined:
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return {std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined"};
     case ov::element::Type_t::dynamic:
         return {0, false, false, false, "dynamic", "dynamic"};
@@ -134,7 +136,7 @@ ov::element::Type type_from_string(const std::string& type) {
     } else if (type == "string" || type == "STRING") {
         return ::ov::element::Type(::ov::element::Type_t::string);
     } else if (type == "undefined" || type == "UNSPECIFIED") {
-        return ::ov::element::Type(::ov::element::Type_t::undefined);
+        return ::ov::element::Type(::ov::element::Type_t::dynamic);
     } else if (type == "dynamic") {
         return ::ov::element::Type(::ov::element::Type_t::dynamic);
     } else if (type == "nf4" || type == "NF4") {
@@ -429,7 +431,9 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(f4e2m1);
         ET_CASE(f8e8m0);
 #undef ET_CASE
+        OPENVINO_SUPPRESS_DEPRECATED_START
     case ov::element::Type_t::undefined:
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return 0;
     case ov::element::Type_t::dynamic:
         return 0;
@@ -441,6 +445,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
 namespace ov {
 template <>
 OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
                                                         {{"undefined", element::Type_t::undefined},
                                                          {"dynamic", element::Type_t::dynamic},
@@ -469,6 +474,7 @@ OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"string", element::Type_t::string},
                                                          {"f4e2m1", element::Type_t::f4e2m1},
                                                          {"f8e8m0", element::Type_t::f8e8m0}});
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return enum_names;
 }
 

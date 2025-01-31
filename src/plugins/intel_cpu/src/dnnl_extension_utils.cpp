@@ -78,7 +78,7 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
         return memory::data_type::f8_e5m2;
     case ov::element::f4e2m1:
         return memory::data_type::f4_e2m1;
-    case ov::element::undefined:
+    case ov::element::dynamic:
         return memory::data_type::undef;
     default: {
         OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
@@ -119,7 +119,7 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
     case memory::data_type::f4_e2m1:
         return ov::element::f4e2m1;
     case memory::data_type::undef:
-        return ov::element::undefined;
+        return ov::element::dynamic;
     default: {
         OPENVINO_THROW("Unsupported data type.");
     }

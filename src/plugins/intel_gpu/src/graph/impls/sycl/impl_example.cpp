@@ -167,7 +167,8 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
         ov::element::Type_t wei_t = params->weights_layout.value().data_type;
         ov::element::Type_t out_t = params->output_layouts[0].data_type;
         ov::element::Type_t ds_t = params->input_layouts[2].data_type;
-        ov::element::Type_t dzp_t = inputs.size() == 3 ? params->input_layouts[3].data_type : ov::element::Type_t::undefined;
+        ov::element::Type_t dzp_t =
+            inputs.size() == 3 ? params->input_layouts[3].data_type : ov::element::Type_t::dynamic;
 
         OPENVINO_ASSERT(out_shape.size() == 3);
         size_t M = out_shape[1];

@@ -288,7 +288,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
-    ov::element::Type infer_precision = ov::element::undefined;
+    ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
         ov::pass::Manager manager("Plugin:GPU");
@@ -336,7 +336,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Add conversion from FP data types to infer precision if it's specified
         infer_precision = config.get_property(ov::hint::inference_precision);
-        if (infer_precision != ov::element::undefined) {
+        if (infer_precision != ov::element::dynamic) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
 

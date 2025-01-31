@@ -118,18 +118,18 @@ public:
         }
 
         actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
-                                                                        shape,
-                                                                        testValues.actual.fakeQuantize1,
-                                                                        testValues.actual.convert1,
-                                                                        testValues.actual.dequantization1,
-                                                                        testValues.actual.fakeQuantize2,
-                                                                        testValues.actual.convert2,
-                                                                        testValues.actual.dequantization2,
-                                                                        {},
-                                                                        ov::element::undefined,
-                                                                        {},
-                                                                        testValues.axis,
-                                                                        testValues.addNotPrecisionPreservedOperation);
+                                                                    shape,
+                                                                    testValues.actual.fakeQuantize1,
+                                                                    testValues.actual.convert1,
+                                                                    testValues.actual.dequantization1,
+                                                                    testValues.actual.fakeQuantize2,
+                                                                    testValues.actual.convert2,
+                                                                    testValues.actual.dequantization2,
+                                                                    {},
+                                                                    ov::element::dynamic,
+                                                                    {},
+                                                                    testValues.axis,
+                                                                    testValues.addNotPrecisionPreservedOperation);
         auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
             {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
