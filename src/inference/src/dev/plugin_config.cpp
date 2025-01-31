@@ -11,6 +11,8 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <array>
+#include <string_view>
 
 #ifdef JSON_HEADER
 #    include <json.hpp>
@@ -190,16 +192,16 @@ ov::Any PluginConfig::read_env(const std::string& option_name, const std::string
 
     if (!val.empty()) {
         if (dynamic_cast<const ConfigOption<bool>*>(option) != nullptr) {
-            const std::set<std::string> off = {"0", "false", "off", "no"};
-            const std::set<std::string> on = {"1", "true", "on", "yes"};
+            constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
+            constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
+            const auto& val_lower = util::to_lower(val);
 
-            const auto& val_lower = ov::util::to_lower(val);
-            if (off.count(val_lower)) {
-                return false;
-            } else if (on.count(val_lower)) {
+            if (std::find(on.begin(), on.end(), val_lower) != on.end()) {
                 return true;
+            } else if (std::find(off.begin(), off.end(), val_lower) != off.end()) {
+                return false;
             } else {
-                OPENVINO_THROW("Unexpected value for boolean property: ", val);
+                OPENVINO_THROW("Unexpected value for boolean property: " + val);
             }
         } else {
             return val;
