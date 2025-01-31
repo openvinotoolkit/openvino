@@ -38,18 +38,6 @@
 
 ov::ICore::~ICore() = default;
 
-namespace ov {
-namespace util {
-template <class T = void, class... Args>
-constexpr std::array<
-    typename std::conditional<std::is_void<T>::value, typename std::common_type<Args...>::type, T>::type,
-    sizeof...(Args)>
-make_array(Args&&... args) {
-    return {std::forward<Args>(args)...};
-}
-}  // namespace util
-}  // namespace ov
-
 namespace {
 
 #ifdef PROXY_PLUGIN_ENABLED
