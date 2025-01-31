@@ -6,4 +6,6 @@
 
 using namespace ov::frontend;
 
+ConversionExtensionBase::~ConversionExtensionBase() = default;
+
 ConversionExtension::~ConversionExtension() = default;
