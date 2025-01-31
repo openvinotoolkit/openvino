@@ -116,7 +116,7 @@ and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
 It provides ease-to-use
 `interface <https://huggingface.co/docs/optimum/intel/openvino/export>`__
 for exporting models to `OpenVINO Intermediate Representation
-(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+(IR) <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
 format.
 
 Applying LoRA to Original Diffusers pipeline before conversion

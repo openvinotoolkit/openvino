@@ -99,10 +99,10 @@ cards <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/ar
 and `Intel® Data Center GPU Flex
 Series <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/flex-series.html>`__.
 To get started, first `install
-OpenVINO <https://docs.openvino.ai/2024/get-started/install-openvino.html>`__
+OpenVINO <https://docs.openvino.ai/2025/get-started/install-openvino.html>`__
 on a system equipped with one or more Intel GPUs. Follow the `GPU
 configuration
-instructions <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
+instructions <https://docs.openvino.ai/2025/get-started/install-openvino/configurations/configurations-intel-gpu.html>`__
 to configure OpenVINO to work with your GPU. Then, read on to learn how
 to accelerate inference with GPUs in OpenVINO!
 
@@ -160,7 +160,7 @@ section.
 
 If the GPUs are installed correctly on the system and still do not
 appear in the list, follow the steps described
-`here <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
+`here <https://docs.openvino.ai/2025/get-started/install-openvino/configurations/configurations-intel-gpu.html>`__
 to configure your GPU drivers to work with OpenVINO. Once we have the
 GPUs working with OpenVINO, we can proceed with the next sections.
 
@@ -509,7 +509,7 @@ hints.PerformanceMode.CUMULATIVE_THROUGHPUT}) \`
    how to set up an asynchronous pipeline that takes advantage of
    parallelism to increase throughput.** To learn more, see
    `Asynchronous
-   Inferencing <https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library/asynch-inference-request.html>`__
+   Inferencing <https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library/asynch-inference-request.html>`__
    in OpenVINO as well as the `Asynchronous Inference
    notebook <async-api-with-output.html>`__.
 
@@ -535,7 +535,7 @@ Note that benchmark_app only requires the model path to run but both the
 device and hint arguments will be useful to us. For more advanced
 usages, the tool itself has other options that can be checked by running
 ``benchmark_app -h`` or reading the
-`docs <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
+`docs <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 The following example shows how to benchmark a simple model, using a GPU
 with a latency focus:
 
@@ -1439,8 +1439,8 @@ corresponding documentation:
 -  `Query Device
    Properties <https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties.html>`__
 -  `Configurations for GPUs with
-   OpenVINO <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
+   OpenVINO <https://docs.openvino.ai/2025/get-started/configurations/configurations-intel-gpu.html>`__
 -  `Benchmark Python
-   Tool <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
+   Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 -  `Asynchronous
-   Inferencing <https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library/asynch-inference-request.html>`__
+   Inferencing <https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library/asynch-inference-request.html>`__
