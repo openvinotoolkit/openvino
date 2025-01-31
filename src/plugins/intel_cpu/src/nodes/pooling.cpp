@@ -147,10 +147,11 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
 #if defined(OV_CPU_WITH_ACL)
-    auto maxPoolOpBase = ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op);
-    if (maxPoolOpBase->get_kernel() != ov::Shape(2,2)) {
-        errorMessage = "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
-        return false;
+    if (auto maxPoolOpBase = ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)) {
+        if (maxPoolOpBase->get_kernel() != ov::Shape(2,2)) {
+            errorMessage = "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
+            return false;
+        }
     }
 #endif
     try {
