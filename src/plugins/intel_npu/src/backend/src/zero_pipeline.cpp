@@ -28,6 +28,17 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
+template <class t>
+bool compare_shared_ptr(const std::shared_ptr<t>& a, const std::shared_ptr<t>& b) {
+    if (a == b) {
+        return true;
+    }
+    if (a && b) {
+        return a.get() == b.get();
+    }
+    return false;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -41,14 +52,11 @@ Pipeline::Pipeline(const Config& config,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                    const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
                    uint32_t group_ordinal)
-    : _graph(graph),
+    : _init_structs(init_structs),
+      _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _event_pool{
-          std::make_shared<EventPool>(init_structs->getDevice(),
-                                      init_structs->getContext(),
-                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
@@ -58,22 +66,43 @@ Pipeline::Pipeline(const Config& config,
         profiling_query.create(profiling_pool._handle);
     }
 
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
+
+    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _event_pool =
+            std::make_shared<EventPool>(_init_structs->getDevice(),
+                                        _init_structs->getContext(),
+                                        _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
+
+        _events.reserve(_number_of_command_lists);
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+        }
+    }
+
     _command_lists.reserve(_number_of_command_lists);
-    _events.reserve(_number_of_command_lists);
-    _fences.reserve(_number_of_command_lists);
-    _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs,
+            std::make_unique<CommandList>(_init_structs,
                                           group_ordinal,
-                                          init_structs->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
-        _fences.emplace_back(std::make_unique<Fence>(*_graph->get_command_queue()));
+                                          _init_structs->getMutableCommandListVersion() ? true : false));
+    }
+
+    _command_queue = _graph->get_command_queue();
+
+    if (_sync_output_with_fences) {
+        _fences.resize(_number_of_command_lists);
+
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _logger.debug("Pipeline - getCommandQueue() - create new fence");
+            _fences[i] = std::make_unique<Fence>(_command_queue);
+        }
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         size_t io_index = 0;
-        for (const auto& desc : graph->get_input_descriptors()) {
+        for (const auto& desc : _graph->get_input_descriptors()) {
             if (input_tensors.at(io_index).size() > 1) {
                 void* data = nullptr;
                 auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(i));
@@ -83,7 +112,7 @@ Pipeline::Pipeline(const Config& config,
                     data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
                 }
 
-                graph->set_argument_value(desc.idx, data);
+                _graph->set_argument_value(desc.idx, data);
 
                 ++io_index;
                 continue;
@@ -97,7 +126,7 @@ Pipeline::Pipeline(const Config& config,
                 data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
 
-            graph->set_argument_value(
+            _graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
                     (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
@@ -106,7 +135,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         io_index = 0;
-        for (const auto& desc : graph->get_output_descriptors()) {
+        for (const auto& desc : _graph->get_output_descriptors()) {
             void* data = nullptr;
             auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors.at(io_index));
             if (remote_tensor == nullptr) {
@@ -115,7 +144,7 @@ Pipeline::Pipeline(const Config& config,
                 data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
 
-            graph->set_argument_value(
+            _graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
                     (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
@@ -134,7 +163,7 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
         }
 
-        _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
+        _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(_graph->get_handle()),
                                                  profiling_query.getHandle());
 
         /// append timestamp command if feature was activated
@@ -153,7 +182,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         // appendBarrier used in L0 as well
-        if (!sync_output_with_fences_) {
+        if (!_sync_output_with_fences) {
             _command_lists.at(i)->appendBarrier();
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
         }
@@ -162,8 +191,29 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
+void Pipeline::getCommandQueue() {
+    _logger.debug("Pipeline - getCommandQueue() started");
+
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if (!compare_shared_ptr(_command_queue, _graph->get_command_queue())) {
+        _command_queue = _graph->get_command_queue();
+
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _number_of_command_lists; i++) {
+                _logger.debug("Pipeline - getCommandQueue() - create new fence");
+                _fences[i] = std::make_unique<Fence>(_command_queue);
+            }
+        }
+    }
+
+    _logger.debug("Pipeline - getCommandQueue() completed");
+}
+
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
+
+    getCommandQueue();
 
     if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
@@ -179,10 +229,10 @@ void Pipeline::push() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-        if (sync_output_with_fences_) {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
+        if (_sync_output_with_fences) {
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 
@@ -194,7 +244,7 @@ void Pipeline::pull() {
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
         } else {
             _events.at(i)->hostSynchronize();
@@ -209,17 +259,17 @@ void Pipeline::pull() {
 };
 
 void Pipeline::reset() const {
-    _logger.debug("Pipeline - rest() started");
+    _logger.debug("Pipeline - reset() started");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _fences.at(i)->reset();
         } else {
             _events.at(i)->reset();
         }
     }
 
-    _logger.debug("Pipeline - rest() completed");
+    _logger.debug("Pipeline - reset() completed");
 };
 
 void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size) {
