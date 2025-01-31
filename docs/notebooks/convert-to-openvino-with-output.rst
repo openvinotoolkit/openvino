@@ -54,7 +54,7 @@ OpenVINO IR format
 
 
 OpenVINO `Intermediate Representation
-(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+(IR) <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
 is the proprietary model format of OpenVINO. It is produced after
 converting a model with model conversion API. Model conversion API
 translates the frequently used deep learning operations to their

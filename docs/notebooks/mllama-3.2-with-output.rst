@@ -514,7 +514,7 @@ blog <https://blog.openvino.ai/blog-posts/large-language-model-graph-customizati
 -  **Using Remote tensors for GPU** - Coping data on device and back
    into host memory can become bottleneck for efficient execution
    multi-model pipeline on GPU. `Remote Tensor
-   API <https://docs.openvino.ai/2024/documentation/openvino-extensibility/openvino-plugin-library/remote-tensor.html>`__
+   API <https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library/remote-tensor.html>`__
    provides functionality for low-level GPU memory management, we can
    use this feature for sharing cross-attention keys and values between
    Image Encoder and Language Model.

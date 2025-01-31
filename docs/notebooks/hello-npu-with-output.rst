@@ -77,7 +77,7 @@ other devices, for more streamlined resource management.
 
 Note that the NPU plugin is included in PIP installation of OpenVINO™
 and you need to `install a proper NPU
-driver <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-npu.html>`__
+driver <https://docs.openvino.ai/2025/get-started/configurations/configurations-intel-npu.html>`__
 to use it successfully.
 
 | **Supported Platforms**:
@@ -483,7 +483,7 @@ Note that benchmark_app only requires the model path to run but both
 device and hint arguments will be useful to us. For more advanced
 usages, the tool itself has other options that can be checked by running
 ``benchmark_app -h`` or reading the
-`docs <https://docs.openvino.ai/2024/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
+`docs <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 The following example shows us to benchmark a simple model, using a NPU
 with latency focus:
 

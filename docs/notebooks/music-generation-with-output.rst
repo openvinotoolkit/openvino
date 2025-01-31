@@ -542,7 +542,7 @@ Embedding the converted models into the original pipeline
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
-`Core <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
+`Core <https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
 class provides access to the OpenVINO Runtime API. The ``core`` object,
 which is an instance of the ``Core`` class represents the API and it is
 used to compile the model.
