@@ -73,10 +73,6 @@ jobs:
         if: runner.os == 'Windows'
         run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
-      - name: Check HF Share
-        if: runner.os == 'Windows'
-        run: dir ${{ env.HF_HUB_CACHE }}
-
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
@@ -115,10 +111,6 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
-
-      - name: Check share Windows
-        if: ${{ runner.os == 'Windows' }}
-        run: dir ${{ env.HF_SHARE_PATH_WIN }}
 
       - name: Install JAX Layer tests dependencies
         run: |

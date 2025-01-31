@@ -35,6 +35,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      USE_SYSTEM_CACHE: False
     steps:
       - name: Check sudo
         if: ${{ runner.os == 'Linux' }}
@@ -135,7 +136,6 @@ jobs:
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
       - name: PagedAttention Test
@@ -145,7 +145,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: RoPE Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -154,7 +153,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: StatefulToStateless Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -163,7 +161,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_stateful_to_stateless_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: TorchFX GPTQ Pattern Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -174,7 +171,6 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
-          USE_SYSTEM_CACHE: False
 
       - name: Reformat unsupported ops file
         if: ${{ inputs.model_scope != 'precommit' && !cancelled()}}

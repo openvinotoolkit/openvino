@@ -36,6 +36,7 @@ jobs:
       # depending on GITHUB_RUN_NUMBER variable
       NUMBER_OF_REPLICAS: 2
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
+      USE_SYSTEM_CACHE: False
     if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Download OpenVINO artifacts (tests)
