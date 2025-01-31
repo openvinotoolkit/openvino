@@ -73,7 +73,8 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     auto config = static_cast<BrgemmCopyBKernelConfig*>(generic_config.get());
     const auto idx = config->is_transposed_B() ? 0 : 1;
     const auto copy_wei_stride = ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * prc.size();
-    config->update(N, N, K, K, copy_wei_stride, brgemm_utils::repacking::compute_LDB(N, prc));
+    const auto LDB = brgemm_utils::repacking::compute_repacked_n_dim(N, prc);
+    config->update(N, N, K, K, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
 
