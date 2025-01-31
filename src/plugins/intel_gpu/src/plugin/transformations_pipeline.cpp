@@ -942,7 +942,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<GroupConvolutionTransformation>();
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
-            pass_config->disable<ConcatTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
@@ -961,7 +960,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, true);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateScalarMul>();
-            lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
             lpt_pass->add_main<ov::pass::activations_scaling::MoveDownScalarMul>();
 
             // Move up remained scalar-multiply layers
