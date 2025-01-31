@@ -331,7 +331,7 @@ Plugin::Plugin()
           }}},
         {ov::weights_path.name(),
          {true,
-          ov::PropertyMutability::RO,
+          ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<WEIGHTS_PATH>();
           }}},
