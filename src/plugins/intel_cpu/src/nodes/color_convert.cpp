@@ -1078,8 +1078,7 @@ void ColorConvert::initSupportedI420Impls() {
 void ColorConvert::createPrimitive() {
     const NodeDesc* desc = getSelectedPrimitiveDescriptor();
     if (!desc) {
-        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ",
-                       "no optimal primitive descriptor selected");
+        THROW_CPU_NODE_ERR("has no optimal primitive descriptor selected");
     }
 
     if (!_impl) {
@@ -1094,7 +1093,7 @@ void ColorConvert::createPrimitive() {
 
 void ColorConvert::execute(const dnnl::stream& strm) {
     if (!_impl) {
-        OPENVINO_THROW(getTypeStr() + " node with name '" + getName() + "' ", "has no any implemented converter");
+        THROW_CPU_NODE_ERR("has no any implemented converter");
     }
     _impl->execute(strm);
 }

@@ -2398,9 +2398,7 @@ inline int Interpolate::get_axis_id() const {
 
 void Interpolate::prepareParams() {
     if (!shapesDefined()) {
-        OPENVINO_THROW("Can't prepare params for Interpolate node with name: ",
-                       getName(),
-                       ", because input/output dims aren't defined");
+        THROW_CPU_NODE_ERR("input/output dims aren't defined");
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
@@ -2467,7 +2465,7 @@ void Interpolate::prepareParams() {
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
-        OPENVINO_THROW("Interpolate layer only supports resize on spatial dimensions(depth, height and width)");
+        THROW_CPU_NODE_ERR("Interpolate layer only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
@@ -2581,11 +2579,11 @@ void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims)
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -2692,9 +2690,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
                 uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
                 if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                    OPENVINO_THROW("Interpolate layer with name '",
-                                   getName(),
-                                   "' does not support padding on batch and channel dimensions");
+                    THROW_CPU_NODE_ERR("does not support padding on batch and channel dimensions");
                 }
                 parallel_for5d(srcDim5d[0],
                                CB,
@@ -2728,7 +2724,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive didn't created");
     }
 }
 

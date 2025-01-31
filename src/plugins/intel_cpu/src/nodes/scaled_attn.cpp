@@ -1084,7 +1084,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     : Node(op, context, SDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        THROW_CPU_NODE_ERR(errorMessage);
     }
     const auto& cpuConfig = context->getConfig();
     const auto& keyCachePrecision = cpuConfig.keyCachePrecision;
@@ -1193,7 +1193,7 @@ void ScaledDotProductAttention::createPrimitive() {
     if (m_config.config.fuse_concat) {
         auto desc = getSelectedPrimitiveDescriptor();
         if (desc == nullptr) {
-            OPENVINO_THROW("has unidentified preferable primitive descriptor");
+            THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
         }
     }
     auto rtPrecision = getRuntimePrecision();
@@ -1237,8 +1237,7 @@ void ScaledDotProductAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails with precision " +
-                       rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
@@ -1328,12 +1327,12 @@ void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateK
     } else if (inputNumber - 1 == static_cast<size_t>(idx)) {
         m_v_state = state;
     } else {
-        OPENVINO_THROW("Unexpected idx ",
-                       idx,
-                       " for a state in a node with type: ",
-                       getTypeStr(),
-                       " and name ",
-                       getName());
+        THROW_CPU_NODE_ERR("Unexpected idx ",
+                           idx,
+                           " for a state in a node with type: ",
+                           getTypeStr(),
+                           " and name ",
+                           getName());
     }
 }
 

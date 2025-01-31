@@ -260,8 +260,8 @@ void SpaceToBatch::execute(const dnnl::stream& strm) {
         SpaceToBatchKernel<element_type_traits<ov::element::i32>::value_type>();
         break;
     default:
-        OPENVINO_THROW("SpaceToBatch layer does not support precision '" +
-                       std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()) + "'");
+        THROW_CPU_NODE_ERR("does not support precision '" +
+                           std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()) + "'");
     }
 }
 

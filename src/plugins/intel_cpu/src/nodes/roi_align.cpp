@@ -879,7 +879,7 @@ void ROIAlign::execute(const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32))) {
-        OPENVINO_THROW("ROIAlign doesn't support demanded precisions");
+        THROW_CPU_NODE_ERR("doesn't support demanded precisions");
     }
 
     ROIAlignContext ctx = {*this};
@@ -970,9 +970,9 @@ void ROIAlign::executeSpecified() {
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
-            OPENVINO_THROW("Batch index cannot be less, than -1");
+            THROW_CPU_NODE_ERR("Batch index cannot be less, than -1");
         } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
-            OPENVINO_THROW("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
+            THROW_CPU_NODE_ERR("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
         }
 
         float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
@@ -1099,7 +1099,7 @@ void ROIAlign::executeSpecified() {
     });
 
     if (realRois == 0) {
-        OPENVINO_THROW("realRois must be greater than 0");
+        THROW_CPU_NODE_ERR("realRois must be greater than 0");
     }
 
     if (roi_align_kernel) {
