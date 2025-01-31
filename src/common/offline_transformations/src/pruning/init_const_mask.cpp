@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
         pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto const_node = std::dynamic_pointer_cast<opset6::Constant>(m.get_match_root());
+        auto const_node = ov::as_type_ptr<opset6::Constant>(m.get_match_root());
         if (!const_node)
             return false;
 

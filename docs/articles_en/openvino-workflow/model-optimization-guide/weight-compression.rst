@@ -105,7 +105,7 @@ By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
          print(results)
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+      :doc:`infer LLMs using Optimum Intel <../../openvino-workflow-generative/inference-with-optimum-intel>`.
 
    .. tab-item:: Compression with NNCF
       :sync: nncf
@@ -221,7 +221,7 @@ depending on the model.
 
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+      :doc:`infer LLMs using Optimum Intel <../../../openvino-workflow-generative/inference-with-optimum-intel>`.
 
 
 Refer to the article about
@@ -333,7 +333,7 @@ load the compressed model later for faster time to first inference.
 .. tip::
 
    Models optimized with with NNCF or Optimum Intel can be used with
-   :doc:`OpenVINO GenAI <../../learn-openvino/llm_inference_guide/genai-guide>`.
+   :doc:`OpenVINO GenAI <../../openvino-workflow-generative/inference-with-genai>`.
 
 
 Auto-tuning of Weight Compression Parameters
@@ -343,7 +343,7 @@ To find the optimal weight compression parameters for a particular model, refer 
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ ,
 where weight compression parameters are being searched from the subset of values.
 To speed up the search, a self-designed validation pipeline called
-`WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+`WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/who_what_benchmark>`__
 is used. The pipeline can quickly evaluate the changes in the accuracy of the optimized
 model compared to the baseline.
 
@@ -480,7 +480,7 @@ Additional Resources
 - `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
   : Repository containing example pipelines that implement image and text generation
   tasks. It also provides a tool to benchmark LLMs.
-- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <quantizing-models-post-training>`
 - :doc:`Training-time Optimization <compressing-models-during-training>`

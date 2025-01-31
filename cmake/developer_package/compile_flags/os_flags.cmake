@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -104,6 +104,7 @@ macro(ov_check_compiler_supports_sve flags)
     int main() {
         svfloat64_t a;
         a = svdup_n_f64(0);
+        (void)a; // to avoid warnings
         return 0;
     }")
 
@@ -114,12 +115,12 @@ macro(ov_check_compiler_supports_sve flags)
     set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS_INIT} ${flags}")
 
     # Check if the source code compiles with the given flags for C++
-    CHECK_CXX_SOURCE_COMPILES("${SVE_CODE}" CXX_HAS_SVE)            
+    CHECK_CXX_SOURCE_COMPILES("${SVE_CODE}" CXX_HAS_SVE)
 
     # If the compilation test is successful, set appropriate variables indicating support
     if(CXX_HAS_SVE)
-        set(CXX_SVE_FOUND TRUE CACHE BOOL "SVE available on host")
-        set(CXX_SVE_FOUND TRUE CACHE BOOL "CXX SVE support")
+        set(CXX_SVE_FOUND ON CACHE BOOL "SVE available on host")
+        set(CXX_SVE_FOUND ON CACHE BOOL "CXX SVE support")
         set(CXX_SVE_FLAGS "${flags}" CACHE STRING "CXX SVE flags")
     endif()
 
@@ -128,7 +129,7 @@ macro(ov_check_compiler_supports_sve flags)
 
     # If the compilation test fails, indicate that the support is not found
     if(NOT CXX_SVE_FOUND)
-        set(CXX_SVE_FOUND FALSE CACHE BOOL "CXX SVE support")
+        set(CXX_SVE_FOUND OFF CACHE BOOL "CXX SVE support")
         set(CXX_SVE_FLAGS "" CACHE STRING "CXX SVE flags")
     endif()
 
@@ -142,6 +143,10 @@ endmacro()
 # Provides SSE4.2 compilation flags depending on an OS and a compiler
 #
 macro(ov_sse42_optimization_flags flags)
+    if(NOT ENABLE_SSE42)
+        message(FATAL_ERROR "Internal error: ENABLE_SSE42 if OFF and 'ov_sse42_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # No such option for MSVC 2019
     elseif(OV_COMPILER_IS_INTEL_LLVM)
@@ -166,6 +171,10 @@ endmacro()
 # Provides AVX2 compilation flags depending on an OS and a compiler
 #
 macro(ov_avx2_optimization_flags flags)
+    if(NOT ENABLE_AVX2)
+        message(FATAL_ERROR "Internal error: ENABLE_AVX2 if OFF and 'ov_avx2_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(${flags} /arch:AVX2)
     elseif(OV_COMPILER_IS_INTEL_LLVM)
@@ -188,6 +197,10 @@ endmacro()
 # depending on an OS and a compiler
 #
 macro(ov_avx512_optimization_flags flags)
+    if(NOT ENABLE_AVX512F)
+        message(FATAL_ERROR "Internal error: ENABLE_AVX512F if OFF and 'ov_avx512_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(${flags} /arch:AVX512)
     elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
@@ -203,6 +216,10 @@ endmacro()
 # ov_arm_neon_optimization_flags(<output flags>)
 #
 macro(ov_arm_neon_optimization_flags flags)
+    if(NOT (AARCH64 OR ARM))
+        message(FATAL_ERROR "Internal error: platform is not ARM or AARCH64 and 'ov_arm_neon_optimization_flags' must not be called")
+    endif()
+
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -233,13 +250,17 @@ endmacro()
 # ov_arm_neon_fp16_optimization_flags(<output flags>)
 #
 macro(ov_arm_neon_fp16_optimization_flags flags)
+    if(NOT ENABLE_NEON_FP16)
+        message(FATAL_ERROR "Internal error: ENABLE_NEON_FP16 if OFF and 'ov_arm_neon_fp16_optimization_flags' must not be called")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID} for arm64 platform")
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} -march=armv8.2-a+fp16 -Wno-unused-command-line-argument)
         else()
-            message(WARNING "fp16 is not supported by Android armv7")
+            message(WARNING "ARM64 fp16 is not supported by Android armv7")
         endif()
     elseif(AARCH64)
         set(${flags} -O2 -march=armv8.2-a+fp16)
@@ -247,9 +268,9 @@ macro(ov_arm_neon_fp16_optimization_flags flags)
             list(APPEND ${flags} -ftree-vectorize)
         endif()
     elseif(ARM)
-        message(WARNING "fp16 is not supported by 32-bit ARM")
+        message(WARNING "ARM64 fp16 is not supported by 32-bit ARM")
     else()
-        message(WARNING "fp16 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
+        message(WARNING "ARM64 fp16 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endmacro()
 
@@ -257,9 +278,12 @@ endmacro()
 # ov_arm_sve_optimization_flags(<output flags>)
 #
 macro(ov_arm_sve_optimization_flags flags)
+    if(NOT ENABLE_SVE)
+        message(FATAL_ERROR "Internal error: ENABLE_SVE if OFF and 'ov_arm_sve_optimization_flags' must not be called")
+    endif()
+
     # Check for compiler SVE support
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
-
     if(OV_COMPILER_IS_INTEL_LLVM)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -278,7 +302,7 @@ macro(ov_arm_sve_optimization_flags flags)
     else()
         if(AARCH64)
             set(${flags} -O2)
-        
+
             # Add flag for SVE if supported
             if(CXX_SVE_FOUND)
                 list(APPEND ${flags} -march=armv8-a+sve)
@@ -390,13 +414,7 @@ endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(CMAKE_CXX_STANDARD 14)
-    elseif(OV_COMPILER_IS_INTEL_LLVM)
-        set(CMAKE_CXX_STANDARD 17)
-    else()
-        set(CMAKE_CXX_STANDARD 11)
-    endif()
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
@@ -455,10 +473,14 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Build with multiple processes
     ov_add_compiler_flags(/MP)
 
+    # Specifies both the source character set and the execution character set as UTF-8.
+    # For details, refer to link: https://learn.microsoft.com/en-us/cpp/build/reference/utf-8-set-source-and-executable-character-sets-to-utf-8?view=msvc-170
+    ov_add_compiler_flags(/utf-8)
+
     # Workaround for an MSVC compiler issue in some versions of Visual Studio 2022.
     # The issue involves a null dereference to a mutex. For details, refer to link https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
-    if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930 AND MSVC_VERSION LESS 1941)
-	ov_add_compiler_flags(/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+    if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930)
+        ov_add_compiler_flags(/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
     endif()
 
     if(AARCH64 AND NOT MSVC_VERSION LESS 1930)

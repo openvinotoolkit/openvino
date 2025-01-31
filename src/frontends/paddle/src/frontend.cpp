@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -492,7 +492,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<FrameworkNode>(node)) {
-            paddle::normalize_framework_node(std::dynamic_pointer_cast<FrameworkNode>(node), m_op_translators);
+            paddle::normalize_framework_node(ov::as_type_ptr<FrameworkNode>(node), m_op_translators);
         }
     }
     for (const auto& result : partiallyConverted->get_results()) {
@@ -586,11 +586,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion get_api_version() {
+PADDLE_FRONTEND_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* get_front_end_data() {
+PADDLE_FRONTEND_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {

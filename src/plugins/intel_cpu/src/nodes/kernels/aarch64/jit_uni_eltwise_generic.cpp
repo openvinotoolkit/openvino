@@ -4,6 +4,8 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <utility>
+
 namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
@@ -19,15 +21,15 @@ void jit_uni_eltwise_kernel::operator()(const node::jit_eltwise_call_args_ptrs* 
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(const jit_eltwise_params& jep,
-                                                      const std::vector<EltwiseData>& eltwise_data,
-                                                      const std::vector<ov::intel_cpu::Type>& ops_list,
-                                                      const dnnl::post_ops& post_ops)
-    : jit_uni_eltwise_kernel(jep),
+jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep,
+                                                      std::vector<EltwiseData> eltwise_data,
+                                                      std::vector<ov::intel_cpu::Type> ops_list,
+                                                      dnnl::post_ops post_ops)
+    : jit_uni_eltwise_kernel(std::move(jep)),
       jit_generator(),
-      eltwise_data_(eltwise_data),
-      ops_list_(ops_list),
-      post_ops_(post_ops) {}
+      eltwise_data_(std::move(eltwise_data)),
+      ops_list_(std::move(ops_list)),
+      post_ops_(std::move(post_ops)) {}
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
@@ -124,27 +126,33 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     size_t min_src_size = jep.dst_size;
     for (size_t i = 0; i < jep.inputs_number; i++) {
-        if (jep.src_size[i] != 1)
+        if (jep.src_size[i] != 1) {
             min_src_size = std::min(min_src_size, jep.src_size[i]);
+        }
     }
-    if (jep_.oc_size > 1)
+    if (jep_.oc_size > 1) {
         min_src_size = std::min(min_src_size, jep_.oc_size);
+    }
 
     if (min_src_size != jep.dst_size) {
         bool is_valid_configuration = true;
-        if (jep.dst_size % min_src_size != 0)
+        if (jep.dst_size % min_src_size != 0) {
             is_valid_configuration = false;
-
-        for (size_t i = 0; i < jep.inputs_number; i++) {
-            if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size)
-                is_valid_configuration = false;
         }
 
-        if (jep.oc_size > 1 && jep.oc_size != min_src_size && jep.oc_size != jep.dst_size)
-            is_valid_configuration = false;
+        for (size_t i = 0; i < jep.inputs_number; i++) {
+            if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size) {
+                is_valid_configuration = false;
+            }
+        }
 
-        if (!is_valid_configuration)
+        if (jep.oc_size > 1 && jep.oc_size != min_src_size && jep.oc_size != jep.dst_size) {
+            is_valid_configuration = false;
+        }
+
+        if (!is_valid_configuration) {
             OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
+        }
 
         L(unroll_loop_label);
         {
@@ -193,14 +201,17 @@ void jit_uni_eltwise_generic<isa>::generate() {
                 store_scalar(reg_dst, sc_dst_reg, exec_prc, jep.dst_prc, j * jep.dst_prc.size());
             }
 
-            for (size_t i = 0; i < jep.inputs_number; i++)
-                if (jep.src_size[i] == jep.dst_size)
+            for (size_t i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] == jep.dst_size) {
                     add(get_src_reg(i), get_src_reg(i), jep.src_prc[i].size() * loop_step);
+                }
+            }
 
             add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, reg_work_amount, loop_step);
-            if (jep_.oc_size > 1 && jep_.oc_size != min_src_size)
+            if (jep_.oc_size > 1 && jep_.oc_size != min_src_size) {
                 add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
+            }
 
             b(AL, unroll_loop_label);
         }
@@ -238,8 +249,9 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
             add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, reg_work_amount, loop_step);
-            if (jep_.oc_size > 1)
+            if (jep_.oc_size > 1) {
                 add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
+            }
 
             b(AL, main_loop_label);
         }
@@ -274,8 +286,9 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         add(reg_dst, reg_dst, jep.dst_prc.size() * loop_step);
         sub(reg_work_amount, reg_work_amount, loop_step);
-        if (jep_.oc_size > 1)
+        if (jep_.oc_size > 1) {
             add(reg_oc_off, reg_oc_off, loop_step * sizeof(float));
+        }
 
         b(AL, tail_loop_label);
     }
@@ -664,9 +677,11 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseFloor, ov::intel_cpu::aarch64::jit_floor_emitter),
         OV_CASE(Algorithm::EltwiseFloorMod, ov::intel_cpu::aarch64::jit_floor_mod_emitter),
         OV_CASE(Algorithm::EltwiseCeiling, ov::intel_cpu::aarch64::jit_ceiling_emitter),
+        OV_CASE(Algorithm::EltwiseNegative, ov::intel_cpu::aarch64::jit_negative_emitter),
         OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, ov::intel_cpu::aarch64::jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, ov::intel_cpu::aarch64::jit_is_inf_emitter),
+        OV_CASE(Algorithm::EltwiseLess, ov::intel_cpu::aarch64::jit_less_emitter),
         OV_CASE(Algorithm::EltwiseLessEqual, ov::intel_cpu::aarch64::jit_less_equal_emitter),
         OV_CASE(Algorithm::EltwiseLogicalAnd, ov::intel_cpu::aarch64::jit_logical_and_emitter),
         OV_CASE(Algorithm::EltwiseLogicalOr, ov::intel_cpu::aarch64::jit_logical_or_emitter),
@@ -681,6 +696,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseGreater, ov::intel_cpu::aarch64::jit_greater_emitter),
         OV_CASE(Algorithm::EltwiseGreaterEqual, ov::intel_cpu::aarch64::jit_greater_equal_emitter),
         OV_CASE(Algorithm::EltwiseMulAdd, ov::intel_cpu::aarch64::jit_mul_add_emitter),
+        OV_CASE(Algorithm::EltwiseNotEqual, ov::intel_cpu::aarch64::jit_not_equal_emitter),
         OV_CASE(Algorithm::EltwiseMod, ov::intel_cpu::aarch64::jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMultiply, ov::intel_cpu::aarch64::jit_multiply_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, ov::intel_cpu::aarch64::jit_power_static_emitter),
@@ -696,8 +712,9 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseSwish, ov::intel_cpu::aarch64::jit_swish_emitter),
         OV_CASE(Algorithm::EltwiseTanh, ov::intel_cpu::aarch64::jit_tanh_emitter));
 
-    if (!ctx.emitter)
+    if (!ctx.emitter) {
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
+    }
 
     return ctx.emitter;
 }
@@ -733,19 +750,22 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops() {
         if (ops_list_[i] == ov::intel_cpu::Type::Eltwise) {
             std::vector<size_t> in_idxs;
             in_idxs.push_back(vmm_dst.getIdx());
-            for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_count(); j++)
+            for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_count(); j++) {
                 in_idxs.push_back(get_vmm_reg(input_idx++).getIdx());
+            }
 
             std::vector<size_t> out_idxs;
             out_idxs.push_back(vmm_dst.getIdx());
 
             std::vector<size_t> aux_vmm_idxs;
-            for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->get_aux_vecs_count(); j++)
+            for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->get_aux_vecs_count(); j++) {
                 aux_vmm_idxs.push_back(get_aux_vmm(j).getIdx());
+            }
 
             std::vector<size_t> aux_gpr_idxs;
-            for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->get_aux_gprs_count(); j++)
+            for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->get_aux_gprs_count(); j++) {
                 aux_gpr_idxs.push_back(get_aux_gpr(j).getIdx());
+            }
 
             post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_vmm_idxs, aux_gpr_idxs);
 
@@ -851,6 +871,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
+              OV_CASE(Algorithm::EltwiseNegative, jit_negative_emitter),
               OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
@@ -859,6 +880,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
               OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
               OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
+              OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
               OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
@@ -869,6 +891,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseMish, jit_mish_emitter),
               OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
               OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
+              OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
               OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
@@ -881,8 +904,9 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
               OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
-    if (precisions.empty())
+    if (precisions.empty()) {
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
+    }
 
     return precisions;
 }

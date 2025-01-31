@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
-
-#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -33,15 +31,16 @@ bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4)
-        THROW_ERROR("has incorrect number of input/output edges.");
+    if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4) {
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges.");
+    }
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();
@@ -55,8 +54,8 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
             axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
         }
         if (axis < 0 || axis >= op->get_input_partial_shape(IN_DATA).rank().get_length()) {
-            THROW_ERROR("has invalid axis value: ",
-                        ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
+            THROW_CPU_NODE_ERR("has invalid axis value: ",
+                               ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
         }
     } else {
         flattened = true;
@@ -78,6 +77,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
         inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
     }
     std::vector<PortConfigurator> outPortConfigs;
+    outPortConfigs.reserve(4);
     for (int i = 0; i < 4; i++) {
         outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
     }
@@ -92,18 +92,18 @@ void Unique::createPrimitive() {
 void Unique::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
     if (!dataMemPtr) {
-        THROW_ERROR(" has null input data memory.");
+        THROW_CPU_NODE_ERR("has null input data memory.");
     }
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
             auto dstMemPtr = getDstMemoryAtPort(i);
             if (!dstMemPtr) {
-                THROW_ERROR(" has null output memory at port ", i);
+                THROW_CPU_NODE_ERR("has null output memory at port ", i);
             }
         }
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_ERROR(" has unidentified preferable primitive descriptor.");
+        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
     }
 
     size_t srcLen = 1;
@@ -132,7 +132,7 @@ struct Unique::slicedExec {
     }
 };
 
-void Unique::execute(dnnl::stream strm) {
+void Unique::execute(const dnnl::stream& strm) {
     if (flattened) {
         OV_SWITCH(intel_cpu,
                   flattenExec,
@@ -154,7 +154,7 @@ void Unique::execute(dnnl::stream strm) {
     }
 }
 
-void Unique::executeDynamicImpl(dnnl::stream strm) {
+void Unique::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcDataDims = getSrcMemoryAtPort(IN_DATA)->getStaticDims();
     VectorDims dstDataDims;
     Dim uniqLen = 1;
@@ -240,15 +240,17 @@ void Unique::flattenTensorExec() {
 
         for (size_t i = 0, j = 0; i < inputLen; ++i) {
             auto it = uniq.emplace(srcDataPtr[i], j);
-            inToOutTmpPtr[i] = it.first->second;
-            if (it.second) {
-                if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                    firstTmpPtr[j] = i;
-                }
-                ++j;
-            } else {
-                if (definedOutputs[OCCURRENCES_NUM]) {
-                    occurTmpPtr[inToOutTmpPtr[i]]++;
+            if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
+                inToOutTmpPtr[i] = it.first->second;
+                if (it.second) {
+                    if (definedOutputs[FIRST_UNIQUE_IDX]) {
+                        firstTmpPtr[j] = i;
+                    }
+                    ++j;
+                } else {
+                    if (definedOutputs[OCCURRENCES_NUM]) {
+                        occurTmpPtr[inToOutTmpPtr[i]]++;
+                    }
                 }
             }
         }

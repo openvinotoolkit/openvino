@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ public:
     {}
 
     operator float() const {
-        return F32{uint32_t(m_value) << 16}.vfloat;
+        return F32{static_cast<uint32_t>(m_value) << 16}.vfloat;
     }
     static constexpr bfloat16_t from_bits(uint16_t bits) {
         return bfloat16_t(bits, true);

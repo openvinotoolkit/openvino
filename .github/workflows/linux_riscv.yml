@@ -139,7 +139,6 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
           popd
 

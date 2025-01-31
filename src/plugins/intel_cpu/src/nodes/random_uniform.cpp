@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,7 +152,7 @@ void RandomUniform::prepareParams() {
     }
 }
 
-void RandomUniform::execute(dnnl::stream strm) {
+void RandomUniform::execute(const dnnl::stream& strm) {
     if (!m_const_inputs[MIN_VAL]) {
         initEdgeValues(m_min_val, getSrcDataAtPort(MIN_VAL), m_output_prc);
         if (m_const_inputs[MAX_VAL]) {
@@ -177,7 +177,7 @@ void RandomUniform::execute(dnnl::stream strm) {
     }
 }
 
-void RandomUniform::executeDynamicImpl(dnnl::stream strm) {
+void RandomUniform::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -191,9 +191,10 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
     std::string str_type;
 
-    auto add_type = [&](std::string t) {
-        if (!str_type.empty() && t.c_str()[0] != '_')
+    auto add_type = [&](const std::string& t) {
+        if (!str_type.empty() && t.c_str()[0] != '_') {
             str_type += "_";
+        }
         str_type += t;
     };
 
@@ -212,15 +213,16 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
 #undef SEARCH_TYPE
 
-    if (type == impl_desc_type::unknown)
+    if (type == impl_desc_type::unknown) {
         str_type = "unknown";
-    else if (str_type.empty())
+    } else if (str_type.empty()) {
         str_type = "undef";
+    }
 
     if (selectedPrimitiveDesc) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
             str_type +=
-                "_" + std::string(
+                "_" + static_cast<std::string>(
                           selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
         } else {
             str_type += "_I8";
@@ -651,8 +653,8 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         float* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float>::digits) - 1);
-    const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float>::digits);
+    const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float>::digits) - 1);
+    const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2l) {
@@ -667,8 +669,8 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         float16* out,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
-    const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float16>::digits) - 1);
-    const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float16>::digits);
+    const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits) - 1);
+    const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2l) {
@@ -733,7 +735,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
     const auto elements_consumed_per_one_output = m_mersenne_twister_optimization_enabled ? 1 : 2;
     const auto state_regenerations_required =
         static_cast<uint64_t>(std::ceil(static_cast<double>(output_elements_count) /
-                                        static_cast<double>(MERSENNE_STATE_N / elements_consumed_per_one_output)));
+                                        (static_cast<double>(MERSENNE_STATE_N) / elements_consumed_per_one_output)));
     const auto byte_offset = MERSENNE_STATE_N * m_output_prc.size();
 
     uint32_t mersenne_state_ptr[MERSENNE_STATE_N];

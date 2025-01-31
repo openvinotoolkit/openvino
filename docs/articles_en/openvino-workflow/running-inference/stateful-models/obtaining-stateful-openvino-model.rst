@@ -10,7 +10,7 @@ and you have three ways to do it:
 
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
   applicable to a selection of models (not covered by this article, for a usage guide
-  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../learn-openvino/llm_inference_guide>` article).
+  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../openvino-workflow-generative>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
   Parameter and Result to replace.
 * :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
@@ -257,7 +257,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
    In such a case, trim non-reshapable layers via
    :doc:`Conversion Parameters <../../model-preparation/conversion-parameters>`:
-   ``--input`` and ``--output``. For example, check the `OpenVINO Model Conversion Tutorial <https://docs.openvino.ai/2024/notebooks/convert-to-openvino-with-output.html>`__.
+   ``--input`` and ``--output``. For example, check the `OpenVINO Model Conversion Tutorial <https://docs.openvino.ai/2025/notebooks/convert-to-openvino-with-output.html>`__.
 
    As for the parameter and the problematic constant in the picture above, it can be
    trimmed by using the ``--input Reshape_layer_name`` command-line option. The problematic

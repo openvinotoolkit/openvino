@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "utils/general_utils.h"
@@ -23,14 +23,17 @@ namespace ov {
 namespace intel_cpu {
 
 bool Verbose::shouldBePrinted() const {
-    if (lvl < 1)
+    if (lvl < 1) {
         return false;
+    }
 
-    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output))
+    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output)) {
         return false;
+    }
 
-    if (lvl < 3 && node->isConstant())
+    if (lvl < 3 && node->isConstant()) {
         return false;
+    }
 
     return true;
 }
@@ -45,8 +48,9 @@ void Verbose::printInfo() {
     enum Color { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
 
     auto colorize = [&](const Color color, const std::string& str) {
-        if (!colorUp)
+        if (!colorUp) {
             return str;
+        }
 
         const std::string red("\033[1;31m");
         const std::string green("\033[1;32m");
@@ -107,7 +111,7 @@ void Verbose::printInfo() {
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str(desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        std::string fmt_str = dnnl::impl::md2fmt_str("", desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
@@ -148,8 +152,9 @@ void Verbose::printInfo() {
     }
 
     std::string nodeImplementer = "cpu";
-    if (node->getType() == Type::Reference)
+    if (node->getType() == Type::Reference) {
         nodeImplementer = "ngraph_ref";  // ngraph reference
+    }
 
     const std::string& nodeName = colorize(GREEN, node->getName());
     const std::string& nodeType = colorize(CYAN, NameFromType(node->getType()));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,14 +116,13 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
     {ov::compilation_num_threads.name(), ov::Any(1)},
     {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
-    {ov::log::level.name(), ov::Any(ov::log::Level::DEBUG)},
+    {ov::log::level.name(), ov::Any(ov::log::Level::ERR)},
     {ov::device::id.name(), ov::Any(ov::test::utils::getDeviceNameID(ov::test::utils::getDeviceName()))},
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
     {ov::intel_npu::compilation_mode_params.name(), ov::Any("use-user-precision=false propagate-quant-dequant=0")},
     {ov::intel_npu::dma_engines.name(), ov::Any(1)},
-    {ov::intel_npu::compiler_type.name(), ov::Any(ov::intel_npu::CompilerType::MLIR)},
     {ov::intel_npu::platform.name(), ov::Any(ov::intel_npu::Platform::AUTO_DETECT)},
     {ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")},
     {ov::intel_npu::max_tiles.name(), ov::Any(8)},

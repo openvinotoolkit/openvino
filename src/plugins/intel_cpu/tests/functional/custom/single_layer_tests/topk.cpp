@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,12 +120,12 @@ protected:
         std::shared_ptr<ov::op::v11::TopK> topk;
         if (staticShape) {
             auto k = std::make_shared<ov::op::v0::Constant>(ElementType::i64, ov::Shape{}, &keepK);
-            topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
+            topk = ov::as_type_ptr<ov::op::v11::TopK>(
                 std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         } else {
             auto k = std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inputDynamicShapes[1]);
             params.push_back(k);
-            topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
+            topk = ov::as_type_ptr<ov::op::v11::TopK>(
                 std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         }
 

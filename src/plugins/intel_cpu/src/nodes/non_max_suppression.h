@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,9 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
 
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     bool created() const override;
 

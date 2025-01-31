@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,14 +17,11 @@ namespace intel_npu {
 IGraph::IGraph(ze_graph_handle_t handle,
                NetworkMetadata metadata,
                const Config& config,
-               std::optional<std::vector<uint8_t>> blob)
+               std::unique_ptr<BlobContainer> blobPtr)
     : _handle(handle),
       _metadata(std::move(metadata)),
-      _logger("IGraph", config.get<LOG_LEVEL>()) {
-    if (blob.has_value()) {
-        _blob = std::move(*blob);
-    }
-}
+      _blobPtr(std::move(blobPtr)),
+      _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;

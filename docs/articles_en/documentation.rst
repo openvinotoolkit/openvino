@@ -13,7 +13,8 @@ Documentation
 
    API Reference <api/api_reference>
    OpenVINO IR format and Operation Sets <documentation/openvino-ir-format>
-   Tool Ecosystem <documentation/openvino-ecosystem>
+   Compatibility and Support <documentation/compatibility-and-support>
+   Legacy Features <documentation/legacy-features>
    OpenVINO Extensibility <documentation/openvino-extensibility>
    OpenVINO™ Security <documentation/openvino-security>
 
@@ -23,7 +24,7 @@ This section provides reference documents that guide you through the OpenVINO to
 | :doc:`API Reference doc path <api/api_reference>`
 | A collection of reference articles for OpenVINO C++, C, and Python APIs.
 
-| :doc:`OpenVINO Ecosystem <documentation/openvino-ecosystem>`
+| :doc:`OpenVINO Ecosystem <about-openvino/openvino-ecosystem>`
 | Apart from the core components, OpenVINO offers tools, plugins, and expansions revolving around it, even if not constituting necessary parts of its workflow. This section gives you an overview of what makes up the OpenVINO toolkit.
 
 | :doc:`OpenVINO Extensibility Mechanism <documentation/openvino-extensibility>`

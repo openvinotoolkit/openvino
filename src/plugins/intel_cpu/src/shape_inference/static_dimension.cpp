@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,9 @@ StaticDimension StaticDimension::operator&(const StaticDimension& dim) const {
 }
 
 StaticDimension& StaticDimension::operator&=(const StaticDimension& dim) {
-    if (*this != dim)
+    if (*this != dim) {
         m_dimension = 0;
+    }
     return *this;
 }
 
@@ -82,8 +83,9 @@ bool StaticDimension::same_scheme(const StaticDimension& dim) const {
 }
 
 bool StaticDimension::merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2) {
-    if (d1 != d2)
+    if (d1 != d2) {
         return false;
+    }
     dst = d1;
     return true;
 }

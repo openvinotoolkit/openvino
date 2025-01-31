@@ -17,8 +17,7 @@ namespace {
 const auto optimizedCPUSpec = []()-> std::vector<CPUSpecificParams>{
     const auto avx512 = CPUSpecificParams{{}, {}, {"jit"}, "jit_avx512"};
     const auto avx2 = CPUSpecificParams{{}, {}, {"jit"}, "jit_avx2"};
-    const auto sse42 = CPUSpecificParams{{}, {}, {"jit"}, "jit_sse42"};
-    const std::vector<CPUSpecificParams> vecCpuConfigs = {avx512, avx2, sse42};
+    const std::vector<CPUSpecificParams> vecCpuConfigs = {avx512, avx2};
     auto supportConfigure = CPUTestUtils::filterCPUInfoForDevice(vecCpuConfigs);
     // only the MAX ISA of vecCpuConfigs will be tested
     if (supportConfigure.size() > 0) {
