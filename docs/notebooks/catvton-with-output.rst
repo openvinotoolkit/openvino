@@ -73,8 +73,8 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-    
-    
+
+
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
     %pip install -q "openvino>=2024.4" "nncf>=2.13.0"
@@ -84,13 +84,13 @@ Prerequisites
 .. code:: ipython3
 
     import requests
-    
-    
+
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
     )
@@ -99,8 +99,8 @@ Prerequisites
 .. code:: ipython3
 
     from cmd_helper import clone_repo
-    
-    
+
+
     clone_repo("https://github.com/Zheng-Chong/CatVTON.git", "3b795364a4d2f3b5adb365f39cdea376d20bc53c")
 
 Convert the model to OpenVINO IR
@@ -110,7 +110,7 @@ Convert the model to OpenVINO IR
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
@@ -138,7 +138,7 @@ version).
 .. code:: ipython3
 
     from ov_catvton_helper import download_models, convert_pipeline_models, convert_automasker_models
-    
+
     pipeline, mask_processor, automasker = download_models()
     vae_scaling_factor = pipeline.vae.config.scaling_factor
     convert_pipeline_models(pipeline)
@@ -154,14 +154,14 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     from notebook_utils import device_widget
-    
-    
+
+
     core = ov.Core()
-    
+
     device = device_widget()
-    
+
     device
 
 ``get_compiled_pipeline`` and ``get_compiled_automasker`` functions
@@ -186,7 +186,7 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
         SCHP_PROCESSOR_ATR,
         SCHP_PROCESSOR_LIP,
     )
-    
+
     pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH, vae_scaling_factor)
     automasker = get_compiled_automasker(automasker, core, device, DENSEPOSE_PROCESSOR_PATH, SCHP_PROCESSOR_ATR, SCHP_PROCESSOR_LIP)
 
@@ -208,9 +208,9 @@ model, and 4-bit weight compression for the remaining models.
 .. code:: ipython3
 
     from notebook_utils import quantization_widget
-    
+
     to_quantize = quantization_widget()
-    
+
     to_quantize
 
 Let’s load ``skip magic`` extension to skip quantization if
@@ -219,13 +219,13 @@ Let’s load ``skip magic`` extension to skip quantization if
 .. code:: ipython3
 
     is_optimized_pipe_available = False
-    
+
     # Fetch skip_kernel_extension module
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Run Post-Training Quantization
@@ -246,10 +246,10 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from pathlib import Path
     from catvton_quantization_helper import collect_calibration_data, UNET_INT8_PATH
-    
+
     dataset = [
         (
             Path("CatVTON/resource/demo/example/person/men/model_5.png"),
@@ -260,7 +260,7 @@ data.
             Path("CatVTON/resource/demo/example/condition/overall/21744571_51588794_1000.jpg"),
         ),
     ]
-    
+
     if not UNET_INT8_PATH.exists():
         subset_size = 100
         calibration_data = collect_calibration_data(pipeline, automasker, mask_processor, dataset, subset_size)
@@ -268,17 +268,17 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import gc
     import nncf
     from ov_catvton_helper import UNET_PATH
-    
+
     # cleanup before quantization to free memory
     del pipeline
     del automasker
     gc.collect()
-    
-    
+
+
     if not UNET_INT8_PATH.exists():
         unet = core.read_model(UNET_PATH)
         quantized_model = nncf.quantize(
@@ -304,11 +304,11 @@ applied to footprint reduction.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from catvton_quantization_helper import compress_models
-    
+
     compress_models(core)
-    
+
     is_optimized_pipe_available = True
 
 Compare model file sizes
@@ -320,7 +320,7 @@ Compare model file sizes
 
     %%skip not $to_quantize.value
     from catvton_quantization_helper import compare_models_size
-    
+
     compare_models_size()
 
 
@@ -332,7 +332,7 @@ Compare model file sizes
     densepose_processor compression rate: 2.019
     schp_processor_atr compression rate: 1.993
     schp_processor_lip compression rate: 1.993
-    
+
 
 Interactive inference
 ---------------------
@@ -345,15 +345,15 @@ to launch the interactive demo.
 .. code:: ipython3
 
     from ov_catvton_helper import get_pipeline_selection_option
-    
+
     use_quantized_models = get_pipeline_selection_option(is_optimized_pipe_available)
-    
+
     use_quantized_models
 
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
+
     from catvton_quantization_helper import (
         VAE_ENCODER_INT4_PATH,
         VAE_DECODER_INT4_PATH,
@@ -362,7 +362,7 @@ to launch the interactive demo.
         SCHP_PROCESSOR_LIP_INT4,
         UNET_INT8_PATH,
     )
-    
+
     pipeline, mask_processor, automasker = download_models()
     if use_quantized_models.value:
         pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_INT4_PATH, VAE_DECODER_INT4_PATH, UNET_INT8_PATH, vae_scaling_factor)
@@ -370,7 +370,7 @@ to launch the interactive demo.
     else:
         pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH, vae_scaling_factor)
         automasker = get_compiled_automasker(automasker, core, device, DENSEPOSE_PROCESSOR_PATH, SCHP_PROCESSOR_ATR, SCHP_PROCESSOR_LIP)
-    
+
     output_dir = "output"
     demo = make_demo(pipeline, mask_processor, automasker, output_dir)
     try:

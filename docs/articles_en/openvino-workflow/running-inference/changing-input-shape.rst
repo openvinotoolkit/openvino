@@ -151,7 +151,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
 
 You can find the usage scenarios of the ``reshape`` method in
-:doc:`Hello Reshape SSD Samples <../../learn-openvino/openvino-samples/hello-reshape-ssd>`.
+:doc:`Hello Reshape SSD Samples <../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`.
 
 .. note::
 
@@ -209,6 +209,6 @@ Additional Resources
 * `ov::Model::reshape <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__model__c__api.html#_CPPv416ov_model_reshapePK10ov_model_tPPKcPK18ov_partial_shape_t6size_t>`__ - in OpenVINO Runtime C++ API
 * `Model.reshape <https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <dynamic-shapes>`
-* :doc:`OpenVINO samples <../../learn-openvino/openvino-samples>`
+* :doc:`OpenVINO samples <../../get-started/learn-openvino/openvino-samples>`
 * :doc:`Preprocessing API <optimize-inference/optimize-preprocessing>`
 

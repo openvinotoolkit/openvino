@@ -25,7 +25,7 @@ OpenVINO Extensibility Mechanism
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle. The list of supported operations is different for each of the supported frameworks.
-To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations>`.
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../documentation/compatibility-and-support/supported-operations>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -187,6 +187,6 @@ See Also
 ########
 
 * :doc:`OpenVINO Transformations <openvino-extensibility/transformation-api>`
-* :doc:`Using OpenVINO Runtime Samples <../learn-openvino/openvino-samples>`
-* :doc:`Hello Shape Infer SSD sample <../learn-openvino/openvino-samples/hello-reshape-ssd>`
+* :doc:`Using OpenVINO Runtime Samples <../get-started/learn-openvino/openvino-samples>`
+* :doc:`Hello Shape Infer SSD sample <../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`
 
