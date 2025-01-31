@@ -44,9 +44,8 @@ void copy_to_dst_mem(cldnn::memory::ptr mem_ptr, const uint8_t* data_ptr) {
 namespace cldnn {
 
 struct reorder_replication {
-    bool do_reorder = false;
-    cldnn::layout input_layout = {};
-    cldnn::layout output_layout = {};
+    std::shared_ptr<cldnn::layout> input_layout = nullptr;
+    std::shared_ptr<cldnn::reorder> reorder = nullptr;
 };
 
 struct weightless_cache_manager {
@@ -67,10 +66,8 @@ struct weightless_cache_manager {
         }
     }
 
-    void apply_reorder(layout input_layout, layout output_layout) {
-        reorder_rep.do_reorder = true;
-        reorder_rep.input_layout = input_layout;
-        reorder_rep.output_layout = output_layout;
+    void apply_reorder(std::shared_ptr<layout> input_layout, std::shared_ptr<reorder> reorder) {
+        reorder_rep = {input_layout, reorder};
     }
 
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
@@ -91,10 +88,12 @@ struct weightless_cache_manager {
             ob << make_data(&num_dims, sizeof(size_t));
             ob << make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         }
-        if (reorder_rep.do_reorder) {
+
+        bool do_reorder = should_run_reorder();
+        if (do_reorder) {
             ob << true;
-            ob << reorder_rep.input_layout;
-            ob << reorder_rep.output_layout;
+            ob << *reorder_rep.input_layout;
+            ob << *reorder_rep.reorder;
         } else {
             ob << false;
         }
@@ -124,10 +123,13 @@ struct weightless_cache_manager {
             original_size = dst_mem->size();
         }
 
-        ib >> reorder_rep.do_reorder;
-        if (reorder_rep.do_reorder) {
-            ib >> reorder_rep.input_layout;
-            ib >> reorder_rep.output_layout;
+        bool do_reorder = false;
+        ib >> do_reorder;
+        if (do_reorder) {
+            reorder_rep.input_layout = std::make_shared<layout>();
+            ib >> *reorder_rep.input_layout;
+            reorder_rep.reorder = std::make_shared<reorder>();
+            ib >> *reorder_rep.reorder;
         }
 
         auto shared_buf =
@@ -155,8 +157,12 @@ private:
     ov::element::Type curr_dtype = ov::element::Type_t::undefined;
     ov::Shape shape{};
 
+    bool should_run_reorder() const {
+        return reorder_rep.reorder != nullptr;
+    }
+
     bool should_run_transformations() {
-        return do_precision_conversion || reorder_rep.do_reorder;
+        return do_precision_conversion || should_run_reorder();
     }
 
     void run_transformations(engine& engine,
@@ -206,9 +212,9 @@ private:
             OPENVINO_ASSERT(transformed_constant->get_element_type() == curr_dtype);
         }
 
-        if (reorder_rep.do_reorder) {
+        if (should_run_reorder()) {
             const auto allocation_type = dst_mem->get_allocation_type();
-            memory::ptr input_mem = engine.allocate_memory(reorder_rep.input_layout, allocation_type, false);
+            memory::ptr input_mem = engine.allocate_memory(*reorder_rep.input_layout, allocation_type, false);
 
             if (is_alloc_host_accessible(allocation_type)) {
                 std::memcpy(reinterpret_cast<uint8_t*>(input_mem->buffer_ptr()),
@@ -219,11 +225,12 @@ private:
                 input_mem->copy_from(strm, get_intermediate_data());
             }
 
-            topology topology(input_layout("input", reorder_rep.input_layout),
-                              reorder("reorder", input_info("input"), reorder_rep.output_layout));
+            reorder_rep.reorder->input = {input_info("input")};
+            topology topology(input_layout("input", *reorder_rep.input_layout),
+                              *reorder_rep.reorder);
             cldnn::network network(engine, topology, {});
             network.set_input_data("input", input_mem);
-            network.set_output_memory("reorder", dst_mem);
+            network.set_output_memory(reorder_rep.reorder->id, dst_mem);
             auto outputs = network.execute();
             network.reset_execution(true);
             OPENVINO_ASSERT(outputs.size() == 1);
