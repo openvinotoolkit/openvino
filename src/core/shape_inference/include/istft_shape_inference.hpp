@@ -88,7 +88,8 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     if (inputs_count == 5) {
         const auto& length_shape = input_shapes[4];
         const bool has_len_valid_shape =
-            length_shape.rank().is_dynamic() || (length_shape.size() == 0 || length_shape[0].compatible(1));
+            length_shape.rank().is_dynamic() ||
+            (length_shape.size() == 0 || (length_shape.size() == 1 && length_shape[0].compatible(1)));
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                has_len_valid_shape,
