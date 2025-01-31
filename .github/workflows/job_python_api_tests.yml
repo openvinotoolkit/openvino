@@ -74,6 +74,14 @@ jobs:
             .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'action_root'
+          
+      - name: Checkout private action repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: openvinotoolkit/actions_test
+          ref: master
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
+          path: private-actions
 
       - name: Setup Python ${{ inputs.python-version }}
         uses: ./action_root/.github/actions/setup_python
@@ -86,15 +94,14 @@ jobs:
       #
       # Tests
       #
-      - name: Install OpenVINO Python wheels
-        uses: ./action_root/.github/actions/install_ov_wheels
+
+      - name: Install GenAI Wheels
+        uses: ./private-actions/.github/actions/install_wheels
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
-
-      - name: Install Python API tests dependencies
-        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
-
+          packages: "openvino"
+          requirements_files: ${{ env.INSTALL_TEST_DIR }}/tests/bindings/python/requirements_test.txt
+          local_wheel_dir: ${{ env.INSTALL_WHEELS_DIR }}
+        
       #
       # Tests
       #
