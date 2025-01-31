@@ -547,7 +547,7 @@ protected:
             outfile << "This is a test file.";
         }
         {
-            std::ofstream outfile(ov::util::Path(U"这是_u16_.txt"));
+            std::ofstream outfile(ov::util::Path(u"这是_u16_.txt"));
             outfile << "This is a test file.";
         }
         {
