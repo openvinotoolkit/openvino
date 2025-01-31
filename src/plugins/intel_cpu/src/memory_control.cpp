@@ -125,6 +125,10 @@ public:
         return m_max_requested_size;
     }
 
+    std::shared_ptr<const MemoryBlockWithRelease> getParentBlock() const {
+        return m_pBlock;
+    }
+
 private:
     std::shared_ptr<MemoryBlockWithRelease> m_pBlock;
     size_t m_max_requested_size = 0;
@@ -175,27 +179,6 @@ public:
         // nothing to do
     }
 
-#ifdef CPU_DEBUG_CAPS
-    static MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
-        MemoryStatisticsRecord retVal;
-        retVal.id = getClassName();
-        retVal.total_regions = obj.m_blocks.size();  // as the number of blocks ie equal to regions
-        retVal.total_unique_blocks = obj.m_blocks.size();
-        retVal.total_size =
-            std::accumulate(obj.m_blocks.begin(), obj.m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
-                return acc + item.size();
-            });
-        retVal.optimal_total_size = retVal.total_size;
-        retVal.max_region_size = std::accumulate(obj.m_blocks.begin(),
-                                                 obj.m_blocks.end(),
-                                                 static_cast<size_t>(0),
-                                                 [](size_t acc, const BlockType& item) {
-                                                     return std::max(acc, item.size());
-                                                 });
-        return retVal;
-    }
-#endif
-
 private:
     static const char* getClassName() {
         return "MemoryManagerIO";
@@ -204,36 +187,8 @@ private:
 private:
     MemoryControl::MemorySolution m_solution;
     CPU_DEBUG_CAP_ENABLE(std::vector<std::reference_wrapper<BlockType>> m_blocks;)
+    CPU_DEBUG_CAP_ENABLE(friend MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj);)
 };
-
-#ifdef CPU_DEBUG_CAPS
-static std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver::Box> boxes) {
-    ov::MemorySolver::normalize_boxes(boxes);
-
-    auto boxCmp = [](const MemorySolver::Box& l, const MemorySolver::Box& r) {
-        return l.finish > r.finish;
-    };
-    std::priority_queue<MemorySolver::Box, std::vector<MemorySolver::Box>, decltype(boxCmp)> pq(boxCmp);
-
-    ptrdiff_t current_size = 0;
-    ptrdiff_t max_current_size = 0;
-    ptrdiff_t max_box_size = 0;
-
-    for (const auto& box : boxes) {
-        max_box_size = std::max(max_box_size, box.size);
-        current_size += box.size;
-        while (!pq.empty() && pq.top().finish < box.start) {
-            auto&& retire_box = pq.top();
-            current_size -= retire_box.size;
-            pq.pop();
-        }
-        pq.push(box);
-        max_current_size = std::max(max_current_size, current_size);
-    }
-
-    return {max_current_size, max_box_size};
-}
-#endif
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
@@ -251,24 +206,6 @@ public:
         }
         return m_blocks;
     }
-
-#ifdef CPU_DEBUG_CAPS
-    static MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj) {
-        MemoryStatisticsRecord retVal;
-        retVal.id = getClassName();
-        retVal.total_regions = obj.m_boxes.size();
-        retVal.total_unique_blocks = 1;  // in fact there is only one unique block
-        retVal.total_size = obj.m_totalSize;
-
-        {
-            auto result = calculateOptimalMemorySize(obj.m_boxes);
-
-            retVal.optimal_total_size = result.first;
-            retVal.max_region_size = result.second;
-        }
-        return retVal;
-    }
-#endif
 
 private:
     void solve() {
@@ -311,69 +248,10 @@ private:
     std::shared_ptr<MemoryBlockWithRelease> m_workspace;
     size_t m_totalSize = 0;
     bool reset_flag = true;
+    CPU_DEBUG_CAP_ENABLE(friend MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj);)
 };
 
 class MemoryManagerNonOverlappingSets : public IMemoryManager {
-public:
-#ifdef CPU_DEBUG_CAPS
-    class MemoryBlocks {
-    public:
-        MemoryBlocks() = default;
-        explicit MemoryBlocks(const std::vector<std::vector<ov::MemorySolver::Box>>& groups) {
-            for (auto& group : groups) {
-                m_unique_blocks.push_back(std::make_shared<MemoryBlockWithRelease>());
-                for (auto& box : group) {
-                    m_internalBlocks[box.id] =
-                        std::make_shared<IndividualMemoryBlockWithRelease>(m_unique_blocks.back());
-                }
-            }
-        }
-        auto begin() {
-            return m_internalBlocks.begin();
-        }
-
-        auto end() {
-            return m_internalBlocks.end();
-        }
-        const auto& at(const MemoryControl::MemorySolution::key_type& key) const {
-            return m_internalBlocks.at(key);
-        }
-        const auto& uniqueBlocks() const {
-            return m_unique_blocks;
-        }
-
-    private:
-        std::vector<std::shared_ptr<MemoryBlockWithRelease>> m_unique_blocks;
-        std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<IndividualMemoryBlockWithRelease>>
-            m_internalBlocks;
-    };
-#else
-    class MemoryBlocks {
-    public:
-        MemoryBlocks() = default;
-        explicit MemoryBlocks(const std::vector<std::vector<ov::MemorySolver::Box>>& groups) {
-            for (auto& group : groups) {
-                auto unique_block = std::make_shared<MemoryBlockWithRelease>();
-                for (auto& box : group) {
-                    m_internalBlocks[box.id] = unique_block;
-                }
-            }
-        }
-
-        auto begin() {
-            return m_internalBlocks.begin();
-        }
-
-        auto end() {
-            return m_internalBlocks.end();
-        }
-
-    private:
-        std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<MemoryBlockWithRelease>>
-            m_internalBlocks;
-    };
-#endif  // CPU_DEBUG_CAPS
-
 public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
@@ -399,35 +277,22 @@ public:
     const MemoryControl::MemorySolution& lastSolution() override {
         if (reset_flag && !m_boxes.empty()) {
             solve();
-            m_blocks = MemoryControl::MemorySolution{m_memoryBlocks.begin(), m_memoryBlocks.end()};
+            m_blocks = MemoryControl::MemorySolution{m_internalBlocks.begin(), m_internalBlocks.end()};
             reset_flag = false;
         }
         return m_blocks;
     }
 
+private:
 #ifdef CPU_DEBUG_CAPS
-    static MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets& obj) {
-        MemoryStatisticsRecord retVal;
-        retVal.id = getClassName();
-        retVal.total_regions = obj.m_boxes.size();
-        retVal.total_unique_blocks = obj.m_memoryBlocks.uniqueBlocks().size();
-        retVal.total_size = std::accumulate(obj.m_memoryBlocks.uniqueBlocks().begin(),
-                                            obj.m_memoryBlocks.uniqueBlocks().end(),
-                                            static_cast<size_t>(0),
-                                            [](size_t acc, const auto& item) {
-                                                return acc + item->size();
-                                            });
-
-        auto tmp_boxes = obj.m_boxes;
-        for (auto&& box : tmp_boxes) {
-            auto block = obj.m_memoryBlocks.at(box.id);
-            box.size = block->size();
-        }
-
-        auto result = calculateOptimalMemorySize(std::move(tmp_boxes));
-        retVal.optimal_total_size = result.first;
-        retVal.max_region_size = result.second;
-        return retVal;
+    using InternalBlock = IndividualMemoryBlockWithRelease;
+    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+        return std::make_shared<InternalBlock>(block);
+    }
+#else
+    using InternalBlock = MemoryBlockWithRelease;
+    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+        return block;
     }
 #endif  // CPU_DEBUG_CAPS
 
@@ -453,14 +318,19 @@ private:
                 groups.push_back({box});
             }
         }
-        m_memoryBlocks = MemoryBlocks(groups);
+        for (auto& group : groups) {
+            auto unique_block = std::make_shared<MemoryBlockWithRelease>();
+            for (auto& box : group) {
+                m_internalBlocks.insert({box.id, internalBlock(unique_block)});
+            }
+        }
     }
 
     void allocate() override {
         // nothing to do
     }
     void release() override {
-        for (auto&& item : m_memoryBlocks) {
+        for (auto&& item : m_internalBlocks) {
             item.second->free();
         }
     }
@@ -472,9 +342,109 @@ private:
 private:
     MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
-    MemoryBlocks m_memoryBlocks;
+    std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<InternalBlock>> m_internalBlocks;
     bool reset_flag = true;
+    CPU_DEBUG_CAP_ENABLE(friend MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets& obj);)
 };
+
+#ifdef CPU_DEBUG_CAPS
+std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver::Box> boxes) {
+    ov::MemorySolver::normalize_boxes(boxes);
+
+    auto boxCmp = [](const MemorySolver::Box& l, const MemorySolver::Box& r) {
+        return l.finish > r.finish;
+    };
+    std::priority_queue<MemorySolver::Box, std::vector<MemorySolver::Box>, decltype(boxCmp)> pq(boxCmp);
+
+    ptrdiff_t current_size = 0;
+    ptrdiff_t max_current_size = 0;
+    ptrdiff_t max_box_size = 0;
+
+    for (const auto& box : boxes) {
+        max_box_size = std::max(max_box_size, box.size);
+        current_size += box.size;
+        while (!pq.empty() && pq.top().finish < box.start) {
+            auto&& retire_box = pq.top();
+            current_size -= retire_box.size;
+            pq.pop();
+        }
+        pq.push(box);
+        max_current_size = std::max(max_current_size, current_size);
+    }
+
+    return {max_current_size, max_box_size};
+}
+
+MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
+    MemoryStatisticsRecord retVal;
+    retVal.id = MemoryManagerIO::getClassName();
+    retVal.total_regions = obj.m_blocks.size();  // as the number of blocks ie equal to regions
+    retVal.total_unique_blocks = obj.m_blocks.size();
+    retVal.total_size = std::accumulate(obj.m_blocks.begin(),
+                                        obj.m_blocks.end(),
+                                        0,
+                                        [](size_t acc, const MemoryManagerIO::BlockType& item) {
+                                            return acc + item.size();
+                                        });
+    retVal.optimal_total_size = retVal.total_size;
+    retVal.max_region_size = std::accumulate(obj.m_blocks.begin(),
+                                             obj.m_blocks.end(),
+                                             static_cast<size_t>(0),
+                                             [](size_t acc, const MemoryManagerIO::BlockType& item) {
+                                                 return std::max(acc, item.size());
+                                             });
+    return retVal;
+}
+
+MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj) {
+    MemoryStatisticsRecord retVal;
+    retVal.id = MemoryManagerStatic::getClassName();
+    retVal.total_regions = obj.m_boxes.size();
+    retVal.total_unique_blocks = 1;  // in fact there is only one unique block
+    retVal.total_size = obj.m_totalSize;
+
+    {
+        auto result = calculateOptimalMemorySize(obj.m_boxes);
+
+        retVal.optimal_total_size = result.first;
+        retVal.max_region_size = result.second;
+    }
+    return retVal;
+}
+
+MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets& obj) {
+    static_assert(std::is_same<MemoryManagerNonOverlappingSets::InternalBlock, IndividualMemoryBlockWithRelease>::value,
+                  "Unexpected block type");
+
+    MemoryStatisticsRecord retVal;
+    retVal.id = MemoryManagerNonOverlappingSets::getClassName();
+    retVal.total_regions = obj.m_boxes.size();
+
+    std::unordered_set<std::shared_ptr<const MemoryBlockWithRelease>> uniqueBlocks;
+    for (auto&& item : obj.m_internalBlocks) {
+        uniqueBlocks.insert(item.second->getParentBlock());
+    }
+
+    retVal.total_unique_blocks = uniqueBlocks.size();
+    retVal.total_size = std::accumulate(uniqueBlocks.begin(),
+                                        uniqueBlocks.end(),
+                                        static_cast<size_t>(0),
+                                        [](size_t acc, const auto& item) {
+                                            return acc + item->size();
+                                        });
+
+    auto tmp_boxes = obj.m_boxes;
+    for (auto&& box : tmp_boxes) {
+        auto block = obj.m_internalBlocks.at(box.id);
+        box.size = block->size();
+    }
+
+    auto result = calculateOptimalMemorySize(std::move(tmp_boxes));
+    retVal.optimal_total_size = result.first;
+    retVal.max_region_size = result.second;
+    return retVal;
+}
+#endif
 
 }  // namespace
 
@@ -538,7 +508,7 @@ MemoryControl::RegionHandlerPtr buildHandler(F&& f, Args&&... args) {
 #ifdef CPU_DEBUG_CAPS
     retVal->setDumper([](const MemoryManagerPtr& ptr) {
         OPENVINO_ASSERT(ptr);
-        return T::dumpStatisticsImpl(*static_cast<T*>(ptr.get()));
+        return dumpStatisticsImpl(*static_cast<T*>(ptr.get()));
     });
 #endif  // CPU_DEBUG_CAPS
 
