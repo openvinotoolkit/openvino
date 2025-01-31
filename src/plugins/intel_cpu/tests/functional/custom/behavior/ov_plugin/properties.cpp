@@ -242,7 +242,6 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
 
     auto expect_inference_precision = [&](const ov::element::Type expected_value) {
         auto inference_precision_value = ov::element::dynamic;
-        ;
         OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, expected_value);
     };
