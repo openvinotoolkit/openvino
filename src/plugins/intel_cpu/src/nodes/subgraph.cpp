@@ -589,6 +589,7 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
 
 void Subgraph::optimizeIR() {
     const auto& subgraph = subgraph_attrs->snippet;
+//    std::cerr << subgraph->get_friendly_name() << " : " << subgraph_attrs->bodyHash << "\n";
 
     const auto in_blocked_shapes = getSnippetsBlockedShapes();
     const auto precisions = getIOPrecisions();
@@ -693,6 +694,9 @@ void Subgraph::prepareParams() {
 
     const auto result = cache->getOrCreate(SubgraphKey(subgraph_attrs, in_shapes), builder);
     execPtr = result.first;
+//    std::string status =  result.second == CacheEntryBase::LookUpStatus::Hit ? "hit" : "miss";
+//    std:: cout << status << " : ";
+//    execPtr->print_shapes();
 #endif
 
     OPENVINO_ASSERT(execPtr != nullptr, "Executor is not created for node ", getName(), ".");
