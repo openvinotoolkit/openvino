@@ -33,6 +33,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
         const auto& brg0Prc = gemm_node->get_input_element_type(0);
         const auto& brg1Prc = gemm_node->get_input_element_type(1);
         const auto brgemm_type = gemm_node->get_type();
+        m_is_with_amx = false;
 
         BrgemmBatchedKernelConfig kernel_config(brg0Prc,
                                                 brg1Prc,

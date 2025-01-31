@@ -67,22 +67,17 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
 
         // Validate that iteration dimension is broadcastable
         std::set<size_t> unique_dimensions;
-        fprintf(stderr, "Loop ID: %zu\n", pair.first);
         loop_info->iterate_through_ports([&unique_dimensions](const LoopPort& loop_port) {
-            fprintf(stderr, "loop_port.is_processed(): %d\n", loop_port.is_processed());
             if (loop_port.is_processed()) {
                 const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
                 const auto planar_shape = is_input ? ov::snippets::utils::get_planar_vdims(*loop_port.get_expr_port())
                                                    : ov::snippets::utils::get_preordered_vdims(*loop_port.get_expr_port());
                 const auto& dim = *(planar_shape.rbegin() + loop_port.get_dim_idx());
                 // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
-                if (!utils::is_dynamic_value(dim) && dim != 1) {
+                if (!utils::is_dynamic_value(dim) && dim != 1)
                     unique_dimensions.insert(dim);
-                    fprintf(stderr, "Dimension: %zu\n", dim);
-                }
             }
         });
-
         OPENVINO_ASSERT(unique_dimensions.size() <= 1,
                         "Loop ports have incompatible dimensions, by which the loop iterates");
     }

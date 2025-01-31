@@ -32,11 +32,6 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BuildBrgemm")
     bool modified = false;
 
-    fprintf(stderr, "Dumping Linear IR <before>:\n");
-    for (auto it = begin; it != end; ++it) {
-        const auto& expr = *it;
-        fprintf(stderr, "%s\n", expr->get_node()->get_friendly_name().c_str());
-    }
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto gemm_node = ov::as_type_ptr<GemmCPU>(expr->get_node());
@@ -59,17 +54,9 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
         const auto in1_subtensor = gemm_in1_desc->get_subtensor();
         const auto out_subtensor = gemm_out_desc->get_subtensor();
 
-        // const auto& interm_connector = expr->get_input_port_connector(0);
-        // const auto gemm_expr = interm_connector->get_source().get_expr();
-
         // Get innermost loop info
         // TODO: check K-loop
         const auto& inner_loop_info = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids.front());
-        fprintf(stderr, "inner_loop_info for loop id %zu (inputs count: %zu):\n", loop_ids.front(), inner_loop_info->get_input_ports_info().size());
-        for (size_t i = 0; i < inner_loop_info->get_input_ports_info().size(); ++i) {
-            fprintf(stderr, "Input port %zu is_processed: %d\n", i, inner_loop_info->get_input_ports_info()[i].port.is_processed());
-        }
-        // fprintf(stderr, "Output port 0 is_processed: %d\n", inner_loop_info->get_output_ports_info()[1].port.is_processed());
         if (inner_loop_info->get_work_amount() % inner_loop_info->get_increment() != 0) {
             continue;
         }
@@ -94,15 +81,7 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
         updated_expr->get_input_port_descriptor(1)->set_subtensor(in1_subtensor);
         updated_expr->get_output_port_descriptor(0)->set_subtensor(out_subtensor);
 
-        const auto loop_ids2 = updated_expr->get_loop_ids();
-        const auto& inner_loop_info2 = loop_manager->get_loop_info<snippets::lowered::UnifiedLoopInfo>(loop_ids2.front());
-
         modified |= true;
-    }
-    fprintf(stderr, "Dumping Linear IR <after>:\n");
-    for (auto it = begin; it != end; ++it) {
-        const auto& expr = *it;
-        fprintf(stderr, "%s\n", expr->get_node()->get_friendly_name().c_str());
     }
 
     return modified;

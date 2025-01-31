@@ -180,9 +180,7 @@ public:
     template<typename T, typename = typename std::enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
     void replace_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports) {
         const auto& loop_info = get_loop_info(loop_id);
-        fprintf(stderr, "replace_loop_port 1: %zu\n", loop_info->get_input_ports().size());
         loop_info->replace_with_new_ports(actual_port, target_ports);
-        fprintf(stderr, "replace_loop_port 2: %zu\n", loop_info->get_input_ports().size());
     }
     /**
      * @brief Replace Loop ports for several Unified Loops with new ports.
