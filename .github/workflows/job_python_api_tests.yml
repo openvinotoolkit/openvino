@@ -80,7 +80,6 @@ jobs:
         with:
           repository: openvinotoolkit/actions_test
           ref: master
-          token: ${{ secrets.MY_GITHUB_TOKEN }}
           path: private-actions
 
       - name: Setup Python ${{ inputs.python-version }}
