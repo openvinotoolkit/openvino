@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/reference/fft.hpp"
 #include "openvino/reference/irdft.hpp"
 #include "openvino/reference/transpose.hpp"
 

@@ -81,9 +81,9 @@ public:
         name << obj.param.frame_step.type;
         name << "_frame_step_shape_";
         name << obj.param.frame_step.shape;
-        name << "_lentgh_input_type_";
+        name << "_length_input_type_";
         name << obj.param.frame_step.type;
-        name << "_lebgth_shape_";
+        name << "_length_shape_";
         name << obj.param.frame_step.shape;
         name << "_center_";
         name << obj.param.center;
