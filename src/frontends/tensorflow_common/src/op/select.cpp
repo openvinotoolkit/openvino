@@ -13,6 +13,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
