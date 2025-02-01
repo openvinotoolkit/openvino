@@ -95,7 +95,6 @@ class TestComplexSelectV2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-
     def test_complex_select_v2(self, params, ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):
         if use_legacy_frontend:
