@@ -10,11 +10,11 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace ai_onnx{
-namespace opset_12 {
-		OutputVector softmax_cross_entropy_loss(const Node& node);
-} // namespace opset_12
-namespace opset_13 {
-        OutputVector softmax_cross_entropy_loss(const Node& node);
+	namespace opset_12 {
+			OutputVector softmax_cross_entropy_loss(const Node& node);
+	} // namespace opset_12
+	namespace opset_13 {
+	        OutputVector softmax_cross_entropy_loss(const Node& node);
 } // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx
