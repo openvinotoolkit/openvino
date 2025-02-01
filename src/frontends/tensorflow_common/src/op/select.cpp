@@ -61,10 +61,8 @@ OutputVector translate_select_v2_op(const NodeContext& node) {
     auto is_complex = has_complex_inputs(x, y, complex_part_type);
 
     if (is_complex) {
-        auto cur_cond_shape = make_shared<v3::ShapeOf>(condition, element::i32);
-        auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-        auto new_cond_shape = make_shared<v0::Concat>(OutputVector{cur_cond_shape, const_one}, 0);
-        auto new_condition = make_shared<v1::Reshape>(condition, new_cond_shape, false);
+        auto const_negative_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto new_condition = make_shared<v0::Unsqueeze>(condition, const_negative_one);
         auto result = translate_select_base_op(node, new_condition, x, y);
         auto complex_result = make_shared<ComplexTypeMark>(result[0].get_node_shared_ptr(), complex_part_type);
         return {complex_result->output(0)};
