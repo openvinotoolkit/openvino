@@ -171,7 +171,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
 Congratulations, you have finished the installation! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <../configurations>`
+:doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
 The ``/opt/intel/openvino_2024`` folder now contains the core components for OpenVINO.
@@ -224,7 +224,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
-      Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      Visit the :doc:`Tutorials <../../../get-started/learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
       * `OpenVINO Python API Tutorial <../../notebooks/openvino-api-with-output.html>`__
       * `Basic image classification program with Hello Image Classification <../../notebooks/hello-world-with-output.html>`__
@@ -234,16 +234,16 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
+      Try the :doc:`C++ Quick Start Example <../../../get-started/learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
       on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
 
-      Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
+      Visit the :doc:`Samples <../../../get-started/learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
-      * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
+      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`
+      * :doc:`Object classification sample <../../../get-started/learn-openvino/openvino-samples/hello-classification>`
 
 
 
@@ -273,8 +273,8 @@ To delete the files:
 Additional Resources
 ###########################################################
 
-* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../troubleshooting-install-config>`
+* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <./configurations/troubleshooting-install-config>`
 * Converting models for use with OpenVINO™: :doc:`Convert a Model <../../../openvino-workflow/model-preparation>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <../../../openvino-workflow/running-inference>`
-* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
+* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../get-started/learn-openvino/openvino-samples>`
 * Pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__.
