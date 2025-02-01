@@ -296,8 +296,9 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (precisions.empty())
+    if (precisions.empty()) {
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
+    }
 
     return precisions;
 }
@@ -411,37 +412,45 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        if (isa == x64::avx512_core)
+        if (isa == x64::avx512_core) {
             vpxord(vmm_zero, vmm_zero, vmm_zero);
+        }
 
         for (size_t i = 0; i < jep.inputs_number; i++) {
-            if (jep.src_size[i] == 1)
+            if (jep.src_size[i] == 1) {
                 load_vector(get_vmm_reg(i), ptr[get_src_reg(i)], jep.src_prc[i], exec_prc, true);
+            }
         }
 
         size_t min_src_size = jep.dst_size;
         for (size_t i = 0; i < jep.inputs_number; i++) {
-            if (jep.src_size[i] != 1)
+            if (jep.src_size[i] != 1) {
                 min_src_size = std::min(min_src_size, jep.src_size[i]);
+            }
         }
-        if (jep_.oc_size > 1)
+        if (jep_.oc_size > 1) {
             min_src_size = std::min(min_src_size, jep_.oc_size);
+        }
 
         if (min_src_size != jep.dst_size) {
             bool is_valid_configuration = true;
-            if (jep.dst_size % min_src_size != 0)
+            if (jep.dst_size % min_src_size != 0) {
                 is_valid_configuration = false;
-
-            for (size_t i = 0; i < jep.inputs_number; i++) {
-                if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size)
-                    is_valid_configuration = false;
             }
 
-            if (jep_.oc_size > 1 && jep_.oc_size != min_src_size && jep_.oc_size != jep.dst_size)
-                is_valid_configuration = false;
+            for (size_t i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size) {
+                    is_valid_configuration = false;
+                }
+            }
 
-            if (!is_valid_configuration)
+            if (jep_.oc_size > 1 && jep_.oc_size != min_src_size && jep_.oc_size != jep.dst_size) {
+                is_valid_configuration = false;
+            }
+
+            if (!is_valid_configuration) {
                 OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
+            }
 
             L(unroll_loop_label);
             {
@@ -453,12 +462,13 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                 for (size_t j = 0; j < min_src_size / vec_step; j++) {
                     for (size_t i = 0; i < jep.inputs_number; i++) {
-                        if (jep.src_size[i] != 1)
+                        if (jep.src_size[i] != 1) {
                             load_vector(get_vmm_reg(i),
                                         ptr[get_src_reg(i) + j * vec_step * jep.src_prc[i].size()],
                                         jep.src_prc[i],
                                         exec_prc,
                                         false);
+                        }
                     }
 
                     compute_eltwise_op();
@@ -471,11 +481,12 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                 size_t tail_start = min_src_size - min_src_size % vec_step;
                 for (size_t j = tail_start; j < min_src_size; j++) {
                     for (size_t i = 0; i < jep.inputs_number; i++) {
-                        if (jep.src_size[i] != 1)
+                        if (jep.src_size[i] != 1) {
                             load_scalar(get_xmm_reg(i),
                                         ptr[get_src_reg(i) + j * jep.src_prc[i].size()],
                                         jep.src_prc[i],
                                         exec_prc);
+                        }
                     }
 
                     compute_eltwise_op();
@@ -489,14 +500,17 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                  jep.do_output_saturation);
                 }
 
-                for (size_t i = 0; i < jep.inputs_number; i++)
-                    if (jep.src_size[i] == jep.dst_size)
+                for (size_t i = 0; i < jep.inputs_number; i++) {
+                    if (jep.src_size[i] == jep.dst_size) {
                         add(get_src_reg(i), jep.src_prc[i].size() * loop_step);
+                    }
+                }
 
                 add(reg_dst, jep.dst_prc.size() * loop_step);
                 sub(reg_work_amount, loop_step);
-                if (jep_.oc_size > 1 && jep_.oc_size != min_src_size)
+                if (jep_.oc_size > 1 && jep_.oc_size != min_src_size) {
                     add(reg_oc_off, loop_step * sizeof(float));
+                }
 
                 jmp(unroll_loop_label, T_NEAR);
             }
@@ -513,8 +527,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                 jl(main_loop_end_label, T_NEAR);
 
                 for (size_t i = 0; i < jep.inputs_number; i++) {
-                    if (jep.src_size[i] != 1)
+                    if (jep.src_size[i] != 1) {
                         load_vector(get_vmm_reg(i), ptr[get_src_reg(i)], jep.src_prc[i], exec_prc, false);
+                    }
                 }
 
                 compute_eltwise_op();
@@ -523,14 +538,17 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                 store_vector(ptr[reg_dst], vmm_dst, exec_prc, jep.dst_prc);
 
-                for (size_t i = 0; i < jep.inputs_number; i++)
-                    if (jep.src_size[i] != 1)
+                for (size_t i = 0; i < jep.inputs_number; i++) {
+                    if (jep.src_size[i] != 1) {
                         add(get_src_reg(i), jep.src_prc[i].size() * loop_step);
+                    }
+                }
 
                 add(reg_dst, jep.dst_prc.size() * loop_step);
                 sub(reg_work_amount, loop_step);
-                if (jep_.oc_size > 1)
+                if (jep_.oc_size > 1) {
                     add(reg_oc_off, loop_step * sizeof(float));
+                }
 
                 jmp(main_loop_label, T_NEAR);
             }
@@ -546,8 +564,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
             jl(tail_loop_end_label, T_NEAR);
 
             for (size_t i = 0; i < jep.inputs_number; i++) {
-                if (jep.src_size[i] != 1)
+                if (jep.src_size[i] != 1) {
                     load_scalar(get_xmm_reg(i), ptr[get_src_reg(i)], jep.src_prc[i], exec_prc);
+                }
             }
 
             compute_eltwise_op();
@@ -556,14 +575,17 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
             store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc, jep.do_output_saturation);
 
-            for (size_t i = 0; i < jep.inputs_number; i++)
-                if (jep.src_size[i] != 1)
+            for (size_t i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] != 1) {
                     add(get_src_reg(i), jep.src_prc[i].size() * loop_step);
+                }
+            }
 
             add(reg_dst, jep.dst_prc.size() * loop_step);
             sub(reg_work_amount, loop_step);
-            if (jep_.oc_size > 1)
+            if (jep_.oc_size > 1) {
                 add(reg_oc_off, loop_step * sizeof(float));
+            }
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -572,8 +594,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
-        if (uni_vcvtneps2bf16)
+        if (uni_vcvtneps2bf16) {
             uni_vcvtneps2bf16->emit_data();
+        }
 
         eltwise_emitter->emit_data();
         for (size_t i = 0; i < post_op_emitters.size(); i++) {
@@ -696,8 +719,9 @@ private:
                   OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
                   OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-        if (!ctx.emitter)
+        if (!ctx.emitter) {
             OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
+        }
 
         return ctx.emitter;
     }
@@ -705,10 +729,12 @@ private:
     inline void compute_eltwise_op() {
         std::vector<size_t> in_idxs;
         std::vector<size_t> aux_idxs;
-        for (size_t i = 0; i < eltwise_emitter->get_inputs_num(); i++)
+        for (size_t i = 0; i < eltwise_emitter->get_inputs_num(); i++) {
             in_idxs.push_back(get_vmm_reg(i).getIdx());
-        for (size_t i = 0; i < eltwise_emitter->aux_vecs_count(); i++)
+        }
+        for (size_t i = 0; i < eltwise_emitter->aux_vecs_count(); i++) {
             aux_idxs.push_back(get_aux_vmm(i).getIdx());
+        }
 
         std::vector<size_t> out_idxs;
         out_idxs.push_back(vmm_dst.getIdx());
@@ -725,10 +751,12 @@ private:
                 std::vector<size_t> in_idxs;
                 std::vector<size_t> aux_idxs;
                 in_idxs.push_back(vmm_dst.getIdx());
-                for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++)
+                for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++) {
                     in_idxs.push_back(get_vmm_reg(input_idx++).getIdx());
-                for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++)
+                }
+                for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++) {
                     aux_idxs.push_back(get_aux_vmm(j).getIdx());
+                }
 
                 std::vector<size_t> out_idxs;
                 out_idxs.push_back(vmm_dst.getIdx());
@@ -826,12 +854,14 @@ private:
 
             switch (dst_prc) {
             case ov::element::f32:
-                if (!src_prc.is_real())
+                if (!src_prc.is_real()) {
                     uni_vcvtdq2ps(vmm_src, vmm_src);
+                }
                 break;
             case ov::element::i32:
-                if (src_prc.is_real())
+                if (src_prc.is_real()) {
                     uni_vcvtps2dq(vmm_src, vmm_src);
+                }
                 break;
             default:
                 OPENVINO_THROW("unknown dst_prc");
@@ -901,12 +931,14 @@ private:
 
         switch (dst_prc) {
         case ov::element::f32:
-            if (!src_prc.is_real())
+            if (!src_prc.is_real()) {
                 uni_vcvtdq2ps(xmm_src, xmm_src);
+            }
             break;
         case ov::element::i32:
-            if (src_prc.is_real())
+            if (src_prc.is_real()) {
                 uni_vcvtps2dq(xmm_src, xmm_src);
+            }
             break;
         default:
             OPENVINO_THROW("unknown dst_prc");
@@ -927,12 +959,14 @@ private:
 
         switch (src_prc) {
         case ov::element::f32:
-            if (!dst_prc.is_real())
+            if (!dst_prc.is_real()) {
                 uni_vcvtps2dq(vmm_dst, vmm_dst);
+            }
             break;
         case ov::element::i32:
-            if (dst_prc.is_real())
+            if (dst_prc.is_real()) {
                 uni_vcvtdq2ps(vmm_dst, vmm_dst);
+            }
             break;
         default:
             OPENVINO_THROW("unknown src_prc");
@@ -989,13 +1023,15 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != x64::sse41)
+                if (isa != x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != x64::sse41)
+                if (isa != x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     movd(op, xmm_dst);
+                }
             }
             break;
         case ov::element::u8:
@@ -1004,13 +1040,15 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != x64::sse41)
+                if (isa != x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != x64::sse41)
+                if (isa != x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     movd(op, xmm_dst);
+                }
             }
             break;
         default:
@@ -1040,12 +1078,14 @@ private:
 
         switch (src_prc) {
         case ov::element::f32:
-            if (!dst_prc.is_real())
+            if (!dst_prc.is_real()) {
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
+            }
             break;
         case ov::element::i32:
-            if (dst_prc.is_real())
+            if (dst_prc.is_real()) {
                 uni_vcvtdq2ps(xmm_dst, xmm_dst);
+            }
             break;
         default:
             OPENVINO_THROW("unknown src_prc");
@@ -1057,11 +1097,12 @@ private:
             uni_vmovss(op, xmm_dst);
             break;
         case ov::element::bf16:
-            if (do_output_saturation)
+            if (do_output_saturation) {
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-            else
+            } else {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())},
                                              {static_cast<size_t>(xmm_dst.getIdx())});
+            }
             uni_vpextrw(op, xmm_dst, 0x0);
             break;
         case ov::element::f16:
@@ -1112,10 +1153,11 @@ Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shar
     }
 
     auto const_shape = op->get_input_shape(constPort);
-    if (ov::shape_size(const_shape) == 1)
+    if (ov::shape_size(const_shape) == 1) {
         return PerTensor;
-    else
+    } else {
         return PerChannel;
+    }
 }
 
 const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getInitializers() {
@@ -1429,8 +1471,9 @@ struct EltwiseKey {
                 for (size_t i = 0; i < inpDims.size(); ++i) {
                     broadcast = (inpDims[i].back() == 1);
                     rhsBroadcast = (rhs.inpDims[i].back() == 1);
-                    if (broadcast != rhsBroadcast)
+                    if (broadcast != rhsBroadcast) {
                         return false;
+                    }
                 }
             } else {
                 result = result && outOrder == rhs.outOrder && outBlkDims == rhs.outBlkDims;
@@ -1438,8 +1481,9 @@ struct EltwiseKey {
                     result = result && (inpDims[i] == rhs.inpDims[i]);
                 }
             }
-            if (doOutputSaturation != rhs.doOutputSaturation)
+            if (doOutputSaturation != rhs.doOutputSaturation) {
                 return false;
+            }
         }
 
         return result;
@@ -1490,11 +1534,12 @@ public:
 
         auto collapseLastOffsets = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
-                if (dims[dims.size() - 1] > 0 || dims[i] > 0)
+                if (dims[dims.size() - 1] > 0 || dims[i] > 0) {
                     dims[dims.size() - 1] = std::max(dims[dims.size() - 1], static_cast<size_t>(1)) *
                                             std::max(dims[i], static_cast<size_t>(1));
-                else
+                } else {
                     dims[dims.size() - 1] *= dims[i];
+                }
             }
 
             for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
@@ -1540,8 +1585,9 @@ public:
 
         for (size_t i = 0; i < inpDims.size(); i++) {
             for (size_t j = 0; j < inpDims[i].size(); j++) {
-                if (inpDims[i][j] != jep.dims[j] && inpDims[i][j] != 1)
+                if (inpDims[i][j] != jep.dims[j] && inpDims[i][j] != 1) {
                     OPENVINO_THROW("Eltwise executor got invalid input/output dims configuration.");
+                }
             }
         }
 
@@ -1585,8 +1631,9 @@ public:
         bool hasDifferentDims = false;
         while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount &&
                currentJitWorkAmount < fullWorkAmount) {
-            if (collapsedDims >= maxCollapsedDims)
+            if (collapsedDims >= maxCollapsedDims) {
                 break;
+            }
 
             for (size_t j = 1; j < inpDims.size(); j++) {
                 if (inpDims[j].back() != inpDims[0].back()) {
@@ -1690,13 +1737,15 @@ public:
         }
 #endif  // OPENVINO_ARCH_ARM64
 
-        if (_pKernel)
+        if (_pKernel) {
             _pKernel->create_ker();
+        }
     }
 
     void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override {
-        if (!_pKernel)
+        if (!_pKernel) {
             OPENVINO_THROW("Can't execute, kernel for eltwise node is not compiled");
+        }
 
         if (_pKernel->jep_.input_size == optimalTensorRank) {
             // execute Optimized 6D
@@ -1736,8 +1785,9 @@ public:
                         tmp /= dims_out[j];
                     }
 
-                    for (size_t j = 0; j < counters.size(); j++)
+                    for (size_t j = 0; j < counters.size(); j++) {
                         args.indexes[j] = counters[j];
+                    }
 
                     (*_pKernel)(&args_ptrs, &args);
                 }
@@ -1745,8 +1795,9 @@ public:
         }
     }
     const VectorDims& getOutDims() const override {
-        if (!_pKernel)
+        if (!_pKernel) {
             OPENVINO_THROW("Can't get jit eltwise params, kernel for Eltwise executor is not compiled");
+        }
         return _pKernel->jep_.dims;
     }
     size_t getBatchDimIdx() const override {
@@ -1906,7 +1957,7 @@ public:
             T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
 
             uint32_t count_of_power_values = 1;
-            for (unsigned long i : this->_inpDims[1]) {
+            for (uint64_t i : this->_inpDims[1]) {
                 count_of_power_values *= i;
             }
 
@@ -2310,10 +2361,12 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::getSupportedDescriptors() {
-    if (getParentEdges().size() < 1)
+    if (getParentEdges().size() < 1) {
         OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+    }
 }
 
 void Eltwise::initSupportedPrimitiveDescriptors() {
@@ -2342,10 +2395,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                                                                                               ov::element::f16,
                                                                                               ov::element::i32};
 
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
-        // if dim rank is greater than the maximum possible, we should use the reference execution
+    // if dim rank is greater than the maximum possible, we should use the reference execution
 #if defined(OPENVINO_ARCH_ARM64)
     bool canUseOptimizedImpl =
         mayiuse(dnnl::impl::cpu::aarch64::asimd) && (getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK);
@@ -2374,7 +2428,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             expectedInputsNum += eltwiseNode->getOpInputsNum() - 1;
         }
     }
-    if (getParentEdges().size() > MAX_ELTWISE_INPUTS)
+    if (getParentEdges().size() > MAX_ELTWISE_INPUTS) {
         OPENVINO_THROW("Eltwise node with name `",
                        getName(),
                        "` doesn't support more than ",
@@ -2382,8 +2436,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                        " inputs (actual = ",
                        getParentEdges().size(),
                        ")");
+    }
 
-    if (expectedInputsNum != getParentEdges().size())
+    if (expectedInputsNum != getParentEdges().size()) {
         OPENVINO_THROW("Eltwise node with name `",
                        getName(),
                        "` has invalid input number of inputs: expected = ",
@@ -2391,6 +2446,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                        " (actual = ",
                        getParentEdges().size(),
                        ")");
+    }
 
     std::vector<ov::element::Type> inputPrecisions;
     for (const auto& prec : getOriginalInputPrecisions()) {
@@ -2400,8 +2456,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     for (auto& fusedNode : fusedWith) {
         if (fusedNode->getType() == Type::Eltwise) {
             for (int i = 0; i < static_cast<int>(fusedNode->getOriginalInputsNumber()); i++) {
-                if (fusedNode->getFusingPort() != i)
+                if (fusedNode->getFusingPort() != i) {
                     inputPrecisions.push_back(fusedNode->getOriginalInputPrecisionAtPort(i));
+                }
             }
         }
 #ifndef OPENVINO_ARCH_ARM64
@@ -2411,8 +2468,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
     }
 
-    if (inputPrecisions.size() != getParentEdges().size())
+    if (inputPrecisions.size() != getParentEdges().size()) {
         OPENVINO_THROW("Eltwise node with name `", getName(), "` has invalid input precisions configuration.");
+    }
 
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!fusedWith.empty()) {
@@ -2426,12 +2484,15 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     if (!hasHardwareSupport(ov::element::bf16)) {
         bool hasBF16 = false;
-        for (auto& inPrc : inputPrecisions)
-            if (inPrc == ov::element::bf16)
+        for (auto& inPrc : inputPrecisions) {
+            if (inPrc == ov::element::bf16) {
                 hasBF16 = true;
+            }
+        }
 
-        if (outputPrecision == ov::element::bf16 || hasBF16)
+        if (outputPrecision == ov::element::bf16 || hasBF16) {
             OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support BF16 precision on this target.");
+        }
     }
 #    if defined(OV_CPU_WITH_ACL)
     const bool useJit = false;
@@ -2598,8 +2659,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             // TODO [DS]: inplace
-            if (!isDynamicNode())
+            if (!isDynamicNode()) {
                 portConfig.inPlace((!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1);
+            }
             portConfig.constant(false);
 
             const auto& srcShape = getInputShapeAtPort(i);
@@ -2695,9 +2757,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         isBlockedApplicable =
             isBlockedApplicable &&
             implication(inShape.getRank() != 1, getOutputShapeAtPort(0).getRank() == inShape.getRank());
-        if (isDynamicNode() && inShape.getRank() != 1)
+        if (isDynamicNode() && inShape.getRank() != 1) {
             isBlockedApplicable =
                 isBlockedApplicable && inShape.getMinDims()[1] != Shape::UNDEFINED_DIM && inShape.getMinDims()[1] > 1;
+        }
     }
 
     inputNum = getParentEdges().size();
@@ -2750,24 +2813,29 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
     if (context->getConfig().modelType == Config::ModelType::CNN) {
-        if (isChannelsFirstApplicable)
+        if (isChannelsFirstApplicable) {
             supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
-        if (isBlockedApplicable)
+        }
+        if (isBlockedApplicable) {
             supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+        }
         supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
     } else {
         supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
-        if (isChannelsFirstApplicable)
+        if (isChannelsFirstApplicable) {
             supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
-        if (isBlockedApplicable)
+        }
+        if (isBlockedApplicable) {
             supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+        }
     }
 }
 
 void Eltwise::createPrimitive() {
     if (memPtrs.empty()) {
-        for (size_t i = 0; i < inputNum; i++)
+        for (size_t i = 0; i < inputNum; i++) {
             memPtrs.push_back(getSrcMemoryAtPort(i));
+        }
         memPtrs.push_back(getDstMemoryAtPort(0));
     }
 
@@ -2835,8 +2903,9 @@ void Eltwise::prepareParams() {
 
         // WA to handle nspc layout with 1D tensors
         if (1 == inRank) {
-            if (outRank > 2 && 1 == outOrder.back())
+            if (outRank > 2 && 1 == outOrder.back()) {
                 startOff = 1;
+            }
         }
 
         for (size_t j = 0; j < inRank; j++) {
@@ -2959,8 +3028,10 @@ void Eltwise::prepareParams() {
 
 bool Eltwise::needPrepareParams() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims() != currentInBlkDims[i])
+        if (getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims() !=
+            currentInBlkDims[i]) {
             return true;
+        }
     }
     return false;
 }
@@ -2974,8 +3045,9 @@ void Eltwise::execute(const dnnl::stream& strm) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         VectorDims dims_out =
             implType == EltwiseImplType::optimizedShapeAgnostic ? execParams.outDims : execPtr->getOutDims();
-        for (size_t i = 0; i < memPtrs.size() - 1; i++)
+        for (size_t i = 0; i < memPtrs.size() - 1; i++) {
             args_ptrs.src_ptr[i] = memPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        }
         args_ptrs.dst_ptr = memPtrs.back()->getDataAs<uint8_t>() + start_offset_out;
 
         args_ptrs.post_op_data = fqDataPtrs.data();
@@ -3018,15 +3090,17 @@ bool Eltwise::canBeInPlace() const {
 
     for (auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
-        if (parent->getChildEdges().size() != 1)
+        if (parent->getChildEdges().size() != 1) {
             return false;
+        }
 
         // WA to prevent memory corruption caused by inplace feature
         if (parent->getType() == Type::Concatenation) {
             for (auto& parentParentEdge : parent->getParentEdges()) {
                 auto parentParent = parentParentEdge.lock()->getParent();
-                if (parentParent->getChildEdges().size() != 1)
+                if (parentParent->getChildEdges().size() != 1) {
                     return false;
+                }
             }
         }
     }
@@ -3140,8 +3214,9 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
         }
 
-        if (depthwiseData.empty())
+        if (depthwiseData.empty()) {
             THROW_CPU_NODE_ERR("cannot be performed since buffers are not allocated");
+        }
 
         std::array<size_t, 2> offsets = {0};
         offsets[1] = offsets[0] + channelSize;
@@ -3243,8 +3318,9 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             }
             break;
         case Algorithm::EltwisePrelu:
-            if (!allowBinary)
+            if (!allowBinary) {
                 return false;
+            }
             dnnlpoc.appendBinary(dnnl::algorithm::binary_prelu, scales);
             break;
         default:
@@ -3317,8 +3393,9 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
     }
 #else
-    if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
+    if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK) {
         return false;
+    }
 #endif
 
     // TODO: EltwiseLog is supported only via reference executor
@@ -3342,13 +3419,15 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     }
 
     bool isIntegerNode = isIntegerComputeSupported(this);
-    if (isIntegerNode && node->getType() != Type::Eltwise)
+    if (isIntegerNode && node->getType() != Type::Eltwise) {
         return false;
+    }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
     size_t addedInputEdgesNum = node->getType() != Type::FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
-    if (getParentEdges().size() + addedInputEdgesNum > MAX_ELTWISE_INPUTS)
+    if (getParentEdges().size() + addedInputEdgesNum > MAX_ELTWISE_INPUTS) {
         return false;
+    }
 
     if (node->getType() == Type::Eltwise) {
         // [WA] Since execution precision change from I32 to FP32 for arithmetic operations may lead to incorrect
@@ -3389,8 +3468,9 @@ bool Eltwise::canFuse(const NodePtr& node) const {
 
         // We can use optimized execution with fusions only in cases when dim rank is less or equal to the maximum
         // possible
-        if (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
+        if (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK) {
             return false;
+        }
 
         return true;
     }
