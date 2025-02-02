@@ -27,6 +27,12 @@ protected:
     std::unordered_map<int, dnnl::memory> get_arguments(concatenation_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
 
+        if (_scratchpad_md.get_size() != 0) {
+            // onednn primitive can have only 1 scratchpad memory.
+            auto scratchpad = instance.get_intermediates_memories()[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
         int input_idx = DNNL_ARG_MULTIPLE_SRC;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
