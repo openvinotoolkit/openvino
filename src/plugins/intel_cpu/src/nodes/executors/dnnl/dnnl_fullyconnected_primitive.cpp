@@ -177,37 +177,27 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         return false;
     }
 
-    // TODO: heuristic: disable avx2 asymmetric
-    bool is_asymmetric_weights = one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4);
-    if (is_asymmetric_weights && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
-        return false;
-    }
-
     const size_t simdWidth = 16;
     if (dqGroupSize % simdWidth) {
         return false;
     }
 
-    if (weightsDesc->getPrecision() == ov::element::u4) {
-        int ic = weightsDesc->getShape().getStaticDims()[1];
-        int minGroupSize = INT_MAX;
-
-        MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-
-        if (scalesPtr && scalesPtr->getShape().getRank() == 3) {
-            auto scalesDims = scalesPtr->getShape().getStaticDims();
-            auto groupsNum = needTranspose ? scalesDims[1] : scalesDims[0];
-            minGroupSize = ic / groupsNum;
+    MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
+    int ic = weightsDesc->getShape().getStaticDims()[1];
+    if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
+        auto scalesDims = scalesPtr->getShape().getStaticDims();
+        auto groupsNum = scalesDims[1];
+        size_t groupSize = ic / groupsNum;
+        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+            return false;
         }
+    }
 
-        if (zpPtr && zpPtr->getShape().getRank() == 3) {
-            auto zpDims = zpPtr->getShape().getStaticDims();
-            int groupsNum = needTranspose ? zpDims[1] : zpDims[0];
-            minGroupSize = std::min(minGroupSize, ic / groupsNum);
-        }
-
-        const size_t minLoopSize = 8;
-        if (minGroupSize != INT_MAX && minGroupSize % minLoopSize) {
+    if (zpPtr && zpPtr->getShape().getRank() != 1) {
+        auto zpDims = zpPtr->getShape().getStaticDims();
+        int groupsNum = zpDims[1];
+        size_t groupSize = ic / groupsNum;
+        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
             return false;
         }
     }
