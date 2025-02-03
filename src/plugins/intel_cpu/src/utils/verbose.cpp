@@ -105,63 +105,48 @@ void Verbose::printInfo() {
         written_total += size;
     };
 
-    auto formatDnnlMemDesc = [&](const dnnl_memory_desc_t& desc, std::string& prefix) {
+    auto formatMemDesc = [&](const MemoryDescPtr& desc, std::string& prefix) {
         prefix = colorize(BLUE, prefix);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str("", desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        std::string fmt_str = {};
+        std::string dim_str = {};
+        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
+            if (auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc()) {
+                fmt_str = dnnl::impl::md2fmt_str("", dnnl_desc.get(), dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+                std::string dim_str = dnnl::impl::md2dim_str(dnnl_desc.get());
+            } else {
+                fmt_str = "empty";
+            }
+        } else {
+            fmt_str = desc->getPrecision().to_string();
+            if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
+                dim_str = dim2str(dims.front());
+                std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
+                    dim_str.append("x" + std::to_string(dim));
+                });
+            }
+        }
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
         shift(written);
-        std::string dim_str = dnnl::impl::md2dim_str(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", dim_str.c_str());
         shift(written);
-    };
-
-    auto formatDefaultMemDesc = [&](const MemoryDescCPtr& desc, std::string& prefix) {
-        prefix = colorize(BLUE, prefix);
-        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
-        shift(written);
-        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
-        shift(written);
-        const auto& prc = desc->getPrecision().to_string();
-        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prc.c_str());
-        shift(written);
-        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
-        shift(written);
-        // mimic dnnl format
-        const auto& dims = desc->getShape().getDims();
-        if (!dims.empty()) {
-            std::string dims_str = dim2str(dims.front());
-            std::for_each(++(dims.begin()), dims.end(), [&dims_str](size_t dim) {
-                dims_str.append("x" + std::to_string(dim));
-            });
-            written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", dims_str.c_str());
-            shift(written);
-        }
     };
 
     for (size_t i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
         const auto& desc = node->getParentEdgeAt(i)->getMemory().getDescPtr();
-        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
-            formatDnnlMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc().get(), prefix);
-        } else {
-            formatDefaultMemDesc(desc, prefix);
-        }
+        formatMemDesc(desc, prefix);
     }
 
     for (size_t i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
         const auto& desc = node->getChildEdgeAt(i)->getMemory().getDescPtr();
-        if (DnnlExtensionUtils::ElementTypeToDataType(desc->getPrecision(), DnnlExtensionUtils::nothrow_tag{})) {
-            formatDnnlMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc().get(), prefix);
-        } else {
-            formatDefaultMemDesc(desc, prefix);
-        }
+        formatMemDesc(desc, prefix);
     }
 
     std::string post_ops;
