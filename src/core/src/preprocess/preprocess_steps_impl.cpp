@@ -687,6 +687,17 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const
     return std::make_tuple(std::vector<Output<Node>>{slice}, false);
 }
 
+void PreStepsList::add_clamp(float min_value, float max_value) {
+    m_actions.emplace_back(
+        [min_value, max_value](const std::vector<Output<Node>>& nodes,
+                               const std::shared_ptr<ov::Model>& function,
+                               PreprocessingContext& context) -> std::tuple<std::vector<Output<Node>>, bool> {
+            auto clamp_op = std::make_shared<ov::op::v0::Clamp>(nodes[0], min_value, max_value);
+            return std::make_tuple(std::vector<Output<Node>>{clamp_op}, true);
+        },
+        "Clamp");
+}
+
 //------------- Post processing ------
 void PostStepsList::add_convert_impl(const element::Type& type) {
     m_actions.emplace_back(
