@@ -36,7 +36,7 @@ struct CPUStreamsExecutor::Impl {
                 : custom::task_scheduler_observer(arena),
                   _mask{std::move(mask)},
                   _ncpus(ncpus),
-                  _cpu_ids(cpu_ids) {}
+                  _cpu_ids(std::move(cpu_ids)) {}
             void on_scheduler_entry(bool) override {
                 pin_thread_to_vacant_core(tbb::this_task_arena::current_thread_index(),
                                           _threadBindingStep,
@@ -504,7 +504,12 @@ void CPUStreamsExecutor::cpu_reset() {
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
-    cpu_reset();
+    try {
+        cpu_reset();
+    } catch (const ov::Exception&) {
+        // Destructor should not throw - catch needed for static analysis.
+        OPENVINO_THROW("Reset CPU state error.");
+    }
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
         _impl->_isStopped = true;

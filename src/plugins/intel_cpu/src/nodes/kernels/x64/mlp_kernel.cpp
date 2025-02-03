@@ -287,8 +287,9 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
-        if (std::is_same<ov::bfloat16, Tdst>::value)
+        if (std::is_same<ov::bfloat16, Tdst>::value) {
             fp16_to_bf16(dst);
+        }
         return;
     }
 
@@ -503,7 +504,7 @@ void MKernel::run(int M,  // actual M
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
@@ -520,7 +521,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);

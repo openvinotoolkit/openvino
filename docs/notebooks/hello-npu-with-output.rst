@@ -77,7 +77,7 @@ other devices, for more streamlined resource management.
 
 Note that the NPU plugin is included in PIP installation of OpenVINO™
 and you need to `install a proper NPU
-driver <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-npu.html>`__
+driver <https://docs.openvino.ai/2025/get-started/configurations/configurations-intel-npu.html>`__
 to use it successfully.
 
 | **Supported Platforms**:
@@ -86,7 +86,7 @@ to use it successfully.
 | OS: Ubuntu 22.04 (with Linux Kernel 6.6+), MS Windows 11 (both 64-bit)
 
 To learn more about the NPU Device, see the
-`page <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html>`__.
+`page <https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html>`__.
 
 Install required packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -198,7 +198,7 @@ compilation time. - ``OPTIMIZATION_CAPABILITIES`` - The model data types
 (INT8, FP16, FP32, etc) that are supported by this NPU.
 
 To learn more about devices and properties, see the `Query Device
-Properties <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties.html>`__
+Properties <https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties.html>`__
 page.
 
 Compiling a Model on NPU
@@ -223,7 +223,7 @@ more about resnet50, see the
 `paper <https://ieeexplore.ieee.org/document/7780459>`__. As our
 tutorial focused on inference part, we skip model conversion step. To
 convert this Pytorch model to OpenVINO IR, `Model Conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
+API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__
 should be used. Please check this
 `tutorial <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/pytorch-to-openvino/pytorch-to-openvino.ipynb>`__
 for details how to convert pytorch model.
@@ -306,7 +306,7 @@ In NPU, UMD model caching is a solution enabled by default by the
 driver. It improves time to first inference (FIL) by storing the model
 in the cache after compilation (included in FEIL). Learn more about UMD
 Caching
-`here <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html#umd-dynamic-model-caching>`__.
+`here <https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.html#umd-dynamic-model-caching>`__.
 Due to this caching, it takes lesser time to load the model after first
 compilation.
 
@@ -424,7 +424,7 @@ The actual time improvements will depend on the environment as well as
 the model being used but it is definitely something to consider when
 optimizing an application. To read more about this, see the `Model
 Caching
-docs <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview.html>`__.
+docs <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview.html>`__.
 
 Throughput and Latency Performance Hints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -483,7 +483,7 @@ Note that benchmark_app only requires the model path to run but both
 device and hint arguments will be useful to us. For more advanced
 usages, the tool itself has other options that can be checked by running
 ``benchmark_app -h`` or reading the
-`docs <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
+`docs <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 The following example shows us to benchmark a simple model, using a NPU
 with latency focus:
 
