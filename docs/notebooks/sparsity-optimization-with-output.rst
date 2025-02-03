@@ -12,7 +12,7 @@ datasets <https://huggingface.co/datasets/sst2>`__ using
 `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__. It
 demonstrates the inference performance advantage on 4th Gen Intel® Xeon®
 Scalable Processors by running it with `Sparse Weight
-Decompression <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html#sparse-weights-decompression-intel-x86-64>`__,
+Decompression <https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html#sparse-weights-decompression-intel-x86-64>`__,
 a runtime option that seizes model sparsity for efficiency. The notebook
 consists of the following steps:
 
@@ -74,7 +74,7 @@ Imports
 
     import shutil
     from pathlib import Path
-    
+
     from optimum.intel.openvino import OVModelForSequenceClassification
     from transformers import AutoTokenizer, pipeline
     from huggingface_hub import hf_hub_download
@@ -104,17 +104,17 @@ model card on Hugging Face.
     # The following model has been quantized, sparsified using Optimum-Intel 1.7 which is enabled by OpenVINO and NNCF
     # for reproducibility, refer https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80
     model_id = "OpenVINO/bert-base-uncased-sst2-int8-unstructured80"
-    
+
     # The following two steps will set up the model and download them to HF Cache folder
     ov_model = OVModelForSequenceClassification.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
+
     # Let's take the model for a spin!
     sentiment_classifier = pipeline("text-classification", model=ov_model, tokenizer=tokenizer)
-    
+
     text = "He's a dreadful magician."
     outputs = sentiment_classifier(text)
-    
+
     print(outputs)
 
 
@@ -131,11 +131,11 @@ the IRs into a single folder.
     # create a folder
     quantized_sparse_dir = Path("bert_80pc_sparse_quantized_ir")
     quantized_sparse_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # following return path to specified filename in cache folder (which we've with the
     ov_ir_xml_path = hf_hub_download(repo_id=model_id, filename="openvino_model.xml")
     ov_ir_bin_path = hf_hub_download(repo_id=model_id, filename="openvino_model.bin")
-    
+
     # copy IRs to the folder
     shutil.copy(ov_ir_xml_path, quantized_sparse_dir)
     shutil.copy(ov_ir_bin_path, quantized_sparse_dir)
@@ -192,12 +192,12 @@ as an example. It is recommended to tune based on your applications.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -249,9 +249,9 @@ as an example. It is recommended to tune based on your applications.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values 
-    [ INFO ] Fill input 'attention_mask' with random values 
-    [ INFO ] Fill input 'token_type_ids' with random values 
+    [ INFO ] Fill input 'input_ids' with random values
+    [ INFO ] Fill input 'attention_mask' with random values
+    [ INFO ] Fill input 'token_type_ids' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 28.08 ms
@@ -311,12 +311,12 @@ for which a layer will be enabled.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -368,9 +368,9 @@ for which a layer will be enabled.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values 
-    [ INFO ] Fill input 'attention_mask' with random values 
-    [ INFO ] Fill input 'token_type_ids' with random values 
+    [ INFO ] Fill input 'input_ids' with random values
+    [ INFO ] Fill input 'attention_mask' with random values
+    [ INFO ] Fill input 'token_type_ids' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 27.34 ms
@@ -400,6 +400,6 @@ For more details about asynchronous inference with OpenVINO, refer to
 the following documentation:
 
 -  `Deployment Optimization
-   Guide <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html>`__
+   Guide <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/general-optimizations.html>`__
 -  `Inference Request
-   API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__
+   API <https://docs.openvino.ai/2025/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__

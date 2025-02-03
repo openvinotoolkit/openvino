@@ -7,7 +7,7 @@ About OpenVINO
 
    about-openvino/key-features
    about-openvino/performance-benchmarks
-   about-openvino/compatibility-and-support
+   OpenVINO Ecosystem <about-openvino/openvino-ecosystem>
    about-openvino/contributing
    Release Notes <about-openvino/release-notes-openvino>
 
@@ -40,10 +40,10 @@ OpenVINO Ecosystem
 Along with the primary components of model optimization and runtime, the toolkit also includes:
 
 * `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ - a tool for enhanced OpenVINO™ inference to get performance boost with minimal accuracy drop.
-* :doc:`Openvino Notebooks <learn-openvino/interactive-tutorials-python>`- Jupyter Python notebook, which demonstrate key features of the toolkit.
+* :doc:`Openvino Notebooks <get-started/learn-openvino/interactive-tutorials-python>`- Jupyter Python notebook, which demonstrate key features of the toolkit.
 * `OpenVINO Model Server <https://github.com/openvinotoolkit/model_server>`__ - a server that enables scalability via a serving microservice.
-* :doc:`OpenVINO Training Extensions  <documentation/openvino-ecosystem/openvino-training-extensions>` – a convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
-* :doc:`Dataset Management Framework (Datumaro) <documentation/openvino-ecosystem/datumaro>` - a tool to build, transform, and analyze datasets.
+* :doc:`OpenVINO Training Extensions  <about-openvino/openvino-ecosystem/openvino-training-extensions>` – a convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
+* :doc:`Dataset Management Framework (Datumaro) <about-openvino/openvino-ecosystem/datumaro>` - a tool to build, transform, and analyze datasets.
 
 Community
 ##############################################################
