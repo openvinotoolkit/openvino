@@ -140,7 +140,7 @@ def main():
     sourcedir = args.sourcedir
     outdir = args.outdir
 
-    main_tutorials_file = Path('../../docs/articles_en/learn-openvino/interactive-tutorials-python.rst').resolve(strict=True)
+    main_tutorials_file = Path('../../docs/articles_en/get-started/learn-openvino/interactive-tutorials-python.rst').resolve(strict=True)
     add_glob_directive(main_tutorials_file)
     shutil.copytree(sourcedir, outdir)
     # Run processing on downloaded files in notebooks directory
