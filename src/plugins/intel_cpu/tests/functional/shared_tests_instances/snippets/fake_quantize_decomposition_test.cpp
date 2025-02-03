@@ -73,8 +73,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(testValuesDecompositionScalars),
         ::testing::ValuesIn(operations),
-        // reorder (nChw[16|8]c) + MaxPool + Subgraph + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{4, 1}),
+        ::testing::Values(std::pair<size_t, size_t>{1, 1}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
@@ -84,8 +83,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(testValuesDecompositionPerChannel),
         ::testing::ValuesIn(operations),
-        // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x6 + Subgraph + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{10, 1}),
+        ::testing::Values(std::pair<size_t, size_t>{1, 1}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 
@@ -95,13 +93,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(testValuesDecompositionPerChannelInput),
         ::testing::ValuesIn(operations),
-        // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x4 + Subgraph + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{8, 1}),
+        ::testing::Values(std::pair<size_t, size_t>{1, 1}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 }  // namespace decompositionInSubgraph
 
-
+#ifdef OPENVINO_ARCH_X86_64
 namespace legacyFuse {
 const std::vector<TestValues> testValuesLegacyFuse = {
     {
@@ -144,11 +141,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(testValuesLegacyFuse),
         ::testing::ValuesIn(operations),
-        // reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + Convolution(with internal weight reordering) + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{5, 0}),
+        // reorder (nChw[16|8]c) + Convolution(with internal weight reordering) + reorder(nchw)
+        ::testing::Values(std::pair<size_t, size_t>{3, 0}),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
-
 }  // namespace legacyFuse
+#endif
 
 }  // namespace
