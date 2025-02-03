@@ -147,28 +147,50 @@ bool SplitDimensionM::split(const ov::Shape& shape, size_t optimal_parallelism_w
     const auto batch_dim =
         std::accumulate(shape.rbegin() + 2, shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
     const auto m_dim = get_dim_M(shape);  // M
-    if (is_prime_number(m_dim))
+    if (is_prime_number(m_dim)) {
+        std::cout << "[ INFO ] Split skipped: M dimension is a prime number: " << m_dim << std::endl;
         return false;
+    }
 
     // We skip optimization if the current batch is optimal for concurrency
-    if (batch_dim % optimal_parallelism_work_amount == 0)
+    if (batch_dim % optimal_parallelism_work_amount == 0) {
+        std::cout << "[ INFO ] Split skipped: batch dimension is optimal for concurrency: " << batch_dim << std::endl;
         return false;
+    }
 
     auto split_is_done = [&batch_m_dim]() {
         return batch_m_dim != 1;
     };
 
     std::tie(batch_m_dim, new_m_dim) = split_ideally(batch_dim, m_dim, optimal_parallelism_work_amount);
-    if (split_is_done())
+    if (split_is_done()) {
+        std::cout << "[ INFO ] Split status: ideally, Original M: " << m_dim
+                  << ", Optimal parallelism work amount: " << optimal_parallelism_work_amount
+                  << ", Batch M dim: " << batch_m_dim << ", New M dim: " << new_m_dim << std::endl;
         return true;
+    }
 
     std::tie(batch_m_dim, new_m_dim) = split_minimize_kernel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
-    if (split_is_done())
+    if (split_is_done()) {
+        std::cout << "[ INFO ] Split status: minimize kernel wa, Original M: " << m_dim
+                  << ", Optimal parallelism work amount: " << optimal_parallelism_work_amount
+                  << ", Batch M dim: " << batch_m_dim << ", New M dim: " << new_m_dim << std::endl;
         return true;
-    // If all the previous heuristics failed, fallback heuristic is used, which reflects the old splitting behavior
-    if (batch_dim < optimal_parallelism_work_amount)
-        std::tie(batch_m_dim, new_m_dim) = split_fallback_increase_parallel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
-    return split_is_done();
+    }
+
+    if (batch_dim < optimal_parallelism_work_amount) {
+        std::tie(batch_m_dim, new_m_dim) =
+            split_fallback_increase_parallel_wa(batch_dim, m_dim, optimal_parallelism_work_amount);
+    }
+    if (split_is_done()) {
+        std::cout << "[ INFO ] Split status: fallback increase parallel wa, Original M: " << m_dim
+                  << ", Optimal parallelism work amount: " << optimal_parallelism_work_amount
+                  << ", Batch M dim: " << batch_m_dim << ", New M dim: " << new_m_dim << std::endl;
+        return true;
+    }
+
+    std::cout << "[ INFO ] Split status: false" << std::endl;
+    return false;
 }
 
 void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim) {

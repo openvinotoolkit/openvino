@@ -174,7 +174,6 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
     shapeInference = SnippetShapeInferFactory(subgraph_attrs->snippet).makeShapeInfer();
-    is_dynamic = isDynamicNgraphNode(op);
 }
 
 uint64_t Subgraph::getBodyHash(const std::shared_ptr<snippets::op::Subgraph>& snippet) {
@@ -622,6 +621,8 @@ void Subgraph::optimizeIR() {
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
                                            control_flow_config,
                                            control_flow_passes);
+    // Note: is_dynamic state must be defined after control flow transformations are applied
+    is_dynamic = isDynamicNgraphNode(subgraph);
 }
 
 void Subgraph::prepareParams() {
