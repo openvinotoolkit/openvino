@@ -4,9 +4,9 @@
 
 #include "openvino/reference/segment_max.hpp"
 
-#include "segment_max_shape_inference.hpp"
 #include "element_visitor.hpp"
 #include "evaluate_node.hpp"
+#include "segment_max_shape_inference.hpp"
 
 template <ov::element::Type_t ET_data, ov::element::Type_t ET_idx>
 bool evaluate_index_type(const std::shared_ptr<ov::op::v16::SegmentMax>& op,
@@ -14,23 +14,21 @@ bool evaluate_index_type(const std::shared_ptr<ov::op::v16::SegmentMax>& op,
                          const ov::TensorVector& inputs) {
     using T_data = typename ov::element_type_traits<ET_data>::value_type;
     using T_idx = typename ov::element_type_traits<ET_idx>::value_type;
-    auto input_shapes = std::vector<ov::PartialShape>{op->get_input_shape(0),
-                                                            op->get_input_shape(1)};
+    auto input_shapes = std::vector<ov::PartialShape>{op->get_input_shape(0), op->get_input_shape(1)};
     if (op->inputs().size() == 3) {
         input_shapes.emplace_back(op->get_input_shape(2));
     }
     const auto output_shape =
         ov::op::v16::shape_infer(op.get(), input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     outputs.front().set_shape(output_shape);
-    const auto empty_segment_value = op->get_fill_mode() == ov::op::FillMode::ZERO ? 
-                                     T_data(0) : 
-                                     std::numeric_limits<T_data>::lowest();
+    const auto empty_segment_value =
+        op->get_fill_mode() == ov::op::FillMode::ZERO ? T_data(0) : std::numeric_limits<T_data>::lowest();
     ov::reference::segment_max(inputs[0].data<const T_data>(),
-                          inputs[0].get_shape(),
-                          inputs[1].data<const T_idx>(),
-                          outputs[0].data<T_data>(),
-                          outputs[0].get_shape(),
-                          empty_segment_value);
+                               inputs[0].get_shape(),
+                               inputs[1].data<const T_idx>(),
+                               outputs[0].data<T_data>(),
+                               outputs[0].get_shape(),
+                               empty_segment_value);
     return true;
 }
 
@@ -53,8 +51,8 @@ bool evaluate_data_type(const std::shared_ptr<ov::op::v16::SegmentMax>& op,
 
 template <>
 bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::Node> node,
-                                        ov::TensorVector& outputs,
-                                        const ov::TensorVector& inputs) {
+                                            ov::TensorVector& outputs,
+                                            const ov::TensorVector& inputs) {
     const auto& element_type = node->get_output_element_type(0);
 
     using ov::op::v16::SegmentMax;

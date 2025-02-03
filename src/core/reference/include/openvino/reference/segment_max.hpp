@@ -5,8 +5,9 @@
 #pragma once
 
 #include <algorithm>
-#include <vector>
 #include <limits>
+#include <vector>
+
 #include "openvino/core/shape.hpp"
 
 namespace ov {
@@ -20,8 +21,10 @@ void segment_max(const T* data,
                  const Shape& output_shape,
                  const T empty_segment_value) {
     const T_idx num_segments = output_shape[0];
-    const size_t inner_dim_size = std::accumulate(data_shape.begin() + 1, data_shape.end(), 1, std::multiplies<size_t>());
-    std::vector<std::vector<T>> max_values(num_segments, std::vector<T>(inner_dim_size, std::numeric_limits<T>::lowest()));
+    const size_t inner_dim_size =
+        std::accumulate(data_shape.begin() + 1, data_shape.end(), 1, std::multiplies<size_t>());
+    std::vector<std::vector<T>> max_values(num_segments,
+                                           std::vector<T>(inner_dim_size, std::numeric_limits<T>::lowest()));
     std::vector<bool> segment_has_values(num_segments, false);
 
     // Iterate over each element in the first dimension
