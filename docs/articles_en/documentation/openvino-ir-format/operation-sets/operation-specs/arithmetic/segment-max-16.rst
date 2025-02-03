@@ -15,7 +15,7 @@ SegmentMax
 
 For each index in ``segment_ids`` the operator gets values from ``data`` input tensor and calculates the maximum value for each segment.
 
-For example ``segments_ids`` with value ``[0,0,0,1,1,3,5,5]`` defines 4 non-empty segments. When coupled with a 1D data tensor ``data``, the segments are as follows:
+For example ``segments_ids`` with value ``[0,0,0,1,1,3,5,5]`` defines 4 non-empty segments. ``num_segments`` is not given. When coupled with a 1D data tensor ``data``, the segments are as follows:
 
 * Segment_0: ``[data[0], data[1], data[2]]``
 * Segment_1: ``[data[3], data[4]]``
@@ -32,7 +32,7 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
 
 * **1**: *empty_segment_value*
 
-  * **Description**: The value assigned to segments which are empty. **Required.**
+  * **Description**: Responsible for the value assigned to segments which are empty. **Required.**
   * **Range of values**: Name of the mode in string format:
 
     * ``ZERO`` - the empty segments are filled with zeros.
@@ -43,9 +43,9 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
 
 * **1**: ``data`` - ND tensor of type *T*, the numerical data on which SegmentMax operation will be performed. **Required.**
 
-* **2**: ``segment_ids`` - 1D Tensor of sorted non-negative numbers of type *T_IDX1*. Its size is equal to the size of the first dimension of the ``data`` input tensor. The values must be smaller than ``num_segments``. **Required.**
+* **2**: ``segment_ids`` - 1D Tensor of sorted non-negative numbers of type *T_IDX1*. Its size is equal to the size of the first dimension of the ``data`` input tensor. **Required.**
 
-* **3**: ``num_segments`` - A scalar value of type *T_IDX2* representing the segments count, used for shape inference. Defaults to ``max(segment_ids) + 1``. If ``num_segments < max(segment_ids) + 1`` then the extra segments defined in ``segment_ids`` are not included in the output.  **Optional.**
+* **3**: ``num_segments`` - A scalar value of type *T_IDX2* representing the segments count. If ``num_segments < max(segment_ids) + 1`` then the extra segments defined in ``segment_ids`` are not included in the output. If If ``num_segments > max(segment_ids) + 1`` then the output is padded with empty segments. Defaults to ``max(segment_ids) + 1``. **Optional.**
 
 **Outputs**
 
@@ -58,7 +58,7 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
 
 **Examples**
 
-*Example 1: 1D input data*
+*Example 1: num_segments < max(segment_ids) + 1*
 
 .. code-block:: xml
    :force:
@@ -67,7 +67,32 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
         <data empty_segment_value="ZERO">
         <input>
             <port id="0" precision="F32">   <!-- data -->
-                <dim>8</dim>
+                <dim>5</dim>
+            </port>
+            <port id="1" precision="I32">   <!-- segment_ids with 4 segments: [0, 0, 2, 3, 3] -->
+                <dim>5</dim> 
+            </port>
+            <port id="2" precision="I64">   <!-- number of segments: 2 -->
+                <dim>0</dim> 
+            </port>
+        </input>
+        <output>
+            <port id="3" precision="F32">
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 2: num_segments > max(segment_ids) + 1*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="SegmentMax" ... >
+        <data empty_segment_value="ZERO">
+        <input>
+            <port id="0" precision="F32">   <!-- data -->
+                <dim>5</dim>
             </port>
             <port id="1" precision="I32">   <!-- segment_ids with 4 segments: [0, 0, 2, 3, 3] -->
                 <dim>5</dim> 
@@ -83,7 +108,7 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
         </output>
     </layer>
 
-*Example 2: 2D input data*
+*Example 3: 2D input data, no num_segments*
 
 .. code-block:: xml
    :force:
