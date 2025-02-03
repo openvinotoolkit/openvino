@@ -80,7 +80,7 @@ public:
     void allocateMemory();
     void releaseMemory();
 
-    std::unordered_map<std::string, MemoryStatistics> dumpStatistics() const;
+    std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
 
 private:
     using value_type = std::unique_ptr<MemoryControl>;

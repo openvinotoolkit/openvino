@@ -660,11 +660,12 @@ void NetworkMemoryControl::releaseMemory() {
     }
 }
 
-std::unordered_map<std::string, MemoryStatistics> NetworkMemoryControl::dumpStatistics() const {
+std::vector<std::pair<std::string, MemoryStatistics>> NetworkMemoryControl::dumpStatistics() const {
 #ifdef CPU_DEBUG_CAPS
-    std::unordered_map<std::string, MemoryStatistics> retVal;
+    std::vector<std::pair<std::string, MemoryStatistics>> retVal;
+    retVal.reserve(m_controlUnits.size());
     for (auto&& item : m_controlUnits) {
-        retVal.insert({item->getId(), item->dumpStatistics()});
+        retVal.emplace_back(std::make_pair(item->getId(), item->dumpStatistics()));
     }
     return retVal;
 #else
