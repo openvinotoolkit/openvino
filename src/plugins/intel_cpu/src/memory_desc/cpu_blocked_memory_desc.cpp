@@ -271,7 +271,7 @@ bool CpuBlockedMemoryDesc::isTailCFormat() const {
     if (shape.getRank() != order.size()) {
         return false;
     }
-    if (!std::is_sorted(order.begin(), --order.end())) {
+    if (!std::is_sorted(order.begin(), order.end() - 1)) {
         return false;
     }
     if (order.back() != 1) {

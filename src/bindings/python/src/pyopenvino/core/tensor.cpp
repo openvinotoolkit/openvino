@@ -209,7 +209,7 @@ void regclass_Tensor(py::module m) {
 
     cls.def(py::init<ov::Tensor, ov::Coordinate, ov::Coordinate>(), py::arg("other"), py::arg("begin"), py::arg("end"));
 
-    cls.def(py::init<ov::Tensor, std::vector<size_t>, std::vector<size_t>>(),
+    cls.def(py::init<ov::Tensor, ov::inplace_vector<size_t>, ov::inplace_vector<size_t>>(),
             py::arg("other"),
             py::arg("begin"),
             py::arg("end"));

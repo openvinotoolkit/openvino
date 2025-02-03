@@ -96,8 +96,8 @@ bool SplitDimensionM::can_be_optimized(const std::shared_ptr<const ov::Node>& no
     return split(node->get_shape(), concurrency, batch_m_dim, new_m_dim);
 }
 
-std::vector<size_t> SplitDimensionM::get_updated_order(const std::vector<size_t>& order, size_t m_index) {
-    std::vector<size_t> new_order(order.size() + 1, 0);
+VectorDims SplitDimensionM::get_updated_order(const VectorDims& order, size_t m_index) {
+    VectorDims new_order(order.size() + 1, 0);
     size_t shift_idx = 0;
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] < m_index) {
@@ -216,7 +216,8 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
         if (!param || reshaped_params.count(param) > 0)
             return;
 
-        const auto shape = param->get_partial_shape().get_shape();
+        const auto tmp_shape = param->get_partial_shape().get_shape();
+        const auto shape = VectorDims(tmp_shape.begin(), tmp_shape.end());
         const auto consumers = param->get_output_target_inputs(0);
         const auto shared_consumer = consumers.begin()->get_node()->shared_from_this();
         auto m_index = shape.size() - 2;
@@ -254,7 +255,8 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
             const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
             OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
             const auto m_dim_idx = broadcast->get_output_partial_shape(0).size() - 2;
-            const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), m_dim_idx, true);
+            auto tmp_shape = shape_const->cast_vector<size_t>();
+            const auto new_shape = get_updated_shape({tmp_shape.begin(), tmp_shape.end()}, m_dim_idx, true);
             broadcast->set_argument(1, std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(), ov::Shape{new_shape.size()}, new_shape));
         }
     }

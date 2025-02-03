@@ -169,10 +169,10 @@ protected:
 
     struct poolSpecificParams {
             ov::test::utils::PoolingTypes pooling_type;   // Pooling type, max or avg
-            std::vector<size_t>           kernel_size;    // Kernel size
-            std::vector<size_t>           stride;         // Stride
-            std::vector<size_t>           pad_begin;      // Pad begin
-            std::vector<size_t>           pad_end;        // Pad end
+            ov::inplace_vector<size_t> kernel_size;       // Kernel size
+            ov::inplace_vector<size_t> stride;            // Stride
+            ov::inplace_vector<size_t> pad_begin;         // Pad begin
+            ov::inplace_vector<size_t> pad_end;           // Pad end
             ov::op::RoundingType          rounding_type;  // Rounding type
             ov::op::PadType               pad_type;       // Pad type
             bool                          exclued_pad;    // Exclude pad
@@ -248,7 +248,7 @@ protected:
             axes.push_back(r--);
         }
 
-        std::vector<size_t> shapeAxes;
+        ov::inplace_vector<size_t> shapeAxes;
         shapeAxes.push_back(axes.size());
 
         std::shared_ptr<ov::Node> reductionAxesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape(shapeAxes), axes);

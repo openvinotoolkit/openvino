@@ -101,7 +101,7 @@ protected:
 
         auto& shape = get_shape();
         if (m_strides.empty() && !shape.empty()) {
-            m_strides.resize(shape.size());
+            m_strides.resize(shape.size(), 0);
             m_strides.back() = shape.back() == 0 ? 0 : m_element_type.size();
             std::transform(shape.crbegin(),
                            shape.crend() - 1,

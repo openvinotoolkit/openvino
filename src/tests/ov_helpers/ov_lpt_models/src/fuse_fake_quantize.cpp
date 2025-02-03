@@ -135,10 +135,10 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
         parent->set_friendly_name("fakeQuantize1");
     }
 
-    const std::vector<size_t> kernel = { 3, 3 };
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
+    const ov::inplace_vector<size_t> kernel = {3, 3};
+    const ov::inplace_vector<size_t> stride = {1, 1};
+    const ov::inplace_vector<size_t> padBegin = {0, 0};
+    const ov::inplace_vector<size_t> padEnd = {0, 0};
     const ov::op::PadType padType = ov::op::PadType::NOTSET;
     const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
 

@@ -36,7 +36,7 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     auto consumer_inputs = expr_val->get_output_port_connector(0)->get_consumers();
-    std::set<std::vector<size_t>> layouts;
+    std::set<VectorDims> layouts;
     for (const auto& consumer_input : consumer_inputs) {
         const auto& node = consumer_input.get_expr()->get_node();
         if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {

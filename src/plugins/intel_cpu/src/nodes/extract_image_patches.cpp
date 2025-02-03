@@ -342,11 +342,11 @@ size_t ExtractImagePatchesKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
     using namespace dnnl::impl;
     size_t seed = 0;
-    seed = get_vector_hash(seed, inDims);
-    seed = get_vector_hash(seed, outDims);
-    seed = get_vector_hash(seed, kSizes);
-    seed = get_vector_hash(seed, strides);
-    seed = get_vector_hash(seed, rates);
+    seed = get_array_hash(seed, inDims.data(), inDims.size());
+    seed = get_array_hash(seed, outDims.data(), outDims.size());
+    seed = get_array_hash(seed, kSizes.data(), kSizes.size());
+    seed = get_array_hash(seed, strides.data(), strides.size());
+    seed = get_array_hash(seed, rates.data(), rates.size());
     seed = hash_combine(seed, padType);
     seed = hash_combine(seed, prcSize);
     return seed;

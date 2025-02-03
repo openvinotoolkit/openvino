@@ -216,7 +216,7 @@ void Transpose::createPrimitive() {
 
     if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
         getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
-        order == std::vector<size_t>{0, 3, 1, 2}) {
+        order == decltype(order){0, 3, 1, 2}) {
         performAsReorder = true;
     }
 

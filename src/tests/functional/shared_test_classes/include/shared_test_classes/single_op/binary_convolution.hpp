@@ -14,15 +14,14 @@
 namespace ov {
 namespace test {
 
-using binConvSpecificParams = std::tuple<
-    std::vector<size_t>,            // Kernel size
-    std::vector<size_t>,            // Strides
-    std::vector<ptrdiff_t>,         // Pads begin
-    std::vector<ptrdiff_t>,         // Pads end
-    std::vector<size_t>,            // Dilations
-    size_t,                         // Num Output channels
-    ov::op::PadType,                // Padding type
-    float>;                         // Padding value
+using binConvSpecificParams = std::tuple<ov::inplace_vector<size_t>,  // Kernel size
+                                         ov::inplace_vector<size_t>,  // Strides
+                                         std::vector<ptrdiff_t>,      // Pads begin
+                                         std::vector<ptrdiff_t>,      // Pads end
+                                         ov::inplace_vector<size_t>,  // Dilations
+                                         size_t,                      // Num Output channels
+                                         ov::op::PadType,             // Padding type
+                                         float>;                      // Padding value
 
 using binaryConvolutionTestParamsSet = std::tuple<
     binConvSpecificParams,          //

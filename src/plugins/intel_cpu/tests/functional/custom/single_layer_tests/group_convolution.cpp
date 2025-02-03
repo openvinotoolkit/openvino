@@ -47,7 +47,7 @@ public:
         std::string targetDevice;
         std::tie(groupConvParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
         ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
+        ov::inplace_vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
@@ -194,7 +194,7 @@ protected:
         }
 
         ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
+        ov::inplace_vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd;
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
@@ -344,37 +344,37 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16_Brdgmm{emptyFusingSp
 const std::vector<fusingSpecificParams> fusingParamsSetFP16_Brdgmm = fusingParamsSetBF16_Brdgmm;
 
 /* ============= GroupConvolution params (planar layout) ============= */
-const std::vector<size_t> numOutChannels_Gemm = {6};
-const std::vector<size_t> numGroups_Gemm = {2, 3};
+const ov::inplace_vector<size_t> numOutChannels_Gemm = {6};
+const ov::inplace_vector<size_t> numGroups_Gemm = {2, 3};
 
 /* ============= GroupConvolution params (blocked layout) ============= */
-const std::vector<size_t> numOutChannels_Blocked = {64};
-const std::vector<size_t> numGroups_Blocked = {2, 4};
+const ov::inplace_vector<size_t> numOutChannels_Blocked = {64};
+const ov::inplace_vector<size_t> numGroups_Blocked = {2, 4};
 
 /* ============= GroupConvolution params (DW) ============= */
-const std::vector<size_t> numOutChannels_DW = {32};
-const std::vector<size_t> numGroups_DW = {32};
+const ov::inplace_vector<size_t> numOutChannels_DW = {32};
+const ov::inplace_vector<size_t> numGroups_DW = {32};
 
 /* ============= GroupConvolution params (1D) ============= */
-const std::vector<std::vector<size_t>> kernels1d = {{3}, {1}};
-const std::vector<std::vector<size_t>> strides1d = {{1}, {2}};
+const std::vector<ov::inplace_vector<size_t>> kernels1d = {{3}, {1}};
+const std::vector<ov::inplace_vector<size_t>> strides1d = {{1}, {2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins1d = {{0}, {1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds1d = {{0}};
-const std::vector<std::vector<size_t>> dilations1d = {{1}, {2}};
+const std::vector<ov::inplace_vector<size_t>> dilations1d = {{1}, {2}};
 
 /* ============= GroupConvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
-const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}, {1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations2d = {{1, 1}, {2, 2}};
 
 /* ============= GroupConvolution params (3D) ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
-const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}, {1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations3d = {{1, 1, 1}, {2, 2, 2}};
 /* ============= */
 
 /* INSTANCES */
@@ -562,28 +562,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_Gemm_BF16,
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution params (brgemm_1D) ============= */
-const std::vector<std::vector<size_t>> kernels_brgemm_1d = {{3}};
-const std::vector<std::vector<size_t>> strides_brgemm_1d = {{1}, {2}};
+const std::vector<ov::inplace_vector<size_t>> kernels_brgemm_1d = {{3}};
+const std::vector<ov::inplace_vector<size_t>> strides_brgemm_1d = {{1}, {2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_1d = {{0}, {1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_1d = {{0}};
-const std::vector<std::vector<size_t>> dilations_brgemm_1d = {{1}, {2}};
+const std::vector<ov::inplace_vector<size_t>> dilations_brgemm_1d = {{1}, {2}};
 
 /* ============= GroupConvolution params (brgemm_2D) ============= */
-const std::vector<std::vector<size_t>> kernels_brgemm_2d = {{3, 3}};
-const std::vector<std::vector<size_t>> strides_brgemm_2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels_brgemm_2d = {{3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides_brgemm_2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_2d = {{0, 0}, {1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations_brgemm_2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations_brgemm_2d = {{1, 1}, {2, 2}};
 
 /* ============= GroupConvolution params (brgemm_3D) ============= */
-const std::vector<std::vector<size_t>> kernels_brgemm_3d = {{3, 3, 3}};
-const std::vector<std::vector<size_t>> strides_brgemm_3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels_brgemm_3d = {{3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides_brgemm_3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_3d = {{0, 0, 0}, {1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t>> dilations_brgemm_3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations_brgemm_3d = {{1, 1, 1}, {2, 2, 2}};
 /* ============= */
 
-const std::vector<size_t> numGroups_brgemm_Blocked = {2};
+const ov::inplace_vector<size_t> numGroups_brgemm_Blocked = {2};
 
 /* ============= GroupConvolution (brgemm 1D) ============= */
 const auto groupConvParams_ExplicitPadding_brgemm_1D = ::testing::Combine(::testing::ValuesIn(kernels_brgemm_1d),
@@ -792,28 +792,28 @@ INSTANTIATE_TEST_SUITE_P(
     GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution params (brgemm_1x1_1D) ============= */
-const std::vector<std::vector<size_t>> kernels_brgemm_1x1_1d = {{1}};
-const std::vector<std::vector<size_t>> strides_brgemm_1x1_1d = {{1}, {2}};
+const std::vector<ov::inplace_vector<size_t>> kernels_brgemm_1x1_1d = {{1}};
+const std::vector<ov::inplace_vector<size_t>> strides_brgemm_1x1_1d = {{1}, {2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_1x1_1d = {{0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_1x1_1d = {{0}};
-const std::vector<std::vector<size_t>> dilations_brgemm_1x1_1d = {{1}, {2}};
+const std::vector<ov::inplace_vector<size_t>> dilations_brgemm_1x1_1d = {{1}, {2}};
 
 /* ============= GroupConvolution params (brgemm_1x1_2D) ============= */
-const std::vector<std::vector<size_t>> kernels_brgemm_1x1_2d = {{1, 1}};
-const std::vector<std::vector<size_t>> strides_brgemm_1x1_2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels_brgemm_1x1_2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides_brgemm_1x1_2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_1x1_2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_1x1_2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations_brgemm_1x1_2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations_brgemm_1x1_2d = {{1, 1}, {2, 2}};
 
 /* ============= GroupConvolution params (brgemm_1x1_3D) ============= */
-const std::vector<std::vector<size_t>> kernels_brgemm_1x1_3d = {{1, 1, 1}};
-const std::vector<std::vector<size_t>> strides_brgemm_1x1_3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels_brgemm_1x1_3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides_brgemm_1x1_3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins_brgemm_1x1_3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds_brgemm_1x1_3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t>> dilations_brgemm_1x1_3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations_brgemm_1x1_3d = {{1, 1, 1}, {2, 2, 2}};
 /* ============= */
 
-const std::vector<size_t> numGroups_brgemm_1x1_Blocked = {2};
+const ov::inplace_vector<size_t> numGroups_brgemm_1x1_Blocked = {2};
 
 /* ============= GroupConvolution (brgemm_1x1 1D) ============= */
 const auto groupConvParams_ExplicitPadding_brgemm_1x1_1D =
@@ -1323,7 +1323,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32,
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> dilations2d_Brdgmm = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations2d_Brdgmm = {{1, 1}};
 const auto groupConvParams_ExplicitPadding_DW_2D_Brdgmm = ::testing::Combine(::testing::ValuesIn(kernels2d),
                                                                       ::testing::ValuesIn(strides2d),
                                                                       ::testing::ValuesIn(padBegins2d),
@@ -1430,7 +1430,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32,
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> dilations3d_Brdgmm = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations3d_Brdgmm = {{1, 1, 1}};
 const auto groupConvParams_ExplicitPadding_DW_3D_Brdgmm = ::testing::Combine(::testing::ValuesIn(kernels3d),
                                                                       ::testing::ValuesIn(strides3d),
                                                                       ::testing::ValuesIn(padBegins3d),
@@ -1461,15 +1461,15 @@ using ConfigRelatedParams = std::tuple<ov::AnyMap, VecFusingParams>;  // Plugin 
 using VecConfigRelatedParams = std::vector<ConfigRelatedParams>;
 
 std::vector<groupConvLayerCPUTestParamsSet> makeSingleGroupConvCPUTestCases(
-    std::vector<size_t> kernels,
-    std::vector<size_t> strides,
-    std::vector<size_t> dilations,
+    ov::inplace_vector<size_t> kernels,
+    ov::inplace_vector<size_t> strides,
+    ov::inplace_vector<size_t> dilations,
     std::vector<ptrdiff_t> padBegins,
     std::vector<ptrdiff_t> padEnds,
     ov::op::PadType padType,
     int groups,
     int mb,
-    std::vector<size_t> spDims,
+    ov::inplace_vector<size_t> spDims,
     int inGroupSize,
     int outGroupSize,
     const std::vector<CPUSpecificParams>& CPUParams,
@@ -1478,7 +1478,7 @@ std::vector<groupConvLayerCPUTestParamsSet> makeSingleGroupConvCPUTestCases(
     int outChannels = groups * outGroupSize;
 
     InputShape inputShapes;
-    std::vector<size_t> targetShape;
+    ov::inplace_vector<size_t> targetShape;
     targetShape.push_back(mb);
     targetShape.push_back(inChannels);
     targetShape.insert(targetShape.end(), spDims.begin(), spDims.end());

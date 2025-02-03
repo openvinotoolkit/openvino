@@ -284,7 +284,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))
             return;
-        static_cast<ov::Strides&>(*a) = ov::Strides(shape);
+        static_cast<ov::Strides&>(*a) = ov::Strides(shape.begin(), shape.end());
 #if defined(__APPLE__) || defined(__EMSCRIPTEN__)
     } else if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
         std::vector<size_t> result;

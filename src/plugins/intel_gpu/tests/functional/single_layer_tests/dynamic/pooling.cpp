@@ -28,8 +28,8 @@ public:
         std::tie(basicParamsSet, inputShapes, inPrc) = obj.param;
 
         ov::test::utils::PoolingTypes poolType;
-        std::vector<size_t> kernel, stride;
-        std::vector<size_t> padBegin, padEnd;
+        ov::inplace_vector<size_t> kernel, stride;
+        ov::inplace_vector<size_t> padBegin, padEnd;
         ov::op::PadType padType;
         ov::op::RoundingType roundingType;
         bool excludePad;
@@ -72,8 +72,8 @@ protected:
         std::tie(basicParamsSet, inputShapes, inPrc) = this->GetParam();
 
         ov::test::utils::PoolingTypes poolType;
-        std::vector<size_t> kernel, stride;
-        std::vector<size_t> padBegin, padEnd;
+        ov::inplace_vector<size_t> kernel, stride;
+        ov::inplace_vector<size_t> padBegin, padEnd;
         ov::op::PadType padType;
         ov::op::RoundingType roundingType;
         bool excludePad;

@@ -12,18 +12,18 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::i32, ov::element::i16};
 
 /* ============= 2D DeformableConvolution ============= */
-const std::vector<std::vector<size_t>> deformable_vals = {{1, 16, 2, 2}};
-const std::vector<std::vector<size_t>> kernels = {{2, 2, 2, 2}};
-const std::vector<std::vector<size_t>> strides = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> deformable_vals = {{1, 16, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels = {{2, 2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> strides = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds ={{0, 0}};
-const std::vector<std::vector<size_t>> dilations = {{1, 1}};
-const std::vector<size_t> groups = {1};
-const std::vector<size_t> defor_groups = {2};
-const std::vector<size_t> numOutChannels = {1, 5};
-const std::vector<size_t> multiple_defor_groups = {4};
-const std::vector<std::vector<size_t>> deform_vals = {{1, 72, 64, 64}};
-const std::vector<std::vector<size_t>> kernel = {{16, 16, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> dilations = {{1, 1}};
+const ov::inplace_vector<size_t> groups = {1};
+const ov::inplace_vector<size_t> defor_groups = {2};
+const ov::inplace_vector<size_t> numOutChannels = {1, 5};
+const ov::inplace_vector<size_t> multiple_defor_groups = {4};
+const std::vector<ov::inplace_vector<size_t>> deform_vals = {{1, 72, 64, 64}};
+const std::vector<ov::inplace_vector<size_t>> kernel = {{16, 16, 3, 3}};
 
 const std::vector<ov::Shape> shapes_no_modulation {
     {1, 2, 3, 3},
@@ -140,9 +140,9 @@ INSTANTIATE_TEST_SUITE_P(
     DeformableConvolutionLayerTest::getTestCaseName);
 
 /* ============= Single Test Case ============= */
-const std::vector<std::vector<size_t>> single_deform_vals = {{1, 54, 28, 28}};
-const std::vector<std::vector<size_t>> single_kernel = {{1, 3, 3, 3}};
-const std::vector<size_t> single_deform_groups = {3};
+const std::vector<ov::inplace_vector<size_t>> single_deform_vals = {{1, 54, 28, 28}};
+const std::vector<ov::inplace_vector<size_t>> single_kernel = {{1, 3, 3, 3}};
+const ov::inplace_vector<size_t> single_deform_groups = {3};
 
 const std::vector<ov::Shape> shapes_single_no_modulation {
     {1, 3, 30, 30},
@@ -205,42 +205,42 @@ const std::vector<ov::Shape> shapes_multiple_groups_with_modulation {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_NoModulation, DeformableConvolutionLayerTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::ValuesIn(strides),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::ValuesIn(dilations),
-                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
-                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
-                        ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                        ::testing::ValuesIn(with_bilinear_interpolation_pad)),
-                        ::testing::Values(false),
-                        ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_no_modulation)),
-                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        DeformableConvolutionLayerTest::getTestCaseName);
+    smoke_DeformableConvolution2D_MultipleGroups_NoModulation,
+    DeformableConvolutionLayerTest,
+    ::testing::Combine(
+        ::testing::Combine(::testing::ValuesIn(strides),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::ValuesIn(dilations),
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{2}),  // gr.
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{2}),  // def. gr.
+                           ::testing::ValuesIn(numOutChannels),
+                           ::testing::Values(ov::op::PadType::EXPLICIT),
+                           ::testing::ValuesIn(with_bilinear_interpolation_pad)),
+        ::testing::Values(false),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_no_modulation)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_WithModulation, DeformableConvolutionLayerTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::ValuesIn(strides),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::ValuesIn(dilations),
-                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
-                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
-                        ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                        ::testing::ValuesIn(with_bilinear_interpolation_pad)),
-                        ::testing::Values(true),
-                        ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_with_modulation)),
-                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        DeformableConvolutionLayerTest::getTestCaseName);
+    smoke_DeformableConvolution2D_MultipleGroups_WithModulation,
+    DeformableConvolutionLayerTest,
+    ::testing::Combine(
+        ::testing::Combine(::testing::ValuesIn(strides),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::ValuesIn(dilations),
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{2}),  // gr.
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{2}),  // def. gr.
+                           ::testing::ValuesIn(numOutChannels),
+                           ::testing::Values(ov::op::PadType::EXPLICIT),
+                           ::testing::ValuesIn(with_bilinear_interpolation_pad)),
+        ::testing::Values(true),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_with_modulation)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    DeformableConvolutionLayerTest::getTestCaseName);
 
 const std::vector<ov::Shape> shapes_multiple_groups_2_no_modulation {
     {1, 8, 68, 68},
@@ -256,40 +256,40 @@ const std::vector<ov::Shape> shapes_multiple_groups_2_with_modulation {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_2_NoModulation, DeformableConvolutionLayerTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::ValuesIn(strides),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::ValuesIn(dilations),
-                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
-                        ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
-                        ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                        ::testing::ValuesIn(with_bilinear_interpolation_pad)),
-                        ::testing::Values(false),
-                        ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_2_no_modulation)),
-                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        DeformableConvolutionLayerTest::getTestCaseName);
+    smoke_DeformableConvolution2D_MultipleGroups_2_NoModulation,
+    DeformableConvolutionLayerTest,
+    ::testing::Combine(
+        ::testing::Combine(::testing::ValuesIn(strides),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::ValuesIn(dilations),
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{4}),  // gr.
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{1}),  // def. gr.
+                           ::testing::ValuesIn(numOutChannels),
+                           ::testing::Values(ov::op::PadType::EXPLICIT),
+                           ::testing::ValuesIn(with_bilinear_interpolation_pad)),
+        ::testing::Values(false),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_2_no_modulation)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    DeformableConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_DeformableConvolution2D_MultipleGroups_2_WithModulation, DeformableConvolutionLayerTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::ValuesIn(strides),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                        ::testing::ValuesIn(dilations),
-                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
-                        ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
-                        ::testing::ValuesIn(numOutChannels),
-                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                        ::testing::ValuesIn(with_bilinear_interpolation_pad)),
-                        ::testing::Values(true),
-                        ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_2_with_modulation)),
-                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        DeformableConvolutionLayerTest::getTestCaseName);
+    smoke_DeformableConvolution2D_MultipleGroups_2_WithModulation,
+    DeformableConvolutionLayerTest,
+    ::testing::Combine(
+        ::testing::Combine(::testing::ValuesIn(strides),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                           ::testing::ValuesIn(dilations),
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{4}),  // gr.
+                           ::testing::ValuesIn(ov::inplace_vector<size_t>{1}),  // def. gr.
+                           ::testing::ValuesIn(numOutChannels),
+                           ::testing::Values(ov::op::PadType::EXPLICIT),
+                           ::testing::ValuesIn(with_bilinear_interpolation_pad)),
+        ::testing::Values(true),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::test::static_shapes_to_test_representation(shapes_multiple_groups_2_with_modulation)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    DeformableConvolutionLayerTest::getTestCaseName);
 }  // namespace

@@ -25,7 +25,7 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 
     result << "Type=" << nodeType2str(type) << "_";
 
-    std::vector<size_t> kernelSize, strides, dilation;
+    ov::inplace_vector<size_t> kernelSize, strides, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t numOutChannels, numOfGroups;
     ov::op::PadType paddingType;
@@ -58,7 +58,7 @@ void ConvConcatSubgraphTest::SetUp() {
 
     std::tie(type, convParams, cpuParams, inputShapes, axis) = this->GetParam();
     pluginTypeNode = nodeType2PluginType(type);
-    std::vector<size_t> kernelSize, strides, dilation;
+    ov::inplace_vector<size_t> kernelSize, strides, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t numOutChannels, numOfGroups;
     ov::op::PadType paddingType;

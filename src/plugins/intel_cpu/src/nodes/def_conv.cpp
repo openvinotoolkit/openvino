@@ -732,10 +732,10 @@ size_t DefConvKey::hash() const {
 
     for (const auto& ptr : descVector) {
         if (ptr) {
-            seed = get_vector_hash(seed, ptr->getBlockDims());
-            seed = get_vector_hash(seed, ptr->getStrides());
-            seed = get_vector_hash(seed, ptr->getOrder());
-            seed = get_vector_hash(seed, ptr->getOffsetPaddingToData());
+            seed = get_array_hash(seed, ptr->getBlockDims().data(), ptr->getBlockDims().size());
+            seed = get_array_hash(seed, ptr->getStrides().data(), ptr->getStrides().size());
+            seed = get_array_hash(seed, ptr->getOrder().data(), ptr->getOrder().size());
+            seed = get_array_hash(seed, ptr->getOffsetPaddingToData().data(), ptr->getOffsetPaddingToData().size());
             seed = hash_combine(seed, ptr->getOffsetPadding());
         }
     }

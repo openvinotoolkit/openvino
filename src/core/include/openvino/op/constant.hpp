@@ -45,8 +45,8 @@ public:
     /// \param shape The shape of the tensor constant.
     /// \param values A vector of literals for initializing the tensor constant. The
     ///               size of values must match the size of the shape.
-    template <typename T>
-    Constant(const element::Type& type, const Shape& shape, const std::vector<T>& values)
+    template <typename T, class A>
+    Constant(const element::Type& type, const Shape& shape, const std::vector<T, A>& values)
         : Constant(false, type, shape) {
         const auto this_shape_size = shape_size(m_shape);
         const auto values_size = values.size();
@@ -62,7 +62,34 @@ public:
                               this_shape_size,
                               ").");
 
-        fill_or_write(has_single_value, type, values);
+        if constexpr (std::is_same_v<T, bool>) {
+            fill_or_write(has_single_value, type, values.begin(), values_size);
+        } else {
+            fill_or_write(has_single_value, type, values.data(), values_size);
+        }
+    }
+
+    template <typename T, class A>
+    Constant(const element::Type& type, const Shape& shape, const ov::inplace_vector<T, A>& values)
+        : Constant(false, type, shape) {
+        const auto this_shape_size = shape_size(m_shape);
+        const auto values_size = values.size();
+        const auto has_single_value = (values_size == 1);
+        NODE_VALIDATION_CHECK(this,
+                              has_single_value || values_size == this_shape_size,
+                              "Did not get the expected number of literals for a constant of shape ",
+                              m_shape,
+                              " (got ",
+                              values_size,
+                              ", expected ",
+                              (this_shape_size == 1 ? "" : "1 or "),
+                              this_shape_size,
+                              ").");
+        if constexpr (std::is_same_v<T, bool>) {
+            fill_or_write(has_single_value, type, values.begin(), values_size);
+        } else {
+            fill_or_write(has_single_value, type, values.data(), values_size);
+        }
     }
 
     /// \brief Create uninitialized constant
@@ -79,7 +106,7 @@ public:
     }
 
     template <typename T>
-    void fill_data(const element::Type& type, T value) {
+    void fill_data(const element::Type& type, const T& value) {
         using Type_t = element::Type_t;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic push
@@ -255,10 +282,17 @@ public:
     /// \param type The element type of the tensor constant.
     /// \param shape The shape of the tensor constant.
     /// \param values A vector of values to use as the constant data.
-    template <typename T>
+    template <typename T, class A>
     static std::shared_ptr<Constant> create(const element::Type& type,
                                             const Shape& shape,
-                                            const std::vector<T>& values) {
+                                            const std::vector<T, A>& values) {
+        return std::make_shared<Constant>(type, shape, values);
+    }
+
+    template <typename T, class A>
+    static std::shared_ptr<Constant> create(const element::Type& type,
+                                            const Shape& shape,
+                                            const ov::inplace_vector<T, A>& values) {
         return std::make_shared<Constant>(type, shape, values);
     }
 
@@ -610,62 +644,52 @@ private:
     }
 
     template <typename T>
-    void write_values(const std::vector<T>& values) {
-        write_to_buffer(values);
+    void write_values(const T values, const size_t n) {
+        write_to_buffer(values, n);
     }
 
-    template <element::Type_t Type,
-              typename T,
-              typename std::enable_if<Type != element::string && !std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
-        using StorageDataType = fundamental_type_for<Type>;
-        auto p = get_data_ptr_nc<Type>();
-        for (size_t i = 0; i < source.size(); ++i) {
-            p[i] = static_cast<StorageDataType>(source[i]);
+    template <element::Type_t Type, class T, class SourceType = std::decay_t<std::remove_pointer_t<T>>>
+    void write_buffer(const T source, size_t n) {
+        // using SourceType = std::decay_t<T>;
+
+        if constexpr (Type == element::string && std::is_same_v<SourceType, std::string>) {
+            // elements of string are already pre-initialized in allocate_buffer
+            auto p = get_data_ptr_nc<Type>();
+            std::uninitialized_copy_n(source, n, p);
+        } else if constexpr ((Type == element::string) != (std::is_same_v<SourceType, std::string>)) {
+            if constexpr (Type == element::string) {
+                fill_data<element::string>(std::string());
+            }
+            OPENVINO_THROW("'write_buffer' does not support writing elements of type ",
+                           element::from<T>(),
+                           " into Constant of type ",
+                           Type);
+        } else {
+            using StorageDataType = fundamental_type_for<Type>;
+            auto p = get_data_ptr_nc<Type>();
+            for (size_t i = 0; i < n; ++i) {
+                p[i] = static_cast<StorageDataType>(source[i]);
+            }
         }
-    }
-
-    template <element::Type_t Type,
-              typename T,
-              typename std::enable_if<Type == element::string && std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
-        // elements of string are already pre-initialized in allocate_buffer
-        auto p = get_data_ptr_nc<Type>();
-        std::uninitialized_copy_n(source.begin(), source.size(), p);
-    }
-
-    template <
-        element::Type_t Type,
-        typename T,
-        typename std::enable_if<(Type == element::string) != std::is_same<T, std::string>::value>::type* = nullptr>
-    void write_buffer(const std::vector<T>& source) {
-        if (Type == element::string) {
-            fill_data<element::string>(std::string());
-        }
-        OPENVINO_THROW("'write_buffer' does not support writing elements of type ",
-                       element::from<T>(),
-                       " into Constant of type ",
-                       Type);
     }
 
     // generic write_lp_buffer if input is not std or OV type (do additional conversion)
     template <element::Type_t ET, class T>
-    void write_lp_buffer(const std::vector<T>& source) {
+    void write_lp_buffer(const T source, size_t n) {
         auto lp_buffer = LPBuffer<ET>(get_data_ptr_nc());
-        for (const auto& value : source) {
-            lp_buffer.write(static_cast<float>(value));
-            ++lp_buffer;
+        for (size_t i = 0; i < n; ++i, ++lp_buffer) {
+            lp_buffer.write(static_cast<float>(source[i]));
         }
     }
 
     template <element::Type_t ET>
-    void write_lp_buffer(const std::vector<std::string>& source) {
-        write_buffer<element::i8>(source);
+    void write_lp_buffer(const std::string* source, size_t n) {
+        write_buffer<element::i8>(source, n);
     }
 
     template <typename T>
-    void write_to_buffer(const std::vector<T>& source) {
-        if (source.size() != shape_size(m_shape)) {
+    void write_to_buffer(const T source, const size_t n) {
+        if (n != shape_size(m_shape)) {
             OPENVINO_THROW("Constant initializer does not match shape");
         }
         using Type_t = element::Type_t;
@@ -676,79 +700,79 @@ private:
 #endif
         switch (m_element_type) {
         case Type_t::boolean:
-            write_buffer<Type_t::boolean>(source);
+            write_buffer<Type_t::boolean>(source, n);
             break;
         case Type_t::bf16:
-            write_buffer<Type_t::bf16>(source);
+            write_buffer<Type_t::bf16>(source, n);
             break;
         case Type_t::f16:
-            write_buffer<Type_t::f16>(source);
+            write_buffer<Type_t::f16>(source, n);
             break;
         case Type_t::f32:
-            write_buffer<Type_t::f32>(source);
+            write_buffer<Type_t::f32>(source, n);
             break;
         case Type_t::f64:
-            write_buffer<Type_t::f64>(source);
+            write_buffer<Type_t::f64>(source, n);
             break;
         case Type_t::i4:
-            write_lp_buffer<Type_t::i4>(source);
+            write_lp_buffer<Type_t::i4>(source, n);
             break;
         case Type_t::i8:
-            write_buffer<Type_t::i8>(source);
+            write_buffer<Type_t::i8>(source, n);
             break;
         case Type_t::i16:
-            write_buffer<Type_t::i16>(source);
+            write_buffer<Type_t::i16>(source, n);
             break;
         case Type_t::i32:
-            write_buffer<Type_t::i32>(source);
+            write_buffer<Type_t::i32>(source, n);
             break;
         case Type_t::i64:
-            write_buffer<Type_t::i64>(source);
+            write_buffer<Type_t::i64>(source, n);
             break;
         case Type_t::u1:
-            write_lp_buffer<Type_t::u1>(source);
+            write_lp_buffer<Type_t::u1>(source, n);
             break;
         case Type_t::u2:
-            write_lp_buffer<Type_t::u2>(source);
+            write_lp_buffer<Type_t::u2>(source, n);
             break;
         case Type_t::u3:
-            write_lp_buffer<Type_t::u3>(source);
+            write_lp_buffer<Type_t::u3>(source, n);
             break;
         case Type_t::u4:
-            write_lp_buffer<Type_t::u4>(source);
+            write_lp_buffer<Type_t::u4>(source, n);
             break;
         case Type_t::u6:
-            write_lp_buffer<Type_t::u6>(source);
+            write_lp_buffer<Type_t::u6>(source, n);
             break;
         case Type_t::u8:
-            write_buffer<Type_t::u8>(source);
+            write_buffer<Type_t::u8>(source, n);
             break;
         case Type_t::u16:
-            write_buffer<Type_t::u16>(source);
+            write_buffer<Type_t::u16>(source, n);
             break;
         case Type_t::u32:
-            write_buffer<Type_t::u32>(source);
+            write_buffer<Type_t::u32>(source, n);
             break;
         case Type_t::u64:
-            write_buffer<Type_t::u64>(source);
+            write_buffer<Type_t::u64>(source, n);
             break;
         case Type_t::nf4:
-            write_lp_buffer<Type_t::nf4>(source);
+            write_lp_buffer<Type_t::nf4>(source, n);
             break;
         case Type_t::f8e4m3:
-            write_buffer<Type_t::f8e4m3>(source);
+            write_buffer<Type_t::f8e4m3>(source, n);
             break;
         case Type_t::f8e5m2:
-            write_buffer<Type_t::f8e5m2>(source);
+            write_buffer<Type_t::f8e5m2>(source, n);
             break;
         case Type_t::string:
-            write_buffer<Type_t::string>(source);
+            write_buffer<Type_t::string>(source, n);
             break;
         case Type_t::f4e2m1:
-            write_lp_buffer<Type_t::f4e2m1>(source);
+            write_lp_buffer<Type_t::f4e2m1>(source, n);
             break;
         case Type_t::f8e8m0:
-            write_buffer<Type_t::f8e8m0>(source);
+            write_buffer<Type_t::f8e8m0>(source, n);
             break;
         case Type_t::undefined:
         case Type_t::dynamic:
@@ -760,11 +784,11 @@ private:
     }
 
     template <class T>
-    void fill_or_write(const bool fill, const element::Type& et, const std::vector<T>& values) {
+    void fill_or_write(const bool fill, const element::Type& et, const T values, size_t n) {
         if (fill) {
-            fill_data<T>(et, values[0]);
+            fill_data(et, *values);
         } else {
-            write_values(values);
+            write_values(values, n);
         }
     }
 
@@ -1036,7 +1060,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, double)
 
 #define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, SRC_TYPE) \
     template <>                                            \
-    OPENVINO_API void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source);
+    OPENVINO_API void Constant::write_lp_buffer<element::Type_t::ET>(const SRC_TYPE* source, size_t n);
 
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, bool)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, char)

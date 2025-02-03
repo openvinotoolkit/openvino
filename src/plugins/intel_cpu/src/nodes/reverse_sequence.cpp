@@ -132,7 +132,7 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
         OPENVINO_THROW("'seq_lengths' dimension mismatch");
     }
 
-    srcStrides.resize(dataDims.size());
+    srcStrides.resize(dataDims.size(), {});
     srcStrides[srcStrides.size() - 1] = 1;
     for (int i = srcStrides.size() - 2; i >= 0; --i) {
         srcStrides[i] = srcStrides[i + 1] * dataDims[i + 1];

@@ -59,7 +59,7 @@ void ZeroTensor::update_strides() const {
 
     auto& shape = get_shape();
     if (_strides.empty() && !shape.empty()) {
-        _strides.resize(shape.size());
+        _strides.resize(shape.size(), {});
         _strides.back() = shape.back() == 0 ? 0 : _element_type.size();
         std::transform(shape.crbegin(),
                        shape.crend() - 1,

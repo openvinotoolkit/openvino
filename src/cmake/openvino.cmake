@@ -39,7 +39,10 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
+target_link_libraries(${TARGET_NAME} PUBLIC absl::base
+                                            absl::throw_delegate 
+                                            absl::inlined_vector
+                                     PRIVATE openvino::reference
                                              openvino::shape_inference
                                              openvino::pugixml
                                              ${CMAKE_DL_LIBS}

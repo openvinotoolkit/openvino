@@ -361,7 +361,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             std::size_t len) {
     const auto& shape = src->get_shape();
     View view_start = View(shape.size(), 0u);
-    View view_end = shape;
+    View view_end(shape.begin(), shape.end());
     view_start[dim] = offset;
     view_end[dim] = offset + len;
     return ov::npuw::util::view(src, view_start, view_end);

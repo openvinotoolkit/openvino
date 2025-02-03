@@ -20,9 +20,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const size_t offset_a,
                      const size_t offset_b,
                      const size_t offset_c,
-                     const std::vector<size_t>& layout_a,
-                     const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const VectorDims& layout_a,
+                     const VectorDims& layout_b,
+                     const VectorDims& layout_c)
     : Brgemm(),
       m_type(type) {
     // We call default ctor of Brgemm class to avoid incorrect shape infer in constructor_validate_and_type_infer() call
@@ -43,9 +43,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const size_t offset_b,
                      const size_t offset_scratch,
                      const size_t offset_c,
-                     const std::vector<size_t>& layout_a,
-                     const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const VectorDims& layout_a,
+                     const VectorDims& layout_b,
+                     const VectorDims& layout_c)
     : Brgemm(),
       m_type(type) {
     set_arguments({A, B, scratch});
@@ -64,9 +64,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const PortDescriptor& desc_a,
                      const PortDescriptor& desc_b,
                      const PortDescriptor& desc_c,
-                     const std::vector<size_t>& layout_a,
-                     const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const VectorDims& layout_a,
+                     const VectorDims& layout_b,
+                     const VectorDims& layout_c)
     : Brgemm(),
       m_type(type) {
     set_arguments({A, B});
@@ -84,9 +84,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
                      const PortDescriptor& desc_b,
                      const PortDescriptor& desc_scratch,
                      const PortDescriptor& desc_c,
-                     const std::vector<size_t>& layout_a,
-                     const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c)
+                     const VectorDims& layout_a,
+                     const VectorDims& layout_b,
+                     const VectorDims& layout_c)
     : Brgemm(),
       m_type(type) {
     set_arguments({A, B, scratch});
@@ -96,9 +96,9 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A,
     custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
-void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
-                                                            const std::vector<size_t>& layout_b,
-                                                            const std::vector<size_t>& layout_c) {
+void BrgemmCPU::custom_constructor_validate_and_infer_types(const VectorDims& layout_a,
+                                                            const VectorDims& layout_b,
+                                                            const VectorDims& layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
 

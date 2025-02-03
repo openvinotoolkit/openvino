@@ -12,16 +12,15 @@
 
 namespace ov {
 namespace test {
-using  groupConvBackpropSpecificParams = std::tuple<
-    std::vector<size_t>,        // kernels
-    std::vector<size_t>,        // strides
-    std::vector<ptrdiff_t>,     // pad begins
-    std::vector<ptrdiff_t>,     // pad ends
-    std::vector<size_t>,        // dilations
-    size_t,                     // num output channels
-    size_t,                     // num groups
-    ov::op::PadType,            // padding type
-    std::vector<ptrdiff_t>>;    // output padding
+using groupConvBackpropSpecificParams = std::tuple<ov::inplace_vector<size_t>,  // kernels
+                                                   ov::inplace_vector<size_t>,  // strides
+                                                   std::vector<ptrdiff_t>,      // pad begins
+                                                   std::vector<ptrdiff_t>,      // pad ends
+                                                   ov::inplace_vector<size_t>,  // dilations
+                                                   size_t,                      // num output channels
+                                                   size_t,                      // num groups
+                                                   ov::op::PadType,             // padding type
+                                                   std::vector<ptrdiff_t>>;     // output padding
 
 using  groupConvBackpropLayerTestParamsSet = std::tuple<
     groupConvBackpropSpecificParams,

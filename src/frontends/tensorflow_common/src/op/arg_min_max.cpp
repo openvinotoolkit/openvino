@@ -26,7 +26,7 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
         TENSORFLOW_OP_VALIDATION(node,
                                  as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
                                  "ArgMax/ArgMin is not supported with non-constant axis input");
-        std::vector<int64_t> axes;
+        ov::inplace_vector<int64_t> axes;
         get_const_input(node, 1, &axes);
         TENSORFLOW_OP_VALIDATION(node, axes.size() == 1, "ArgMax/ArgMin must be with a scalar axis input.");
         axis = axes[0];

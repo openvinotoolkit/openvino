@@ -123,7 +123,7 @@ TEST(coordinate_range, slice_range_input_validataion) {
 }
 
 namespace {
-Shape sliced_shape(const std::vector<size_t>& start_corner, const std::vector<size_t>& end_corner) {
+Shape sliced_shape(const ov::inplace_vector<size_t>& start_corner, const ov::inplace_vector<size_t>& end_corner) {
     Shape s;
     std::transform(end_corner.begin(),
                    end_corner.end(),
@@ -135,9 +135,9 @@ Shape sliced_shape(const std::vector<size_t>& start_corner, const std::vector<si
 
     return s;
 }
-Shape sliced_shape(const std::vector<size_t>& start_corner,
-                   const std::vector<size_t>& end_corner,
-                   const std::vector<size_t>& strides) {
+Shape sliced_shape(const ov::inplace_vector<size_t>& start_corner,
+                   const ov::inplace_vector<size_t>& end_corner,
+                   const ov::inplace_vector<size_t>& strides) {
     Shape s = sliced_shape(start_corner, end_corner);
 
     std::transform(s.begin(), s.end(), strides.begin(), s.begin(), [](size_t e, size_t s) {

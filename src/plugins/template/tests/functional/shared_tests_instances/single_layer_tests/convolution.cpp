@@ -20,12 +20,12 @@ const std::vector<ov::element::Type> model_types = {
 
 /* ============= 2D Convolution ============= */
 
-const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
-const std::vector<std::vector<size_t>> strides = {{1, 1}, {1, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels = {{3, 3}, {3, 5}};
+const std::vector<ov::inplace_vector<size_t>> strides = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}, {0, 3}};
-const std::vector<std::vector<size_t>> dilations = {{1, 1}, {3, 1}};
-const std::vector<size_t> numOutChannels = {1, 5};
+const std::vector<ov::inplace_vector<size_t>> dilations = {{1, 1}, {3, 1}};
+const ov::inplace_vector<size_t> numOutChannels = {1, 5};
 const std::vector<ov::op::PadType> padTypes = {ov::op::PadType::EXPLICIT, ov::op::PadType::VALID};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(::testing::ValuesIn(kernels),
@@ -67,11 +67,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 /* ============= 3D Convolution ============= */
 
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0}, {0, 2, 0}};
 
-const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {1, 2, 1}};
-const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}, {1, 2, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides3d = {{1, 1, 1}, {1, 2, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations3d = {{1, 1, 1}, {1, 2, 1}};
 
 const auto conv3DParams_ExplicitPadding = ::testing::Combine(::testing::ValuesIn(kernels3d),
                                                              ::testing::ValuesIn(strides3d),
