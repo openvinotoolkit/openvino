@@ -29,6 +29,7 @@ std::vector<layout> embedding_bag_inst::calc_output_layouts(embedding_bag_node c
     for (size_t i = 0; i < desc->input_size(); i++) {
         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
+    input_shapes.push_back(ShapeType());
 
     std::vector<ShapeType> output_shapes;
 
@@ -46,7 +47,7 @@ std::vector<layout> embedding_bag_inst::calc_output_layouts(embedding_bag_node c
         case embedding_bag::segments_sum: {
             ov::op::v3::EmbeddingSegmentsSum op;
 
-            const size_t num_segments_idx = 3;
+            const size_t num_segments_idx = 2;
             TensorsContainer const_data(&impl_param.get_stream());
             if (memory_deps.count(num_segments_idx) > 0) {
                 const_data.emplace(3, memory_deps.at(num_segments_idx));
