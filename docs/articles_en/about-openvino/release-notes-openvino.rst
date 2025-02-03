@@ -123,10 +123,9 @@ NPU Device Plugin
 * Performance has been improved for Channel-Wise symmetrically quantized LLMs, including
   Llama2-7B-chat, Llama3-8B-instruct, qwen-2-7B, Mistral-0.2-7B-instruct, phi-3-mini-4K-instruct,
   miniCPM-1B models. The best performance is achieved using fp16-in4 quantized models.
-*	Preview: Introducing NPU support for torch.compile  , giving developers the ability to use
-  the OpenVINO backend to run the PyTorch API on NPUs. 300+ deep learning models enabled from
+*	Preview: Introducing NPU support for torch.compile, giving developers the ability to use the
+  OpenVINO backend to run the PyTorch API on NPUs. 300+ deep learning models enabled from
   the TorchVision, Timm, and TorchBench repositories.
-
 
 OpenVINO Python API
 -----------------------------------------------------------------------------------------------
@@ -392,7 +391,7 @@ Using deprecated features and components is not advised. They are available to e
 transition to new solutions and will be discontinued in the future. To keep using discontinued
 features, you will have to revert to the last LTS OpenVINO version supporting them.
 For more details, refer to:
-`OpenVINO Legacy Features and Components <https://docs.openvino.ai/2025/documentation/legacy-features.html>__`.
+`OpenVINO Legacy Features and Components <https://docs.openvino.ai/2025/documentation/legacy-features.html>`__.
 
 
 
