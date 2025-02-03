@@ -270,6 +270,14 @@ const auto testParams2D_Brgemm_FP16_smoke = ::testing::Combine(fullyConnectedPar
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_FP16, MatMulLayerCPUTest, testParams2D_Brgemm_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
+const auto testParams2D_Brgemm_binary_po =
+    ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
+                       ::testing::Values(MatMulNodeType::FullyConnected),
+                       ::testing::Values(fusingReluScaleShift), // eltwise_relu (to prevent Multiply opt out), binary_mul, binary_add
+                       ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_binary_po, MatMulLayerCPUTest, testParams2D_Brgemm_binary_po, MatMulLayerCPUTest::getTestCaseName);
+
 const std::vector<ShapeRelatedParams> IS_brgemm_smoke = {
         {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
         {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
@@ -991,6 +999,14 @@ const auto testParams3D_smoke = ::testing::Combine(fullyConnectedParams3D_smoke,
                                              ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D_smoke, MatMulLayerCPUTest::getTestCaseName);
+
+const auto testParams3D_binary_po =
+    ::testing::Combine(fullyConnectedParams3D_smoke,
+                       ::testing::Values(MatMulNodeType::FullyConnected),
+                       ::testing::Values(fusingReluScaleShift), // eltwise_relu (to prevent Multiply opt out), binary_mul, binary_add
+                       ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_binary_po, MatMulLayerCPUTest, testParams3D_binary_po, MatMulLayerCPUTest::getTestCaseName);
 
 std::vector<fusingSpecificParams> fusingParamsSet3D_nightly {
         fusingFakeQuantizePerTensorRelu,
