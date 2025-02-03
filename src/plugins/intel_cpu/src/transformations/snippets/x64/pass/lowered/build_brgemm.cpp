@@ -1,4 +1,4 @@
-    // Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
@@ -61,6 +62,7 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
             continue;
         }
         auto iter_count = inner_loop_info->get_work_amount() / inner_loop_info->get_increment();
+
         auto brgemm_node =
             std::make_shared<BrgemmCPU>(expr->get_input_port_connector(0)->get_source().get_expr()->get_node(),
                                         expr->get_input_port_connector(1)->get_source().get_expr()->get_node(),
@@ -74,7 +76,12 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
                                         gemm_out_desc->get_layout());
         // Replace GemmCPU node with BrgemmCPU
         auto live_regs = expr->get_live_regs();
+        snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->input(0), in0_subtensor, gemm_in0_desc->get_layout());
+        snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->input(1), in1_subtensor, gemm_in1_desc->get_layout());
+        snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->output(0), out_subtensor, gemm_out_desc->get_layout());
         expr_it = linear_ir.replace_with_node({expr}, brgemm_node, expr->get_loop_ids(), linear_ir.find(expr));
+        OPENVINO_ASSERT(expr_it != linear_ir.end(), "Failed to replace GemmCPU with BrgemmCPU");
+
         const auto& updated_expr = *expr_it;
         updated_expr->set_live_regs(std::move(live_regs));
         updated_expr->get_input_port_descriptor(0)->set_subtensor(in0_subtensor);
