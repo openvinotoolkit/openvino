@@ -106,6 +106,7 @@ jobs:
             -DENABLE_GPU=OFF \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
+            -DTHREADING=SEQ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
