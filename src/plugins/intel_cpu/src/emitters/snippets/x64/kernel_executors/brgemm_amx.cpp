@@ -6,7 +6,7 @@
 
 #include <cpu/x64/amx_tile_configure.hpp>
 
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #define INNER_K_BLK(dtype) static_cast<dnnl_dim_t>((brgemm_utils::repacking::compute_inner_k_block(in0_dtype)))
@@ -293,7 +293,7 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
 
     if (K_tail != 0) {
         if (config.need_copy_a(K_tail)) {
-            auto* tr_src = scratch + BrgemmCPU::SCRATCH_BYTE_SIZE;
+            auto* tr_src = scratch + GemmCPU::SCRATCH_BYTE_SIZE;
 
             execute_brgemm_copy_a_kernel(kernel->brgemm_copy_a_kernel, src_ptr, tr_src, config.get_M(), K_tail);
             src_ptr = tr_src;
