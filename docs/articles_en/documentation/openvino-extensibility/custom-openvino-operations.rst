@@ -16,6 +16,29 @@ Operation Class
 
 .. tab-set::
 
+
+   .. tab-item:: Python
+      :sync: py
+      
+      To add your custom operation, create a new class that extends ``openvino.Op``, which is in turn derived from ``openvino.Node``, the base class for all graph operations in OpenVINO™. To add ``openvino.Op`` you need to import it.
+
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:common_include]
+
+      Follow the steps below to add a simple custom operation:
+
+      1. Define the ``__init__`` method to initialize the class with inputs and attributes.
+
+      2. Override the shape inference method ``validate_and_infer_types``. This method is called multiple times during graph manipulations to determine the shapes and element types of the operations outputs. To access the input shapes and input element types, use the ``get_input_partial_shape()`` and ``get_input_element_type()`` methods of ``openvino.Node``. Set the inferred shape and element type of the output using ``set_output_type``.
+
+      3. Override the ``visit_attributes`` method, which enables serialization and deserialization of operation attributes. An ``AttributeVisitor`` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware ``on_attribute`` helper. Helpers are already implemented for standard types like ``int``, ``float``, ``bool``, ``vector``, and for existing OpenVINO defined types.
+
+      4. Override ``evaluate`` method with the code that will run when this operation is encountered in the model graph during the model inference. It works only for CPU device and enables OpenVINO runtime to run your arbitrary Python code as a part of model inference. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method which returns `True`, this method allows to get information about availability of ``evaluate`` method for the operation.
+
+      5. Override the ``clone_with_new_inputs``, which is an optional method that graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
+
    .. tab-item:: C++
       :sync: cpp
 
@@ -41,29 +64,6 @@ Operation Class
       6. Override ``evaluate`` method, which enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
 
 
-   .. tab-item:: Python
-      :sync: py
-      
-      To add your custom operation, create a new class that extends ``openvino.Op``, which is in turn derived from ``openvino.Node``, the base class for all graph operations in OpenVINO™. To add ``openvino.Op`` you need to import it.
-
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
-         :language: python
-         :fragment: [op:common_include]
-
-      Follow the steps below to add a simple custom operation:
-
-      1. Define the ``__init__`` method to initialize the class with inputs and attributes.
-
-      2. Override the shape inference method ``validate_and_infer_types``. This method is called multiple times during graph manipulations to determine the shapes and element types of the operations outputs. To access the input shapes and input element types, use the ``get_input_partial_shape()`` and ``get_input_element_type()`` methods of ``openvino.Node``. Set the inferred shape and element type of the output using ``set_output_type``.
-
-      3. Override the ``visit_attributes`` method, which enables serialization and deserialization of operation attributes. An ``AttributeVisitor`` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware ``on_attribute`` helper. Helpers are already implemented for standard types like ``int``, ``float``, ``bool``, ``vector``, and for existing OpenVINO defined types.
-
-      4. Override ``evaluate`` method with the code that will run when this operation is encountered in the model graph during the model inference. It works only for CPU device and enables OpenVINO runtime to run your arbitrary Python code as a part of model inference. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method which returns `True`, this method allows to get information about availability of ``evaluate`` method for the operation.
-
-      5. Override the ``clone_with_new_inputs``, which is an optional method that graph manipulation routines to create copies of this operation and connect it to different nodes during optimization.
-
-
 Based on that, declaration of an operation class can look as follows:
 
 
@@ -77,18 +77,18 @@ OpenVINO™ operation contains two constructors:
 
 .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: src/core/template_extension/identity.cpp
-         :language: cpp
-         :fragment: [op:ctor]
-   
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
          :language: python
+         :fragment: [op:ctor]
+  
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
          :fragment: [op:ctor]
 
 ``validate_and_infer_types()``
@@ -98,18 +98,18 @@ OpenVINO™ operation contains two constructors:
 
 .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: src/core/template_extension/identity.cpp
-         :language: cpp
-         :fragment: [op:validate]
-   
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
          :language: python
+         :fragment: [op:validate]
+   
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
          :fragment: [op:validate]
 
 ``clone_with_new_inputs()``
@@ -119,18 +119,18 @@ OpenVINO™ operation contains two constructors:
 
 .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: src/core/template_extension/identity.cpp
-         :language: cpp
-         :fragment: [op:copy]
-   
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
          :language: python
+         :fragment: [op:copy]
+   
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
          :fragment: [op:copy]
 
 ``visit_attributes()``
@@ -140,18 +140,18 @@ OpenVINO™ operation contains two constructors:
 
 .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: src/core/template_extension/identity.cpp
-         :language: cpp
-         :fragment: [op:visit_attributes]
-   
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
          :language: python
+         :fragment: [op:visit_attributes]
+   
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
          :fragment: [op:visit_attributes]
 
 ``evaluate() and has_evaluate()``
@@ -161,17 +161,17 @@ OpenVINO™ operation contains two constructors:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: src/core/template_extension/identity.cpp
-         :language: cpp
-         :fragment: [op:evaluate]
-   
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
          :language: python
+         :fragment: [op:evaluate]
+   
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
          :fragment: [op:evaluate]
 
