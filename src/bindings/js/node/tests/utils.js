@@ -26,6 +26,16 @@ const testModels = {
     binURL:
       'https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin',
   },
+  modelV3Small: {
+    xml: getModelPath('v3-small_224_1.0_float.xml'),
+    bin: getModelPath('v3-small_224_1.0_float.bin'),
+    inputShape: [1, 224, 224, 3],
+    outputShape: [1, 1001],
+    xmlURL:
+      'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.xml',
+    binURL:
+      'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.bin',
+  },
 };
 
 module.exports = {
