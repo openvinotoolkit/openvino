@@ -750,9 +750,11 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     dnnl::post_ops ops;
 
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, 1);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsArgs, channelAxis);
             continue;
         }
 

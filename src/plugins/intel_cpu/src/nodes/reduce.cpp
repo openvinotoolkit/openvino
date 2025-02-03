@@ -1015,15 +1015,11 @@ private:
         case memory::data_type::bf16:
             if (isa == cpu::x64::avx512_core) {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(ymm_dst.getIdx())},
-                                             {},
-                                             {});
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
             } else {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(xmm_dst.getIdx())},
-                                             {},
-                                             {});
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
                 uni_vmovdqu(op, xmm_dst);
             }
             break;
@@ -1774,15 +1770,11 @@ private:
         case memory::data_type::bf16:
             if (isa == cpu::x64::avx512_core) {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(ymm_dst.getIdx())},
-                                             {},
-                                             {});
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
             } else {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(xmm_dst.getIdx())},
-                                             {},
-                                             {});
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
                 uni_vmovdqu(op, xmm_dst);
             }
             break;
@@ -3704,9 +3696,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, 1);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
