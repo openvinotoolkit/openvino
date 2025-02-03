@@ -9,34 +9,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "conversion.hpp"
 
-namespace {
-using ov::test::ConversionLayerTest;
-using ov::test::ConvertToBooleanLayerTest;
-
-const std::vector<ov::test::utils::ConversionTypes> conversionOpTypes = {
-    ov::test::utils::ConversionTypes::CONVERT,
-    ov::test::utils::ConversionTypes::CONVERT_LIKE,
-};
-
-const std::vector<std::vector<ov::Shape>> inShape = {{{1, 2, 3, 4}}};
-
-const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::f32,
-        ov::element::f16,
-        ov::element::u8,
-        ov::element::i8,
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConversionLayerTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(conversionOpTypes),
-                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShape)),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ConversionLayerTest::getTestCaseName);
-}
-
 namespace ov {
 namespace test {
 
@@ -97,7 +69,34 @@ void ConvertToBooleanLayerTest::generate_inputs(const std::vector<ov::Shape>& ta
 }  // namespace test
 }  // namespace ov
 
+
 namespace {
+using ov::test::ConversionLayerTest;
+using ov::test::ConvertToBooleanLayerTest;
+
+const std::vector<ov::test::utils::ConversionTypes> conversionOpTypes = {
+    ov::test::utils::ConversionTypes::CONVERT,
+    ov::test::utils::ConversionTypes::CONVERT_LIKE,
+};
+
+const std::vector<std::vector<ov::Shape>> inShape = {{{1, 2, 3, 4}}};
+
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::u8,
+        ov::element::i8,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConversionLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(conversionOpTypes),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShape)),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        ConversionLayerTest::getTestCaseName);
+
 TEST_P(ConvertToBooleanLayerTest, CompareWithRefs) {
     run();
 };
