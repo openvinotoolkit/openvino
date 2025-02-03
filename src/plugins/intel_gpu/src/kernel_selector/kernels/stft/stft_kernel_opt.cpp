@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
 }
 
 bool STFTKernelOpt::Validate(const Params& p) const {
-    if (!STFTKernelBase::Validate(p))
+    if (STFTKernelBase::Validate(p) == false)
         return false;
 
     const auto& params = static_cast<const STFT_params&>(p);
@@ -79,6 +79,14 @@ bool STFTKernelOpt::Validate(const Params& p) const {
         return false;
 
     return true;
+}
+
+DeviceFeaturesKey STFTKernelOpt::get_required_device_features_key(const Params& params) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+
+    return k;
 }
 
 }  // namespace kernel_selector
