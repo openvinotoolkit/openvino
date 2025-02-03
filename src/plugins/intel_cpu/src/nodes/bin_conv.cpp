@@ -1084,7 +1084,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
     }
 
     auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -1163,7 +1163,7 @@ void BinaryConvolution::createPrimitive() {
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
         IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok) {
-        OPENVINO_THROW("BinaryConvolution with name '", getName(), "' has unsupported parameters");
+        THROW_CPU_NODE_ERR("has unsupported parameters");
     }
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
@@ -1416,7 +1416,7 @@ void BinaryConvolution::execute(const dnnl::stream& strm) {
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();

@@ -328,7 +328,7 @@ void QKVProjection::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        OPENVINO_THROW("QKVProjection Executor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
@@ -348,7 +348,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     }
 
     if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        THROW_CPU_NODE_ERR(errorMessage);
     }
     const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);
     m_config = node->get_config();

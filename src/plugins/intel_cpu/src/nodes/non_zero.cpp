@@ -66,11 +66,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                 ov::element::u32,
                 ov::element::i8,
                 ov::element::u8)) {
-        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
-                       getName(),
-                       " doesn't support ",
-                       inPrc.get_type_name(),
-                       " precision on 0 port");
+        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);

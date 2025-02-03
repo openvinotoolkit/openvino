@@ -196,7 +196,7 @@ void Math::execute(const dnnl::stream& strm) {
         });
         break;
     default:
-        OPENVINO_THROW("Incorrect Reduce layer type");
+        THROW_CPU_NODE_ERR("Incorrect Reduce layer type");
     }
 }
 
