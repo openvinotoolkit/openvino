@@ -37,7 +37,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D_non2x2kernel = {
                                                             ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT},
 };
 
-//The test checks that fallback to nGraph works for ACL non-supported cases 
+//The test checks that fallback to nGraph works for ACL non-supported cases
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_non2x2Kernel_ref, MaxPoolingV14LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV144D_non2x2kernel),
