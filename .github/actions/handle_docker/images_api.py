@@ -122,7 +122,7 @@ class ImagesHandler:
         return missing_images
 
     def build(self, image_names: Iterable = None, missing_only: bool = False, push: bool = True, builder: str = None,
-              import_cache: bool = True, export_cache: bool = True):
+              import_cache: bool = False, export_cache: bool = False):
         to_build = self.get(self.get_missing(image_names)) if missing_only else self.get(image_names)
         for image in to_build:
             image.build(self.dry_run, push, builder, import_cache, export_cache)

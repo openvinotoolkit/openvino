@@ -23,6 +23,7 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libtbb2 \
+        wget \
         # parallel gzip
         pigz \
         # Pythons \
