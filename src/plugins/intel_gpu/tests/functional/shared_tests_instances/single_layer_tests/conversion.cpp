@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "gtest/gtest.h"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"

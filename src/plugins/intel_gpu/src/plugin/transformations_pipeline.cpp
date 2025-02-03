@@ -456,18 +456,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
-        { // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
-            type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
-            precisions_map convert_precision_map = {{ov::element::boolean, ov::element::u8}};
-            manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_map,
-                                                          type_to_fuse,
-                                                          false,
-                                                          false,
-                                                          false);
-
-            manager.register_pass<ov::pass::EliminateConvert>();
-        }
-
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_sdpa != -1) {
                 GPU_DEBUG_CODE(return cldnn::debug_configuration::get_instance()->enable_sdpa == 1);
@@ -571,8 +559,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::Validate>();
         const bool keep_precision_sensitive_in_fp32_2 = true;
+
+        // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
+        type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
-                                                          empty_fuse_map,
+                                                          type_to_fuse,
                                                           keep_precision_sensitive_in_fp32_2,
                                                           convert_input_output_precision);
 
