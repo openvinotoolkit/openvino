@@ -6,6 +6,8 @@
 
 #include <ze_api.h>
 
+#include <mutex>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
@@ -61,7 +63,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 const uint32_t& group_ordinal,
                 bool mtci_is_supported = false);
     CommandList(const CommandList&) = delete;
@@ -85,7 +87,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
@@ -118,7 +120,7 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                  const ze_command_queue_priority_t& priority,
                  const uint32_t& group_ordinal,
                  bool turbo = false);
@@ -129,18 +131,48 @@ public:
 
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
-    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
+    void setWorkloadType(ze_command_queue_workload_type_t workload_type) const;
     ~CommandQueue();
     inline ze_command_queue_handle_t handle() const {
         return _handle;
     }
 
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     Logger _log;
 
     ze_command_queue_handle_t _handle = nullptr;
+};
+
+class CommandQueueManager {
+public:
+    CommandQueueManager();
+    CommandQueueManager(const CommandQueueManager& other) = delete;
+    CommandQueueManager(CommandQueueManager&& other) = delete;
+    void operator=(const CommandQueueManager&) = delete;
+    void operator=(CommandQueueManager&&) = delete;
+
+    static CommandQueueManager& getInstance();
+
+    std::shared_ptr<CommandQueue> getCommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                                                  const ze_command_queue_priority_t& priority,
+                                                  const std::optional<ze_command_queue_workload_type_t>& workload_type,
+                                                  const uint32_t& group_ordinal,
+                                                  bool turbo);
+
+    void freeCommandQueue(const ze_command_queue_priority_t& priority,
+                          const std::optional<ze_command_queue_workload_type_t>& workload_type,
+                          bool turbo);
+
+private:
+    Logger _log;
+
+    std::mutex _mutex;
+
+    std::array<std::array<std::array<std::shared_ptr<CommandQueue>, workload::WORKLOAD_COUNT>, turbo::TURBO_COUNT>,
+               priority::PRIORITY_COUNT>
+        _gloabal_command_queues;
 };
 
 }  // namespace intel_npu

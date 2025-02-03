@@ -26,16 +26,14 @@ Pipeline::Pipeline(const Config& config,
                    const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                    const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
                    uint32_t group_ordinal)
-    : _graph(graph),
+    : _init_structs(init_structs),
+      _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
-      _event_pool{
-          std::make_shared<EventPool>(init_structs->getDevice(),
-                                      init_structs->getContext(),
-                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
-      _logger("Pipeline", _config.get<LOG_LEVEL>()) {
+      _logger("Pipeline", _config.get<LOG_LEVEL>()),
+      _group_ordinal(group_ordinal) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
 
@@ -43,17 +41,52 @@ Pipeline::Pipeline(const Config& config,
         profiling_query.create(profiling_pool._handle);
     }
 
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+                    "In-order execution doesn't work in case synchronization of the inferences is done using events");
+
+    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _event_pool =
+            std::make_shared<EventPool>(_init_structs->getDevice(),
+                                        _init_structs->getContext(),
+                                        _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
+
+        _events.reserve(_number_of_command_lists);
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+        }
+    }
+
     _command_lists.reserve(_number_of_command_lists);
-    _events.reserve(_number_of_command_lists);
-    _fences.reserve(_number_of_command_lists);
-    _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs,
+            std::make_unique<CommandList>(_init_structs,
                                           group_ordinal,
-                                          init_structs->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
-        _fences.emplace_back(std::make_unique<Fence>(*_graph->get_command_queue()));
+                                          _init_structs->getMutableCommandListVersion() ? true : false));
+    }
+
+    _ze_queue_priority = zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>());
+
+    if (_config.has<TURBO>()) {
+        _turbo = _config.get<TURBO>();
+    }
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+    }
+
+    _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
+                                                                        _ze_queue_priority,
+                                                                        _graph->get_ze_workload_type(),
+                                                                        _group_ordinal,
+                                                                        _turbo);
+
+    if (_sync_output_with_fences) {
+        _fences.resize(_number_of_command_lists);
+
+        for (size_t i = 0; i < _number_of_command_lists; i++) {
+            _logger.debug("Pipeline - getCommandQueue() - create new fence");
+            _fences[i] = std::make_unique<Fence>(*_command_queue);
+        }
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
@@ -138,7 +171,7 @@ Pipeline::Pipeline(const Config& config,
         }
 
         // appendBarrier used in L0 as well
-        if (!sync_output_with_fences_) {
+        if (!_sync_output_with_fences) {
             _command_lists.at(i)->appendBarrier();
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
         }
@@ -147,8 +180,48 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
+void Pipeline::getCommandQueue() {
+    _logger.debug("Pipeline - getCommandQueue() started");
+
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if (_ze_workload_type != _graph->get_ze_workload_type()) {
+        // fences created for the old command queue shall be destroyed and make new ones
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _number_of_command_lists; i++) {
+                if (_fences[i] != nullptr) {
+                    _logger.debug("Pipeline - getCommandQueue() - destroy old fence");
+                    _fences[i].reset();
+                }
+            }
+        }
+
+        _command_queue = CommandQueueManager::getInstance().getCommandQueue(_init_structs,
+                                                                            _ze_queue_priority,
+                                                                            _graph->get_ze_workload_type(),
+                                                                            _group_ordinal,
+                                                                            _turbo);
+
+        if (_sync_output_with_fences) {
+            for (size_t i = 0; i < _number_of_command_lists; i++) {
+                _logger.debug("Pipeline - getCommandQueue() - create new fence");
+                _fences[i] = std::make_unique<Fence>(*_command_queue);
+            }
+        }
+
+        _logger.debug("Pipeline - getCommandQueue() - free previous command queue");
+        CommandQueueManager::getInstance().freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
+
+        _ze_workload_type = _graph->get_ze_workload_type();
+    }
+
+    _logger.debug("Pipeline - getCommandQueue() completed");
+}
+
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
+
+    getCommandQueue();
 
     if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
@@ -164,10 +237,10 @@ void Pipeline::push() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-        if (sync_output_with_fences_) {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
+        if (_sync_output_with_fences) {
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 
@@ -179,7 +252,7 @@ void Pipeline::pull() {
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
         } else {
             _events.at(i)->hostSynchronize();
@@ -194,17 +267,17 @@ void Pipeline::pull() {
 };
 
 void Pipeline::reset() const {
-    _logger.debug("Pipeline - rest() started");
+    _logger.debug("Pipeline - reset() started");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (sync_output_with_fences_) {
+        if (_sync_output_with_fences) {
             _fences.at(i)->reset();
         } else {
             _events.at(i)->reset();
         }
     }
 
-    _logger.debug("Pipeline - rest() completed");
+    _logger.debug("Pipeline - reset() completed");
 };
 
 void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size) {
@@ -256,5 +329,21 @@ void Pipeline::closeCommandListIndex(size_t command_list_index) {
 
     _command_lists.at(command_list_index)->close();
 };
+
+Pipeline::~Pipeline() {
+    if (_command_queue) {
+        if (_sync_output_with_fences) {
+            // fences shall be destroyed before the command queue is destroyed
+            for (size_t i = 0; i < _number_of_command_lists; i++) {
+                if (_fences[i] != nullptr) {
+                    _fences[i].reset();
+                }
+            }
+        }
+
+        _command_queue.reset();
+        CommandQueueManager::getInstance().freeCommandQueue(_ze_queue_priority, _ze_workload_type, _turbo);
+    }
+}
 
 }  // namespace intel_npu

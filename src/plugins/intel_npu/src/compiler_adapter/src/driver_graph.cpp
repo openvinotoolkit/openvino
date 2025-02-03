@@ -103,23 +103,8 @@ void DriverGraph::initialize(const Config& config) {
     deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                 zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
-    bool turbo = false;
-    if (config.has<TURBO>()) {
-        turbo = config.get<TURBO>();
-    }
-
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    groupOrdinal,
-                                                    turbo);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
-    }
-
-    _zeGraphExt->initializeGraph(_handle, config);
+    _zeGraphExt->initializeGraph(_handle);
 
     _logger.debug("Graph initialize finish");
 

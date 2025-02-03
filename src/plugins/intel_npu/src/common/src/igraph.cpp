@@ -21,7 +21,11 @@ IGraph::IGraph(ze_graph_handle_t handle,
     : _handle(handle),
       _metadata(std::move(metadata)),
       _blobPtr(std::move(blobPtr)),
-      _logger("IGraph", config.get<LOG_LEVEL>()) {}
+      _logger("IGraph", config.get<LOG_LEVEL>()) {
+    if (config.has<WORKLOAD_TYPE>()) {
+        set_workload_type(config.get<WORKLOAD_TYPE>());
+    }
+}
 
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
@@ -43,28 +47,8 @@ const std::vector<ArgumentDescriptor>& IGraph::get_output_descriptors() const {
     return _output_descriptors;
 }
 
-const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
-    return _command_queue;
-}
-
-void IGraph::set_workload_type(const ov::WorkloadType workloadType) const {
-    if (_command_queue == nullptr) {
-        return;
-    }
-
-    ze_command_queue_workload_type_t zeWorkloadType;
-    switch (workloadType) {
-    case ov::WorkloadType::DEFAULT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
-        break;
-    case ov::WorkloadType::EFFICIENT:
-        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
-        break;
-    default:
-        OPENVINO_THROW("Unknown value for WorkloadType!");
-    }
-
-    _command_queue->setWorkloadType(zeWorkloadType);
+void IGraph::set_workload_type(const ov::WorkloadType workloadType) {
+    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(workloadType);
 }
 
 std::mutex& IGraph::get_mutex() {
@@ -151,6 +135,10 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {
 
 const std::optional<std::size_t> IGraph::get_batch_size() const {
     return _batch_size;
+}
+
+const std::optional<ze_command_queue_workload_type_t> IGraph::get_ze_workload_type() const {
+    return _ze_workload_type;
 }
 
 }  // namespace intel_npu
