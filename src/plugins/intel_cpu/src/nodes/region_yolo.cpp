@@ -207,7 +207,9 @@ private:
             break;
         case ov::element::bf16:
             uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                         {static_cast<size_t>(ymm_dst.getIdx())});
+                                         {static_cast<size_t>(ymm_dst.getIdx())},
+                                         {},
+                                         {});
             vmovdqu16(op, ymm_dst);
             break;
         default:

@@ -2571,13 +2571,13 @@ void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims)
     for (auto& node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, 1);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs, 1);
             continue;
         }
 

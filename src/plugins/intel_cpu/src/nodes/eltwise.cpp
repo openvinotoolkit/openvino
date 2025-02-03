@@ -739,7 +739,7 @@ private:
         std::vector<size_t> out_idxs;
         out_idxs.push_back(vmm_dst.getIdx());
 
-        eltwise_emitter->emit_code(in_idxs, out_idxs, aux_idxs);
+        eltwise_emitter->emit_code(in_idxs, out_idxs, aux_idxs, {});
     }
 
     inline void apply_post_ops(bool is_scalar, int offset = 0) {
@@ -761,7 +761,7 @@ private:
                 std::vector<size_t> out_idxs;
                 out_idxs.push_back(vmm_dst.getIdx());
 
-                post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_idxs);
+                post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_idxs, {});
 
                 eltwise_post_op_idx++;
             } else if (ops_list_[i] == ov::intel_cpu::Type::FakeQuantize) {
@@ -980,11 +980,15 @@ private:
         case ov::element::bf16:
             if (isa == x64::avx512_core) {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(ymm_dst.getIdx())});
+                                             {static_cast<size_t>(ymm_dst.getIdx())},
+                                             {},
+                                             {});
                 vmovdqu16(op, ymm_dst);
             } else {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
-                                             {static_cast<size_t>(xmm_dst.getIdx())});
+                                             {static_cast<size_t>(xmm_dst.getIdx())},
+                                             {},
+                                             {});
                 uni_vmovdqu(op, xmm_dst);
             }
             break;
@@ -1101,7 +1105,9 @@ private:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
             } else {
                 uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())},
-                                             {static_cast<size_t>(xmm_dst.getIdx())});
+                                             {static_cast<size_t>(xmm_dst.getIdx())},
+                                             {},
+                                             {});
             }
             uni_vpextrw(op, xmm_dst, 0x0);
             break;
@@ -2952,7 +2958,7 @@ void Eltwise::prepareParams() {
                                                 eltwise->getGamma()});
                 }
             } else if (node->getType() == Type::FakeQuantize) {
-                node->appendPostOps(key.postOps, {}, fqDataPtrs);
+                node->appendPostOps(key.postOps, {}, fqDataPtrs, 1);
             } else {
                 OPENVINO_THROW("Unexpected: Eltwise node with name '",
                                getName(),

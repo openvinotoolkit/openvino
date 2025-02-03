@@ -2243,7 +2243,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
         std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(vmm_aux3.getIdx())));
     m_exp_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
                              {static_cast<size_t>(vmm_dst.getIdx())},
-                             exp_aux_vec_idxs);
+                             exp_aux_vec_idxs, {});
 
     h->uni_vxorps(vmm_dst, vmm_dst, table_val("sign_mask"));
 

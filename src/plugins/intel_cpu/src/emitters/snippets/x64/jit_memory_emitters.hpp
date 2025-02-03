@@ -19,8 +19,8 @@ public:
 
     void emit_code(const std::vector<size_t>& in_idxs,
                    const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
+                   const std::vector<size_t>& pool_vec_idxs,
+                   const std::vector<size_t>& pool_gpr_idxs) const override;
 
 protected:
     static size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);

@@ -62,7 +62,10 @@ void jit_convert_emitter::float2bfloat(const std::vector<size_t>& in_vec_idxs,
         OV_CPU_JIT_EMITTER_THROW("Converter from float to bf16 isn't initialized!");
     }
 
-    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
+    uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())},
+                                 {static_cast<size_t>(vmm_dst.getIdx())},
+                                 {},
+                                 {});
 }
 
 jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,

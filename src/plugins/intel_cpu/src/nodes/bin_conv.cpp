@@ -1212,14 +1212,14 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
                 ops.append_sum(1.0);
             } else {
                 // TODO [DS]: change to shape from memory
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, 1);
             }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), postOpsDataPtrs, 1);
             continue;
         }
 

@@ -25,8 +25,8 @@ public:
 
     void emit_code(const std::vector<size_t>& in_idxs,
                    const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
+                   const std::vector<size_t>& pool_vec_idxs,
+                   const std::vector<size_t>& pool_gpr_idxs) const override;
 
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
         loop_end_label = label;
@@ -69,8 +69,8 @@ public:
 
     void emit_code(const std::vector<size_t>& in_idxs,
                    const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
+                   const std::vector<size_t>& pool_vec_idxs,
+                   const std::vector<size_t>& pool_gpr_idxs) const override;
 
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
