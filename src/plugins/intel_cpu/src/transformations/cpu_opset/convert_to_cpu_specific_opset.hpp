@@ -8,6 +8,7 @@
 #include "common/pass/convert_to_leaky_relu.hpp"
 #include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
+#include "common/pass/fc_convert_fusion.hpp"
 #include "common/pass/fc_bias_fusion.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
 #include "common/pass/move_readvalue_inputs_to_subgraph.hpp"
@@ -53,6 +54,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_X64(manager, FcConvertFusion);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);
