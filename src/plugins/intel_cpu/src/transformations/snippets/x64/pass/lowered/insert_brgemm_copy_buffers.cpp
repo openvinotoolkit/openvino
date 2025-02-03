@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
 
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        const auto brgemm_expr = *expr_it;
+        const auto& brgemm_expr = *expr_it;
         if (const auto brgemm_cpu = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node())) {
             if (brgemm_utils::with_repacking(brgemm_cpu->get_type())) {
                 // BrgemmCopyB might be extracted from the body

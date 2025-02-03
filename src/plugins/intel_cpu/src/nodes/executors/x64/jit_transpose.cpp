@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,9 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    if (!pKernel)
+    if (!pKernel) {
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
+    }
 
     const uint8_t* srcData = src[0]->getDataAs<const uint8_t>();
     uint8_t* dstData = dst[0]->getDataAs<uint8_t>();

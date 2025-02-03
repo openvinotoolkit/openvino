@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,8 +67,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = makePattern<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
-        auto check_one = [](Output<Node> output) -> bool {
-            auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
+        auto check_one = [](const Output<Node>& output) -> bool {
+            auto node = ov::as_type_ptr<opset1::Constant>(output.get_node_shared_ptr());
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
                 return i == 1.0f;
@@ -128,16 +128,17 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             auto present_to = out.get_target_inputs();
             for (auto& to : present_to) {
                 auto to_node = to.get_node();
-                if (auto convert = dynamic_cast<opset1::Convert*>(to_node)) {
+                if (auto convert = ov::as_type<opset1::Convert>(to_node)) {
                     auto cvt_targets = convert->get_output_target_inputs(0);
                     if (cvt_targets.size() == 1) {
                         to_node = cvt_targets.begin()->get_node();
                         cvt = convert;
                     }
                 }
-                assign = dynamic_cast<opset6::Assign*>(to_node);
-                if (assign)
+                assign = ov::as_type<opset6::Assign>(to_node);
+                if (assign) {
                     return true;
+                }
             }
             return false;
         };
@@ -150,8 +151,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                             ov::op::v0::ShapeOf::get_type_info_static(),
                             ov::op::v3::ShapeOf::get_type_info_static(),
                             ov::op::v0::Convert::get_type_info_static(),
-                            ov::op::v8::Gather::get_type_info_static()))
+                            ov::op::v8::Gather::get_type_info_static())) {
                     return false;
+                }
             }
             return true;
         };
@@ -207,8 +209,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             for (auto&& node : nodes) {
                 if (pattern_map.count(node)) {
                     auto p = pattern_map.at(node).get_node_shared_ptr();
-                    if (p->get_output_target_inputs(0).size() != 1)
+                    if (p->get_output_target_inputs(0).size() != 1) {
                         return false;
+                    }
                 }
             }
             return true;
@@ -277,15 +280,17 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         new_node->set_friendly_name(old_node->get_friendly_name());
         copy_runtime_info(old_node, new_node);
         ov::replace_node(old_node, {new_node->output(0)});
-        if (assign_cvt_k_node)
+        if (assign_cvt_k_node) {
             assign_cvt_k_node->set_arguments({new_node->output(1)});
-        else
+        } else {
             assign_k_node->set_arguments({new_node->output(1)});
+        }
 
-        if (assign_cvt_v_node)
+        if (assign_cvt_v_node) {
             assign_cvt_v_node->set_arguments({new_node->output(2)});
-        else
+        } else {
             assign_v_node->set_arguments({new_node->output(2)});
+        }
 
         // Markup pattern:
         // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that

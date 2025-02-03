@@ -154,7 +154,7 @@ When you are running several inference requests in parallel, a device can proces
    Use weak reference of infer_request (``ov::InferRequest*``, ``ov::InferRequest&``, ``std::weal_ptr<ov::InferRequest>``, etc.) in the callback. It is necessary to avoid cyclic references.
 
 
-For more details, see the :doc:`Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`.
+For more details, see the :doc:`Classification Async Sample <../../../get-started/learn-openvino/openvino-samples/image-classification-async>`.
 
 You can use the ``ov::InferRequest::cancel`` method if you want to abort execution of the current inference request:
 

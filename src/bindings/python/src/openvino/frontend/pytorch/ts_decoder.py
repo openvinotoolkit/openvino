@@ -1,12 +1,17 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
 # mypy: ignore-errors
 
+import inspect
+import logging
+import typing
+import torch
+
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import op, PartialShape, Type as OVType, OVAny
+from openvino import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import (
     ivalue_to_constant,
     get_value_from_getattr,
@@ -14,15 +19,11 @@ from openvino.frontend.pytorch.utils import (
     prepare_example_inputs_and_model,
     convert_quantized_tensor,
     graph_has_ops,
+    patch_none_example,
 )
-from openvino.runtime import opset11 as ops
+from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
-
-import inspect
-import logging
-import typing
-import torch
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class TorchScriptPythonDecoder(Decoder):
         skip_freeze=False,
         constant_cache=None,
         module_extensions=None,
+        trace_kwargs=None,
     ):
         super().__init__()
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
@@ -57,7 +59,7 @@ class TorchScriptPythonDecoder(Decoder):
                     self.config = pt_module.config.to_dict()
             try:
                 pt_module = self._get_scripted_model(
-                    pt_module, example_input, skip_freeze)
+                    pt_module, example_input, skip_freeze, trace_kwargs)
             except Exception as e:
                 if example_input is not None:
                     msg = "tracing"
@@ -109,7 +111,7 @@ class TorchScriptPythonDecoder(Decoder):
                 preserved_attributes.append(name)
         return preserved_attributes
 
-    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
+    def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False, trace_kwargs=None):
         freeze_by_default = False
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
@@ -132,6 +134,7 @@ class TorchScriptPythonDecoder(Decoder):
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
+                pt_module, example_inputs = patch_none_example(pt_module, example_inputs)
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
@@ -154,9 +157,11 @@ class TorchScriptPythonDecoder(Decoder):
                         quantized.unpatch_quantized(pt_module)
                         patched = False
 
+                if trace_kwargs is None:
+                    trace_kwargs = {}
                 try:
                     scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False)
+                        pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)
@@ -444,6 +449,9 @@ class TorchScriptPythonDecoder(Decoder):
             return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
+        if isinstance(pt_type, torch._C.Type) and pt_type.annotation_str == "Generator":
+            gen = pt_value.toIValue()
+            return ivalue_to_constant(gen.initial_seed(), shared_memory=self._shared_memory)
         const = ivalue_to_constant(
             pt_value.toIValue(), shared_memory=self._shared_memory)
         if len(const) > 0:
@@ -515,11 +523,11 @@ class TorchScriptPythonDecoder(Decoder):
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             return False
 
-    def inlined_input(self, index):
-        return []
-
     def is_input_inlined(self, index):
         return False
+
+    def get_inlined_input_decoder(self, index):
+        return None
 
     def get_attribute(self, name):
         return OVAny(None)

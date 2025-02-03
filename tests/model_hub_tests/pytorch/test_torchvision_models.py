@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -56,13 +56,13 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
         m = get_model(model_name, weights='DEFAULT')
         m.eval()
-        if model_name == "s3d" or any([m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]]):
-            self.example = (torch.randn([1, 3, 224, 224, 224]),)
-            self.inputs = (torch.randn([1, 3, 224, 224, 224]),)
+        if model_name == "s3d" or any(m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]):
+            self.example = (torch.randn([2, 3, 224, 224, 224]),)
+            self.inputs = (torch.randn([3, 3, 224, 224, 224]),)
         elif "mvit" in model_name:
             # 16 frames from video
-            self.example = (torch.randn(1, 3, 16, 224, 224),)
-            self.inputs = (torch.randn(1, 3, 16, 224, 224),)
+            self.example = (torch.randn(2, 3, 16, 224, 224),)
+            self.inputs = (torch.randn(3, 3, 16, 224, 224),)
         elif "raft" in model_name:
             frames = get_video()
             self.example = prepare_frames_for_raft(model_name,
@@ -74,9 +74,17 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         elif "vit_h_14" in model_name:
             self.example = (torch.randn(1, 3, 518, 518),)
             self.inputs = (torch.randn(1, 3, 518, 518),)
-        else:
+        elif model_name.startswith("vit_"):
             self.example = (torch.randn(1, 3, 224, 224),)
             self.inputs = (torch.randn(1, 3, 224, 224),)
+        else:
+            self.example = (torch.randn(2, 3, 224, 224),)
+            self.inputs = (torch.randn(3, 3, 224, 224),)
+        if (getattr(self, "mode", None) == "export"
+                and "raft" not in model_name
+                and not model_name.startswith("vit_")):
+            batch = torch.export.Dim("batch", min=1, max=3)
+            self.export_kwargs = {"dynamic_shapes": [{0: batch}]}
         return m
 
     def infer_fw_model(self, model_obj, inputs):

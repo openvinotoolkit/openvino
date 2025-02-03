@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <node.h>
+
+#include <utility>
 
 #include "shape_inference/shape_inference_cpu.hpp"
 
@@ -33,7 +35,7 @@ private:
 
 class AdaptivePoolingShapeInferFactory : public ShapeInferFactory {
 public:
-    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:

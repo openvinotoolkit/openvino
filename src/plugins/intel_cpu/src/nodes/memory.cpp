@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "memory.hpp"
 
 #include <string>
+#include <utility>
 
 #include "common/arbitrary_order_desc_creator.h"
 #include "dnnl_extension_utils.h"
@@ -50,9 +51,9 @@ public:
     };
 
 public:
-    MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc)
-        : m_eng(eng),
-          m_pMemDesc(pMemDesc),
+    MemoryStub(dnnl::engine eng, MemoryDescPtr pMemDesc)
+        : m_eng(std::move(eng)),
+          m_pMemDesc(std::move(pMemDesc)),
           m_pMemoryBlock(std::make_shared<MemoryBlockStub>()) {}
 
     const MemoryDesc& getDesc() const override {
@@ -121,7 +122,7 @@ bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node
     return true;
 }
 
-MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
       MemoryNode(op) {
     std::string errorMessage;
@@ -133,12 +134,12 @@ MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const Gr
     }
 }
 
-MemoryOutputBase::MemoryOutputBase(const std::string id,
+MemoryOutputBase::MemoryOutputBase(const std::string& id,
                                    const std::string& name,
                                    const std::string& type,
                                    const Shape& input_shape,
                                    const ov::element::Type& input_prc,
-                                   const GraphContext::CPtr context)
+                                   const GraphContext::CPtr& context)
     : Node(type, {input_shape}, {}, {input_prc}, {}, name, context),
       MemoryNode(id) {
     isDynamic = input_shape.isDynamic();
@@ -165,8 +166,9 @@ MemoryInputBase& MemoryOutputBase::getInputNode() {
 void MemoryOutputBase::getSupportedDescriptors() {}
 
 void MemoryOutputBase::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto&& shape = getInputShapeAtPort(0);
     auto precision = getOriginalInputPrecisionAtPort(0);
@@ -217,17 +219,17 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     selected_pd->setConfig(config);
 }
 
-void MemoryOutputBase::execute(dnnl::stream strm) {
+void MemoryOutputBase::execute(const dnnl::stream& strm) {
     runStatic(strm);
     state->commit();
 }
 
-void MemoryOutputBase::executeDynamicImpl(dnnl::stream strm) {
+void MemoryOutputBase::executeDynamicImpl(const dnnl::stream& strm) {
     runDynamic(strm);
     state->commit();
 }
 
-void MemoryOutputBase::assignState(MemStatePtr newState) {
+void MemoryOutputBase::assignState(const MemStatePtr& newState) {
     OPENVINO_ASSERT(newState, "MemoryOutput ", getName(), " got null state");
     state = newState;
     assignExtMemory(state->output_mem(), state->internal_desc());
@@ -388,7 +390,7 @@ bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
+MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx)
     : Input(op, ctx),
       MemoryStateNode(op) {
     std::string errorMessage;
@@ -401,12 +403,12 @@ MemoryInputBase::MemoryInputBase(const std::shared_ptr<ov::Node>& op, const Grap
     executeHook = &MemoryInputBase::assignState;
 }
 
-MemoryInputBase::MemoryInputBase(const std::string id,
+MemoryInputBase::MemoryInputBase(const std::string& id,
                                  const std::string& name,
                                  const std::string& type,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
-                                 const GraphContext::CPtr context,
+                                 const GraphContext::CPtr& context,
                                  const ov::optional<std::vector<Shape>>& input_shape,
                                  const ov::optional<std::vector<ov::element::Type>>& input_prc,
                                  MemoryInputBase::mode mode)
@@ -415,7 +417,7 @@ MemoryInputBase::MemoryInputBase(const std::string id,
     outputShapes.emplace_back(output_shape);
     addOriginalOutputPrecision(output_prc);
     if (input_shape) {
-        for (auto inp_shape : *input_shape) {
+        for (const auto& inp_shape : *input_shape) {
             inputShapes.push_back(inp_shape);
             isDynamic = isDynamic || inp_shape.isDynamic();
         }
@@ -457,8 +459,9 @@ MemoryOutputBase& MemoryInputBase::getOutputNode() {
 }
 
 void MemoryInputBase::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto precision = getOriginalOutputPrecisionAtPort(0);
     auto&& descCreators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
@@ -521,8 +524,9 @@ void MemoryStatesRegister::registerOutput(MemoryOutputBase* node) {
 }
 
 void MemoryStatesRegister::remove(MemoryNode* node) {
-    if (nullptr == node)
+    if (nullptr == node) {
         return;
+    }
     ov::util::erase_if(memory_inputs, [&](const InputNodesMap::value_type& it) {
         return it.second == node;
     });
@@ -553,13 +557,13 @@ void MemoryInputBase::assignState(MemStatePtr newState) {
     assignStateHook();
 }
 
-void MemoryInputBase::execute(dnnl::stream strm) {
+void MemoryInputBase::execute(const dnnl::stream& strm) {
     assert(executeHook && "executeHook is not initialized!");
     (this->*executeHook)();
     runStatic(strm);
 }
 
-void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
+void MemoryInputBase::executeDynamicImpl(const dnnl::stream& strm) {
     assert(executeHook && "executeHook is not initialized!");
     (this->*executeHook)();
     runDynamic(strm);
@@ -574,7 +578,7 @@ void MemoryInputBase::bypassAssignState() {
     return;
 }
 
-MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx)
+MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx)
     : MemoryInputBase::MemoryInputBase(op, ctx) {
     auto rvWithSubgraph = ov::as_type_ptr<ov::intel_cpu::ReadValueWithSubgraph>(op);
     if (rvWithSubgraph) {
@@ -586,27 +590,18 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
     }
 }
 
-MemoryInput::MemoryInput(const std::string id,
+MemoryInput::MemoryInput(const std::string& id,
                          const std::string& name,
                          const std::string& type,
                          const Shape& output_shape,
                          const ov::element::Type& output_prc,
-                         const GraphContext::CPtr context,
+                         const GraphContext::CPtr& context,
                          const ov::optional<std::vector<Shape>>& input_shape,
                          const ov::optional<std::vector<ov::element::Type>>& input_prc,
                          std::shared_ptr<ov::Model> func,
                          mode mode)
-    : MemoryInputBase::MemoryInputBase(id,
-                                       name,
-                                       type,
-                                       output_shape,
-                                       output_prc,
-                                       context,
-                                       input_shape,
-                                       input_prc,
-                                       mode) {
-    body = func;
-
+    : MemoryInputBase::MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc, mode),
+      body(std::move(func)) {
     if (haveSubgraph()) {
         subGraph = make_unique<ov::intel_cpu::Graph>();
         if (isDynamic) {
@@ -904,12 +899,12 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return MemoryInputBase::isSupportedOperation(op, errorMessage);
 }
 
-MemoryInputSDPA::MemoryInputSDPA(const std::string id,
+MemoryInputSDPA::MemoryInputSDPA(const std::string& id,
                                  const std::string& name,
                                  const std::string& type,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
-                                 const GraphContext::CPtr context,
+                                 const GraphContext::CPtr& context,
                                  const ov::optional<std::vector<Shape>>& input_shape,
                                  const ov::optional<std::vector<ov::element::Type>>& input_prc,
                                  const std::shared_ptr<ScaledDotProductAttention>& sdpaNode)
@@ -960,8 +955,9 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
     VectorDims order = {2, 0, 1, 3};
-    if (!node->getKVCacheOrder().empty())
+    if (!node->getKVCacheOrder().empty()) {
         order = node->getKVCacheOrder();
+    }
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
 
@@ -1010,12 +1006,12 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-MemoryInputSingle::MemoryInputSingle(const std::string id,
+MemoryInputSingle::MemoryInputSingle(const std::string& id,
                                      const std::string& name,
                                      const std::string& type,
                                      const Shape& output_shape,
                                      const ov::element::Type& output_prc,
-                                     const GraphContext::CPtr context,
+                                     const GraphContext::CPtr& context,
                                      const ov::optional<std::vector<Shape>>& input_shape,
                                      const ov::optional<std::vector<ov::element::Type>>& input_prc,
                                      std::shared_ptr<ov::Model> func)
@@ -1027,7 +1023,7 @@ MemoryInputSingle::MemoryInputSingle(const std::string id,
                   context,
                   input_shape,
                   input_prc,
-                  func,
+                  std::move(func),
                   MemoryInputBase::mode::single_read_value) {}
 
 MemStatePtr MemoryInputSingle::makeState() const {

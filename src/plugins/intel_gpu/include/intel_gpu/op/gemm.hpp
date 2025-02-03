@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,11 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class Gemm : public ov::op::v0::MatMul {
 public:
-    OPENVINO_OP("Gemm", "gpu_opset");
+    OPENVINO_OP("Gemm", "gpu_opset", ov::op::v0::MatMul);
 
     Gemm() = default;
 
@@ -56,6 +54,4 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

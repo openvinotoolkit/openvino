@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ uint32_t rearrange_awq_bits(uint32_t num) {
 }
 
 Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
-    auto constant = std::dynamic_pointer_cast<v0::Constant>(c.get_node_shared_ptr());
+    auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
     auto src = constant->get_data_ptr<uint32_t>();
     auto initial_shape = constant->get_shape();

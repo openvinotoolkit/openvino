@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonConvertColorOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op,
                                        const cldnn::convert_color::color_format from_color,
@@ -85,5 +84,4 @@ REGISTER_FACTORY_IMPL(v8, NV12toBGR);
 REGISTER_FACTORY_IMPL(v8, I420toRGB);
 REGISTER_FACTORY_IMPL(v8, I420toBGR);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

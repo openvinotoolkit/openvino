@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ public:
     virtual std::string get_variable_id() const = 0;
 
 protected:
-    virtual ~VariableExtension(){};
+    virtual ~VariableExtension();
 
 protected:
     std::shared_ptr<Variable> m_variable;

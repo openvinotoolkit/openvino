@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -37,8 +37,9 @@ void StringTensorUnpack::getSupportedDescriptors() {
 }
 
 void StringTensorUnpack::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::string}},
                          {{LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32},
@@ -54,7 +55,7 @@ bool StringTensorUnpack::needPrepareParams() const {
     return false;
 }
 
-void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
+void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcMemory = getSrcMemoryAtPort(0);
     const auto& srcDataDims = srcMemory->getStaticDims();
     const auto& srcData = srcMemory->getDataAs<std::string>();
@@ -67,7 +68,7 @@ void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void StringTensorUnpack::execute(dnnl::stream strm) {
+void StringTensorUnpack::execute(const dnnl::stream& strm) {
     const auto stringCount = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
     ov::reference::string_tensor_unpack(getSrcDataAtPortAs<const std::string>(0),
                                         getDstDataAtPortAs<int32_t>(0),

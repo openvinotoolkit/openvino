@@ -23,7 +23,7 @@ the Hugging Face Transformers library to the OpenVINO™ IR format. For
 more details, refer to the `Hugging Face Optimum Intel
 documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 2. Run inference using the `Text-to-Image Generation
-pipeline <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html>`__
+pipeline <https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html>`__
 from OpenVINO GenAI.
 
 
@@ -59,19 +59,19 @@ Prerequisites
 
     import platform
     import requests
-    
-    
+
+
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -q -U "openvino>=2024.5" "openvino-tokenizers>=2024.5" "openvino-genai>=2024.5"
     %pip install -q Pillow "diffusers>=0.30.3" "gradio>=4.19" "typing_extensions>=4.9"
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
     )
@@ -83,13 +83,13 @@ Convert model using Optimum-CLI tool
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__
-is the interface between the 
+is the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
 It provides ease-to-use cli interface for exporting models to `OpenVINO
 Intermediate Representation
-(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+(IR) <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
 format.
 
 The command bellow demonstrates basic command for model export with
@@ -118,12 +118,12 @@ wrapper over cli-command.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     from cmd_helper import optimum_cli
-    
-    
+
+
     model_dir = Path("dreamlike_anime_1_0_ov")
-    
+
     if not model_dir.exists():
         optimum_cli("dreamlike-art/dreamlike-anime-1.0", model_dir)
 
@@ -137,8 +137,8 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     from notebook_utils import device_widget
-    
-    
+
+
     device = device_widget("CPU", exclude=["NPU"])
     device
 
@@ -163,27 +163,27 @@ That’s it:)
     import openvino as ov
     from PIL import Image
     import torch
-    
-    
+
+
     class Generator(ov_genai.Generator):
         def __init__(self, seed):
             ov_genai.Generator.__init__(self)
             self.generator = torch.Generator(device="cpu").manual_seed(seed)
-    
+
         def next(self):
             return torch.randn(1, generator=self.generator, dtype=torch.float32).item()
-    
+
         def randn_tensor(self, shape: ov.Shape):
             torch_tensor = torch.randn(list(shape), generator=self.generator, dtype=torch.float32)
             return ov.Tensor(torch_tensor.numpy())
-    
-    
+
+
     random_generator = Generator(42)  # openvino_genai.CppStdGenerator can be used to have same images as C++ sample
     pipe = ov_genai.Text2ImagePipeline(model_dir, device.value)
     prompt = "anime, masterpiece, high quality, a green snowman with a happy smiling face in the snows"
-    
+
     image_tensor = pipe.generate(prompt, width=512, height=512, num_inference_steps=20, num_images_per_prompt=1, generator=random_generator)
-    
+
     image = Image.fromarray(image_tensor.data[0])
 
 .. code:: ipython3
@@ -230,20 +230,20 @@ from command line:
 
     def prepare_adapter_config(adapters):
         adapter_config = ov_genai.AdapterConfig()
-    
+
         # Multiple LoRA adapters applied simultaneously are supported, parse them all and corresponding alphas from cmd parameters:
         for i in range(int(len(adapters) / 2)):
             adapter = ov_genai.Adapter(adapters[2 * i])
             alpha = float(adapters[2 * i + 1])
             adapter_config.add(adapter, alpha)
-    
+
         return adapter_config
-    
-    
+
+
     adapter_config = prepare_adapter_config(["soulcard.safetensors", 0.5])
-    
+
     pipe = ov_genai.Text2ImagePipeline(model_dir, device.value, adapters=adapter_config)
-    
+
     image_tensor = pipe.generate(prompt, generator=Generator(42), width=512, height=512, num_inference_steps=20)
     image = Image.fromarray(image_tensor.data[0])
 
@@ -270,10 +270,10 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-    
-    
+
+
     demo = make_demo(pipe, Generator, adapter_config)
-    
+
     try:
         demo.launch(debug=True)
     except Exception:

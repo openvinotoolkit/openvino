@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -461,13 +461,13 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_0) {
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 2});
 
         auto input2 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 2, 2}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(input2, ov::element::f32);
         auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
-        auto transpose = std::make_shared<ov::opset1::Transpose>(input2, transpose_constant);
-        auto convert = std::make_shared<ov::opset1::Convert>(transpose, ov::element::f32);
+        auto transpose = std::make_shared<ov::opset1::Transpose>(convert, transpose_constant);
 
         auto matmul = std::make_shared<ov::op::internal::FullyConnected>(
             input1,
-            convert,
+            transpose,
             std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
@@ -491,13 +491,13 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_1) {
         auto transpose1 = std::make_shared<ov::opset1::Transpose>(input1, transpose_constant1);
 
         auto input2 = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 2, 2}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(input2, ov::element::f32);
         auto transpose_constant2 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
-        auto transpose2 = std::make_shared<ov::opset1::Transpose>(input2, transpose_constant2);
-        auto convert = std::make_shared<ov::opset1::Convert>(transpose2, ov::element::f32);
+        auto transpose2 = std::make_shared<ov::opset1::Transpose>(convert, transpose_constant2);
 
         auto matmul = std::make_shared<ov::op::internal::FullyConnected>(
             transpose1,
-            convert,
+            transpose2,
             std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});

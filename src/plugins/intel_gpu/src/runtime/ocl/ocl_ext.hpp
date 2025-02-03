@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -928,9 +928,9 @@ private:
 class UsmMemory {
 public:
     explicit UsmMemory(const cl::UsmHelper& usmHelper) : _usmHelper(usmHelper) { }
-    UsmMemory(const cl::UsmHelper& usmHelper, void* usm_ptr)
+    UsmMemory(const cl::UsmHelper& usmHelper, void* usm_ptr, size_t offset = 0)
     : _usmHelper(usmHelper)
-    , _usm_pointer(std::make_shared<UsmHolder>(_usmHelper, usm_ptr, true)) {
+    , _usm_pointer(std::make_shared<UsmHolder>(_usmHelper, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {
         if (!usm_ptr) {
             throw std::runtime_error("[GPU] Can't share null usm pointer");
         }

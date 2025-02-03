@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,8 +53,9 @@ void STFT::getSupportedDescriptors() {
 }
 
 void STFT::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
     if (!one_of(dataPrecision, ov::element::f32)) {
@@ -100,7 +101,7 @@ static void transpose_out4d(const uint8_t* in,
 }
 }  // namespace
 
-void STFT::execute(dnnl::stream strm) {
+void STFT::execute(const dnnl::stream& strm) {
     const float* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
     const float* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
     float* rdft_result = getDstDataAtPortAs<float>(0);
@@ -168,7 +169,7 @@ void STFT::execute(dnnl::stream strm) {
     }
 }
 
-void STFT::executeDynamicImpl(dnnl::stream strm) {
+void STFT::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

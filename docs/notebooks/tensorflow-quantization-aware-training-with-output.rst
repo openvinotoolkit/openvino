@@ -410,7 +410,7 @@ Export Models to OpenVINO Intermediate Representation (IR)
 Use model conversion Python API to convert the models to OpenVINO IR.
 
 For more information about model conversion, see this
-`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
+`page <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__.
 
 Executing this command may take a while.
 
@@ -434,7 +434,7 @@ Benchmark Model Performance by Computing Inference Time
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and

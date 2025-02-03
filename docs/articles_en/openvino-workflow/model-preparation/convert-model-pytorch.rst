@@ -97,7 +97,7 @@ inference in the existing PyTorch application to OpenVINO and how to get value f
    category_name = weights.meta["categories"][class_id]
    print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
-Check out more examples in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples in :doc:`interactive Python tutorials <../../get-started/learn-openvino/interactive-tutorials-python>`.
 
 .. note::
 
@@ -179,7 +179,7 @@ It is recommended to address model outputs by the index rather then the name.
 Support for torch.export
 ########################
 
-`torch.export <https://pytorch.org/docs/2.2/export.html>`__ is the current way to get a graph
+`torch.export <https://pytorch.org/docs/stable/export.html>`__ is the current way to get a graph
 representation of a model (since PyTorch 2.1). It produces ``ExportedProgram`` which includes
 the graph representation in the FX format. To see why it has an advantage over the TorchScript
 representation, refer to `PyTorch documentation <https://pytorch.org/docs/stable/fx.html>`__.
@@ -197,11 +197,6 @@ Here is an example of how to convert a model obtained with ``torch.export``:
    model.eval()
    exported_model = export(model, (torch.randn(1, 3, 224, 224),))
    ov_model = convert_model(exported_model)
-
-.. note::
-
-   This is an experimental feature. Use it only if you know that you need to. PyTorch version 2.2
-   is recommended. Dynamic shapes are not supported yet.
 
 Converting a PyTorch Model from Disk
 ####################################
