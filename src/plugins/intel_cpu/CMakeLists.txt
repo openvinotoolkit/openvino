@@ -218,6 +218,11 @@ if(NOT AARCH64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
 endif()
 
+if (NOT RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*)
+endif()
+
 if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/mlas/*)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
@@ -268,6 +273,9 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
+endif()
+if(RISCV64)
+    target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
@@ -370,6 +378,10 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_SHL_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
+
+    if(RISCV64)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv,INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)
