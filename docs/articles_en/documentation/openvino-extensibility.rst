@@ -51,6 +51,8 @@ If such decomposition is not possible or appears too bulky with a large number o
 
 You might prefer implementing a custom operation class if you already have a generic C++ implementation of operation kernel. Otherwise, try to decompose the operation first, as described above. Then, after verifying correctness of inference and resulting performance, you may move on to optional implementation of Bare Metal C++.
 
+Additionally, it is also possible to implement custom operations using Python. OpenVINO provides a Python API that allows you to define and register custom operations. This can be particularly useful for rapid prototyping and testing of new operations.
+
 Mapping from Framework Operation
 ################################
 
@@ -110,9 +112,7 @@ The ``Identity`` is a custom operation class defined in :doc:`Custom Operation G
          :language: cpp
          :fragment: [add_frontend_extension]
 
-When Python API is used, there is no way to implement a custom OpenVINO operation. Even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
-
-Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
+If custom OpenVINO operation is implemented in C++ and loaded into the runtime through a shared library, there is no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
 
 .. _create_a_library_with_extensions:
 
