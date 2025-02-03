@@ -61,7 +61,7 @@ void FakeQuantizeDecompositionTest::SetUp() {
         values.inputType,
         values.fakeQuantizeShapes,
         values.zeroPoint,
-        ov::test::snippets::FunctionHelper::makePrerequisitesOriginal(),
+        {},
         op);
 }
 
