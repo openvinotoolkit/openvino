@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_bfyx_os_iyx_osv32.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -189,6 +190,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
     }
 
     if (!IsSIMDSizeSupported(p.engineInfo, 16)) {
+        GPU_DEBUG_LOG << "!IsSIMDSizeSupported(p.engineInfo, 16)(" << !IsSIMDSizeSupported(p.engineInfo, 16) << ")" << std::endl;
         return false;
     }
 
@@ -197,6 +199,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
     const auto& params = static_cast<const convolution_params&>(p);
     auto filter_size = params.filterSize.x * params.filterSize.y;
     if (filter_size >= acceptable_filter_size) {
+        GPU_DEBUG_LOG << "filter_size(" << filter_size << ") >= acceptable_filter_size(" << acceptable_filter_size << ")" << std::endl;
         return false;
     }
 

@@ -5,6 +5,7 @@
 #include "convolution_kernel_imad.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <vector>
 #include <iostream>
 
@@ -190,29 +191,16 @@ bool ConvolutionKernel_imad::Validate(const Params& params) const {
 
     auto& conv_params = static_cast<const convolution_params&>(params);
     if (conv_params.groups > 1 && conv_params.weights.IFM().v % 4 != 0 &&
-        conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
+        conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16) {
+        GPU_DEBUG_LOG << " conv_params.groups(" << conv_params.groups << ") conv_params.weights.IFM().v(" << conv_params.weights.IFM().v
+                    << ") conv_params.inputs[0].GetLayout(): " << toString(conv_params.inputs[0].GetLayout()) << std::endl;
         return false;
+    }
 
     size_t min_block_size_x = (conv_params.weights.X().v - 1) * conv_params.dilation.x + 1;
-    if (min_block_size_x > SIMD_SIZE)
+    if (min_block_size_x > SIMD_SIZE) {
+        GPU_DEBUG_LOG << "min_block_size_x(" << min_block_size_x << ") > SIMD_SIZE(" << SIMD_SIZE << ")" << std::endl;
         return false;
-
-    if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
-        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
-            return false;
-    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
-        if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
-            return false;
-    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
-        if (conv_params.weights_zero_points.empty())
-            return false;
-    } else {
-        if (!conv_params.activations_zero_points.empty() ||
-            !conv_params.weights_zero_points.empty() ||
-            !conv_params.compensation.empty())
-            return false;
     }
 
     return true;

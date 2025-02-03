@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_b_fs_yx_fsv_16_32_imad_dw.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <vector>
 #include <string>
@@ -76,28 +77,41 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::get_required_devi
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
+        GPU_DEBUG_LOG << " !Parent::Validate(params)" << std::endl;
         return false;
+    }
 
     auto conv_params = static_cast<const convolution_params&>(params);
 
-    if (conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout())
+    if (conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout()) {
+        GPU_DEBUG_LOG << " conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout()" << std::endl;
         return false;
+    }
 
-    if (conv_params.inputs[0].Feature().is_dynamic || conv_params.outputs[0].Feature().is_dynamic)
+    if (conv_params.inputs[0].Feature().is_dynamic || conv_params.outputs[0].Feature().is_dynamic) {
+        GPU_DEBUG_LOG << " conv_params.inputs[0].Feature().is_dynamic(" << conv_params.inputs[0].Feature().is_dynamic
+                    << ") || conv_params.outputs[0].Feature().is_dynamic(" << conv_params.outputs[0].Feature().is_dynamic << ")" << std::endl;
         return false;
+    }
 
-    if (conv_params.groups != conv_params.outputs[0].Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v)
+    if (conv_params.groups != conv_params.outputs[0].Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v) {
+        GPU_DEBUG_LOG << " conv_params.groups(" << conv_params.groups << ") != conv_params.outputs[0].Feature().v(" << (conv_params.groups != conv_params.outputs[0].Feature().v)
+                    << ") || conv_params.groups != conv_params.inputs[0].Feature().v(" << (conv_params.groups != conv_params.inputs[0].Feature().v) << ")" << std::endl;
         return false;
+    }
 
     // Incorrect choose of TILE_X leads to accuracy issue
-    if (conv_params.outputs[0].X().is_dynamic)
+    if (conv_params.outputs[0].X().is_dynamic) {
+        GPU_DEBUG_LOG << " conv_params.outputs[0].X().is_dynamic" << std::endl;
         return false;
+    }
 
     // For asymmetric data, kernel needs compensation optimization
     if (conv_params.compensation.empty() &&
         (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA ||
          conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)) {
+        GPU_DEBUG_LOG << " conv_params.compensation.empty() && conv_params.quantization(" << static_cast<int>(conv_params.quantization) << ")" << std::endl;
         return false;
     }
 

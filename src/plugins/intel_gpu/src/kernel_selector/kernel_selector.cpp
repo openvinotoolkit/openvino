@@ -87,6 +87,9 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
                 kernelsData = kds;
                 kernelName = implementation->GetName();
                 break;
+            } else {
+                kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+                GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kernel: " << kernelName << ", empty kernel" << std::endl;
             }
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
@@ -99,6 +102,9 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
         kernelsData[0].kernels[0].params.layerID = params.layerID;
+        GPU_DEBUG_LOG << "choosed: " << kernelName << std::endl;
+    } else {
+        GPU_DEBUG_LOG << "choosed: empty kernel" << std::endl;
     }
 
     return kernelsData;
@@ -167,7 +173,9 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
     if (params.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey();
         bool forceImplementation = !params.forceImplementation.empty();
+        GPU_DEBUG_LOG << "GetAllImplementations: id: " << params.layerID << ", check requireKey." << std::endl;
         for (auto& impl : implementations) {
+            GPU_DEBUG_LOG << "- try to support: " << impl->GetName() << std::endl;
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
                 continue;
@@ -188,6 +196,13 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
             [](const PriorityPair& impl) {
                 return std::move(impl.second);
             });
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= static_cast<int>(ov::intel_gpu::LogLevel::LOG)) {
+            GPU_DEBUG_LOG << "GetAllImplementations: id: " << params.layerID << ", impl.size: " << result.size() << std::endl;
+            for (size_t i = 0; i < result.size(); ++i) {
+                GPU_DEBUG_LOG << "- " << result[i]->GetName() << std::endl;
+            }
+        }
     } else {
         GPU_DEBUG_COUT << "No implementation for " << params.layerID << " because of kernel type mismatch" << std::endl;
     }

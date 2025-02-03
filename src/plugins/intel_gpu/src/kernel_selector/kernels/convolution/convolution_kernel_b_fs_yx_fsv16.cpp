@@ -5,6 +5,7 @@
 #include "convolution_kernel_b_fs_yx_fsv16.h"
 #include "kernel_selector_utils.h"
 #include "reorder/reorder_kernel_base.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <vector>
 #include <algorithm>
 
@@ -120,6 +121,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableGroupedConvolution();
+    // k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -165,6 +167,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
+        GPU_DEBUG_LOG << " !ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)" << std::endl;
         return false;
     }
 
@@ -187,22 +190,31 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
         auto grouped = inFeaturesPerGroup % tuning_data.sub_group_size == 0 &&
                        (outFeaturesPerGroup % tuning_data.sub_group_size == 0 || tuning_data.sub_group_size % outFeaturesPerGroup == 0);
 
-        if (!multipleGroupsInputPreload && !grouped)
+        if (!multipleGroupsInputPreload && !grouped) {
+            GPU_DEBUG_LOG << "!multipleGroupsInputPreload(" << !multipleGroupsInputPreload << ") && !grouped(" << !grouped << ")" << std::endl;
             return false;
+        }
     }
 
     // Check that padding before features doesn't miss-align the blocks
-    if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0)
+    if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0) {
+        GPU_DEBUG_LOG << "input.Feature().pad.before(" << input.Feature().pad.before << ") \% tuning_data.feature_block_size(" << tuning_data.feature_block_size
+                << ") != 0 || output.Feature().pad.before(" << output.Feature().pad.before << ") \% tuning_data.feature_block_size != 0" << std::endl;
         return false;
+    }
 
     // Not supporting batch padding for different format (reorder-fused case)
     if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 && output.GetLayout() == DataLayout::bfyx) {
-        if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0)
+        if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
+            GPU_DEBUG_LOG << "output.Batch().pad.before(" << output.Batch().pad.before << ") != 0 || output.Batch().pad.after(" << output.Batch().pad.after << ") != 0" << std::endl;
             return false;
+        }
     }
 
-    if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType())
+    if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType()) {
+        GPU_DEBUG_LOG << "!params.bias.empty() && params.bias[0].GetDType() != input.GetDType()" << std::endl;
         return false;
+    }
 
     return true;
 }

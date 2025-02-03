@@ -5,6 +5,7 @@
 #include "convolution_kernel_imad_b_fs_yx_fsv4_1x1.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <vector>
 #include <string>
 
@@ -100,8 +101,10 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params) con
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (newParams.filterSize.x != 1 || newParams.filterSize.y != 1)
+    if (newParams.filterSize.x != 1 || newParams.filterSize.y != 1) {
+        GPU_DEBUG_LOG << "newParams.filterSize.x: " << newParams.filterSize.x << ", newParams.filterSize.y: " << newParams.filterSize.y << std::endl;
         return false;
+    }
 
     return true;
 }

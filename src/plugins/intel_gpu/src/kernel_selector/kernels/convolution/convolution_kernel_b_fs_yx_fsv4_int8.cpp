@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_b_fs_yx_fsv4_int8.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -70,8 +71,10 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
-    if (params.inputs[0].X().v % 64)
+    if (params.inputs[0].X().v % 64) {
+        GPU_DEBUG_LOG << "params.inputs[0].X().v(" << params.inputs[0].X().v << ") % 64" << std::endl;
         return false;
+    }
 
     bool bFilterSize = (params.filterSize.x == 5 && params.filterSize.y == 5) ||
                        (params.filterSize.x == 3 && params.filterSize.y == 3 && (params.inputs[0].Feature().v % 4) == 0) ||
@@ -80,6 +83,8 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
     bool bStride = (params.stride.x == 1 && params.stride.y == 1);
 
     if (!bFilterSize || !bStride || (params.outputs[0].Feature().v % 4) != 0 || (params.outputs[0].Batch().v != 1)) {
+        GPU_DEBUG_LOG << "!bFilterSize(" << !bFilterSize << ") || !bStride(" << !bStride << ") || (params.outputs[0].Feature().v("
+                    << params.outputs[0].Feature().v << ") % 4) != 0 || (params.outputs[0].Batch().v(" << params.outputs[0].Batch().v << ") != 1)" << std::endl;
         return false;
     }
 

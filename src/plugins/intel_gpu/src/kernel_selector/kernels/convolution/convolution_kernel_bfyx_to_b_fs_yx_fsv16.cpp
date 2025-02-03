@@ -55,6 +55,7 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    // k.EnableDynamicShapesSupport();
     return k;
 }
 
