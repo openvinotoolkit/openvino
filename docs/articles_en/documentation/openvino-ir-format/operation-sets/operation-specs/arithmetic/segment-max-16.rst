@@ -30,7 +30,7 @@ For ``fill_mode`` equal to ``ZERO`` , the operation output would be ``[max(Segme
 
 **Attributes**:
 
-* **1**: *empty_segment_value*
+* **1**: *fill_mode*
 
   * **Description**: Responsible for the value assigned to segments which are empty. **Required.**
   * **Range of values**: Name of the mode in string format:
