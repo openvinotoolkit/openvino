@@ -10,7 +10,9 @@
 #include <string>
 #include <vector>
 
+#include "openvino/util/file_path.hpp"
 #include "openvino/util/util.hpp"
+#include "openvino/util/wstring_convert_util.hpp"
 
 namespace ov {
 namespace util {
@@ -90,19 +92,6 @@ const std::string& path_to_string(const Path& path) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
- * @brief Conversion from wide character string to a single-byte chain.
- * @param wstr A wide-char string
- * @return A multi-byte string
- */
-std::string wstring_to_string(const std::wstring& wstr);
-/**
- * @brief Conversion from single-byte chain to wide character string.
- * @param str A null-terminated string
- * @return A wide-char string
- */
-std::wstring string_to_wstring(const std::string& str);
-
-/**
  * @brief Convert path as wide character string to a single-byte chain.
  * @param path  Path as wide-char string.
  * @return A char string
@@ -172,26 +161,28 @@ bool directory_exists(const std::string& path);
 bool directory_exists(const std::wstring& path);
 #endif
 
+#if defined(__ANDROID__) || defined(ANDROID)
+inline ov::util::Path cut_android_path(const ov::util::Path& file_name) {
+    const auto& file_name_native = file_name.native();
+
+    if (const auto pos = file_name_native.find('!'); pos != std::decay_t<decltype(file_name_native)>::npos) {
+        return ov::util::Path(file_name_native.substr(0, pos));
+    } else {
+        return file_name;
+    }
+}
+#endif
+
 /**
  * @brief      Returns file size for file
  * @param[in]  path  The file name
  * @return     file size
  */
-inline int64_t file_size(const char* path) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* file_name = widefilename.c_str();
-#elif defined(__ANDROID__) || defined(ANDROID)
-    std::string file_name = path;
-    std::string::size_type pos = file_name.find('!');
-    if (pos != std::string::npos) {
-        file_name = file_name.substr(0, pos);
-    }
-#else
-    const char* file_name = path;
-#endif
-    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
-    return in.tellg();
+
+inline int64_t file_size(const ov::util::Path& path) {
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    return ec ? -1 : static_cast<int64_t>(size);
 }
 
 /**
@@ -219,15 +210,6 @@ inline bool file_exists(const char* path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
- * @brief      Returns file size for file
- * @param[in]  path  The file name
- * @return     file size
- */
-inline int64_t file_size(const std::wstring& path) {
-    return file_size(wstring_to_string(path).c_str());
-}
-
-/**
  * @brief      Returns true if file exists
  * @param[in]  path  The file name
  * @return     true if file exists
@@ -236,15 +218,6 @@ inline bool file_exists(const std::wstring& path) {
     return file_exists(wstring_to_string(path).c_str());
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief      Returns file size for file
- * @param[in]  path  The file name
- * @return     file size
- */
-inline int64_t file_size(const std::string& path) {
-    return file_size(path.c_str());
-}
 
 /**
  * @brief      Returns true if file exists
@@ -396,6 +369,12 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
         return file;
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
+
+#if defined(_MSC_VER) || defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
+inline ov::util::Path make_path(const wchar_t* file) {
+    return {std::wstring(file)};
+}
+#endif
 
 }  // namespace util
 }  // namespace ov
