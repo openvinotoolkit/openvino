@@ -1,0 +1,268 @@
+name: GFI assigned task automation
+
+on:
+  issues:
+    types: [assigned, unassigned]
+
+jobs:
+  issue_assigned:
+    if: github.event.action == 'assigned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move issue to Assigned column
+        uses: actions/github-script@v4
+        with:
+          script: |
+            const projectName = "Good first issues";
+            const columnName = "Assigned";
+            const issueId = context.payload.issue.node_id;
+
+            const query = `
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  projectsV2(first: 100) {
+                    nodes {
+                      id
+                      title
+                    }
+                  }
+                }
+              }
+            `;
+
+            const variables = {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            };
+
+            const result = await github.graphql(query, variables);
+            const project = result.repository.projectsV2.nodes.find(p => p.title === projectName);
+
+            if (!project) {
+              console.log(`Available projects: ${result.repository.projectsV2.nodes.map(p => p.title).join(', ')}`);
+              throw new Error(`Project "${projectName}" not found`);
+            }
+
+            const projectId = project.id;
+
+            const fieldQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 100) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const fieldResult = await github.graphql(fieldQuery, { projectId });
+            const statusField = fieldResult.node.fields.nodes.find(f => f.name === "Status");
+
+            if (!statusField) {
+              console.log(`Available fields: ${fieldResult.node.fields.nodes.map(f => f.name).join(', ')}`);
+              throw new Error(`Field "Status" not found`);
+            }
+
+            const statusOption = statusField.options.find(o => o.name === columnName);
+
+            if (!statusOption) {
+              console.log(`Available options: ${statusField.options.map(o => o.name).join(', ')}`);
+              throw new Error(`Option "${columnName}" not found in field "Status"`);
+            }
+
+            const statusOptionId = statusOption.id;
+
+            const itemQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content {
+                          ... on Issue {
+                            id
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const itemResult = await github.graphql(itemQuery, { projectId });
+            const item = itemResult.node.items.nodes.find(i => i.content.id === issueId);
+
+            if (!item) {
+              throw new Error(`Issue not found in project "${projectName}"`);
+            }
+
+            const itemId = item.id;
+
+            const mutation = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: $value
+                }) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+            `;
+
+            const mutationVariables = {
+              projectId: projectId,
+              itemId: itemId,
+              fieldId: statusField.id,
+              value: { singleSelectOptionId: statusOptionId }
+            };
+
+            await github.graphql(mutation, mutationVariables);
+          github-token: ${{ secrets.GFI_PAT }}
+
+  issue_unassigned:
+    if: github.event.action == 'unassigned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move issue to Contributors needed column
+        uses: actions/github-script@v4
+        with:
+          script: |
+            const projectName = "Good first issues";
+            const columnName = "Contributors needed";
+            const issueId = context.payload.issue.node_id;
+
+            const query = `
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  projectsV2(first: 100) {
+                    nodes {
+                      id
+                      title
+                    }
+                  }
+                }
+              }
+            `;
+
+            const variables = {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            };
+
+            const result = await github.graphql(query, variables);
+            const project = result.repository.projectsV2.nodes.find(p => p.title === projectName);
+
+            if (!project) {
+              console.log(`Available projects: ${result.repository.projectsV2.nodes.map(p => p.title).join(', ')}`);
+              throw new Error(`Project "${projectName}" not found`);
+            }
+
+            const projectId = project.id;
+
+            const fieldQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 100) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const fieldResult = await github.graphql(fieldQuery, { projectId });
+            const statusField = fieldResult.node.fields.nodes.find(f => f.name === "Status");
+
+            if (!statusField) {
+              console.log(`Available fields: ${fieldResult.node.fields.nodes.map(f => f.name).join(', ')}`);
+              throw new Error(`Field "Status" not found`);
+            }
+
+            const statusOption = statusField.options.find(o => o.name === columnName);
+
+            if (!statusOption) {
+              console.log(`Available options: ${statusField.options.map(o => o.name).join(', ')}`);
+              throw new Error(`Option "${columnName}" not found in field "Status"`);
+            }
+
+            const statusOptionId = statusOption.id;
+
+            const itemQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content {
+                          ... on Issue {
+                            id
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const itemResult = await github.graphql(itemQuery, { projectId });
+            const item = itemResult.node.items.nodes.find(i => i.content.id === issueId);
+
+            if (!item) {
+              throw new Error(`Issue not found in project "${projectName}"`);
+            }
+
+            const itemId = item.id;
+
+            const mutation = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: $value
+                }) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+            `;
+
+            const mutationVariables = {
+              projectId: projectId,
+              itemId: itemId,
+              fieldId: statusField.id,
+              value: { singleSelectOptionId: statusOptionId }
+            };
+
+            await github.graphql(mutation, mutationVariables);
+          github-token: ${{ secrets.GFI_PAT }}
