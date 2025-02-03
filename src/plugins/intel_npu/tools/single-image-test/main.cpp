@@ -1836,7 +1836,9 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
     std::string blobFileFullPath;
     if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
         // Case 1: Reference files & directory are provided (relative path)
-        blobFileFullPath = FLAGS_ref_dir + "/" + refFiles[outputInd];
+        std::filesystem::path refDirPath(FLAGS_ref_dir);
+        std::filesystem::path refFilePath(refFiles[outputInd]);
+        blobFileFullPath = (refDirPath / refFilePath).string();
     } else if (!refFiles.empty()) {
         // Case 2: Reference files provided only (absolute path)
         blobFileFullPath = refFiles[outputInd];
