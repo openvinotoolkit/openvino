@@ -16,8 +16,9 @@ Operation Class
 
 .. tab-set::
 
-    .. tab-item:: C++
+   .. tab-item:: C++
       :sync: cpp
+
       To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``ov::Node``, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
 
@@ -40,8 +41,9 @@ Operation Class
       6. Override ``evaluate`` method, which enables fallback of some devices to this implementation and the application of constant folding if there is a custom operation on the constant branch. If your operation contains ``evaluate`` method you also need to override the ``has_evaluate`` method, this method allows to get information about availability of ``evaluate`` method for the operation.
 
 
-    .. tab-item:: Python
+   .. tab-item:: Python
       :sync: py
+      
       To add your custom operation, create a new class that extends ``openvino.Op``, which is in turn derived from ``openvino.Node``, the base class for all graph operations in OpenVINO™. To add ``openvino.Op`` you need to import it.
 
 
