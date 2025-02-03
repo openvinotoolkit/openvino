@@ -17,10 +17,9 @@ Operation Class
 .. tab-set::
 
     .. tab-item:: C++
-
+      :sync: cpp
       To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``ov::Node``, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
-      :sync: cpp
 
       .. doxygensnippet:: src/core/template_extension/identity.hpp
          :language: cpp
@@ -42,10 +41,9 @@ Operation Class
 
 
     .. tab-item:: Python
-
+      :sync: py
       To add your custom operation, create a new class that extends ``openvino.Op``, which is in turn derived from ``openvino.Node``, the base class for all graph operations in OpenVINO™. To add ``openvino.Op`` you need to import it.
 
-      :sync: py
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
          :language: python
