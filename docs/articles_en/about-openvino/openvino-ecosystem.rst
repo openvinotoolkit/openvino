@@ -11,6 +11,7 @@ OpenVINO™ Ecosystem Overview
    :maxdepth: 1
    :hidden:
 
+   openvino-ecosystem/openvino-integrations
    openvino-ecosystem/openvino-training-extensions
    openvino-ecosystem/openvino-test-drive
    openvino-ecosystem/datumaro
