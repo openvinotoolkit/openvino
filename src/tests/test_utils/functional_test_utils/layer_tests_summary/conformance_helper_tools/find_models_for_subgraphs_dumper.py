@@ -44,6 +44,7 @@ def parse_arguments():
 
 def str_to_dir_list(input_str: str):
     dir_path_list = []
+    logger.info(f"Model input dir list: {input_str}")
     while True:
         separator_pos = input_str.find(',')
         dir_path = ""
@@ -57,8 +58,11 @@ def str_to_dir_list(input_str: str):
             dir_path = input_str[:separator_pos:]
             input_str = input_str[separator_pos+1::]
             separator_pos = input_str.find(',')
+        logger.info(f"Found dir path : {dir_path}")
         if os.path.isdir(dir_path):
             dir_path_list.append(dir_path)
+        else:
+            logger.info(f"Dir path is not os.path.isdir : {dir_path}")
     logger.info(f"Model dir list: {dir_path_list}")
     return dir_path_list
 
