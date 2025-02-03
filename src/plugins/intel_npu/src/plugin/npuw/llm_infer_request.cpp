@@ -78,8 +78,8 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
     OPENVINO_ASSERT(src_shape == dst->get_shape());
     OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size());
 
-    const auto src_strides = src->get_strides();
-    const auto dst_strides = dst->get_strides();
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
     const auto elem_size = src->get_byte_size() / src->get_size();
 
     const auto C = src_shape[1];

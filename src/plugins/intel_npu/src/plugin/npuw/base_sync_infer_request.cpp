@@ -504,8 +504,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     // Note:
     // - _name is used for the user option (no leading 00s for indices)
     // - _path is used for disk dump (will have leading 00s for indices)
-    const auto comp_submodel_name = subgr_name(idx);
-    const auto comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
+    const auto& comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
     const auto num_inputs = comp_submodel->inputs().size();
 
     // There's different approaches to dumping normal and spatial subgraphs.
@@ -584,8 +583,7 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     // - _name is used for the user option (no leading 00s for indices)
     // - _path is used for disk dump (will have leading 00s for indices)
     // FIXME: Duplication is evil
-    const auto comp_submodel_name = subgr_name(idx);
-    const auto comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
+    const auto& comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
     const std::size_t num_outputs = comp_submodel->outputs().size();
 
     // Same approach as in above. Spatial tensors require special handling

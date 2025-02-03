@@ -225,7 +225,7 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
 
 std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
     ov::preprocess::PrePostProcessor ppp(model);
-    for (auto tensor : model->outputs()) {
+    for (const auto& tensor : model->outputs()) {
         if (tensor.get_any_name().find("value") != std::string::npos) {
             // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
             ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
@@ -311,7 +311,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
     const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
     bool compiler_dq = false;
-    const auto supported_properties =
+    const auto& supported_properties =
         plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
     if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
         supported_properties.end()) {
@@ -506,9 +506,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
-    auto prefill_config_addition_value =
+    const auto& prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-    auto generate_config_addition_value =
+    const auto& generate_config_addition_value =
         generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
 
     merge_config_with(prefill_config, other_props);
