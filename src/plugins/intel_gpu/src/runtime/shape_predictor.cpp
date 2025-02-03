@@ -67,7 +67,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
                                                                        int32_t custom_prealloc_dim) {
     size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
                                            ? static_cast<size_t>(custom_next_iters_prealloc_count)
-                                           : _next_iters_preallocation_count;
+                                           : _settings.next_iters_preallocation_count;
     const auto& current_shape = layout.get_shape();
     auto dt_bitwidth = ov::element::Type(layout.data_type).bitwidth();
 
@@ -122,7 +122,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
         // to avoid huge unexpected memory preallocations
         if (can_use_iterations_preallocation) {
             for (size_t i = 0; i < diffs[0].size(); ++i) {
-                if (diffs[0][i] > _max_per_dim_diff) {
+                if (diffs[0][i] > _settings.max_per_dim_diff) {
                     can_use_iterations_preallocation = false;
                     break;
                 }
@@ -132,7 +132,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
             for (size_t i = 0; i < current_shape.size(); ++i)
                 single_iter_shape.push_back(diffs[0][i] == 0 ? current_shape[i] : 1);
 
-            if (ceil_div(ov::shape_size(single_iter_shape) * dt_bitwidth, 8) > _max_per_iter_size)
+            if (ceil_div(ov::shape_size(single_iter_shape) * dt_bitwidth, 8) > _settings.max_per_iter_size)
                 can_use_iterations_preallocation = false;
         }
 
@@ -142,13 +142,13 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
             auto preallocation_shape = diffs[0] * mul_shape;
             auto new_shape = current_shape + preallocation_shape;
             return {true, new_shape};
-        } else if (_buffers_preallocation_ratio > 1.0f) {
+        } else if (_settings.buffers_preallocation_ratio > 1.0f) {
             if (format::is_blocked(layout.format))
                 return {false, {}};
             // Apply percentage buffer preallocation
             auto current_shape_size = ov::shape_size(current_shape);
             ov::Shape new_shape_size(current_shape.size(), 1);
-            new_shape_size[0] = static_cast<size_t>(current_shape_size * _buffers_preallocation_ratio);
+            new_shape_size[0] = static_cast<size_t>(current_shape_size * _settings.buffers_preallocation_ratio);
             return {true, new_shape_size};
         }
     }

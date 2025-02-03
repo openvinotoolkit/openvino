@@ -54,14 +54,14 @@ void generic_test::run_single_test(bool is_caching_test) {
             }
         }
         std::string input_name = "input" + std::to_string(i);
-        if ((i == 0) && generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+        if ((i == 0) && generic_params->network_config.get_optimize_data()) {
             // Add reorder after the first input in case of optimize data flag since it might change the input layout.
             input_name = "input0_init";
         }
 
         // First input is provided to the network as input_layout.
         // Other inputs are provided as input_layout if optimize data flag is off. Otherwise they are provided as data.
-        if ((i == 0) || !generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+        if ((i == 0) || !generic_params->network_config.get_optimize_data()) {
             topology.add(input_layout(input_name, input_mems[i]->get_layout()));
             input_layouts_names.push_back(input_name);
         } else {
@@ -74,7 +74,7 @@ void generic_test::run_single_test(bool is_caching_test) {
         }
     }
 
-    if (generic_params->network_config.get_property(ov::intel_gpu::optimize_data)) {
+    if (generic_params->network_config.get_optimize_data()) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
         topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }

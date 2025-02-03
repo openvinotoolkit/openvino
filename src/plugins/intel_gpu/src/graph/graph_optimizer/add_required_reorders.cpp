@@ -161,7 +161,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
 }
 
 void add_required_reorders::run(program& p) {
-    bool optimize_data = p.get_config().get_property(ov::intel_gpu::optimize_data);
+    bool optimize_data = p.get_config().get_optimize_data();
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
