@@ -96,66 +96,65 @@ std::vector<SegmentMaxParams> generateSegmentMaxParams(ov::op::FillMode fillMode
     const auto empty_segment_value = fillMode == ov::op::FillMode::ZERO ? T_D(0) : std::numeric_limits<T_D>::lowest();
     std::vector<SegmentMaxParams> segmentMaxParams{
         // 1D
-        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // data
-                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 2, 2}),                                  // segmentIds
-                         Tensor({}, T_idx, std::vector<T_I>{3}),                                            // numSegments
-                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),                       // expectedResult
-                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),                       // expectedResultNumSegments
+        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                 // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 2, 2}),             // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{3}),                       // numSegments
+                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),  // expectedResult
+                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),  // expectedResultNumSegments
                          fillMode),
         // 2D
-        SegmentMaxParams(Tensor({4, 2}, T, std::vector<T_D>{8, 7, 6, 5, 4, 3, 2, 1}),                       // data
-                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 1, 1}),                                  // segmentIds
-                         Tensor({}, T_idx, std::vector<T_I>{2}),                                            // numSegments
-                         Tensor({2, 2}, T, std::vector<T_D>{8, 7, 4, 3}),                                   // expectedResult
-                         Tensor({2, 2}, T, std::vector<T_D>{8, 7, 4, 3}),                                   // expectedResultNumSegments
+        SegmentMaxParams(Tensor({4, 2}, T, std::vector<T_D>{8, 7, 6, 5, 4, 3, 2, 1}),  // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 1, 1}),             // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{2}),                       // numSegments
+                         Tensor({2, 2}, T, std::vector<T_D>{8, 7, 4, 3}),              // expectedResult
+                         Tensor({2, 2}, T, std::vector<T_D>{8, 7, 4, 3}),              // expectedResultNumSegments
                          fillMode),
         // 3D
         SegmentMaxParams(
             Tensor({4, 2, 2}, T, std::vector<T_D>{1, 2, 3, 4, 5, 6, 7, 8, 16, 15, 14, 13, 12, 11, 10, 9}),  // data
-            Tensor({4}, T_idx, std::vector<T_I>{0, 0, 1, 1}),                                               // segmentIds
-            Tensor({}, T_idx, std::vector<T_I>{2}),                                                         // numSegments
-            Tensor({2, 2, 2}, T, std::vector<T_D>{5, 6, 7, 8, 16, 15, 14, 13}),                             // expectedResult
-            Tensor({2, 2, 2}, T, std::vector<T_D>{5, 6, 7, 8, 16, 15, 14, 13}),                             // expectedResultNumSegments
+            Tensor({4}, T_idx, std::vector<T_I>{0, 0, 1, 1}),                    // segmentIds
+            Tensor({}, T_idx, std::vector<T_I>{2}),                              // numSegments
+            Tensor({2, 2, 2}, T, std::vector<T_D>{5, 6, 7, 8, 16, 15, 14, 13}),  // expectedResult
+            Tensor({2, 2, 2}, T, std::vector<T_D>{5, 6, 7, 8, 16, 15, 14, 13}),  // expectedResultNumSegments
             fillMode),
         // empty segments
-        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // data
-                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 2, 2}),                                  // segmentIds
-                         Tensor({}, T_idx, std::vector<T_I>{3}),                                            // numSegments
-                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),                       // expectedResult
-                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),                       // expectedResultNumSegments
+        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                 // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 2, 2}),             // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{3}),                       // numSegments
+                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),  // expectedResult
+                         Tensor({3}, T, std::vector<T_D>{2, empty_segment_value, 4}),  // expectedResultNumSegments
                          fillMode),
         // single element segments
-        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // data
-                         Tensor({4}, T_idx, std::vector<T_I>{0, 1, 2, 3}),                                  // segmentIds
-                         Tensor({}, T_idx, std::vector<T_I>{4}),                                            // numSegments
-                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // expectedResult
-                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // expectedResultNumSegments
+        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 1, 2, 3}),  // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{4}),            // numSegments
+                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // expectedResult
+                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // expectedResultNumSegments
                          fillMode),
         // all elements in one segment
-        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // data
-                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 0, 0}),                                  // segmentIds
-                         Tensor({}, T_idx, std::vector<T_I>{1}),                                            // numSegments
-                         Tensor({1}, T, std::vector<T_D>{4}),                                               // expectedResult
-                         Tensor({1}, T, std::vector<T_D>{4}),                                               // expectedResultNumSegments
+        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 0, 0, 0}),  // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{1}),            // numSegments
+                         Tensor({1}, T, std::vector<T_D>{4}),               // expectedResult
+                         Tensor({1}, T, std::vector<T_D>{4}),               // expectedResultNumSegments
                          fillMode),
         // numSegments < max(segmentIds) + 1
-        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // data
-                         Tensor({4}, T_idx, std::vector<T_I>{0, 1, 2, 3}),                                  // segmentIds
-                         Tensor({}, T_idx, std::vector<T_I>{2}),                                            // numSegments
-                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                      // expectedResult
-                         Tensor({2}, T, std::vector<T_D>{1, 2}),                                            // expectedResultNumSegments
+        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 1, 2, 3}),  // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{2}),            // numSegments
+                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // expectedResult
+                         Tensor({2}, T, std::vector<T_D>{1, 2}),            // expectedResultNumSegments
                          fillMode),
         // numSegments > max(segmentIds) + 1
-        SegmentMaxParams(
-            Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                                   // data
-            Tensor({4}, T_idx, std::vector<T_I>{0, 1, 2, 3}),                                               // segmentIds
-            Tensor({}, T_idx, std::vector<T_I>{6}),                                                         // numSegments
-            Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),                                                   // expectedResult
-            Tensor(                                                                                         // expectedResultNumSegments
-                {6},
-                T,
-                std::vector<T_D>{1, 2, 3, 4, empty_segment_value, empty_segment_value}),
-            fillMode),
+        SegmentMaxParams(Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // data
+                         Tensor({4}, T_idx, std::vector<T_I>{0, 1, 2, 3}),  // segmentIds
+                         Tensor({}, T_idx, std::vector<T_I>{6}),            // numSegments
+                         Tensor({4}, T, std::vector<T_D>{1, 2, 3, 4}),      // expectedResult
+                         Tensor(                                            // expectedResultNumSegments
+                             {6},
+                             T,
+                             std::vector<T_D>{1, 2, 3, 4, empty_segment_value, empty_segment_value}),
+                         fillMode),
     };
     return segmentMaxParams;
 }
