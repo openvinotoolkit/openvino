@@ -80,7 +80,7 @@ void aux_get_raw_string_by_index(const std::shared_ptr<ov::StringAlignedBuffer>&
 
 namespace ov {
 StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, size_t alignment, bool initialize)
-    : AlignedBuffer(byte_size, alignment),
+    : AlignedBuffer(byte_size + num_elements * sizeof(std::string), alignment),
       m_num_elements(num_elements) {
     const auto has_enough_size = (sizeof(std::string) * m_num_elements) <= size();
     OPENVINO_ASSERT(has_enough_size,
@@ -90,17 +90,16 @@ StringAlignedBuffer::StringAlignedBuffer(size_t num_elements, size_t byte_size, 
                     m_num_elements,
                     " std::string objects");
     if (initialize) {
-        std::uninitialized_fill_n(get_ptr<std::string>(), m_num_elements, std::string{});
+         std::string* string_ptr = get_ptr<std::string>();
+        for (size_t i = 0; i < m_num_elements; ++i) {
+            new (string_ptr + i) std::string();
     }
 }
 
 StringAlignedBuffer::~StringAlignedBuffer() {
     if (m_allocated_buffer) {
         const auto first = get_ptr<std::string>();
-        for_each(first, first + m_num_elements, [](std::string& s) {
-            using std::string;
-            s.~string();
-        });
+        std::destroy_n(get_ptr<std::string>(), m_num_elements);
     }
 }
 
