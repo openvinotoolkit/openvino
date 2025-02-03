@@ -50,20 +50,20 @@ Inference of models from Hugging Face
 
 1. Find a model on `Hugging Face <https://huggingface.co/>`__ and import it.
 
-   .. image:: ../../assets/images/TestDrive_llm_import.gif
+   .. image:: ../../../assets/images/TestDrive_llm_import.gif
       :align: center
       :alt: how to import a model to test drive
 
 2. Chat with LLMs via the `Playground` tab.
 
-   .. image:: ../../assets/images/TestDrive_llm_model_chat.gif
+   .. image:: ../../../assets/images/TestDrive_llm_model_chat.gif
       :align: center
       :alt: chatting with llm models in test drive
 
 3. Use the `Performance metrics` tab to get model performance metrics on your
    computer or an edge device.
 
-   .. image:: ../../assets/images/TestDrive_llm_metrics.gif
+   .. image:: ../../../assets/images/TestDrive_llm_metrics.gif
       :align: center
       :alt: verifying llm performance in test drive
 
@@ -74,7 +74,7 @@ Inference of models trained with Intel® Geti™
    by Intel® Geti™ (refer to the `Intel® Geti™ documentation <https://docs.geti.intel.com>`__
    for more details).
 
-   .. image:: ../../assets/images/TestDrive_geti_download.gif
+   .. image:: ../../../assets/images/TestDrive_geti_download.gif
       :align: center
       :alt: verifying llm performance in test drive
 
