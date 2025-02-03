@@ -229,10 +229,10 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
     }
 
     if (addPrecisionPreserved) {
-        const std::vector<size_t> stride(rankLength - 2, 1ul);
-        const std::vector<size_t> padBegin(rankLength - 2, 0ul);
-        const std::vector<size_t> padEnd(rankLength - 2, 0ul);
-        const std::vector<size_t> padKernel(rankLength - 2, 3ul);
+        const ov::inplace_vector<size_t> stride(rankLength - 2, 1ul);
+        const ov::inplace_vector<size_t> padBegin(rankLength - 2, 0ul);
+        const ov::inplace_vector<size_t> padEnd(rankLength - 2, 0ul);
+        const ov::inplace_vector<size_t> padKernel(rankLength - 2, 3ul);
         const ov::op::PadType padType = ov::op::PadType::NOTSET;
         const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
         const auto pooling = std::make_shared<ov::opset1::MaxPool>(

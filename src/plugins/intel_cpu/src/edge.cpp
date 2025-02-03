@@ -182,7 +182,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
 
     // stride check
     const auto lhsBlockDims = lhsBlockMemDesc->getBlockDims();
-    std::vector<size_t> lhsStridesDefault(lhsBlockDims.size());
+    VectorDims lhsStridesDefault(lhsBlockDims.size());
     lhsStridesDefault[lhsBlockDims.size() - 1] = 1;
     for (size_t i = 2; i <= lhsBlockDims.size(); i++) {
         lhsStridesDefault[lhsBlockDims.size() - i] =
@@ -190,7 +190,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
     }
 
     auto rhsBlockDims = rhsBlockMemDesc->getBlockDims();
-    std::vector<size_t> rhsStridesDefault(rhsBlockDims.size());
+    VectorDims rhsStridesDefault(rhsBlockDims.size());
     rhsStridesDefault[rhsBlockDims.size() - 1] = 1;
     for (size_t i = 2; i <= rhsBlockDims.size(); i++) {
         rhsStridesDefault[rhsBlockDims.size() - i] =
@@ -208,11 +208,10 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
         return false;
     }
 
-    auto getCleanDim = [&](const VectorDims& dims, const VectorDims& flag) {
-        if (dims.size() != flag.size()) {
+    auto getCleanDim = [&](const VectorDims& dims, const VectorDims& flag) -> VectorDims {
+        if (dims.size() != flag.size())
             return dims;
-        }
-        std::vector<size_t> ret;
+        VectorDims ret;
         for (size_t i = 0; i < dims.size(); i++) {
             if (flag[i] != 1) {
                 ret.push_back(dims[i]);

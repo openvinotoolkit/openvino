@@ -51,7 +51,7 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 }
 
 void Tile::getSupportedDescriptors() {
-    const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
+    const auto& vec_to_string = [](const auto& vec) -> std::string {
         std::string result = "[";
         for (size_t i = 0; i < vec.size(); i++) {
             if (i) {

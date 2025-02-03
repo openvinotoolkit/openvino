@@ -624,8 +624,8 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
 
     params.dstBlockedDims = newDstDims;
     params.srcBlockedDims = newSrcDims;
-    params.dstStrides.resize(newDstDims.size());
-    params.srcStrides.resize(newSrcDims.size());
+    params.dstStrides.resize(newDstDims.size(), 0);
+    params.srcStrides.resize(newSrcDims.size(), 0);
     params.dstStrides[params.dstStrides.size() - 1] = params.srcStrides[params.srcStrides.size() - 1] = 1;
     for (int i = newDstDims.size() - 2; i >= 0; --i) {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstBlockedDims[i + 1];

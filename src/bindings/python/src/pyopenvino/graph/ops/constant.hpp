@@ -12,6 +12,6 @@
 
 namespace py = pybind11;
 
-std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
+ov::Strides _get_strides(const ov::op::v0::Constant& self);
 
 void regclass_graph_op_Constant(py::module m);

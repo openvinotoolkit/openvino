@@ -14,6 +14,7 @@
 #    include <immintrin.h>
 #endif
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -331,7 +332,7 @@ static void retrieve_rois_cpu(const int num_rois,
 
 void proposal_exec(const float* input0,
                    const float* input1,
-                   std::vector<size_t> dims0,
+                   ov::inplace_vector<size_t> dims0,
                    std::array<float, 4> img_info,
                    const float* anchors,
                    int* roi_indices,

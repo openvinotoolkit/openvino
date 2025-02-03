@@ -194,14 +194,14 @@ TEST_F(CPUTensorTest, canAccessF16Tensor) {
 TEST_F(CPUTensorTest, canSetShape) {
     const Shape origShape = {1, 2, 3};
     const ov::Shape ov_origShape = origShape.toPartialShape().to_shape();
-    auto strides = ov::Strides({6, 3, 1});
+    auto strides = VectorDims({6, 3, 1});
     auto memdesc = create_memdesc(ov::element::f32, origShape, strides);
     auto memptr = create_memory(memdesc);
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
 
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
-    auto new_strides = ov::Strides{30, 6, 1};
+    const auto new_strides = VectorDims{30, 6, 1};
     auto new_memdesc = create_memdesc(ov::element::f32, newShape, new_strides);
 
     // set_shape to a bigger memory

@@ -983,8 +983,8 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
 }
 
 void MHA::prepareParams() {
-    auto transpose = [](const std::vector<size_t>& vec, const std::vector<size_t>& order) -> std::vector<size_t> {
-        std::vector<size_t> new_vec(vec.size());
+    auto transpose = [](const auto& vec, const auto& order) -> std::decay_t<decltype(vec)> {
+        std::decay_t<decltype(vec)> new_vec(vec.size());
         for (size_t i = 0; i < vec.size(); i++) {
             new_vec[i] = vec[order[i]];
         }

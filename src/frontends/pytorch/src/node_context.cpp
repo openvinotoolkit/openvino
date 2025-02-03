@@ -245,9 +245,10 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 template <>
 Strides NodeContext::const_input<Strides>(size_t index) const {
     auto c = get_constant_at_input(*this, index);
-    if (c)
-        return c->cast_vector<Strides::value_type>();
-    else
+    if (c) {
+        auto tmp = c->cast_vector<Strides::value_type>();
+        return {tmp.begin(), tmp.end()};
+    } else
         return {};
 }
 

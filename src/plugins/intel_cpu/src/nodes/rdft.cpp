@@ -375,7 +375,7 @@ static void coordsFromIndex(size_t index,
     }
 }
 
-static size_t getOffset(const std::vector<size_t>& coords, const std::vector<size_t>& strides) {
+static size_t getOffset(const std::vector<size_t>& coords, const VectorDims& strides) {
     size_t offset = 0;
     for (size_t i = 0; i < coords.size(); ++i) {
         offset += coords[i] * strides[i];
@@ -388,7 +388,7 @@ static void gatherReal(float* output,
                        size_t axis,
                        const std::vector<size_t>& coords,
                        size_t size,
-                       const std::vector<size_t>& strides) {
+                       const VectorDims& strides) {
     size_t inputOffset = getOffset(coords, strides);
 
     for (size_t i = 0; i < size; i++) {
@@ -402,7 +402,7 @@ static void gatherComplex(float* output,
                           size_t axis,
                           const std::vector<size_t>& coords,
                           size_t size,
-                          const std::vector<size_t>& strides) {
+                          const VectorDims& strides) {
     size_t inputOffset = getOffset(coords, strides);
 
     for (size_t i = 0; i < 2 * size; i += 2) {
@@ -417,7 +417,7 @@ static void scatterReal(float* output,
                         size_t axis,
                         const std::vector<size_t>& coords,
                         size_t size,
-                        const std::vector<size_t>& strides) {
+                        const VectorDims& strides) {
     size_t offset = getOffset(coords, strides);
 
     for (size_t i = 0; i < size; i++) {
@@ -431,7 +431,7 @@ static void scatterComplex(float* output,
                            size_t axis,
                            const std::vector<size_t>& coords,
                            size_t size,
-                           const std::vector<size_t>& strides) {
+                           const VectorDims& strides) {
     size_t offset = getOffset(coords, strides);
 
     for (size_t i = 0; i < 2 * size; i += 2) {
@@ -609,13 +609,13 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
                    size_t axis,
                    const std::vector<size_t>& coords,
                    size_t size,
-                   const std::vector<size_t>& strides) = nullptr;
+                   const VectorDims& strides) = nullptr;
     void (*scatter)(float* output,
                     const float* input,
                     size_t axis,
                     const std::vector<size_t>& coords,
                     size_t size,
-                    const std::vector<size_t>& strides) = nullptr;
+                    const VectorDims& strides) = nullptr;
 
     size_t gatherSize = 0;
     size_t scatterSize = 0;
@@ -822,7 +822,7 @@ std::vector<float> RDFTExecutor::generateTwiddlesCommon(size_t signalSize,
 }
 
 std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector<int>& signalSizes,
-                                                               const std::vector<size_t>& outputShape,
+                                                               const VectorDims& outputShape,
                                                                const std::vector<int>& axes) {
     std::vector<std::vector<float>> twiddles;
     twiddles.reserve(axes.size());

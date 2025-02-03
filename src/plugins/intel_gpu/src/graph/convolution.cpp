@@ -19,9 +19,9 @@ namespace {
 template<typename T, typename V>
 T align_to_spatial_rank(const T param, size_t rank, V fill_value) {
     OPENVINO_ASSERT(param.size() <= rank, "[GPU] Can't align convolution parameters to smaller rank");
-    std::vector<V> res(rank, fill_value);
+    T res(rank, fill_value);
     std::copy_n(param.begin(), param.size(), res.begin());
-    return T(res);
+    return res;
 }
 
 std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel_impl_params const& impl_param, bool legacy_flow) {

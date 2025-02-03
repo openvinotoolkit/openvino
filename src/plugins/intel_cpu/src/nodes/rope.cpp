@@ -127,7 +127,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             can_inplace = false;
         }
         if (m_config.input_trans0213) {
-            t_src = t_src.permute({0, 2, 1, 3});
+            t_src = t_src.permute(VectorDims{0, 2, 1, 3});
             can_inplace = false;
         }
         if (m_config.gather_position_arg_id > 0) {

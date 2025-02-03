@@ -422,11 +422,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_NSPC_INT8_AMX,
         DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Kernel_1x1 (2D) ============= */
-const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(::testing::Values(std::vector<size_t>({1, 1})),
-                                                                  ::testing::Values(std::vector<size_t>({1, 1})),
+const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(::testing::Values(ov::inplace_vector<size_t>({1, 1})),
+                                                                  ::testing::Values(ov::inplace_vector<size_t>({1, 1})),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
                                                                   ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-                                                                  ::testing::Values(std::vector<size_t>({1, 1})),
+                                                                  ::testing::Values(ov::inplace_vector<size_t>({1, 1})),
                                                                   ::testing::ValuesIn(numOutChannels_Blocked),
                                                                   ::testing::Values(ov::op::PadType::EXPLICIT),
                                                                   ::testing::ValuesIn(emptyOutputPadding));
@@ -455,26 +455,26 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_1x1_BF16,
 
 /* ============= Reorder + Deconvolution ============= */
 INSTANTIATE_TEST_SUITE_P(
-        nightly_reorder_Deconv_2D,
-        DeconvolutionLayerCPUTest,
-        ::testing::Combine(::testing::Combine(::testing::ValuesIn(kernels2d),
-                                              ::testing::Values(std::vector<size_t>{1, 1}),
-                                              ::testing::ValuesIn(padBegins2d),
-                                              ::testing::ValuesIn(padEnds2d),
-                                              ::testing::ValuesIn(dilations2d),
-                                              ::testing::ValuesIn(numOutChannels_Blocked),
-                                              ::testing::Values(ov::op::PadType::EXPLICIT),
-                                              ::testing::ValuesIn(emptyOutputPadding)),
-                           ::testing::Values(DeconvInputData{
-                                   InputShape{{-1, 67, -1, -1},
-                                              {{1, 67, 7, 7}, {1, 67, 9, 4}, {1, 67, 5, 7}, {1, 67, 7, 7}, {1, 67, 9, 4}}},
-                                   ov::test::utils::InputLayerType::PARAMETER,
-                                   {{15, 15}, {9, 9}, {9, 10}, {15, 15}, {9, 9}}}),
-                           ::testing::Values(ElementType::f32),
-                           ::testing::Values(emptyFusingSpec),
-                           ::testing::ValuesIn(filterCPUInfoForDevice({block16c_2D})),
-                           ::testing::Values(CPUTestUtils::empty_plugin_config)),
-        DeconvolutionLayerCPUTest::getTestCaseName);
+    nightly_reorder_Deconv_2D,
+    DeconvolutionLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(kernels2d),
+                                          ::testing::Values(ov::inplace_vector<size_t>{1, 1}),
+                                          ::testing::ValuesIn(padBegins2d),
+                                          ::testing::ValuesIn(padEnds2d),
+                                          ::testing::ValuesIn(dilations2d),
+                                          ::testing::ValuesIn(numOutChannels_Blocked),
+                                          ::testing::Values(ov::op::PadType::EXPLICIT),
+                                          ::testing::ValuesIn(emptyOutputPadding)),
+                       ::testing::Values(DeconvInputData{
+                           InputShape{{-1, 67, -1, -1},
+                                      {{1, 67, 7, 7}, {1, 67, 9, 4}, {1, 67, 5, 7}, {1, 67, 7, 7}, {1, 67, 9, 4}}},
+                           ov::test::utils::InputLayerType::PARAMETER,
+                           {{15, 15}, {9, 9}, {9, 10}, {15, 15}, {9, 9}}}),
+                       ::testing::Values(ElementType::f32),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::ValuesIn(filterCPUInfoForDevice({block16c_2D})),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution auto padding tests ============= */
 const std::vector<DeconvInputData> inputs_2D_AutoPadding = {

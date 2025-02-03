@@ -99,7 +99,7 @@ Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(ov::Shape shape) : m_shape(std::mo
 
 Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.empty(), "NewMemoryBuffer shape inference must have input shapes");
-    return {{m_shape}, ShapeInferStatus::success};
+    return {{m_shape.begin(), m_shape.end()}, ShapeInferStatus::success};
 }
 
 } // namespace op

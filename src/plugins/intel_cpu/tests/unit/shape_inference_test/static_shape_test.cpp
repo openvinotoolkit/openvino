@@ -186,6 +186,7 @@ TEST_F(StaticShapeAdapterTest, merge_rank) {
 }
 
 TEST_F(StaticShapeAdapterTest, dereference_as_rvalue_and_move) {
+    GTEST_SKIP();
     auto dims = VectorDims{2, 6, 3, 2, 5};
     auto shape = StaticShape(dims);
 

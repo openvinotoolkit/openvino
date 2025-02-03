@@ -17,7 +17,7 @@ bool evaluate(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& op,
     const auto& out_shape = outputs[0].get_shape();
     const auto& in_shape = inputs[0].get_shape();
     const auto& filter_shape = inputs[1].get_shape();
-    ov::Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
+    ov::Strides in_dilation(in_shape.size() - 2);
     std::fill(in_dilation.begin(), in_dilation.end(), 1);
     ov::reference::convolution_backprop_in<ET>(in_data_ptr,
                                                filter_data,

@@ -1807,7 +1807,7 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     auto src_dims = srcMemory->getStaticDims();
 
     auto srcMemDesc = srcMemory->getDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> s_str = srcMemDesc->getStrides();
+    auto s_str = srcMemDesc->getStrides();
     size_t tmp = s_str[s_str.size() - 1];
     for (int i = s_str.size() - 1; i > 1; i--) {
         s_str[i] = s_str[i - 1];

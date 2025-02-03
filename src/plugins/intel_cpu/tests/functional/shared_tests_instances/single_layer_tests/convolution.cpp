@@ -16,12 +16,12 @@ const std::vector<ov::element::Type> model_type = {
         ov::element::i32};
 
 /* ============= 1D Convolution ============= */
-const std::vector<std::vector<size_t>> kernels1D = {{3}, {5}};
-const std::vector<std::vector<size_t>> strides1D = {{1}, {3}};
+const std::vector<ov::inplace_vector<size_t>> kernels1D = {{3}, {5}};
+const std::vector<ov::inplace_vector<size_t>> strides1D = {{1}, {3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins1D = {{0}, {3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds1D = {{0}, {3}};
-const std::vector<std::vector<size_t>> dilations1D = {{1}, {3}};
-const std::vector<size_t> numOutChannels1D = {1, 5};
+const std::vector<ov::inplace_vector<size_t>> dilations1D = {{1}, {3}};
+const ov::inplace_vector<size_t> numOutChannels1D = {1, 5};
 
 const auto conv1DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels1D), ::testing::ValuesIn(strides1D),
@@ -53,12 +53,12 @@ INSTANTIATE_TEST_SUITE_P(
         ConvolutionLayerTest::getTestCaseName);
 
 /* ============= 2D Convolution ============= */
-const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
-const std::vector<std::vector<size_t>> strides = {{1, 1}, {1, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels = {{3, 3}, {3, 5}};
+const std::vector<ov::inplace_vector<size_t>> strides = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}, {0, 3}};
-const std::vector<std::vector<size_t>> dilations = {{1, 1}, {3, 1}};
-const std::vector<size_t> numOutChannels = {1, 5};
+const std::vector<ov::inplace_vector<size_t>> dilations = {{1, 1}, {3, 1}};
+const ov::inplace_vector<size_t> numOutChannels = {1, 5};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
@@ -91,11 +91,11 @@ INSTANTIATE_TEST_SUITE_P(
 // weight for this convolution have Acdb16a layout
 // for [96,1,7,7] shape strides for 1 and 3 dimensions equals, but not default order
 namespace specificWeightLayout {
-const std::vector<size_t> kernels = {7, 7};
-const std::vector<size_t> strides = {2, 2};
+const ov::inplace_vector<size_t> kernels = {7, 7};
+const ov::inplace_vector<size_t> strides = {2, 2};
 const std::vector<ptrdiff_t> padBegins = {1, 1};
 const std::vector<ptrdiff_t> padEnds = {1, 1};
-const std::vector<size_t> dilations = {1, 1};
+const ov::inplace_vector<size_t> dilations = {1, 1};
 const size_t numOutChannels = {96};
 const auto conv2DParams_WeightLayout = ::testing::Combine(::testing::Values(kernels),
                                                           ::testing::Values(strides),
@@ -114,11 +114,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_SpecificWeightLayout, ConvolutionLa
 } // namespace specificWeightLayout
 
 /* ============= 3D Convolution ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0}, {0, 2, 0}};
-const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {1, 2, 1}};
-const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}, {1, 2, 1}};
-const std::vector<size_t> numOutChannels3D = {1, 5};
+const std::vector<ov::inplace_vector<size_t>> strides3d = {{1, 1, 1}, {1, 2, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations3d = {{1, 1, 1}, {1, 2, 1}};
+const ov::inplace_vector<size_t> numOutChannels3D = {1, 5};
 
 const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels3d), ::testing::ValuesIn(strides3d),

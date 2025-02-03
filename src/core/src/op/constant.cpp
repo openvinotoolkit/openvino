@@ -182,20 +182,19 @@ void fill_buffer(void* buffer, const Shape& shape, const T& value) {
 }
 
 template <element::Type_t ET, class T>
-void write_buffer(const std::vector<T>& source, void* buffer) {
-    std::transform(source.begin(), source.end(), element::iterator<ET>(buffer), convert_if_in_element_range<ET, T>);
+void write_buffer_impl(const T source, size_t n, void* buffer) {
+    std::transform(source,
+                   source + n,
+                   element::iterator<ET>(buffer),
+                   convert_if_in_element_range<ET, std::remove_pointer_t<T>>);
 }
 
 Strides calc_byte_strides(const Shape& shape, const element::Type& et) {
     Strides strides;
     if (!shape.empty() && et.bitwidth() >= 8) {
-        strides.resize(shape.size());
+        strides.resize(shape.size(), {});
         strides.back() = et.size();
-        std::transform(shape.crbegin(),
-                       shape.crend() - 1,
-                       strides.rbegin(),
-                       strides.rbegin() + 1,
-                       std::multiplies<size_t>());
+        std::transform(shape.crbegin(), shape.crend() - 1, strides.rbegin(), strides.rbegin() + 1, std::multiplies());
     }
     return strides;
 }
@@ -230,13 +229,16 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::vec
     const auto is_checked_and_identical = has_single_value && (this_shape_size != 1);
 
     if (type == element::string) {
-        fill_or_write(is_checked_and_identical, type, values);
+        fill_or_write(is_checked_and_identical, type, values.data(), values_size);
     } else if (type.is_real()) {
-        fill_or_write(is_checked_and_identical, type, from_string_vector<double>(values));
+        const auto tmp = from_string_vector<double>(values);
+        fill_or_write(is_checked_and_identical, type, tmp.data(), tmp.size());
     } else if (type.is_signed()) {
-        fill_or_write(is_checked_and_identical, type, from_string_vector<int64_t>(values));
+        const auto tmp = from_string_vector<int64_t>(values);
+        fill_or_write(is_checked_and_identical, type, tmp.data(), tmp.size());
     } else {
-        fill_or_write(is_checked_and_identical, type, from_string_vector<uint64_t>(values));
+        const auto tmp = from_string_vector<uint64_t>(values);
+        fill_or_write(is_checked_and_identical, type, tmp.data(), tmp.size());
     }
 }
 
@@ -1011,10 +1013,10 @@ CONSTANT_FILL_DATA(f4e2m1, double)
 
 #undef CONSTANT_FILL_DATA
 
-#define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
-    template <>                                                                                \
-    void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
-        ov::op::write_buffer<element::ET>(source, get_data_ptr_nc());                          \
+#define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                 \
+    template <>                                                                             \
+    void Constant::write_lp_buffer<element::Type_t::ET>(const SRC_TYPE* source, size_t n) { \
+        write_buffer_impl<element::ET>(source, n, get_data_ptr_nc());                       \
     }
 
 CONSTANT_WRITE_BUFFER(u1, bool)

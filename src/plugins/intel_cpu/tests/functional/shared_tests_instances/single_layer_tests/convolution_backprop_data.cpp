@@ -15,7 +15,7 @@ const std::vector<ov::element::Type> model_type = {
         ov::element::f16
 };
 
-const std::vector<size_t> numOutChannels = {1, 5, 16};
+const ov::inplace_vector<size_t> numOutChannels = {1, 5, 16};
 const std::vector<ov::Shape> emptyOutputShape = {{}};
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
@@ -23,11 +23,11 @@ const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 const std::vector<std::vector<ov::Shape>> inputShapes2D_static = {{{1, 3, 30, 30}},
                                                                   {{1, 16, 10, 10}},
                                                                   {{1, 32, 10, 10}}};
-const std::vector<std::vector<size_t>> kernels2D = {{1, 1}, {3, 3}, {3, 5}};
-const std::vector<std::vector<size_t>> strides2D = {{1, 1}, {1, 3}};
+const std::vector<ov::inplace_vector<size_t>> kernels2D = {{1, 1}, {3, 3}, {3, 5}};
+const std::vector<ov::inplace_vector<size_t>> strides2D = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 1}};
-const std::vector<std::vector<size_t>> dilations2D = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations2D = {{1, 1}, {2, 2}};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShapeDefined, Con
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding2D = {{1, 1}, {2, 2}};
-const std::vector<std::vector<size_t >> testStrides2D = {{3, 3}};
+const std::vector<ov::inplace_vector<size_t>> testStrides2D = {{3, 3}};
 
 const auto conv2DParams_ExplicitPadding_output_padding = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
@@ -122,32 +122,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddi
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_RoundingOfPadding, ConvolutionBackpropDataLayerTest,
-                        ::testing::Combine(
-                                ::testing::Combine(
-                                        ::testing::Values(std::vector<size_t>({31, 1})),
-                                        ::testing::Values(std::vector<size_t>({2, 1})),
-                                        ::testing::Values(std::vector<ptrdiff_t>({14, 0})),
-                                        ::testing::Values(std::vector<ptrdiff_t>({15, 0})),
-                                        ::testing::Values(std::vector<size_t>({1, 1})),
-                                        ::testing::Values(size_t(4)),
-                                        ::testing::Values(ov::op::PadType::SAME_LOWER),
-                                        ::testing::Values(std::vector<ptrdiff_t>({0, 0}))),
-                                ::testing::Values(ov::element::f32),
-                                ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 512, 2, 1}})),
-                                ::testing::Values(ov::Shape({ 16, 1 })),
-                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ConvolutionBackpropDataLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ConvolutionBackpropData2D_RoundingOfPadding,
+    ConvolutionBackpropDataLayerTest,
+    ::testing::Combine(::testing::Combine(::testing::Values(ov::inplace_vector<size_t>({31, 1})),
+                                          ::testing::Values(ov::inplace_vector<size_t>({2, 1})),
+                                          ::testing::Values(std::vector<ptrdiff_t>({14, 0})),
+                                          ::testing::Values(std::vector<ptrdiff_t>({15, 0})),
+                                          ::testing::Values(ov::inplace_vector<size_t>({1, 1})),
+                                          ::testing::Values(size_t(4)),
+                                          ::testing::Values(ov::op::PadType::SAME_LOWER),
+                                          ::testing::Values(std::vector<ptrdiff_t>({0, 0}))),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 512, 2, 1}})),
+                       ::testing::Values(ov::Shape({16, 1})),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 /* ============= 3D ConvolutionBackpropData ============= */
 const std::vector<std::vector<ov::Shape>> inputShapes3D_static = {{{1, 3, 10, 10, 10}},
                                                            {{1, 16, 5, 5, 5}},
                                                            {{1, 32, 5, 5, 5}}};
-const std::vector<std::vector<size_t >> kernels3D = {/*{1, 1, 1},*/ {3, 3, 3}};
-const std::vector<std::vector<size_t >> strides3D = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> kernels3D = {/*{1, 1, 1},*/ {3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides3D = {{1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{0, 0, 0}, {1, 1, 1}};
-const std::vector<std::vector<size_t >> dilations3D = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilations3D = {{1, 1, 1}, {2, 2, 2}};
 
 const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),
@@ -201,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_OutputShapeDefined, Con
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding3D = {{1, 1, 1}, {2, 2, 2}};
-const std::vector<std::vector<size_t >> testStrides3D = {{3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> testStrides3D = {{3, 3, 3}};
 
 const auto conv3DParams_ExplicitPadding_output_padding = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),

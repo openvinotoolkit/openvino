@@ -36,12 +36,11 @@ struct is_any_of<T, U, Rest...>
  * rank of resulting shape
  * @return normalized vector
  */
-inline std::vector<size_t> getNormalizedDimsBySize(const VectorDims& dims, size_t ndims) {
-    if (dims.size() >= ndims) {
+inline VectorDims getNormalizedDimsBySize(const VectorDims& dims, size_t ndims) {
+    if (dims.size() >= ndims)
         return dims;
-    }
 
-    std::vector<size_t> normalizedDims = dims;
+    VectorDims normalizedDims = dims;
     for (size_t i = 0; i < (ndims - dims.size()); i++) {
         normalizedDims.insert(normalizedDims.begin(), 1);
     }
@@ -74,7 +73,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
         return true;
     }
 
-    std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
+    auto normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     if (channelAxis >= 0) {
         for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
             if ((i == static_cast<size_t>(channelAxis) &&
@@ -175,7 +174,7 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
  * - reshapeToRank<4>({1, 2, 3, 4, 5}) == {1*2, 3, 4, 5} == {2, 3, 4, 5}
  */
 template <typename T>
-std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
+T reshapeDownToRank(const T& dims, size_t rank) {
     OPENVINO_ASSERT(rank > 0, "Rank greater than zero is expected");
 
     if (dims.size() <= rank) {
@@ -183,16 +182,16 @@ std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
     }
 
     const auto accEnd = dims.begin() + (dims.size() - rank + 1);
-    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<T>());
+    const auto acc = std::accumulate(dims.begin(), accEnd, decltype(dims[0]){1}, std::multiplies());
 
-    std::vector<T> result{acc};
+    T result{acc};
     result.insert(result.end(), accEnd, dims.end());
 
     return result;
 }
 
 template <size_t rank, typename T>
-std::vector<T> reshapeDownToRank(const std::vector<T>& dims) {
+T reshapeDownToRank(const T& dims) {
     return reshapeDownToRank(dims, rank);
 }
 

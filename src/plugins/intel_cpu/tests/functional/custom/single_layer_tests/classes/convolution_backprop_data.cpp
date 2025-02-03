@@ -17,7 +17,7 @@ std::string DeconvolutionLayerCPUTest::getTestCaseName(testing::TestParamInfo<De
     std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = obj.param;
 
     ov::op::PadType padType;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
