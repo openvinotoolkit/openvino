@@ -118,8 +118,11 @@ void VariableState::update_device_buffer() {
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
-    return m_user_specified_type != ov::element::dynamic ? m_user_specified_type
-                                                         : ov::element::Type(m_layout.data_type);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return (m_user_specified_type.is_static() && m_user_specified_type != ov::element::undefined)
+               ? m_user_specified_type
+               : ov::element::Type(m_layout.data_type);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {

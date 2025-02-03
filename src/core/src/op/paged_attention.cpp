@@ -206,14 +206,15 @@ void PagedAttentionExtension::validate_and_infer_types() {
             out_ps[1] = Dimension::dynamic();
         }
     }
-
-    if (m_output_type[0] == ov::element::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (m_output_type[0].is_dynamic() || m_output_type[0] == ov::element::undefined) {
         set_output_type(0, get_input_element_type(0), out_ps);
     } else {
         set_output_type(0, m_output_type[0], out_ps);
     }
 
-    if (m_output_type[1] == ov::element::dynamic) {
+    if (m_output_type[1].is_dynamic() || m_output_type[1] == ov::element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
     } else {
         set_output_type(1, m_output_type[1], {Dimension::dynamic()});

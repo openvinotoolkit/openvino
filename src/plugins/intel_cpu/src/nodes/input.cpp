@@ -245,8 +245,9 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 
 void Input::cloneBlobIfRequired() {
     const auto prec = m_constOp->get_element_type();
-
-    if (prec == ov::element::dynamic && shape_size(m_constOp->get_shape()) == 0) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if ((prec == ov::element::dynamic || prec == ov::element::undefined) && shape_size(m_constOp->get_shape()) == 0) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         memoryPtr = MemoryDescUtils::makeEmptyMemory(context);
         return;
     }

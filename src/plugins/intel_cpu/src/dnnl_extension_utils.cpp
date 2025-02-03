@@ -78,11 +78,13 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
         return memory::data_type::f8_e5m2;
     case ov::element::f4e2m1:
         return memory::data_type::f4_e2m1;
-    case ov::element::dynamic:
+        OPENVINO_SUPPRESS_DEPRECATED_START
+    case ov::element::undefined:
+    OPENVINO_SUPPRESS_DEPRECATED_END case ov::element::dynamic:
         return memory::data_type::undef;
-    default: {
-        OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
-    }
+        default: {
+            OPENVINO_THROW("CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
+        }
     }
 }
 

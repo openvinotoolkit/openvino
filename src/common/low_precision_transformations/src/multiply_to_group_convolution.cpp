@@ -65,7 +65,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matc
         }
 
         // if restrictions are absent precisions attribute is used
-        if (weightsPrecision == element::dynamic) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (weightsPrecision == element::dynamic || weightsPrecision == element::undefined) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
                 defaultPrecisions :

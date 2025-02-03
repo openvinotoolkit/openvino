@@ -14,7 +14,9 @@ NamedOutputs fill_any_like(const NodeContext& node) {
     auto x = node.get_input("X");
     auto dtype = node.get_attribute<ov::element::Type>("dtype", element::dynamic);
     const auto value = node.get_attribute<float>("value");
-    if (dtype == element::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (dtype.is_dynamic() || dtype == element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         // when type does not define, use the input type
         dtype = x.get_element_type();
     }

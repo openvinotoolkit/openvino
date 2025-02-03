@@ -109,7 +109,10 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
     if (!outputs.empty()) {
         const auto first_output_precision = outputs[0].get_element_type();
-        if ((first_input_precision != element::dynamic) && (first_input_precision != first_output_precision)) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if ((first_input_precision != element::dynamic && first_input_precision != element::undefined) &&
+            (first_input_precision != first_output_precision)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             return false;
         }
 

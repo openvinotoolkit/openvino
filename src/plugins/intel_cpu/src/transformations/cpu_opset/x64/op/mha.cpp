@@ -107,12 +107,13 @@ void ov::intel_cpu::MHANode::validate_and_infer_types() {
     std::vector<ov::PartialShape> matmul1_output_shapes = shape_infer(matmul1.get(), matmul1_input_shapes);
 
     const auto output_shape = transpose(matmul1_output_shapes[0].get_shape(), {0, 2, 1, 3});
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     set_output_type(0,
-                    m_output_type == ov::element::dynamic || m_output_type == ov::element::dynamic
+                    m_output_type == ov::element::undefined || m_output_type == ov::element::dynamic
                         ? get_input_element_type(0)
                         : m_output_type,
                     output_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::intel_cpu::MHANode::visit_attributes(ov::AttributeVisitor& visitor) {

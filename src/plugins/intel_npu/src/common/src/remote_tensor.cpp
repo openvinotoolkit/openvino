@@ -18,7 +18,10 @@ RemoteTensor::RemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
       _shape(shape),
       _capacity(shape) {
     OPENVINO_ASSERT(shape_size(_shape) != 0);
-    OPENVINO_ASSERT(_element_type != ov::element::dynamic && _element_type.is_static());
+    OPENVINO_ASSERT(_element_type.is_static());
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_ASSERT(_element_type != ov::element::undefined);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 RemoteTensor::~RemoteTensor() = default;

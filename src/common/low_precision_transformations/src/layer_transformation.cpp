@@ -335,8 +335,10 @@ DataPrecision LayerTransformation::getDataPrecision(
     printDequantizationInfo(layer);
 #endif
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-
-    if (precisionDetailsAtOutputIntervals.precision != element::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (precisionDetailsAtOutputIntervals.precision != element::dynamic &&
+        precisionDetailsAtOutputIntervals.precision != element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         // FakeQuantize optimal precision not deined
         if (!requiredPrecisions.empty()) {
             const auto foundIt = std::find(requiredPrecisions.begin(), requiredPrecisions.end(), precisionDetailsAtOutputIntervals.precision);

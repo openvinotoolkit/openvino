@@ -182,7 +182,10 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     m_atoi[ARG_BIAS] = BIAS;
 
     auto mapArgToInput = [&op](std::unordered_map<size_t, size_t>& argToInput, size_t argId, size_t inputId) {
-        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::dynamic) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::dynamic &&
+            op->input(inputId).get_element_type() != ov::element::undefined) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             argToInput[argId] = inputId;
         }
     };
@@ -508,7 +511,10 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::dynamic;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::dynamic &&
+                     getOriginalInputPrecisionAtPort(BIAS) != ov::element::undefined;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
@@ -528,7 +534,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < srcTypes.size(); i++) {
-        if (srcTypes[i] == element::dynamic) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (srcTypes[i] == element::dynamic || srcTypes[i] == element::undefined) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }

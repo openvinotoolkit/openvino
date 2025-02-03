@@ -726,7 +726,9 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
-        if (et != element::dynamic && et.is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (et != element::undefined && et.is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             output_tensors.emplace_back(output);
         } else {
             output_tensors.emplace_back();

@@ -300,7 +300,9 @@ bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
         if (constant == nullptr) {
             return true;
         }
-        if (const_precision == element::dynamic) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (const_precision == element::dynamic || const_precision == element::undefined) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             const_precision = constant->get_element_type();
             return true;
         }
@@ -320,7 +322,9 @@ bool ConcatTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
             return false;
         }
 
-        if (precision == element::dynamic) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (precision == element::dynamic || precision == element::undefined) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             precision = dequantization.data.get_element_type();
         } else if (precision != dequantization.data.get_element_type()) {
             return false;

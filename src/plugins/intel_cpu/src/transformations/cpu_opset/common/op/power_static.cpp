@@ -35,9 +35,12 @@ std::shared_ptr<ov::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inputs(
 
 void ov::intel_cpu::PowerStaticNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(PowerStaticNode_validate_and_infer_types);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     set_output_type(0,
-                    m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type,
+                    (m_output_type.is_dynamic() || m_output_type == ov::element::undefined) ? get_input_element_type(0)
+                                                                                            : m_output_type,
                     get_input_partial_shape(0));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool ov::intel_cpu::PowerStaticNode::visit_attributes(ov::AttributeVisitor& visitor) {

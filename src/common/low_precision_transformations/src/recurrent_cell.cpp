@@ -169,8 +169,10 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
                 defaultPrecisions :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             const auto& dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
-            if (dataPrecision.empty() ||
-                ((input.second != element::dynamic) && (dataPrecision.precision != input.second))) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            if (dataPrecision.empty() || ((input.second != element::dynamic) && (input.second != element::undefined) &&
+                                          (dataPrecision.precision != input.second))) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 return false;
             }
 
@@ -264,7 +266,10 @@ bool RecurrentCellTransformation::canBeTransformed(const std::shared_ptr<Node>& 
         if (dequantization.empty()) {
             continue;
         }
-        if ((index.second != element::dynamic) && (dequantization.data.get_element_type() != index.second)) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if ((index.second != element::dynamic) && (index.second != element::undefined) &&
+            (dequantization.data.get_element_type() != index.second)) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             return false;
         }
     }

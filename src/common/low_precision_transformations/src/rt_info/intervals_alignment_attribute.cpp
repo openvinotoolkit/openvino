@@ -118,8 +118,9 @@ ov::Any IntervalsAlignmentAttribute::create(
             fakeQuantize->get_levels(),
             outputLowValues,
             outputHighValues);
-
-        if (preferablePrecision.precision != element::dynamic) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (preferablePrecision.precision != element::dynamic && preferablePrecision.precision != element::undefined) {
+            OPENVINO_SUPPRESS_DEPRECATED_END
             attribute.value().preferablePrecisions.insert(preferablePrecision.precision);
         }
 

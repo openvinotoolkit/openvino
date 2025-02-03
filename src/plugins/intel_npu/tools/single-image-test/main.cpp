@@ -755,7 +755,10 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
     const size_t fileBytes = static_cast<size_t>(fileSize);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
-    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic &&
+        dataPrecision != ov::element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
         const ov::Tensor inputTensor(dataPrecision, shape);

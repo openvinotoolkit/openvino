@@ -100,7 +100,7 @@ namespace ov::intel_gpu {
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
     case ov::element::Type_t::dynamic:
-        return false;
+        return true;
     case ov::element::Type_t::boolean:
         return true;  // converted to u8
     case ov::element::Type_t::bf16:

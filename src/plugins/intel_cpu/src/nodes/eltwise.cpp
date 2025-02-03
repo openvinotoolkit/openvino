@@ -227,8 +227,9 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
             break;
         }
     }
-
-    if (exec_prc == ov::element::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (exec_prc == ov::element::dynamic || exec_prc == ov::element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         OPENVINO_THROW("Eltwise jitter failed to specify execution precision for Eltwise node");
     }
 

@@ -242,8 +242,10 @@ Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
-
-    if (inputPortDesc->getMemDesc()->getPrecision() == element::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (inputPortDesc->getMemDesc()->getPrecision() == element::dynamic ||
+        inputPortDesc->getMemDesc()->getPrecision() == element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return ReorderStatus::No;
     }
 
@@ -462,7 +464,9 @@ const MemoryDesc& Edge::getOutputDesc() const {
 }
 
 const MemoryDesc& Edge::getDesc() const {
-    if (getInputDesc().getPrecision() == element::dynamic) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (getInputDesc().getPrecision() == element::dynamic || getOutputDesc().getPrecision() == element::undefined) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return getInputDesc();
     }
 

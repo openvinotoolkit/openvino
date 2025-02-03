@@ -676,10 +676,11 @@ int main(int argc, char* argv[]) {
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
-
-                if (iop_precision != ov::element::dynamic) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                if (iop_precision != ov::element::dynamic && iop_precision != ov::element::undefined) {
                     type_to_set = iop_precision;
-                } else if (input_precision != ov::element::dynamic) {
+                } else if (input_precision != ov::element::dynamic && input_precision != ov::element::undefined) {
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     type_to_set = input_precision;
                 } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
                     // image input, set U8
@@ -714,10 +715,11 @@ int main(int argc, char* argv[]) {
                     iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
-
-                if (iop_precision != ov::element::dynamic) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                if (iop_precision != ov::element::dynamic && iop_precision != ov::element::undefined) {
                     preproc.output(i).tensor().set_element_type(iop_precision);
-                } else if (output_precision != ov::element::dynamic) {
+                } else if (output_precision != ov::element::dynamic && output_precision != ov::element::undefined) {
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     preproc.output(i).tensor().set_element_type(output_precision);
                 }
             }
