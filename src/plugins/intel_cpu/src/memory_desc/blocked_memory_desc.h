@@ -76,7 +76,7 @@ public:
     virtual bool isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const = 0;
     using MemoryDesc::isCompatible;
 
-    ~BlockedMemoryDesc() override = default;
+    virtual ~BlockedMemoryDesc() override = default;
 
     std::string serializeFormat() const override;
 

@@ -25,6 +25,7 @@ struct RepackedInput {
     template <class T = RepackedInputKernel,
               typename std::enable_if<std::is_base_of<RepackedInputKernel, T>::value, bool>::type = true>
     std::shared_ptr<const T> kernel() const {
+        static_assert(std::has_virtual_destructor_v<T>);
         const auto ker = std::dynamic_pointer_cast<const T>(m_kernel);
         OPENVINO_ASSERT(ker, "Kernel is empty!");
         return ker;

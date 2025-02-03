@@ -101,6 +101,7 @@ void check_impl() {
     size_t actual_impls_count = 0;
     for (size_t i = 0; i < all_impls.size(); i++) {
         ASSERT_NE(all_impls[i], nullptr) << " Implementation " << i << " of " << PType().type_string();
+        static_assert(std::has_virtual_destructor_v<PType>);
         if (std::dynamic_pointer_cast<ImplementationManagerLegacy<PType>>(all_impls[i]) != nullptr)
             actual_impls_count++;
     }

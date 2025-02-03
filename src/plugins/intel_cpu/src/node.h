@@ -120,6 +120,7 @@ public:
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<ExecutorFactoryLegacy, T>::value, int>::type = 0>
     std::shared_ptr<T> getExecutorFactoryAs() {
+        static_assert(std::has_virtual_destructor_v<T>);
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
         if (!casted)
             OPENVINO_THROW("Cannot dynamically cast ExecutorFactory");

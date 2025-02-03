@@ -79,6 +79,7 @@ public:
     void update_by_config(const GenericConfig& new_config) override final { // NOLINT
         if (m_config.hash() == new_config.hash())
             return;
+        static_assert(std::has_virtual_destructor_v<Conf>);
         const auto& new_ptr = dynamic_cast<const Conf*>(&new_config);
         OPENVINO_ASSERT(new_config.is_completed() && new_ptr, "Failed to update kernel config in get_config");
         m_config = *new_ptr;
