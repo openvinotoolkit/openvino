@@ -4,12 +4,14 @@
 
 #include "grid_sample_kernel_selector.hpp"
 
+#include "grid_sample_kernel_opt_bilinear.hpp"
 #include "grid_sample_kernel_ref.hpp"
 
 namespace kernel_selector {
 
 grid_sample_kernel_selector::grid_sample_kernel_selector() {
     Attach<GridSampleKernelRef>();
+    Attach<GridSampleKernelOptBilinear>();
 }
 
 KernelsData grid_sample_kernel_selector::GetBestKernels(const Params& params) const {
