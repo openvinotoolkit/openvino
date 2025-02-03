@@ -277,26 +277,81 @@ std::vector<ov::op::PadMode> modesInWhichSubPropagated = {
 };
 
 const std::vector<PadTransformationTestValues> deqWithSub = {
-    {LayerTransformation::createParamsU8I8(),
-     {ov::element::u8, {{ov::element::f32}, {128.f}, {3.f}}},
-     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {128.f}, {3.f}}}},
-    {LayerTransformation::createParamsI8I8(),
-     {ov::element::i8, {{ov::element::f32}, {64.f}, {3.f}}},
-     {ov::element::i8, {{}, {}, {}}, ov::element::i8, {{ov::element::f32}, {64.f}, {3.f}}}},
-    {LayerTransformation::createParamsI8I8(),
-     {ov::element::i8, {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}},
-     {ov::element::i8, {{}, {}, {}}, ov::element::i8, {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}}},
-    {LayerTransformation::createParamsU8I8(),
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}},
-     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {3.f}}
+        },
+        {
+            ov::element::u8,
+            {{}, {}, {}},
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {3.f}}
+        }
+    },
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {3.f}}
+        },
+        {
+            ov::element::i8,
+            {{}, {}, {}},
+            ov::element::i8,
+            {{ov::element::f32}, {64.f}, {3.f}}
+        }
+    },
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
+        },
+        {
+            ov::element::i8,
+            {{}, {}, {}},
+            ov::element::i8,
+            {{ov::element::f32}, {{64.f, 32.f, 16.f}}, {{3.f, 1.f, 2.f}}}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
+        },
+        {
+            ov::element::u8,
+            {{}, {}, {}},
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{3.f, 1.f, 2.f}}}
+        }
+    },
     // int8 subtraction with Convert from u8 to fp32
-    {LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true}, {3.f}}}}};
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        },
+        {
+            ov::element::u8,
+            {{}, {}, {}},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        }
+    }
+};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,

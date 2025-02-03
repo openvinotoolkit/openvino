@@ -111,7 +111,6 @@ namespace testValues1 {
 const std::vector<int> opset_version = {1, 7, 8};
 
 const std::vector<ov::PartialShape> inputShapes3D = {{3, 3, 4}, {-1, -1, -1}};
-
 const std::vector<GatherTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {{1},
@@ -119,7 +118,8 @@ const std::vector<GatherTransformationTestValues> testValues = {
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8, {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,

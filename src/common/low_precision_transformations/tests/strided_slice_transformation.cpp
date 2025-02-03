@@ -197,137 +197,349 @@ const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 24, 24},
     {-1, -1, -1, -1}
 };
-
 const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformationTestValues = {
     // U8: channel slice, per-tensor quantization
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
+        }
+    },
     // U8: channel slice, per-channel quantization with the same values
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 128.f, 128.f}}, {{0.1f, 0.1f, 0.1f}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 128.f, 128.f }}, {{ 0.1f, 0.1f, 0.1f }}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, { 128.f }, { 0.1f }}
+        }
+    },
     // U8: channel slice, per-channel quantization with the same values, subtraction with Convert from u8 to fp32
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
-     {ov::element::u8,
-      {},
-      ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true}, {3.f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        }
+    },
     // U8: channel slice, per-channel quantization with different values
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 128.f}}, {{0.1f, 0.01f, 1.f}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {{128.f, 64.f}}, {{0.1f, 0.01f}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
+        }
+    },
     // U8: channel slice, per-channel quantization with different values
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice2D,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 128.f}}, {{0.1f, 0.01f, 1.f}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {{128.f, 64.f}}, {{0.1f, 0.01f}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice2D,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f }}, {{ 0.1f, 0.01f }}}
+        }
+    },
     // U8: without subtract
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::u8, {{ov::element::f32}, {}, {0.1f}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {}, { 0.1f }}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {}, { 0.1f }}
+        }
+    },
     // I8: channel slice, per-tensor quantization
-    {LayerTransformation::createParamsI8I8(),
-     channelSlice,
-     {ov::element::i8, {{ov::element::f32}, {32.f}, {0.1f}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {32.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        channelSlice,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
+        }
+    },
     // I8: channel slice, per-channel quantization with the same values
-    {LayerTransformation::createParamsI8I8(),
-     channelSlice,
-     {ov::element::i8, {{ov::element::f32}, {{32.f, 32.f, 32.f}}, {{0.1f, 0.1f, 0.1f}}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {32.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        channelSlice,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 32.f, 32.f }}, {{ 0.1f, 0.1f, 0.1f }}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
+        }
+    },
     // I8: channel slice, per-channel quantization with different values
-    {LayerTransformation::createParamsI8I8(),
-     channelSlice,
-     {ov::element::i8, {{ov::element::f32}, {{32.f, 64.f, 32.f}}, {{0.1f, 0.01f, 1.f}}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {{32.f, 64.f}}, {{0.1f, 0.01f}}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        channelSlice,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f }}, {{ 0.1f, 0.01f }}}
+        }
+    },
     // channel slice, not update precisions
-    {LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     channelSlice,
-     {ov::element::f32, {{}, {128.f}, {0.1f}}},
-     {ov::element::f32, {}, ov::element::f32, {{}, {128.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        channelSlice,
+        {
+            ov::element::f32,
+            {{}, { 128.f }, { 0.1f }}
+        },
+        {
+            ov::element::f32,
+            {},
+            ov::element::f32,
+            {{}, { 128.f }, { 0.1f }}
+        }
+    },
     // channel slice, no dequantization
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::f32, {}},
-     {ov::element::f32, {}, ov::element::f32, {}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::f32,
+            {}
+        },
+        {
+            ov::element::f32,
+            {},
+            ov::element::f32,
+            {}
+        }
+    },
     // quantization after convolution
-    {LayerTransformation::createParamsU8I8(),
-     spatialDimensionSlice,
-     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 0.01f, 1.f}, ov::element::f32, {3, 1, 1}}}},
-     {ov::element::u8,
-      {},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f, 0.01f, 1.f}, ov::element::f32, {1, 3, 1, 1}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        spatialDimensionSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ov::element::f32, {3, 1, 1} }}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ov::element::f32, {1, 3, 1, 1} }}
+        }
+    },
     // quantization after convolution
-    {LayerTransformation::createParamsU8I8(),
-     channelSlice,
-     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 0.01f, 1.f}, ov::element::f32, {3, 1, 1}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 0.01f}, ov::element::f32, {1, 2, 1, 1}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        channelSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f, 1.f}, ov::element::f32, {3, 1, 1} }}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {}, { {0.1f, 0.01f}, ov::element::f32, {1, 2, 1, 1} }}
+        }
+    },
     // U8: special dimension slice, per-channel quantization with different values
-    {LayerTransformation::createParamsU8I8(),
-     spatialDimensionSlice,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 128.f}}, {{0.1f, 0.01f, 1.f}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 128.f}}, {{0.1f, 0.01f, 1.f}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        spatialDimensionSlice,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {{ 128.f, 64.f, 128.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        }
+    },
     // U8: without convert
-    {LayerTransformation::createParamsU8I8(),
-     spatialDimensionSlice,
-     {ov::element::f32, {{}, {128.f}, {0.1f}}},
-     {ov::element::f32, {}, ov::element::f32, {{}, {128.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        spatialDimensionSlice,
+        {
+            ov::element::f32,
+            {{}, { 128.f }, { 0.1f }}
+        },
+        {
+            ov::element::f32,
+            {},
+            ov::element::f32,
+            {{}, { 128.f }, { 0.1f }}
+        }
+    },
     // I8: special dimension slice, per-channel quantization with different values
-    {LayerTransformation::createParamsI8I8(),
-     spatialDimensionSlice,
-     {ov::element::i8, {{ov::element::f32}, {{32.f, 64.f, 32.f}}, {{0.1f, 0.01f, 1.f}}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {{32.f, 64.f, 32.f}}, {{0.1f, 0.01f, 1.f}}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        spatialDimensionSlice,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        }
+    },
     // I8: special dimension end slice, per-channel quantization with different values
-    {LayerTransformation::createParamsI8I8(),
-     spatialDimensionEndSlice,
-     {ov::element::i8, {{ov::element::f32}, {{32.f, 64.f, 32.f}}, {{0.1f, 0.01f, 1.f}}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {{32.f, 64.f, 32.f}}, {{0.1f, 0.01f, 1.f}}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        spatialDimensionEndSlice,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, {{ 32.f, 64.f, 32.f }}, {{ 0.1f, 0.01f, 1.f }}}
+        }
+    },
     // I8: special dimension end slice, per-tensor quantization with different values
-    {LayerTransformation::createParamsI8I8(),
-     spatialDimensionEndSlice,
-     {ov::element::i8, {{ov::element::f32}, {32.f}, {0.1f}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {32.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        spatialDimensionEndSlice,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, { 32.f }, { 0.1f }}
+        }
+    },
     // U8: channel slice, per-tensor quantization
-    {LayerTransformation::createParamsU8I8(),
-     sliceWithRemovedAxis,
-     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        sliceWithRemovedAxis,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
+        }
+    },
     // U8: channel slice, per-channel quantization
-    {LayerTransformation::createParamsU8I8(),
-     sliceWithRemovedAxis,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.1f, 0.2f, 0.3f}}}},
-     {
-         ov::element::u8,
-         {},
-         ov::element::u8,
-         {{ov::element::f32}, {64.f}, {0.2f}},
-     }},
+    {
+        LayerTransformation::createParamsU8I8(),
+        sliceWithRemovedAxis,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {64.f}, {0.2f}},
+        }
+    },
     // U8: channel slice, per-tensor quantization
-    {LayerTransformation::createParamsU8I8(),
-     sliceWithAdditionalAxis,
-     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        sliceWithAdditionalAxis,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.1f}}
+        }
+    },
     // U8: channel slice, per-channel quantization
-    {LayerTransformation::createParamsU8I8(),
-     sliceWithAdditionalAxis,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.1f, 0.2f, 0.3f}}}},
-     {
-         ov::element::u8,
-         {},
-         ov::element::u8,
-         {{ov::element::f32},
-          {{128.f, 64.f, 32.f}, ov::element::f32, {1, 1, 3, 1, 1}},
-          {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 1, 3, 1, 1}}},
-     }},
+    {
+        LayerTransformation::createParamsU8I8(),
+        sliceWithAdditionalAxis,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, { {128.f, 64.f, 32.f} }, { {0.1f, 0.2f, 0.3f} }}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                { {128.f, 64.f, 32.f}, ov::element::f32, {1, 1, 3, 1, 1} },
+                { {0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 1, 3, 1, 1} }
+            },
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

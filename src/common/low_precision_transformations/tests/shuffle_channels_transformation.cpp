@@ -108,95 +108,205 @@ const std::vector<ov::PartialShape> inputShapes = {
 
 const std::vector<ShuffleChannelsTransformationTestValues> testValues = {
     // U8 per tensor quantization
-    {LayerTransformation::createParamsU8I8(),
-     1,  // axis
-     1,  // group
-     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.02f}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {128.f}, {0.02f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        1, // axis
+        1, // group
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
+        }
+    },
     // U8 per channel quantization
-    {LayerTransformation::createParamsU8I8(),
-     1,
-     1,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        1,
+        1,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        }
+    },
     // subtraction with Convert from u8 to fp32
-    {LayerTransformation::createParamsU8I8(),
-     1,
-     1,
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true}, {3.f}}},
-     {ov::element::u8,
-      {},
-      ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true}, {3.f}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        1,
+        1,
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {3.f}
+            }
+        }
+    },
     // U8 quantization by spatial dimension, shuffling by the same dimension
-    {LayerTransformation::createParamsU8I8(),
-     2,
-     4,
-     {ov::element::u8,
-      {{ov::element::f32},
-       {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
-       {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}}}},
-     {ov::element::u8,
-      {},
-      ov::element::u8,
-      {
-          {ov::element::f32},
-          {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
-          {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
-      }}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        2,
+        4,
+        {
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}}
+            }
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {
+                {ov::element::f32},
+                {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ov::element::f32, ov::Shape {1, 1, 8, 1}},
+            }
+        }
+    },
     // U8 per channel quantization, shuffling by spatial dimension
-    {LayerTransformation::createParamsU8I8(),
-     -2,
-     4,
-     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}},
-     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        -2,
+        4,
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        }
+    },
     // I8 per tensor quantization
-    {LayerTransformation::createParamsI8I8(),
-     1,
-     1,
-     {ov::element::i8, {{ov::element::f32}, {128.f}, {0.02f}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {128.f}, {0.02f}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        1,
+        1,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, {128.f}, {0.02f}}
+        }
+    },
     // I8 per channel quantization
-    {LayerTransformation::createParamsI8I8(),
-     1,
-     1,
-     {ov::element::i8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        1,
+        1,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        }
+    },
     // I8 quantization by spatial dimension, shuffling by the same dimension
-    {LayerTransformation::createParamsI8I8(),
-     2,
-     4,
-     {ov::element::i8,
-      {{ov::element::f32},
-       {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
-       {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}}}},
-     {ov::element::i8,
-      {},
-      ov::element::i8,
-      {
-          {ov::element::f32},
-          {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
-          {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
-      }}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        2,
+        4,
+        {
+            ov::element::i8,
+            {
+                {ov::element::f32},
+                {{121.f, 122.f, 123.f, 124.f, 125.f, 126.f, 127.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}}
+            }
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {
+                {ov::element::f32},
+                {{121.f, 123.f, 125.f, 127.f, 122.f, 124.f, 126.f, 128.f}, ov::element::f32, ov::Shape{1, 1, 8, 1}},
+                {{1.f, 3.f, 5.f, 7.f, 2.f, 4.f, 6.f, 8.f}, ov::element::f32, ov::Shape {1, 1, 8, 1}},
+            }
+        }
+    },
     // I8 per channel quantization, shuffling by spatial dimension
-    {LayerTransformation::createParamsI8I8(),
-     -2,
-     4,
-     {ov::element::i8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}},
-     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}}},
+    {
+        LayerTransformation::createParamsI8I8(),
+        -2,
+        4,
+        {
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        },
+        {
+            ov::element::i8,
+            {},
+            ov::element::i8,
+            {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.01f, 0.02f, 0.03f}}}
+        }
+    },
     // U8 per tensor quantization, not update precision
-    {LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-     3,
-     5,
-     {ov::element::f32, {{}, {128.f}, {0.02f}}},
-     {ov::element::f32, {}, ov::element::f32, {{}, {128.f}, {0.02f}}}},
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        3,
+        5,
+        {
+            ov::element::f32,
+            {{}, {128.f}, {0.02f}}
+        },
+        {
+            ov::element::f32,
+            {},
+            ov::element::f32,
+            {{}, {128.f}, {0.02f}}
+        }
+    },
     // U8 without dequantization operations
-    {LayerTransformation::createParamsU8I8(),
-     2,
-     4,
-     {ov::element::u8, {{}, {}, {}}},
-     {ov::element::u8, {}, ov::element::u8, {{}, {}, {}}}},
+    {
+        LayerTransformation::createParamsU8I8(),
+        2,
+        4,
+        {
+            ov::element::u8,
+            {{}, {}, {}}
+        },
+        {
+            ov::element::u8,
+            {},
+            ov::element::u8,
+            {{}, {}, {}}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

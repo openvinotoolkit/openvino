@@ -99,7 +99,6 @@ TEST_P(SplitTransformation, CompareFunctions) {
 }
 
 const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
-
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {{1, 3, 16, 16},
@@ -137,7 +136,8 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ov::element::u8, {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {{128.f}, element::dynamic, {}, false, 1ul, element::f16, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
@@ -334,7 +334,9 @@ const std::vector<SplitTransformationTestValues> testValues = {
      {ov::element::i8,
       {},
       ov::element::i8,
-      {{{ov::element::f32}, {1.f}, {11.f}}, {{ov::element::f32}, {1.f}, {11.f}}, {{ov::element::f32}, {1.f}, {11.f}}}}},
+      {{{ov::element::f32}, {1.f}, {11.f}},
+       {{ov::element::f32}, {1.f}, {11.f}},
+       {{ov::element::f32}, {1.f}, {11.f}}}}},
     // U8 split second dimension
     {{1, 3, 16, 16},
      std::int64_t{-1},

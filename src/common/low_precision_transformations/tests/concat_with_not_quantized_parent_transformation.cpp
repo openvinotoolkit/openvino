@@ -137,22 +137,25 @@ public:
             testValues.actual.dequantization2.multiply.outPrecision = precision;
         }
 
-        actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
-                                                                    shapes.first,
-                                                                    testValues.actual.fakeQuantize1,
-                                                                    testValues.actual.convert1,
-                                                                    testValues.actual.dequantization1,
-                                                                    false,
-                                                                    shapes.second,
-                                                                    testValues.actual.fakeQuantize2,
-                                                                    testValues.actual.convert2,
-                                                                    testValues.actual.dequantization2,
-                                                                    true,
-                                                                    {},
-                                                                    ov::element::dynamic,
-                                                                    {},
-                                                                    testValues.axis,
-                                                                    testValues.addNotPrecisionPreservedOperation);
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        actualFunction = ov::builder::subgraph::ConcatFunction::get(
+            precision,
+            shapes.first,
+            testValues.actual.fakeQuantize1,
+            testValues.actual.convert1,
+            testValues.actual.dequantization1,
+            false,
+            shapes.second,
+            testValues.actual.fakeQuantize2,
+            testValues.actual.convert2,
+            testValues.actual.dequantization2,
+            true,
+            {},
+            ov::element::undefined,
+            {},
+            testValues.axis,
+            testValues.addNotPrecisionPreservedOperation);
+        OPENVINO_SUPPRESS_DEPRECATED_END           
 
         auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
             ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
