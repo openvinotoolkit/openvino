@@ -19,7 +19,6 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -174,7 +173,7 @@ TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
         auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
         auto dim_0 = get_dim_by_idx(input, {-1, -2}, element::i64);
-        auto dim_1 = get_dim_by_idx(input, {3, 2}, element::i32);
+        auto dim_1 = get_dim_by_idx(input, {3, 2}, element::i64);
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
@@ -182,28 +181,25 @@ TEST_F(TransformationTestsF, ValueOptimizationDoubleValue) {
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_1}, 0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {0}), dim_1}, 0),
             false);
 
         model = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
 
         manager.set_per_pass_validation(false);
-        manager.register_pass<pass::SymbolicPropagation>();
-        manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
-        manager.register_pass<pass::SharedOpOptimization>();
+        manager.register_pass<pass::SymbolicOptimizations>();
     }
     {
         auto input = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic(4));
-        auto dim_0 = get_dim_by_idx(input, {3, 2}, element::i32);
-        auto dim_1 = std::make_shared<v0::Convert>(dim_0, element::i64);
+        auto dim_0 = get_dim_by_idx(input, {3, 2}, element::i64);
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_1}, 0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_0}, 0),
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {0}), dim_0}, 0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {0}), dim_0}, 0),
             false);
 
         model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
@@ -216,7 +212,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
         auto input = make_shared<v0::Parameter>(element::f32, PartialShape({-1, -1, 4, -1}));
 
         auto dim_0 = get_dim_by_idx(input, {-1, -2}, element::i64);
-        auto dim_1 = get_dim_by_idx(input, {3, 2}, element::i32);
+        auto dim_1 = get_dim_by_idx(input, {3, 2}, element::i64);
 
         auto reshape_0 = make_shared<v1::Reshape>(
             input,
@@ -224,7 +220,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
             false);
         auto reshape_1 = make_shared<v1::Reshape>(
             input,
-            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i32, {1}, {-1}), dim_1}, 0),
+            make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}), dim_1}, 0),
             false);
 
         model = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
@@ -236,12 +232,12 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
     }
     {
         auto input = make_shared<v0::Parameter>(element::f32, PartialShape({-1, -1, 4, -1}));
-        auto dim_0 = make_shared<v0::Concat>(
-            OutputVector{v0::Constant::create(element::i32, {1}, {-1}), get_dim_by_idx(input, {3, 2}, element::i32)},
-            0);
-        auto dim_1 = std::make_shared<v0::Convert>(dim_0, element::i64);
+        auto dim_0 = make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, {1}, {-1}),
+                                                          get_dim_by_idx(input, {3}, element::i64),
+                                                          v0::Constant::create(element::i64, {1}, {4})},
+                                             0);
 
-        auto reshape_0 = make_shared<v1::Reshape>(input, dim_1, false);
+        auto reshape_0 = make_shared<v1::Reshape>(input, dim_0, false);
         auto reshape_1 = make_shared<v1::Reshape>(input, dim_0, false);
 
         model_ref = make_shared<Model>(NodeVector{reshape_0, reshape_1}, ParameterVector{input});
