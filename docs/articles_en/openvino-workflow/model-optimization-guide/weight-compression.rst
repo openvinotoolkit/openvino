@@ -353,7 +353,7 @@ Compression Metrics Examples
 
 Below you will find examples of text-generation Language Models with different
 optimization settings in a data-free setup, where no dataset is used at the optimization step.
-The Perplexity metric is a measurement of response accuracy, where a higher complexity
+The Perplexity metric is a measurement of response accuracy, where a higher perplexity
 score indicates a lower accuracy. It is measured on the
 `Lambada OpenAI dataset <https://github.com/openai/gpt-2/issues/131#issuecomment-497136199>`__.
 
