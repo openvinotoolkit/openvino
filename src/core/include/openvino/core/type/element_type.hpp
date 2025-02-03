@@ -37,7 +37,6 @@ namespace element {
 /// \brief Enum to define possible element types
 /// \ingroup ov_element_cpp_api
 enum class Type_t {
-
     undefined OPENVINO_ENUM_DEPRECATED(
         "This type is deprecated and will be removed in 2026.0. Use dynamic instead."),  //!< Undefined element type
     dynamic,                                                                             //!< Dynamic element type
