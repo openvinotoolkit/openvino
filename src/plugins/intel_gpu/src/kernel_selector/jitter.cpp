@@ -1483,6 +1483,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             break;
         case Datatype::INT4:
             type = "char";
+            to_type = "convert_char(v)";
             type_size = "0.5f";
             is_fp = false;
             break;
