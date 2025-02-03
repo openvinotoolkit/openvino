@@ -239,7 +239,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     }
 
     // update output precisions of producers to avoid extra reorders
-    // do this only in case output configration is not provided explicitly
+    // do this only in case output configuration is not provided explicitly
     if (outputConfigs.empty()) {
         for (auto& output : outputNodesMap) {
             const auto& outputNode = output.second;
@@ -748,7 +748,7 @@ static inline bool isConstOutput(const EdgePtr& edge) {
 }
 
 void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
-    edgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
+    EdgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
 
@@ -766,7 +766,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             // Special allocation for string tensors
             if (edge->getDesc().getPrecision() == element::string &&
                 edge->getStatus() == Edge::Status::NeedAllocation) {
-                StringMemory::StringMemoryBlockPtr memBlcok;
+                StringMemory::StringMemoryBlockPtr memBlock;
                 if (edge->getParent()->isConstant()) {
                     if (edge->getParent()->getType() == Type::Input) {
                         auto constNode = static_cast<node::Input*>(edge->getParent().get());
@@ -781,11 +781,11 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                                     "' and '",
                                     edge->getChild()->getName(),
                                     "' must have StringMemory.");
-                    memBlcok = stringMemory->getStringMemoryBlockPtr();
+                    memBlock = stringMemory->getStringMemoryBlockPtr();
                 } else {
                     auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
                     edge->reuse(memory);
-                    memBlcok = memory->getStringMemoryBlockPtr();
+                    memBlock = memory->getStringMemoryBlockPtr();
                 }
                 for (auto& edge_c : cluster) {
                     if (edge_c == edge) {
@@ -794,7 +794,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string,
                                     "All edges in the cluster must be string.");
                     if (edge_c->getStatus() == Edge::Status::NotAllocated) {
-                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), memBlcok);
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), memBlock);
                         edge_c->reuse(memory);
                     } else {
                         OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '",
@@ -924,10 +924,11 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     memoryRegions.erase(it, memoryRegions.end());
 
     // Set up the memory control subsystem.
-    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(syncNodesInds));
-    auto memoryBlocks = m_pMemoryControl->insert(memoryRegions);
+    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(this->_name));
+    m_pMemoryControl->insert(memoryRegions, syncNodesInds);
+    auto memoryBlocks = m_pMemoryControl->solve();
 
-    // attach all the not yet allocated edges to the memory contol
+    // attach all the not yet allocated edges to the memory control
     for (auto&& item : memoryBlocks) {
         int count = 0;
         for (auto&& edge : edge_clusters[item.first]) {
@@ -1485,7 +1486,7 @@ void Graph::Infer(SyncInferRequest* request) {
     const int numaId = GetNumaNodeId(m_context);
 
     if (!m_pMemoryControl) {
-        OPENVINO_THROW("Memory control unit is not initilized in graph: ", GetName());
+        OPENVINO_THROW("Memory control unit is not initalized in graph: ", GetName());
     }
 
     if (!m_pMemoryControl->allocated()) {
@@ -1516,7 +1517,7 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    // Set execIndex of all nodes to default invaild value
+    // Set execIndex of all nodes to default invalid value
     for (auto& node : graphNodes) {
         node->execIndex = -1;
     }
@@ -1849,8 +1850,8 @@ void Graph::EnforceInferencePrecision() {
                 if (one_of(parent->getType(),
                            Type::Convolution,     // conv nets
                            Type::FullyConnected,  // conv / bert nets
-                           Type::RNNCell,         // recurent nets
-                           Type::RNNSeq,          // recurent nets
+                           Type::RNNCell,         // recurrent nets
+                           Type::RNNSeq,          // recurrent nets
                            Type::MatMul,          // bert nets
                            Type::ROIPooling,      // object detection nets
                            Type::Interpolate,     // super resolution nets
@@ -1883,7 +1884,7 @@ void Graph::EnforceInferencePrecision() {
 
     /* Skip low-precision float point enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
-     * Experiments show zero peformance impact on average */
+     * Experiments show zero performance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
@@ -1938,7 +1939,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
                 }
 
-                // exclude Convert after Range since it may cause precision loss when integter type to LP.
+                // exclude Convert after Range since it may cause precision loss when integer type to LP.
                 if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
                     return true;
                 }
@@ -1969,7 +1970,7 @@ void Graph::EnforceInferencePrecision() {
                 continue;
             }
 
-            // exclude Convert before Range since it may cause precision loss when integter type to LP.
+            // exclude Convert before Range since it may cause precision loss when integer type to LP.
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto& child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert) {
