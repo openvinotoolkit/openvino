@@ -28,16 +28,18 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
     // validate segment_ids input
     const auto& segment_ids_shape = input_shapes[1];
     const auto is_segment_ids_rank_static = segment_ids_shape.rank().is_static();
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           segment_ids_shape.rank().compatible(1),
-                           "segment_ids must be a 1D input. Got: ",
-                           segment_ids_shape);
-    if (is_segment_ids_rank_static && is_data_shape_rank_static) {
+    if (is_segment_ids_rank_static) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               data_shape[0].compatible(segment_ids_shape[0]),
-                               "The number of elements in segment_ids must match the first dimension of data.");
+                               segment_ids_shape.size() == 1,
+                               "segment_ids must be a 1D input. Got: ",
+                               segment_ids_shape);
+        if (is_data_shape_rank_static) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   data_shape[0].compatible(segment_ids_shape[0]),
+                                   "The number of elements in segment_ids must match the first dimension of data.");
+        }
     }
     const auto segment_ids = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
     if (segment_ids) {
@@ -48,9 +50,8 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
 
     // validate num_segments input
     const auto num_segments_available = op->inputs().size() == 3;
-    const auto num_segments = num_segments_available
-                                  ? ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)
-                                  : ov::optional<std::vector<int64_t>>{};
+    const auto num_segments = num_segments_available ? get_input_const_data_as_shape<TRShape>(op, 2, tensor_accessor)
+                                                     : ov::optional<TRShape>{};
     if (num_segments_available) {
         const auto& num_segments_shape = input_shapes[2];
         NODE_SHAPE_INFER_CHECK(op,
@@ -68,7 +69,9 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
     auto& output_shape = output_shapes[0];
     if (num_segments) {
         output_shape[0] = TDim((*num_segments)[0]);
-    } else if (segment_ids) {
+    } else if (segment_ids &&
+               op->inputs().size() ==
+                   2) {  // if num_segments is an input but not provided, the first dimension should still be dynamic
         output_shape[0] = TDim(*std::max_element(segment_ids->begin(), segment_ids->end()) + 1);
     } else {
         output_shape[0] = Dimension::dynamic();
