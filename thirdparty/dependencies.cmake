@@ -525,8 +525,6 @@ if(ENABLE_OV_ONNX_FRONTEND)
         if(TARGET ONNX::onnx_proto)
             add_library(onnx_proto ALIAS ONNX::onnx_proto)
         endif()
-    else()
-        add_subdirectory(thirdparty/onnx)
     endif()
 endif()
 
