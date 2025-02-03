@@ -55,9 +55,22 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    // TORCH_CEIL is mapped to ACL CEIL type
-    DimensionRoundingType round =
-        (poolingAttrs.rounding == op::RoundingType::FLOOR) ? DimensionRoundingType::FLOOR : DimensionRoundingType::CEIL;
+    DimensionRoundingType round;
+    switch (poolingAttrs.rounding) {
+    case op::RoundingType::FLOOR:
+        round = DimensionRoundingType::FLOOR;
+        break;
+    case op::RoundingType::CEIL:
+        round = DimensionRoundingType::CEIL;
+        break;
+    // CEIL_TORCH type is mapped to ACL CEIL type
+    case op::RoundingType::CEIL_TORCH:
+        round = DimensionRoundingType::CEIL;
+        break;
+    default:
+        DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
+        return false;
+    }
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {
