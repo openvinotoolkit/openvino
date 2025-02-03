@@ -13,6 +13,7 @@
 #include "snippets/pass/fc_tokenization.hpp"
 #include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/mlp_tokenization.hpp"
 
 namespace ov {
 namespace snippets {
@@ -86,14 +87,18 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // 1. It has higher priority than other tokenization passes
     // 2. It changes the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
+    manager.register_pass<TokenizeMLPSnippets>(m_config);
+//    manager.register_pass<ov::pass::Serialize>(std::string("snsdebug_ngraph.xml"), std::string("snsdebug_ngraph.bin"));
+
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
     tokenization_passes->add_matcher<TokenizeGNSnippets>();
-    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
+//    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
     tokenization_passes->add_matcher<TokenizeSnippets>(m_config);
-
     manager.register_pass<CommonOptimizations>(m_config);
     manager.run_passes(m);
+
+//    ov::pass::Serialize(std::string("snsdebug_ngraph.xml"), std::string("snsdebug_ngraph.bin")).run_on_model(m);
 
     // Returning value is false because pass::Manager always apply Validation pass if function was changed.
     // But we don't need to validate the model

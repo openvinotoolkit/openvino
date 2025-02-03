@@ -373,6 +373,31 @@ std::shared_ptr<ov::Model> MatMulEltwiseChainCascadeFunction::initOriginal() con
     return std::make_shared<ov::Model>(NodeVector{eltwise_chain_2}, params);
 }
 
+std::shared_ptr<ov::Model> MLPFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    const auto K_dim = static_cast<size_t>(input_shapes[0].rbegin()->get_length());
+    size_t N_weight_0_dim = 110;
+    size_t N_weight_1_dim = 325;
+    ParameterVector params{data0};
+    const auto& data_generator1 = utils::InputGenerateData(1, 9, 1000, 1);
+    const auto& data_generator2 = utils::InputGenerateData(1, 9, 1000, 111);
+    const auto& data_generator3 = utils::InputGenerateData(1, 9, 1000, 42);
+//    auto fc1_weights = ov::test::utils::make_constant(precision, ov::Shape{11008, 4096}, data_generator);
+//    auto fc2_weights = ov::test::utils::make_constant(precision, ov::Shape{11008, 4096}, data_generator);
+//    auto fc3_weights = ov::test::utils::make_constant(precision, ov::Shape{4096, 11008}, data_generator);
+    auto fc1_weights = ov::test::utils::make_constant(precision, ov::Shape{N_weight_0_dim, K_dim}, data_generator1);
+    auto fc2_weights = ov::test::utils::make_constant(precision, ov::Shape{N_weight_0_dim, K_dim}, data_generator2);
+    auto fc3_weights = ov::test::utils::make_constant(precision, ov::Shape{N_weight_1_dim, N_weight_0_dim}, data_generator3);
+
+    auto matmul1 = std::make_shared<op::v0::MatMul>(data0->output(0), fc1_weights, false, true);
+    auto matmul2 = std::make_shared<op::v0::MatMul>(data0->output(0), fc2_weights, false, true);
+    auto activation = std::make_shared<op::v4::Swish>(matmul2);
+    auto mul = std::make_shared<op::v1::Multiply>(matmul1, activation);
+    auto matmul3 = std::make_shared<op::v0::MatMul>(mul, fc3_weights, false, true);
+
+    return std::make_shared<ov::Model>(NodeVector{matmul3}, params);
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
