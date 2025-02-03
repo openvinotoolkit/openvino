@@ -23,7 +23,7 @@ public:
             const Output<Node>& new_token_data,
             const std::shared_ptr<ov::op::util::Variable>& past_values,
             int64_t concat_axis,
-            const ov::element::Type output_type = ov::element::undefined);
+            const ov::element::Type output_type = ov::element::dynamic);
 
     KVCache(const Output<Node>& past,
             const Output<Node>& new_token_data,
@@ -31,7 +31,7 @@ public:
             const std::shared_ptr<ov::op::util::Variable>& past_values,
             int64_t concat_axis,
             int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::undefined);
+            const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -58,7 +58,7 @@ protected:
             bool indirect,
             int64_t concat_axis,
             int64_t gather_axis,
-            const ov::element::Type output_type = ov::element::undefined);
+            const ov::element::Type output_type = ov::element::dynamic);
 
     int64_t m_concat_axis = 0;
     int64_t m_gather_axis = 0;

@@ -78,8 +78,8 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("f8e8m0"), element::f8e8m0);
     EXPECT_EQ(element::Type("F8E8M0"), element::f8e8m0);
 
-    EXPECT_EQ(element::Type("undefined"), element::undefined);
-    EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);
+    EXPECT_EQ(element::Type("undefined"), element::dynamic);
+    EXPECT_EQ(element::Type("UNSPECIFIED"), element::dynamic);
     EXPECT_EQ(element::Type("dynamic"), element::dynamic);
 
     EXPECT_THROW(element::Type("some_string"), ov::Exception);

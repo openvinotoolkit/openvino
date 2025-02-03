@@ -29,13 +29,13 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_GroupNormalization,
     GroupNormalizationTest,
     testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes)),
                      testing::ValuesIn(numGroups),
                      testing::ValuesIn(epsilon),
                      testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
-                     GroupNormalizationTest::getTestCaseName);
+    GroupNormalizationTest::getTestCaseName);
 
 } // anonymous namespace

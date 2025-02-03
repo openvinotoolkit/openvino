@@ -207,13 +207,13 @@ void PagedAttentionExtension::validate_and_infer_types() {
         }
     }
 
-    if (m_output_type[0] == ov::element::undefined) {
+    if (m_output_type[0] == ov::element::dynamic) {
         set_output_type(0, get_input_element_type(0), out_ps);
     } else {
         set_output_type(0, m_output_type[0], out_ps);
     }
 
-    if (m_output_type[1] == ov::element::undefined) {
+    if (m_output_type[1] == ov::element::dynamic) {
         set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
     } else {
         set_output_type(1, m_output_type[1], {Dimension::dynamic()});

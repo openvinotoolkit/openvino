@@ -230,7 +230,7 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
 
         // check if all inputs are Multiply with scalar operand
         ov::Output<ov::Node> last_dep_const = {};
-        ov::element::Type last_dep_const_type = ov::element::undefined;
+        ov::element::Type last_dep_const_type = ov::element::dynamic;
         for (auto& input : concat->inputs()) {
             auto dep_node = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_source_output().get_node_shared_ptr());
             if (!dep_node) {
@@ -247,8 +247,7 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
                 dep_const0 ? dep_node->input(0).get_source_output() : dep_node->input(1).get_source_output();
             if (!is_scalar_node(last_dep_const))
                 return false;
-            if (last_dep_const_type != ov::element::undefined &&
-                last_dep_const_type != last_dep_const.get_element_type())
+            if (last_dep_const_type != ov::element::dynamic && last_dep_const_type != last_dep_const.get_element_type())
                 return false;
             last_dep_const_type = last_dep_const.get_element_type();
         }

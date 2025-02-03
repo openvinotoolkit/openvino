@@ -118,21 +118,21 @@ public:
         ov::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
         actualFunction = ov::builder::subgraph::MoveFakeQuantize::get(precision,
-                                                                          inputShapes,
-                                                                          testValues.actual.number_of_operations,
-                                                                          testValues.actual.fakeQuantizeBefore,
-                                                                          testValues.actual.convertBefore,
-                                                                          testValues.actual.dequantizationBefore,
-                                                                          testValues.actual.operation,
-                                                                          testValues.actual.fakeQuantizeAfter,
-                                                                          testValues.actual.convertAfter,
-                                                                          testValues.actual.dequantizationAfter,
-                                                                          {ov::PrecisionPreservedAttribute(true),
-                                                                           ov::IntervalsAlignmentAttribute(interval, 256),
-                                                                           ov::QuantizationAlignmentAttribute(false)},
-                                                                          ov::element::undefined,
-                                                                          testValues.axis,
-                                                                          oneInputWithSplit);
+                                                                      inputShapes,
+                                                                      testValues.actual.number_of_operations,
+                                                                      testValues.actual.fakeQuantizeBefore,
+                                                                      testValues.actual.convertBefore,
+                                                                      testValues.actual.dequantizationBefore,
+                                                                      testValues.actual.operation,
+                                                                      testValues.actual.fakeQuantizeAfter,
+                                                                      testValues.actual.convertAfter,
+                                                                      testValues.actual.dequantizationAfter,
+                                                                      {ov::PrecisionPreservedAttribute(true),
+                                                                       ov::IntervalsAlignmentAttribute(interval, 256),
+                                                                       ov::QuantizationAlignmentAttribute(false)},
+                                                                      ov::element::dynamic,
+                                                                      testValues.axis,
+                                                                      oneInputWithSplit);
 
         auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
             {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(

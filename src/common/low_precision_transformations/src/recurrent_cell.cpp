@@ -104,11 +104,17 @@ bool isSupportedForPerChannelQuantization(const std::shared_ptr<Node>& node) {
 std::vector<std::pair<size_t, element::Type>> get_supported_precisions(std::shared_ptr<ov::Node> lstm) {
     // pair fields:
     // 0 - input number,
-    // 1 - input type, `element::undefined` - any precision
+    // 1 - input type, `element::dynamic` - any precision
     if (is_type<ov::opset5::LSTMSequence>(lstm)) {
-        return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 4, element::undefined }, { 5, element::undefined } };
+        return std::vector<std::pair<size_t, element::Type>>{{0, element::u8},
+                                                             {1, element::u8},
+                                                             {4, element::dynamic},
+                                                             {5, element::dynamic}};
     } else if (is_type<ov::opset5::GRUSequence>(lstm)) {
-        return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 3, element::undefined }, { 4, element::undefined } };
+        return std::vector<std::pair<size_t, element::Type>>{{0, element::u8},
+                                                             {1, element::u8},
+                                                             {3, element::dynamic},
+                                                             {4, element::dynamic}};
     }
 
     OPENVINO_THROW("unsupported operation type: ", lstm->get_type_name());
@@ -163,7 +169,8 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
                 defaultPrecisions :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             const auto& dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
-            if (dataPrecision.empty() || ((input.second != element::undefined) && (dataPrecision.precision != input.second))) {
+            if (dataPrecision.empty() ||
+                ((input.second != element::dynamic) && (dataPrecision.precision != input.second))) {
                 return false;
             }
 
@@ -257,7 +264,7 @@ bool RecurrentCellTransformation::canBeTransformed(const std::shared_ptr<Node>& 
         if (dequantization.empty()) {
             continue;
         }
-        if ((index.second != element::undefined) && (dequantization.data.get_element_type() != index.second)) {
+        if ((index.second != element::dynamic) && (dequantization.data.get_element_type() != index.second)) {
             return false;
         }
     }

@@ -118,8 +118,8 @@ void MatMulLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto it = additionalConfig.find(ov::hint::inference_precision.name());
-    ov::element::Type inference_precision = (it != additionalConfig.end()) ?
-                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    ov::element::Type inference_precision =
+        (it != additionalConfig.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
     if (inference_precision == ov::element::bf16) {
         inType = outType = netType = ElementType::bf16;
         rel_threshold = abs_threshold = 1e-2f;

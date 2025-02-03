@@ -19,7 +19,7 @@ class InferencePrecisionValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         auto precision = v.as<ov::element::Type>();
-        return precision == ov::element::f16 || precision == ov::element::f32 || precision == ov::element::undefined;
+        return precision == ov::element::f16 || precision == ov::element::f32 || precision == ov::element::dynamic;
     }
 };
 
@@ -139,7 +139,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
         const auto mode = get_property(ov::hint::execution_mode);
         if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                set_property(ov::hint::inference_precision(ov::element::undefined));
+                set_property(ov::hint::inference_precision(ov::element::dynamic));
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
                     set_property(ov::hint::inference_precision(ov::element::f16));
@@ -218,7 +218,7 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
         GPU_DEBUG_IF(debug_config->use_kv_cache_compression == 1) {
             set_property(ov::hint::kv_cache_precision(ov::element::i8));
         } else {
-            set_property(ov::hint::kv_cache_precision(ov::element::undefined));
+            set_property(ov::hint::kv_cache_precision(ov::element::dynamic));
         }
     }
 }
@@ -263,7 +263,8 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
         }
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_property(ov::hint::kv_cache_precision) == ov::element::undefined) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision) ||
+        get_property(ov::hint::kv_cache_precision) == ov::element::dynamic) {
         if (info.supports_immad) {  // MFDNN-11755
             set_property(ov::hint::kv_cache_precision(get_property(ov::hint::inference_precision)));
         } else {

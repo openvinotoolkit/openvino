@@ -529,7 +529,7 @@ int main(int argc, char* argv[]) {
         if (result != config.end())
             device_config = result->second;
         size_t batchSize = FLAGS_b;
-        ov::element::Type type = ov::element::undefined;
+        ov::element::Type type = ov::element::dynamic;
         std::string topology_name = "";
         std::vector<benchmark_app::InputsInfo> app_inputs_info;
         std::string output_name;
@@ -660,14 +660,14 @@ int main(int argc, char* argv[]) {
                                         std::const_pointer_cast<const ov::Model>(model)->outputs());
             }
 
-            const auto input_precision = FLAGS_ip.empty() ? ov::element::undefined : getPrecision2(FLAGS_ip);
-            const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
+            const auto input_precision = FLAGS_ip.empty() ? ov::element::dynamic : getPrecision2(FLAGS_ip);
+            const auto output_precision = FLAGS_op.empty() ? ov::element::dynamic : getPrecision2(FLAGS_op);
 
             const auto& inputs = model->inputs();
             for (size_t i = 0; i < inputs.size(); i++) {
                 const auto& item = inputs[i];
-                auto iop_precision = ov::element::undefined;
-                auto type_to_set = ov::element::undefined;
+                auto iop_precision = ov::element::dynamic;
+                auto type_to_set = ov::element::dynamic;
                 std::string name;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
@@ -677,9 +677,9 @@ int main(int argc, char* argv[]) {
                 } catch (...) {
                 }
 
-                if (iop_precision != ov::element::undefined) {
+                if (iop_precision != ov::element::dynamic) {
                     type_to_set = iop_precision;
-                } else if (input_precision != ov::element::undefined) {
+                } else if (input_precision != ov::element::dynamic) {
                     type_to_set = input_precision;
                 } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
                     // image input, set U8
@@ -687,7 +687,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 auto& in = preproc.input(item.get_any_name());
-                if (type_to_set != ov::element::undefined) {
+                if (type_to_set != ov::element::dynamic) {
                     in.tensor().set_element_type(type_to_set);
 
                     if (!name.empty()) {
@@ -707,7 +707,7 @@ int main(int argc, char* argv[]) {
             const auto& outs = model->outputs();
             for (size_t i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
-                auto iop_precision = ov::element::undefined;
+                auto iop_precision = ov::element::dynamic;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
@@ -715,9 +715,9 @@ int main(int argc, char* argv[]) {
                 } catch (...) {
                 }
 
-                if (iop_precision != ov::element::undefined) {
+                if (iop_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(iop_precision);
-                } else if (output_precision != ov::element::undefined) {
+                } else if (output_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(output_precision);
                 }
             }

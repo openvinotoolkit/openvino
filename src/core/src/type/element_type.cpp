@@ -45,7 +45,6 @@ struct TypeInfo {
         return m_cname != nullptr && m_type_name != nullptr;
     }
 };
-;
 
 constexpr TypeInfo type_info(size_t bitwidth,
                              bool is_real,
@@ -319,6 +318,7 @@ size_t Type::bitwidth() const {
 namespace ov {
 template <>
 OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
                                                         {{"undefined", element::Type_t::undefined},
                                                          {"dynamic", element::Type_t::dynamic},
@@ -347,6 +347,7 @@ OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"string", element::Type_t::string},
                                                          {"f4e2m1", element::Type_t::f4e2m1},
                                                          {"f8e8m0", element::Type_t::f8e8m0}});
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return enum_names;
 }
 

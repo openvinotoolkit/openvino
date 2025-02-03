@@ -99,32 +99,56 @@ namespace ov::intel_gpu {
 
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
-        case ov::element::Type_t::undefined: return true;
-        case ov::element::Type_t::dynamic: return false;
-        case ov::element::Type_t::boolean: return true; // converted to u8
-        case ov::element::Type_t::bf16: return false;
-        case ov::element::Type_t::f16: return true;
-        case ov::element::Type_t::f32: return true;
-        case ov::element::Type_t::f64: return true; // converted to inference precision
-        case ov::element::Type_t::i4: return true;
-        case ov::element::Type_t::i8: return true;
-        case ov::element::Type_t::i16: return false;
-        case ov::element::Type_t::i32: return true;
-        case ov::element::Type_t::i64: return true; // converted to i32
-        case ov::element::Type_t::u1: return true;
-        case ov::element::Type_t::u2: return false;
-        case ov::element::Type_t::u3: return false;
-        case ov::element::Type_t::u4: return true;
-        case ov::element::Type_t::u6: return true;
-        case ov::element::Type_t::u8: return true;
-        case ov::element::Type_t::u16: return true; // converted to i32
-        case ov::element::Type_t::u32: return true; // converted to i32
-        case ov::element::Type_t::u64: return true; // converted to i32
-        case ov::element::Type_t::nf4: return false;
-        case ov::element::Type_t::f8e4m3: return false;
-        case ov::element::Type_t::f8e5m2: return false;
-        case ov::element::Type_t::string: return false;
-        default: return false;
+    case ov::element::Type_t::dynamic:
+        return false;
+    case ov::element::Type_t::boolean:
+        return true;  // converted to u8
+    case ov::element::Type_t::bf16:
+        return false;
+    case ov::element::Type_t::f16:
+        return true;
+    case ov::element::Type_t::f32:
+        return true;
+    case ov::element::Type_t::f64:
+        return true;  // converted to inference precision
+    case ov::element::Type_t::i4:
+        return true;
+    case ov::element::Type_t::i8:
+        return true;
+    case ov::element::Type_t::i16:
+        return false;
+    case ov::element::Type_t::i32:
+        return true;
+    case ov::element::Type_t::i64:
+        return true;  // converted to i32
+    case ov::element::Type_t::u1:
+        return true;
+    case ov::element::Type_t::u2:
+        return false;
+    case ov::element::Type_t::u3:
+        return false;
+    case ov::element::Type_t::u4:
+        return true;
+    case ov::element::Type_t::u6:
+        return true;
+    case ov::element::Type_t::u8:
+        return true;
+    case ov::element::Type_t::u16:
+        return true;  // converted to i32
+    case ov::element::Type_t::u32:
+        return true;  // converted to i32
+    case ov::element::Type_t::u64:
+        return true;  // converted to i32
+    case ov::element::Type_t::nf4:
+        return false;
+    case ov::element::Type_t::f8e4m3:
+        return false;
+    case ov::element::Type_t::f8e5m2:
+        return false;
+    case ov::element::Type_t::string:
+        return false;
+    default:
+        return false;
     }
 
     return false;
@@ -233,14 +257,24 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
         dst_ptr = dst_lock->data();
     } else if (auto remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
         tmp_tensor = ov::Tensor(dst_et, src->get_shape());
-        ::convert_and_copy(src_ptr, src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+        ::convert_and_copy(src_ptr,
+                           src_et,
+                           tmp_tensor.data(),
+                           dst_et,
+                           size,
+                           cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
         remote->copy_from(get_tensor_impl(tmp_tensor)._ptr);
         return;
     } else {
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    return ::convert_and_copy(src_ptr,
+                              src_et,
+                              dst_ptr,
+                              dst_et,
+                              size,
+                              cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
 }
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {

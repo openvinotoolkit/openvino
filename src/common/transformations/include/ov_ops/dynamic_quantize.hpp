@@ -34,9 +34,9 @@ public:
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         QuantizationType quantization_type = QuantizationType::Symmetric;
-        element::Type quantization_dt = element::undefined;
-        element::Type scale_dt = element::undefined;
-        element::Type zp_dt = element::undefined;
+        element::Type quantization_dt = element::dynamic;
+        element::Type scale_dt = element::dynamic;
+        element::Type zp_dt = element::dynamic;
 
         std::vector<uint64_t> group_sizes = {};
         std::vector<uint64_t> scales_zp_output_order = {};
