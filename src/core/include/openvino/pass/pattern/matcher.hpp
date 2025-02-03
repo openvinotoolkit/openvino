@@ -202,6 +202,11 @@ public:
     PatternValueMaps m_pattern_value_maps;
     OutputVector m_matched_list;
 
+    //TODO: Rework this into a single string that you push and pop
+    // in order to avoid recreating of the string each time you need
+    // to log some action
+    int level = 0;
+
 protected:
     bool match_permutation(const OutputVector& pattern_args, const OutputVector& args);
 
