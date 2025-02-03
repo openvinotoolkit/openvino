@@ -222,7 +222,10 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+    std::list<std::tuple<
+        primitive_id,
+        memory::ptr,
+        std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
     calculate(engine& engine,
               const ExecutionConfig& config,
               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
