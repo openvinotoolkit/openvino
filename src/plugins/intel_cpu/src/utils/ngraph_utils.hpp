@@ -12,7 +12,7 @@
 namespace ov {
 namespace intel_cpu {
 
-inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
+inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, const std::string& paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         return it->second.as<std::string>();
@@ -36,8 +36,9 @@ inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {
 template <typename T>
 inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ov::Node>& op) {
     auto typedOp = ov::as_type_ptr<T>(op);
-    if (!typedOp)
+    if (!typedOp) {
         OPENVINO_THROW("Can't get ngraph node ", op->get_type_name(), " with name ", op->get_friendly_name());
+    }
     return typedOp;
 }
 

@@ -9,8 +9,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Transpose>& op) {
     validate_inputs_count(op, {1, 2});
@@ -40,5 +39,4 @@ static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
 
 REGISTER_FACTORY_IMPL(v1, Transpose);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

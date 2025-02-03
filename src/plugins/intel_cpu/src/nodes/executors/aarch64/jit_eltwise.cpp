@@ -4,6 +4,7 @@
 
 #include "jit_eltwise.hpp"
 
+#include <utility>
 #include <vector>
 
 namespace ov {
@@ -37,6 +38,7 @@ bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
                                      Algorithm::EltwiseIsFinite,
                                      Algorithm::EltwiseIsInf,
                                      Algorithm::EltwiseIsNaN,
+                                     Algorithm::EltwiseLess,
                                      Algorithm::EltwiseLessEqual,
                                      Algorithm::EltwiseLogicalAnd,
                                      Algorithm::EltwiseLogicalOr,
@@ -48,6 +50,7 @@ bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
                                      Algorithm::EltwiseMod,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
+                                     Algorithm::EltwiseNotEqual,                                   
                                      Algorithm::EltwisePowerStatic,
                                      Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
@@ -107,7 +110,7 @@ bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
     return true;
 }
 
-JitEltwiseExecutor::JitEltwiseExecutor(const ExecutorContext::CPtr context) : EltwiseExecutor(context) {}
+JitEltwiseExecutor::JitEltwiseExecutor(ExecutorContext::CPtr context) : EltwiseExecutor(std::move(context)) {}
 
 bool JitEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
                               const std::vector<MemoryDescPtr>& srcDescs,

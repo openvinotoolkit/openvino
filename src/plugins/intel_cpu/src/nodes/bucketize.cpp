@@ -29,22 +29,22 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
-    if (bucketsize == nullptr)
+    if (bucketsize == nullptr) {
         OPENVINO_THROW("Operation with name '",
                        op->get_friendly_name(),
                        "' is not an instance of Bucketize from opset3.");
+    }
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
     // check one attribute
@@ -52,8 +52,9 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 }
 
 void Bucketize::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     // check precisions for input and output tensors
     input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
@@ -86,7 +87,7 @@ inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
            (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
 }
 
-void Bucketize::execute(dnnl::stream strm) {
+void Bucketize::execute(const dnnl::stream& strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
@@ -181,7 +182,7 @@ void Bucketize::execute(dnnl::stream strm) {
                   element_type_traits<ov::element::i64>::value_type>();
         break;
     default:
-        OPENVINO_THROW(errorPrefix, " has unsupported precision: ", precision_mask);
+        THROW_CPU_NODE_ERR("has unsupported precision: ", precision_mask);
     }
 }
 
@@ -189,31 +190,37 @@ void Bucketize::prepareParams() {
     auto inputTensorMemPtr = getSrcMemoryAtPort(INPUT_TENSOR_PORT);
     auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         OPENVINO_THROW("Destination memory is undefined.");
-    if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined())
+    }
+    if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined()) {
         OPENVINO_THROW("Input tensor is undefined.");
-    if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined())
+    }
+    if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined()) {
         OPENVINO_THROW("Input bins is undefined.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    }
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
     if (input_tensor_dims.size() < 1) {
-        OPENVINO_THROW(errorPrefix, " has incorrect dimensions of the input.");
+        THROW_CPU_NODE_ERR("has incorrect dimensions of the input.");
     }
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();
     if (input_bin_dims.size() != 1) {
-        OPENVINO_THROW(errorPrefix, " has incorrect dimensions of the boundaries tensor.");
+        THROW_CPU_NODE_ERR("has incorrect dimensions of the boundaries tensor.");
     }
     if (input_bin_dims[0] != 0) {
         with_bins = true;
     }
     num_bin_values = input_bin_dims[0];
 
-    num_values =
-        std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), size_t(1), std::multiplies<size_t>());
+    num_values = std::accumulate(input_tensor_dims.begin(),
+                                 input_tensor_dims.end(),
+                                 static_cast<size_t>(1),
+                                 std::multiplies<size_t>());
 }
 
 bool Bucketize::isExecutable() const {

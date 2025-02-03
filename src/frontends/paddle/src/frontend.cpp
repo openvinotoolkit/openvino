@@ -586,11 +586,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion get_api_version() {
+PADDLE_FRONTEND_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* get_front_end_data() {
+PADDLE_FRONTEND_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {

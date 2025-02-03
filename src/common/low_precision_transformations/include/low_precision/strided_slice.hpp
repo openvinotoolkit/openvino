@@ -24,8 +24,8 @@ class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransforma
 public:
     OPENVINO_RTTI("StridedSliceTransformation", "0", LayerTransformation);
     StridedSliceTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
+    bool transform(ov::pass::pattern::Matcher& m) override;
+    bool canBeTransformed(const std::shared_ptr<Node>& op) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

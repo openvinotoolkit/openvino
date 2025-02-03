@@ -67,8 +67,9 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const kernel::jit_
         res = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx2>>(param);
     }
 
-    if (res)
+    if (res) {
         res->create_kernel();
+    }
 
     return res;
 }
@@ -117,7 +118,7 @@ private:
 };
 #endif  // OPENVINO_ARCH_X86_64
 
-RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, RMSNormShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -128,11 +129,13 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 }
 
 void RMSNorm::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16))
+    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
+    }
 
     impl_desc_type impl_type;
     if (mayiuse(cpu::x64::avx512_core)) {
@@ -172,7 +175,7 @@ void RMSNorm::createPrimitive() {
     m_executor = result.first;
 }
 
-void RMSNorm::execute(dnnl::stream strm) {
+void RMSNorm::execute(const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
 

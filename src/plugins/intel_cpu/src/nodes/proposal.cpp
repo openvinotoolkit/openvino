@@ -92,7 +92,7 @@ bool Proposal::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
     return true;
 }
 
-Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -138,8 +138,9 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void Proposal::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (store_prob) {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -156,19 +157,20 @@ void Proposal::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Proposal::executeDynamicImpl(dnnl::stream strm) {
+void Proposal::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Proposal::execute(dnnl::stream strm) {
+void Proposal::execute(const dnnl::stream& strm) {
     try {
         const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
         const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
         const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
         float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
-        if (store_prob)
+        if (store_prob) {
             outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+        }
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
