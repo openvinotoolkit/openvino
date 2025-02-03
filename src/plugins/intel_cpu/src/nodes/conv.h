@@ -24,6 +24,8 @@ public:
     void initDescriptor(const NodeConfig& config) override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
+    void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
