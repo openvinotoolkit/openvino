@@ -921,7 +921,7 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
         child.append_attribute("name").set_value(name.c_str());
     }
     if (data.is<std::shared_ptr<ov::Meta>>()) {
-        auto meta = data.as<std::shared_ptr<ov::Meta>>();
+        const auto& meta = data.as<std::shared_ptr<ov::Meta>>();
         do {
             if (auto meta_with_pugixml_node = std::dynamic_pointer_cast<ov::MetaDataWithPugixml>(meta)) {
                 if (auto pugi_node = meta_with_pugixml_node->get_pugi_node()) {
@@ -944,9 +944,30 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
             serialize_rt_info(child, it.first, it.second);
         }
     } else {
-        std::string value = data.as<std::string>();
+        const auto& value = data.as<std::string>();
         child.append_attribute("value").set_value(value.c_str());
     }
+}
+
+bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
+    auto custom_node = node.append_child("custom");
+    custom_node.append_attribute("name").set_value(name.c_str());
+    bool appended = false;
+
+    if (data.is<ov::AnyMap>()) {
+        const auto& any_map = data.as<ov::AnyMap>();
+        for (const auto& it : any_map)
+            appended |= append_custom_rt_info(custom_node, it.first, it.second);
+
+    } else {
+        const auto& value = data.as<std::string>();
+        custom_node.append_attribute("value").set_value(value.c_str());
+        appended = true;
+    }
+
+    if (!appended)
+        node.remove_child(custom_node);
+    return appended;
 }
 
 void ngfunction_2_ir(pugi::xml_node& netXml,
@@ -1012,10 +1033,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
+        auto append_runtime_info = [](pugi::xml_node& node, const ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
-            for (auto& item : attributes) {
+            for (const auto& item : attributes) {
                 if (item.second.is<ov::RuntimeAttribute>()) {
                     auto attribute_node = rt_node.append_child("attribute");
                     auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
@@ -1030,9 +1051,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                     }
                 }
             }
-            if (!has_attrs) {
+
+            for (const auto& item : attributes)
+                if (!item.second.is<ov::RuntimeAttribute>())
+                    has_attrs |= append_custom_rt_info(rt_node, item.first, item.second);
+
+            if (!has_attrs)
                 node.remove_child(rt_node);
-            }
         };
 
         if (version >= 11) {
