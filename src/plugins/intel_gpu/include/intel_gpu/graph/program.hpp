@@ -47,6 +47,7 @@ struct program {
     friend class post_optimize_weights;             // to be removed when possible
     friend class prepare_primitive_fusing_through;  // to be removed when possible
     friend class reorder_transfer;                  // to be removed when possible
+    friend class reshape_transfer;                  // to be removed when possible
     friend class fuse_constant_transposes;          // to be removed when possible
     friend class program_wrapper;                   // this class is intended to extend the interface of program for
                                                     // the usage within tests_core_internal project only
