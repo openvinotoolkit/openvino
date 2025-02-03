@@ -76,7 +76,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     }
 }
 
-void TppEmitter::emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void TppEmitter::emit_code_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }

@@ -50,11 +50,6 @@ public:
           p_table(0),
           l_table(new Xbyak_aarch64::Label()) {}
 
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs,
-                   const std::vector<size_t>& pool_gpr_idxs) const override;
-
     void emit_data() const override;
 
     virtual size_t get_inputs_count() const = 0;
@@ -85,6 +80,11 @@ protected:
 
     virtual void prepare_table();
     virtual void register_table_entries() {}
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     void load_table_addr() const {
         h->adr(p_table, *l_table.get());
