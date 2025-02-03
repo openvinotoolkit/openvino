@@ -542,13 +542,12 @@ protected:
         }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        {
-#ifdef OPENVINO_CPP_VER_AT_LEAST_20
+#    ifdef OPENVINO_CPP_VER_AT_LEAST_20
         {
             std::ofstream outfile(ov::util::Path(u8"这是_u8.txt"));
             outfile << "This is a test file.";
         }
-#endif
+#    endif
         {
             std::ofstream outfile(ov::util::Path(u"这是_u16.txt"));
             outfile << "This is a test file.";
@@ -630,12 +629,13 @@ TEST_F(FileUtilTest, LargeFileSizeTest) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_CPP_VER_AT_LEAST_20
 TEST_F(FileUtilTest, u8FileSizeTest) {
     EXPECT_EQ(ov::util::file_size(u8"这是_u8.txt"), 20);
     EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8.txt")), 20);
     EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8.txt")), 20);
 }
-#endif
+#    endif
 
 TEST_F(FileUtilTest, u16FileSizeTest) {
     // EXPECT_EQ(ov::util::file_size("这是_u16.txt"), 20);
@@ -661,8 +661,8 @@ TEST_F(FileUtilTest, u32FileSizeTest) {
 }
 
 TEST_F(FileUtilTest, wcharFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size(L"这是_wchar.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(L"这是_wchar.txt")), 20);
+    EXPECT_EQ(ov::util::file_size("这是_wchar.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_wchar.txt")), 20);
     EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_wchar.txt")), 20);
 }
 #endif
