@@ -333,7 +333,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             auto shape = pmem->getDesc().getShape().getDims();
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto type = pmem->getDesc().getPrecision();
-                hape_size(shape) <= 8 && type.is_static() && type != ov::element::undefined) {
+                shape_size(shape) <= 8 && type.is_static() && type != ov::element::undefined) {
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
