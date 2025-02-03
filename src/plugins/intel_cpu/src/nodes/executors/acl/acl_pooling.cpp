@@ -55,8 +55,9 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
+    // TORCH_CEIL is mapped to ACL CEIL type
     DimensionRoundingType round =
-        (poolingAttrs.rounding == op::RoundingType::CEIL) ? DimensionRoundingType::CEIL : DimensionRoundingType::FLOOR;
+        (poolingAttrs.rounding == op::RoundingType::FLOOR) ? DimensionRoundingType::FLOOR : DimensionRoundingType::CEIL;
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {
@@ -89,7 +90,12 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         pool_info->pool_type = pool_type;
         pool_info->exclude_padding = exclude_padding;
         if (dstDescsSize > 1) {
-            TensorInfo indTensorInfo = TensorInfo(shapeCast(*indDims), 1, arm_compute::DataType::U32, dataLayout);
+            auto indShape = shapeCast(*indDims);
+            if (dataLayout == arm_compute::DataLayout::NHWC) {
+                changeLayoutToNH_C({&indShape});
+            }
+            // U32 is specified since this is the only data type supported by ACL
+            TensorInfo indTensorInfo = TensorInfo(indShape, 1, arm_compute::DataType::U32, dataLayout);
             arm_compute::Status s =
                 arm_compute::NEPoolingLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool_info, &indTensorInfo);
             if (!s) {
@@ -178,10 +184,13 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                 return false;
             }
             auto indDims = dstDescs[1]->getShape().getStaticDims();
-            TensorInfo indTensorInfo = TensorInfo(shapeCast(indDims),
-                                                  1,
-                                                  precisionToAclDataType(dstDescs[1]->getPrecision()),
-                                                  getAclDataLayoutByMemoryDesc(dstDescs[1]));
+            auto indShape = shapeCast(indDims);
+            if (dstTensorInfo.data_layout() == arm_compute::DataLayout::NHWC) {
+                changeLayoutToNH_C({&indShape});
+            }
+            // U32 is specified since this is the only data type supported by ACL
+            TensorInfo indTensorInfo =
+                TensorInfo(indShape, 1, arm_compute::DataType::U32, getAclDataLayoutByMemoryDesc(dstDescs[1]));
             indTensor.allocator()->init(indTensorInfo);
             exec_func = [this, pool_info]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<arm_compute::NEPoolingLayer>();
