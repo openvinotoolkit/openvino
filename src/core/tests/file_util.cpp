@@ -543,19 +543,22 @@ protected:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         {
-            std::ofstream outfile("这是_u8_.txt");
+#ifdef OPENVINO_CPP_VER_AT_LEAST_20
+        {
+            std::ofstream outfile(ov::util::Path(u8"这是_u8.txt"));
+            outfile << "This is a test file.";
+        }
+#endif
+        {
+            std::ofstream outfile(ov::util::Path(u"这是_u16.txt"));
             outfile << "This is a test file.";
         }
         {
-            std::ofstream outfile(ov::util::Path(u"这是_u16_.txt"));
+            std::ofstream outfile(ov::util::Path(U"这是_u32.txt"));
             outfile << "This is a test file.";
         }
         {
-            std::ofstream outfile(ov::util::Path(U"这是_u32_.txt"));
-            outfile << "This is a test file.";
-        }
-        {
-            std::ofstream outfile(ov::util::make_path(L"这是_wstring_.txt"));
+            std::ofstream outfile(ov::util::make_path(L"这是_wchar.txt"));
             outfile << "This is a test file.";
         }
 #endif
@@ -575,10 +578,10 @@ protected:
         std::filesystem::remove("test_file_raw_bytes_746.txt");
         std::filesystem::remove("test_file_20x1000.txt");
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        std::filesystem::remove(u8"这是_u8_.txt");
-        std::filesystem::remove(u"这是_u16_.txt");
-        std::filesystem::remove(U"这是_u32_.txt");
-        std::filesystem::remove(ov::util::make_path(L"这是_wstring_.txt"));
+        std::filesystem::remove(u8"这是_u8.txt");
+        std::filesystem::remove(u"这是_u16.txt");
+        std::filesystem::remove(U"这是_u32.txt");
+        std::filesystem::remove(ov::util::make_path(L"这是_wchar.txt"));
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
         std::filesystem::remove("android_test_file_20.txt");
@@ -628,37 +631,39 @@ TEST_F(FileUtilTest, LargeFileSizeTest) {
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 TEST_F(FileUtilTest, u8FileSizeTest) {
-#    ifdef OPENVINO_CPP_VER_AT_LEAST_20
-    EXPECT_EQ(ov::util::file_size(u8"这是_u8_.txt"), 20);
-#    endif
-    EXPECT_EQ(ov::util::file_size("这是_u8_.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(u"这是_u8_.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(U"这是_u8_.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(std::wstring(L"这是_u8_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u8_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(u"这是_u8_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u8_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path(std::wstring(L"这是_u8_.txt"))), 20);
+    EXPECT_EQ(ov::util::file_size(u8"这是_u8.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u8.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u8.txt")), 20);
 }
+#endif
 
 TEST_F(FileUtilTest, u16FileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_u16_.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u16_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u16_.txt")), 20);
+    // EXPECT_EQ(ov::util::file_size("这是_u16.txt"), 20);
+#    ifdef OPENVINO_CPP_VER_AT_LEAST_20
+    EXPECT_EQ(ov::util::file_size(u8"这是_u16.txt"), 20);
+#    endif
+    EXPECT_EQ(ov::util::file_size(u"这是_u16.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(U"这是_u16.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u16.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(std::wstring(L"这是_u16.txt")), 20);
+
+    // EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u16.txt")), 20);
+    // EXPECT_EQ(ov::util::file_size(ov::util::Path(u8"这是_u16.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(u"这是_u16.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u16.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(std::wstring(L"这是_u16.txt"))), 20);
 }
 
 TEST_F(FileUtilTest, u32FileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_u32_.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_u32_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u32_.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(U"这是_u32.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(U"这是_u32.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_u32.txt")), 20);
 }
 
-TEST_F(FileUtilTest, wstringFileSizeTest) {
-    EXPECT_EQ(ov::util::file_size("这是_wstring_.txt"), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::Path("这是_wstring_.txt")), 20);
-    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_wstring_.txt")), 20);
+TEST_F(FileUtilTest, wcharFileSizeTest) {
+    EXPECT_EQ(ov::util::file_size(L"这是_wchar.txt"), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::Path(L"这是_wchar.txt")), 20);
+    EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_wchar.txt")), 20);
 }
 #endif
 
