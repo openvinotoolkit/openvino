@@ -141,10 +141,13 @@ static void CreateEmbeddingSegmentsSumOp(ProgramBuilder& p, const std::shared_pt
         }
     }
 
+    auto p_shape = op->get_output_partial_shape(0);
+    auto output_shape = p_shape.is_static() ? tensor_from_dims(p_shape.to_shape()) : cldnn::tensor();
+
     auto embeddingBagPrim = cldnn::embedding_bag(layerName,
                                                  reordered_inputs,
                                                  cldnn::embedding_bag::segments_sum,
-                                                 tensor_from_dims(op->get_output_shape(0)),
+                                                 output_shape,
                                                  defaultIndex);
 
     p.add_primitive(*op, embeddingBagPrim);
