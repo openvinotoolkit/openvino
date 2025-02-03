@@ -305,12 +305,9 @@ OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
-<<<<<<< HEAD
 OP_CONVERTER(translate_replicate_pad_nd_fx);
 OP_CONVERTER(translate_reshape_fx);
-=======
 OP_CONVERTER(translate_repeat_fx);
->>>>>>> origin
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
