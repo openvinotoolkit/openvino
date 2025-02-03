@@ -190,7 +190,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
             ds_t == ov::element::ScaleType && \
             dzp_t == ov::element::ZPType
 
-        if ((CASE(f32, u4, f32, f32, f32)) || (CASE(f32, u4, undefined, f32, f32))) {
+        if ((CASE(f32, u4, f32, f32, f32)) || (CASE(f32, u4, dynamic, f32, f32))) {
             const float* in = static_cast<const float*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
             float* out = static_cast<float*>(output->buffer_ptr());
@@ -198,7 +198,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
             const float* dzp = inputs.size() == 3 ? static_cast<const float*>(inputs[2]->buffer_ptr()) : nullptr;
 
             return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
-        } else if ((CASE(f16, u4, f16, f16, f16)) || (CASE(f16, u4, undefined, f16, f16))) {
+        } else if ((CASE(f16, u4, f16, f16, f16)) || (CASE(f16, u4, dynamic, f16, f16))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
             ::sycl::half* out = static_cast<::sycl::half*>(output->buffer_ptr());
@@ -207,7 +207,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
 
 
             return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
-        } else if ((CASE(f16, u4, f16, f16, f32)) || (CASE(f16, u4, undefined, f16, f32))) {
+        } else if ((CASE(f16, u4, f16, f16, f32)) || (CASE(f16, u4, dynamic, f16, f32))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
             float* out = static_cast<float*>(output->buffer_ptr());
@@ -216,7 +216,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
 
 
             return to_ocl_event(stream, run_fc_int4_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
-        } else if ((CASE(f32, u8, f32, f32, f32)) || (CASE(f32, u8, undefined, f32, f32))) {
+        } else if ((CASE(f32, u8, f32, f32, f32)) || (CASE(f32, u8, dynamic, f32, f32))) {
             const float* in = static_cast<const float*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
             float* out = static_cast<float*>(output->buffer_ptr());
@@ -224,7 +224,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
             const float* dzp = inputs.size() == 3 ? static_cast<const float*>(inputs[2]->buffer_ptr()) : nullptr;
 
             return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
-        } else if ((CASE(f16, u8, f16, f16, f16)) || (CASE(f16, u8, undefined, f16, f16))) {
+        } else if ((CASE(f16, u8, f16, f16, f16)) || (CASE(f16, u8, dynamic, f16, f16))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
             ::sycl::half* out = static_cast<::sycl::half*>(output->buffer_ptr());
@@ -232,7 +232,7 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
             const ::sycl::half* dzp = inputs.size() == 3 ? static_cast<const ::sycl::half*>(inputs[2]->buffer_ptr()) : nullptr;
 
             return to_ocl_event(stream, run_fc_int8_woq(sycl_queue, barrier, in, wei, dzp, ds, out, M, N, K, group_size, groups_num, out_shape, dzp_scalar));
-        } else if ((CASE(f16, u8, f16, f16, f32)) || (CASE(f16, u8, undefined, f16, f32))) {
+        } else if ((CASE(f16, u8, f16, f16, f32)) || (CASE(f16, u8, dynamic, f16, f32))) {
             const ::sycl::half* in = static_cast<const ::sycl::half*>(inputs[0]->buffer_ptr());
             const uint8_t* wei = static_cast<const uint8_t*>(weights->buffer_ptr());
             float* out = static_cast<float*>(output->buffer_ptr());
