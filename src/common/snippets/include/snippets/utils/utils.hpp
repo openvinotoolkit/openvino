@@ -324,6 +324,15 @@ void visit_path(const lowered::ExpressionPtr& expr,
                 std::function<void(lowered::ExpressionPtr)> func,
                 bool visit_parent_path);
 
+/**
+ * @brief Converts a tensor to a string representation.
+ *        Each value in the tensor is converted to a string. If the value is a full dimension, it is represented as
+ * "FULL_DIM". If the value is dynamic, it is represented as "?".
+ * @param tensor The tensor to be converted to a string.
+ * @return A string representation of the tensor.
+ */
+std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
+
 } // namespace utils
 } // namespace snippets
 } // namespace ov
