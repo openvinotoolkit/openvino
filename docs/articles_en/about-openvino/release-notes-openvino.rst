@@ -28,7 +28,8 @@ What's new
 
 * More GenAI coverage and framework integrations to minimize code changes.
 
-  * New models supported: Qwen 2.5.
+  * New models supported: Qwen 2.5, Deepseek-R1-Distill-Llama-8B, DeepSeek-R1-Distill-Qwen-7B,
+    and DeepSeek-R1-Distill-Qwen-1.5B, FLUX.1 Schnell and FLUX.1 Dev.
   * Whisper Model: Improved performance on CPUs, built-in GPUs, and discrete GPUs with GenAI API.
   * Preview: Introducing NPU support for torch.compile, giving developers the ability to use the
     OpenVINO backend to run the PyTorch API on NPUs. 300+ deep learning models enabled from the
@@ -38,30 +39,34 @@ What's new
 
   * Preview: Addition of Prompt Lookup to GenAI API improves 2nd token latency for LLMs by
     effectively utilizing predefined prompts that match the intended use case.
+  * Preview: The GenAI API now offers image-to-image inpainting functionality. This feature
+    enables models to generate realistic content by inpainting specified modifications and
+    seamlessly integrating them with the original image.
   * Asymmetric KV Cache compression  is now enabled  for INT8   on CPUs, resulting in lower
     memory consumption and improved 2nd token latency, especially when dealing with long prompts
     that require significant memory. The option should be explicitly specified by the user.
 
 * More portability and performance to run AI at the edge, in the cloud, or locally.
 
-  * Support for the latest Intel® Core™ Ultra 200H series processors (formerly codenamed Arrow
-    Lake-H)
-  * Preview: The GenAI API now offers image-to-image inpainting functionality. This feature
-    enables models to generate realistic content by inpainting specified modifications and
-    seamlessly integrating them with the original image.
-  * Integration of the OpenVINO backend with the Triton Inference Server allows developers to
+  * Support for the latest Intel® Core™ Ultra 200H series processors (formerly codenamed
+    Arrow Lake-H)
+  * Integration of the OpenVINO ™ backend with the Triton Inference Server allows developers to
     utilize the Triton server for enhanced model serving performance when deploying on Intel
     CPUs.
-  * Preview: A new OpenVINO backend integration allows developers to leverage OpenVINO
-    performance optimizations directly within Keras 3 workflows for faster AI inference on
-    Intel® CPUs, built-in GPUs, discrete GPUs, and NPUs. This feature is available with the
-    latest Keras 3.8 release.
+  * Preview: A new OpenVINO ™ backend integration allows developers to leverage OpenVINO
+    performance optimizations directly within Keras 3 workflows for faster AI inference on CPUs,
+    built-in GPUs, discrete GPUs, and NPUs. This feature is available with the latest Keras 3.8
+    release.
+  * The OpenVINO Model Server now supports native Windows Server deployments, allowing
+    developers to leverage better performance by eliminating container overhead and simplifying
+    GPU deployment.
+
 
 
 Now Deprecated
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Legacy prefixes (l_,w_,m_) have been removed from OpenVINO archive names.
+* Legacy prefixes `l_`, `w_`, and `m_` have been removed from OpenVINO archive names.
 * The `runtime` namespace for Python API has been marked as deprecated and designated to be
   removed for 2026.0. The new namespace structure has been delivered, and migration is possible
   immediately. Details will be communicated through warnings and via documentation.
@@ -91,9 +96,9 @@ CPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
 * Intel® Core™ Ultra 200H processors (formerly code named Arrow Lake-H) are now fully supported.
-* Asymmetric 8bit key-value cache compression is now enabled on CPU by default, reducing memory
+* Asymmetric 8bit KV Cache cache compression is now enabled on CPU by default, reducing memory
   usage and memory bandwidth consumption for large language models and improving performance
-  for 2nd token generation. Asymmetric 4bit key-value cache compression on CPU is now supported
+  for 2nd token generation. Asymmetric 4bit KV Cache cache compression on CPU is now supported
   as an option to further reduce memory consumption.
 * Performance of models running in FP16 on 6th generation of Intel® Xeon® processors with P-core
   has been enhanced by improving utilization of the underlying AMX FP16 capabilities.
@@ -112,18 +117,19 @@ GPU Device Plugin
   OpenVINO GenAI APIs with continuous batching and SDPA-based LLMs with long prompts (>4k).
 * Stateful models are now enabled, significantly improving performance of Whisper models on all
   GPU platforms.
-* Stable Diffusion 3 and Flux.1 performance has been improved.
+* Stable Diffusion 3 and FLUX.1 performance has been improved.
 * The issue of a black image output for image generation models, including SDXL, SD3, and
-  Flux.1, with FP16 precision has been solved.
+  FLUX.1, with FP16 precision has been solved.
 
 
 NPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
-* Performance has been improved for Channel-Wise symmetrically quantized LLMs, including
-  Llama2-7B-chat, Llama3-8B-instruct, qwen-2-7B, Mistral-0.2-7B-instruct, phi-3-mini-4K-instruct,
-  miniCPM-1B models. The best performance is achieved using fp16-in4 quantized models.
-*	Preview: Introducing NPU support for torch.compile, giving developers the ability to use the
+* Performance has been improved for CW symmetrically quantized LLMs, including Llama2-7B-chat,
+  Llama3-8B-instruct, Qwen-2-7B, Mistral-0.2-7B-Instruct, Phi-3-Mini-4K-Instruct, MiniCPM-1B
+  models. The best performance is achieved using symmetrically-quantized 4-bit (INT4) quantized
+  models.
+* Preview: Introducing NPU support for torch.compile, giving developers the ability to use the
   OpenVINO backend to run the PyTorch API on NPUs. 300+ deep learning models enabled from
   the TorchVision, Timm, and TorchBench repositories.
 
@@ -187,9 +193,6 @@ ONNX Framework Support
 -----------------------------------------------------------------------------------------------
 
 * Runtime memory consumption for models with quantized weight has been reduced.
-* Models from the com.microsoft domain that use the following operations are now enabled:
-  SkipSimplifiedLayerNormalization, SimplifiedLayerNormalization, FusedMatMul, QLinearSigmoid,
-  QLinearLeakyRelu, QLinearAdd, QLinearMul, Range, DynamicQuantizeMatMul, MatMulIntegerToFloat.
 * Workflow which affected reading of 2 bytes data types has been fixed.
 
 
@@ -205,7 +208,7 @@ OpenVINO Model Server
   * Generative endpoints are fully supported, including text generation and embeddings based on
     the OpenAI API, and reranking based on the Cohere API.
   * Functional parity with the Linux version is available with minor differences.
-  * The feature is targeted at client machines with Windows 11 and Data Center environment
+  * The feature is targeted at client machines with Windows 11 and data center environment
     with Windows 2022 Server OS.
   * Demos have been updated to work on both Linux and Windows. Check the
     `installation guide <https://docs.openvino.ai/2025/openvino-workflow/model-server/ovms_docs_deploying_server_baremetal.html>`__
@@ -284,7 +287,7 @@ The following has been added:
   * Stateful decoder for WhisperPipeline. Whisper decoder models with past are deprecated.
   * Export a model with new optimum-intel to obtain stateful version.
   * Performance metrics for WhisperPipeline.
-  * initial_prompt and hotwords parameters for whisper pipeline allowing to guide generation.
+  * initial_prompt and hotwords parameters for the Whisper pipeline allowing to guide generation.
 
 * LLMPipeline
 
@@ -297,10 +300,9 @@ The following has been added:
   * rng_seed parameter to ImageGenerationConfig.
   * Callback for image generation pipelines allowing to track generation progress and obtain
     intermediate results.
-  * EulerAncestralDiscreteScheduler - SDXL turbo.
-  * PNDMScheduler – Stable Diffusion 1.x and 2.x.
-  * Models: black-forest-labs/FLUX.1-schnell, Freepik/flux.1-lite-8B-alpha,
-    black-forest-labs/FLUX.1-dev shuttleai/shuttle-3-diffusion.
+  * EulerAncestralDiscreteScheduler for SDXL turbo.
+  * PNDMScheduler for Stable Diffusion 1.x and 2.x.
+  * Models: FLUX.1-Schnell, Flux.1-Lite-8B-Alpha, FLUX.1-Dev, and Shuttle-3-Diffusion.
   * T5 encoder for SD3 Pipeline.
 
 * VLMPipeline
@@ -351,18 +353,21 @@ Known Issues
 | ID: 161336
 | Description:
 |   Compilation of an openvino model performing weight quantization fails with Segmentation
-    Fault on LNL. The following workaround can be applied to make it work with existing OV
-    versions (including 25.0 RCs) before application run: export DNNL_MAX_CPU_ISA=AVX2_VNNI.
+    Fault on Intel® Core™ Ultra 200V processors. The following workaround can be applied to
+    make it work with existing OV versions (including 25.0 RCs) before application run:
+    export DNNL_MAX_CPU_ISA=AVX2_VNNI.
 
 | **Component: GPU Plugin**
 | ID: 160802
 | Description:
-|   mllama model crashes on LNL. Please use OpenVINO 2024.6 or earlier to run the model.
+|   mllama model crashes on Intel® Core™ Ultra 200V processors. Please use OpenVINO 2024.6 or
+    earlier to run the model.
 
 | **Component: GPU Plugin**
 | ID: 160948
 | Description:
-|   Several models have accuracy degradation on LNL, ACM, and BMG. Please use OpenVINO 2024.6
+|   Several models have accuracy degradation on Intel® Core™ Ultra 200V processors,
+    Intel® Arc™ A-Series Graphics, and Intel® Arc™ B-Series Graphics. Please use OpenVINO 2024.6
     to run the models. Model list: Denoise, Sharpen-Sharpen, fastseg-small, hbonet-0.5,
     modnet_photographic_portrait_matting, modnet_webcam_portrait_matting,
     mobilenet-v3-small-1.0-224, nasnet-a-mobile-224, yolo_v4, yolo_v5m, yolo_v5s, yolo_v8n,
