@@ -499,7 +499,7 @@ void Input::selectOptimalPrimitiveDescriptor() {
     // ignore previous configuration
     supportedPrimitiveDescriptors.clear();
 
-    int inPlacePort = m_isInPlace ? 0 : -1;
+    const int inPlacePort = m_isInPlace ? 0 : -1;
     // and just use parent memory descriptor for Output node to avoid reorders insertion
     std::vector<PortConfig> inConfs;
     for (size_t i = 0; i < getParentEdges().size(); i++) {

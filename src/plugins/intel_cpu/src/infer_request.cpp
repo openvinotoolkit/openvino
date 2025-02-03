@@ -7,7 +7,6 @@
 #include "async_infer_request.h"
 #include "dnnl_extension_utils.h"
 #include "itt.h"
-#include "memory_control.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/memory_state_base.h"

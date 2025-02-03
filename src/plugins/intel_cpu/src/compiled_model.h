@@ -19,8 +19,6 @@
 namespace ov {
 namespace intel_cpu {
 
-class NetworkMemoryControl;
-
 class CompiledModel : public ov::ICompiledModel {
 public:
     struct GraphGuard : public Graph {

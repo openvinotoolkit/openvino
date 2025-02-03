@@ -183,7 +183,6 @@ protected:
 
     std::shared_ptr<GraphContext> m_context;
     std::unique_ptr<Graph> m_graph;
-    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
 };  // class MergeTransposeReorderCPUTest
 
 /*
@@ -353,9 +352,7 @@ TEST(MergeTransposeReorder, smoke_InplaceConflict) {
     */
     Config conf;
     conf.rtCacheCapacity = 100;
-    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
-    auto context =
-        std::make_shared<GraphContext>(conf, nullptr, false);
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
 
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 

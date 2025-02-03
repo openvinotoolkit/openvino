@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/if.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -80,7 +82,7 @@ private:
 
     std::vector<PortMap> thenInputPortMap, thenOutputPortMap, elseInputPortMap, elseOutputPortMap;
 
-    const std::shared_ptr<ov::Node> m_op;
+    std::shared_ptr<ov::op::v8::If> m_op;
 };
 
 }  // namespace node

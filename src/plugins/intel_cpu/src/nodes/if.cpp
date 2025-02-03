@@ -10,6 +10,7 @@
 
 #include "nodes/common/cpu_convert.h"
 #include "nodes/node_config.h"
+#include "openvino/core/except.hpp"
 #include "openvino/op/if.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
@@ -72,7 +73,9 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
 
 If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()),
-      m_op(op) {
+      m_op(ov::as_type_ptr<ov::op::v8::If>(op)) {
+    OPENVINO_ASSERT(m_op, "'If' operation is expected");
+
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -84,10 +87,8 @@ void If::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    auto ifOp = ov::as_type_ptr<ov::op::v8::If>(m_op);
-
-    m_thenGraph.Init(ifOp->get_then_body(), context);
-    m_elseGraph.Init(ifOp->get_else_body(), context);
+    m_thenGraph.Init(m_op->get_then_body(), context);
+    m_elseGraph.Init(m_op->get_else_body(), context);
 
     NodeConfig config;
     config.inConfs.reserve(getParentEdges().size());
@@ -112,35 +113,34 @@ void If::initSupportedPrimitiveDescriptors() {
 }
 
 int If::registerToAllocationContext(int offset, AllocationContext& context) {
+    // take into account an offset of the both subgraphs
     const int thenOffset = m_thenGraph.RegisterToAllocationContext(offset, context);
     const int elseOffset = m_elseGraph.RegisterToAllocationContext(thenOffset, context);
-    return m_elseGraph.RegisterToAllocationContext(elseOffset, context);
+    return elseOffset;
 }
 
 void If::createPrimitive() {
     m_thenGraph.Activate();
     m_elseGraph.Activate();
 
-    auto ifOp = ov::as_type_ptr<ov::op::v8::If>(m_op);
-
-    for (const auto& param : ifOp->get_then_body()->get_parameters()) {
-        if (auto inNode = m_thenGraph.getInputNodeByIndex(ifOp->get_then_body()->get_parameter_index(param))) {
+    for (const auto& param : m_op->get_then_body()->get_parameters()) {
+        if (auto inNode = m_thenGraph.getInputNodeByIndex(m_op->get_then_body()->get_parameter_index(param))) {
             inputMemThen.push_back(getToMemories(inNode.get(), 0));
         } else {
             THROW_CPU_NODE_ERR("Then body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
-    for (const auto& param : ifOp->get_else_body()->get_parameters()) {
-        if (auto inNode = m_elseGraph.getInputNodeByIndex(ifOp->get_else_body()->get_parameter_index(param))) {
+    for (const auto& param : m_op->get_else_body()->get_parameters()) {
+        if (auto inNode = m_elseGraph.getInputNodeByIndex(m_op->get_else_body()->get_parameter_index(param))) {
             inputMemElse.push_back(getToMemories(inNode.get(), 0));
         } else {
             THROW_CPU_NODE_ERR("Else body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
-    for (const auto& out : ifOp->get_then_body()->get_results()) {
-        if (auto outNode = m_thenGraph.getOutputNodeByIndex(ifOp->get_then_body()->get_result_index(out))) {
+    for (const auto& out : m_op->get_then_body()->get_results()) {
+        if (auto outNode = m_thenGraph.getOutputNodeByIndex(m_op->get_then_body()->get_result_index(out))) {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
@@ -148,8 +148,8 @@ void If::createPrimitive() {
         }
     }
 
-    for (const auto& out : ifOp->get_else_body()->get_results()) {
-        if (auto outNode = m_elseGraph.getOutputNodeByIndex(ifOp->get_else_body()->get_result_index(out))) {
+    for (const auto& out : m_op->get_else_body()->get_results()) {
+        if (auto outNode = m_elseGraph.getOutputNodeByIndex(m_op->get_else_body()->get_result_index(out))) {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
@@ -158,23 +158,23 @@ void If::createPrimitive() {
     }
 
     // Port map: outputs
-    for (const auto& desc : ifOp->get_output_descriptions(0)) {
+    for (const auto& desc : m_op->get_output_descriptions(0)) {
         auto body_output_idx = desc->m_body_value_index;
         thenOutputPortMap.emplace_back(
             PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
     }
-    for (const auto& desc : ifOp->get_output_descriptions(1)) {
+    for (const auto& desc : m_op->get_output_descriptions(1)) {
         auto body_output_idx = desc->m_body_value_index;
         elseOutputPortMap.emplace_back(
             PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
     }
 
-    for (const auto& desc : ifOp->get_input_descriptions(0)) {
+    for (const auto& desc : m_op->get_input_descriptions(0)) {
         auto body_input_index = desc->m_body_parameter_index;
         thenInputPortMap.emplace_back(
             PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
     }
-    for (const auto& desc : ifOp->get_input_descriptions(1)) {
+    for (const auto& desc : m_op->get_input_descriptions(1)) {
         auto body_input_index = desc->m_body_parameter_index;
         elseInputPortMap.emplace_back(
             PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});

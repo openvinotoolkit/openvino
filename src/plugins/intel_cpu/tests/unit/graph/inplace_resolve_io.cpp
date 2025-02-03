@@ -92,7 +92,6 @@ private:
     std::vector<NodePtr> nodes;
     std::vector<EdgePtr> edges;
     std::unordered_set<NodePtr> nodesSet;
-    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
 };
 
 class RNNConcatCPUTest : public InplaceResolveIOCPUTestBase {

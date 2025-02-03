@@ -82,7 +82,6 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
 
         Config conf;
         conf.rtCacheCapacity = 0;
-        std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
         auto context =
             std::make_shared<GraphContext>(conf, nullptr, false);
 
@@ -291,7 +290,6 @@ TEST(MemStateGraphTest, smoke_ShapeOf_no_Inplace_Conflicts) {
 
     Config conf;
     conf.rtCacheCapacity = 0;
-    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
     auto context =
         std::make_shared<GraphContext>(conf, nullptr, false);
 

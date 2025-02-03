@@ -701,9 +701,9 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 void MemoryInput::createPrimitive() {
     if (haveSubgraph()) {
         CPU_NODE_ASSERT(getParentEdges().size() == subGraph->inputsNumber(),
-                        "Number of node inputs must be equal the number of inner graph's inputs");
+                        "The number of node inputs must be equal to the number of inner graph's inputs");
 
-        for (size_t i = 0; i < subGraph->inputsNumber(); i++) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
             auto subgraphInputNode = subGraph->getInputNodeByIndex(i);
             auto subgraphInputMemory = subgraphInputNode->getDstMemoryAtPort(0);
             subgraphMemoryPtrs.push_back(subgraphInputMemory);

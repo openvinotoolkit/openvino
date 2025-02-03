@@ -150,7 +150,6 @@ protected:
     std::shared_ptr<ov::intel_cpu::Edge> parentEdge;
     std::shared_ptr<ov::intel_cpu::Edge> childEdge;
     ov::element::Type prec;
-    std::shared_ptr<NetworkMemoryControl> networkMemoryControl = std::make_shared<NetworkMemoryControl>();
 };
 
 }  // namespace ReorderCPUTest

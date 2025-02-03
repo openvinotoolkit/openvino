@@ -309,7 +309,7 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
         if (!node->isConstant() &&  // constants are executed once in scope of compile_model
             !staticZeroDims &&      // never execute static nodes with zero dim input / output tensors
             (CPU_DEBUG_CAPS_ALWAYS_TRUE(!node->canBeSkipped()) ||  // execute all executable nodes
-             dynamicNonInputOutput)) {                            // plus dynamic ones, except inputs / outputs
+             dynamicNonInputOutput)) {                             // plus dynamic ones, except inputs / outputs
             graphIdToExecutableId[i] = executableGraphNodes.size();
             executableGraphNodes.emplace_back(node);
         }
@@ -742,7 +742,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
 /**
  * Partition the \clusters of Edges, by moving to the end and allocating at the same time
- * the clusters which cannot be handled as part of generic memory solver algorithm.
+ * the clusters that cannot be handled as part of the generic memory solver algorithm.
  * Such clusters meet one of the following criteria:
  * - base edge of a cluster is already Allocated
  * - base edge of a cluster is a "ov::element::string" type of edge
@@ -798,7 +798,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, const GraphCon
                                             [](const EdgePtr& edge) {
                                                 return edge->getOriginalDesc().getPrecision() == element::string;
                                             }),
-                                "All edges in the cluster must be string.");
+                                "All edges in the string cluster must be strings.");
                 auto memBlock = allocateStringMemory(baseEdge);
                 for (auto& edge : cluster) {
                     if (edge->getStatus() == Edge::Status::NotAllocated) {
@@ -874,9 +874,6 @@ std::vector<size_t> Graph::CreateExecutionGraph() {
 
     std::tie(m_executableGraphNodes, m_executableSyncNodesInds) =
         ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
-
-    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
-                         : Status::ReadyStatic;
 
     if (hasDynNodes) {
         status = Status::ReadyDynamic;
