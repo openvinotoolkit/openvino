@@ -32,15 +32,15 @@ Make sure your model works with NPU. Some models may not be supported, for examp
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-Since **symmetrically-quantized 4-bit (INT4) models are preffered for inference on NPU**, make
+Since **symmetrically-quantized 4-bit (INT4) models are supported for inference on NPU**, make
 sure to export the model with the proper conversion and optimization settings.
 
 | You may export LLMs via Optimum-Intel, using one of two compression methods:
-| **group quantization** - for both smaller and larger models,
-| **channel-wise quantization** - remarkably effective but for models exceeding 1 billion parameters.
+| **group quantization** - recommended for smaller models (<4B parameters).
+| **channel-wise quantization** -  recommended for larger models (>4B parameters),
 
-You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or
-``-1``, respectively. See the following examples:
+You select one of the methods by setting the ``--group-size`` parameter. For group quantization, use
+``--group-size 128``, for channel-wise quantization use ``--group-size -1``. See the following examples:
 
 .. tab-set::
 
@@ -63,12 +63,13 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
 
                optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --ratio 1.0 --group-size -1 Llama-2-7b-chat-hf
 
+
          .. tab-item:: Data-aware quantization
 
             If you want to improve accuracy, make sure you:
 
             1. Update NNCF: ``pip install nncf==2.13``
-            2. Use ``--scale_estimation --dataset <dataset_name>`` and accuracy aware quantization ``--awq``:
+            2. Use ``--scale-estimation --dataset <dataset_name>`` and accuracy aware quantization ``--awq``:
 
                .. code-block:: console
                   :name: channel-wise-data-aware-quant
@@ -88,11 +89,12 @@ which do not require specifying quantization parameters:
 
 .. code-block:: console
 
-   optimum-cli export openvino -m TheBloke/Llama-2-7B-Chat-GPTQ
+   pip install auto-gptq
+   optimum-cli export openvino -m TheBloke/Llama-2-7B-Chat-GPTQ Llama-2-7B-Chat-GPTQ
 
 
-| Remember, NPU supports GenAI models quantized symmetrically to INT4.
-| Below is a list of such models:
+| Remember, NPU supports LLMs quantized symmetrically to INT4.
+| Below is a list of supported models:
 
 * meta-llama/Meta-Llama-3-8B-Instruct
 * meta-llama/Llama-3.1-8B
