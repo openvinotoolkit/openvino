@@ -30,6 +30,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "llm_compiled_model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -205,6 +206,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_VERB(r);
         }
     }
+
+    // Store original constants' offset for serialization purposes
+    store_const_offsets(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -482,7 +486,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 
     // Finalize memory in closures and weight banks
-    finalize_weights_bank();
+    finalize_weights_bank(std::nullopt);
     detach_memory();
 
     // Print stats report when possible
@@ -509,7 +513,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream) const {
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(
+    std::ostream& stream,
+    bool is_weightless,
+    const std::unordered_map<const void*, std::size_t>& const_to_offset) const {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Serializing CompiledModelDesc...");
@@ -526,37 +533,61 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream)
 
     write(stream, spatial);
 
-    write(stream, scales);
-    write(stream, zerops);
     write(stream, is_remote);
-
-    // NOTE: for closure only serialize uids - full flow
     write(stream, closure_uid);
 
-    // Some tensors might be present in CPU closure already - need to serialize as is
-    // FIXME: When weightless serialization is introduced, this should be handled differently
-    write(stream, closure.size());
-    std::vector<ov::Tensor> cpu_closures;
-    std::vector<std::size_t> cpu_closure_ids;
-    for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
-        if (closure_uid[cidx] == -1) {  // CPU closure, not in the bank
-            cpu_closure_ids.push_back(cidx);
-            cpu_closures.push_back(closure[cidx]);
+    if (!is_weightless) {
+        write(stream, scales);
+        write(stream, zerops);
+
+        // Some tensors might be present in CPU closure already - need to serialize as is
+        write(stream, closure.size());
+        std::vector<ov::Tensor> cpu_closures;
+        std::vector<std::size_t> cpu_closure_ids;
+        for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
+            if (closure_uid[cidx] == -1) {  // CPU closure, not in the bank
+                cpu_closure_ids.push_back(cidx);
+                cpu_closures.push_back(closure[cidx]);
+            }
         }
+
+        write(stream, cpu_closure_ids);
+
+        for (const auto& tensor : cpu_closures) {
+            write(stream, tensor);
+        }
+    } else {  // weightless
+        write_weightless(stream, scales, const_to_offset);
+        write_weightless(stream, zerops, const_to_offset);
+
+        // Some tensors might be present in CPU closure already - need to serialize as is
+        write(stream, closure.size());
+        std::vector<ov::Tensor> cpu_closures;
+        std::vector<std::size_t> cpu_closure_ids;
+        std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
+        std::vector<std::size_t> non_cpu_tensors_ids;
+        for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
+            if (closure_uid[cidx] == -1) {  // CPU closure
+                cpu_closure_ids.push_back(cidx);
+                cpu_closures.push_back(closure[cidx]);
+            } else {
+                non_cpu_tensors_ids.push_back(cidx);
+                non_cpu_tensors.push_back(lazy_closure[cidx]);  // must be there
+            }
+        }
+
+        write(stream, cpu_closure_ids);
+        write(stream, non_cpu_tensors_ids);
+        write_weightless(stream, cpu_closures, const_to_offset);
+        write(stream, non_cpu_tensors);
     }
-
-    write(stream, cpu_closure_ids);
-
-    for (const auto& tensor : cpu_closures) {
-        write(stream, tensor);
-    }
-
-    // FIXME: support weightless flow!
 
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream) {
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
+                                                             bool is_weightless,
+                                                             std::istream& weights_stream) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -573,30 +604,59 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
 
     read(stream, spatial);
 
-    read(stream, scales);
-    read(stream, zerops);
     read(stream, is_remote);
-
-    // NOTE: for closure only deserialize uids - full flow
     read(stream, closure_uid);
 
-    // Some tensors might be present in CPU closure already - need to deserialize as is
-    // FIXME: When weightless serialization is introduced, this should be handled differently
-    std::size_t closure_size = 0;
-    read(stream, closure_size);
-    std::vector<std::size_t> cpu_closure_ids;
-    read(stream, cpu_closure_ids);
-    closure.resize(closure_size);
-    for (const auto& cidx : cpu_closure_ids) {
-        read(stream, closure[cidx]);
-    }
+    if (!is_weightless) {
+        read(stream, scales);
+        read(stream, zerops);
 
-    // FIXME: support weightless flow!
+        // Some tensors might be present in CPU closure already - need to deserialize as is
+        std::size_t closure_size = 0;
+        read(stream, closure_size);
+        std::vector<std::size_t> cpu_closure_ids;
+        read(stream, cpu_closure_ids);
+        closure.resize(closure_size);
+        for (const auto& cidx : cpu_closure_ids) {
+            read(stream, closure[cidx]);
+        }
+    } else {  // weightless
+        read_weightless(stream, scales, weights_stream);
+        read_weightless(stream, zerops, weights_stream);
+
+        // Some tensors might be present in CPU closure already - need to serialize as is
+        std::size_t closure_size = 0;
+        read(stream, closure_size);
+        closure.resize(closure_size);
+        lazy_closure.resize(closure_size);
+
+        std::vector<std::size_t> cpu_closure_ids;
+        std::vector<std::size_t> non_cpu_tensors_ids;
+        read(stream, cpu_closure_ids);
+        read(stream, non_cpu_tensors_ids);
+
+        std::vector<ov::Tensor> cpu_closures;
+        std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
+        read_weightless(stream, cpu_closures, weights_stream);
+        std::size_t tidx = 0;
+        for (const auto& idx : cpu_closure_ids) {
+            ov::Tensor t = cpu_closures[tidx];
+            closure[idx] = ov::Tensor(t.get_element_type(), t.get_shape());
+            // FIXME: get rid of this copy
+            t.copy_to(closure[idx]);
+            tidx++;
+        }
+        read(stream, non_cpu_tensors);
+        std::size_t ltidx = 0;
+        for (const auto& idx : non_cpu_tensors_ids) {
+            lazy_closure[idx] = non_cpu_tensors[ltidx++];
+        }
+    }
 
     LOG_DEBUG("DONE.");
 }
 
-void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
+void ov::npuw::CompiledModel::serialize(std::ostream& stream, bool is_weightless) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
 
@@ -644,7 +704,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
             write(stream, false);
         }
         // Write the rest of the submodel desc
-        subm.serialize(stream);
+        subm.serialize(stream, is_weightless, m_const_to_offset);
     }
 
     LOG_INFO("Done.");
@@ -652,7 +712,9 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::istream& stream,
-    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    bool is_weightless,
+    const std::string& weights_path) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
@@ -699,6 +761,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     }
     compiled->implement_properties();
 
+    std::ifstream weights_stream = std::ifstream(weights_path, std::ios::in | std::ios::binary);
+    if (is_weightless) {
+        NPUW_ASSERT(weights_stream && "Couldn't open .bin file with model weights!");
+    }
+
     // Deserialize compiled submodels
     std::size_t subm_size = 0;
     read(stream, subm_size);
@@ -719,7 +786,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
         }
         compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-        compiled->m_compiled_submodels[i].deserialize(stream);
+        compiled->m_compiled_submodels[i].deserialize(stream, is_weightless, weights_stream);
     }
 
     compiled->implement_properties();
@@ -730,7 +797,34 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     return compiled;
 }
 
-void ov::npuw::CompiledModel::finalize_weights_bank() {
+void ov::npuw::CompiledModel::reconstruct_closure() {
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+
+        // Skip optimized out and non-functions
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+        auto& func_desc = m_compiled_submodels[real_idx];
+
+        // At this point closure size should have already been deserialized
+        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
+        for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
+            if (comp_model_desc.closure[cidx]) {
+                // host-side closure - already set, do nothing
+                NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
+                continue;
+            }
+            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != -1);
+            comp_model_desc.closure[cidx] =
+                m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
+        }
+    }
+}
+
+void ov::npuw::CompiledModel::finalize_weights_bank(std::optional<std::string> weights_path) {
     LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -754,7 +848,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     // Evaluate and allocate all LazyTensors inside the bank
-    m_weights_bank->evaluate_and_allocate();
+    m_weights_bank->evaluate_and_allocate(weights_path);
 
     // Set evaluated and allocated ov::Tensors to closures
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -785,29 +879,25 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Done.");
 }
 
-void ov::npuw::CompiledModel::reconstruct_closure() {
-    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
-        auto& comp_model_desc = m_compiled_submodels[idx];
-
-        // Skip optimized out and non-functions
-        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            continue;
-        }
-
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        auto& func_desc = m_compiled_submodels[real_idx];
-
-        // At this point closure size should have already been deserialized
-        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
-        for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
-            if (comp_model_desc.closure[cidx]) {
-                // host-side closure - already set, do nothing
-                NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
+void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node_ptr : model->get_ordered_ops()) {
+        if (ov::op::util::is_constant(node_ptr)) {
+            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+            auto rt_info = c->get_rt_info();
+            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr == rt_info.end()) {
                 continue;
             }
-            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != -1);
-            comp_model_desc.closure[cidx] =
-                m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
+            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+            auto data_ptr = c->get_data_ptr();
+            auto map_iter = m_const_to_offset.find(data_ptr);
+            if (map_iter != m_const_to_offset.end()) {
+                // Already there - check that offset is the same
+                NPUW_ASSERT(map_iter->second == offset &&
+                            "Model contains two constants with same pointer and different offset!");
+            } else {
+                m_const_to_offset[data_ptr] = offset;
+            }
         }
     }
 }
