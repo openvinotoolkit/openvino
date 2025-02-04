@@ -66,6 +66,7 @@ the table for more information.
      - -0.09%
      - -0.02%
      - -0.04%
+
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Arc only. BF16: Xeon® 6972P only)
    :header-rows: 1
 
@@ -125,7 +126,8 @@ the table for more information.
      - 0.01%
      - 
      - -0.03%
-.. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ A-series)
+
+.. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ B-series)
    :header-rows: 1
    
    * - OpenVINO™  Model name
@@ -135,6 +137,13 @@ the table for more information.
      - B, AMX-INT4
      - C, Arc-FP16
      - D, Arc-INT4
+   * - GLM4-9B-Chat
+     - Data Default WWB
+     - Similarity
+     - 6.9%
+     - 3.8%
+     - 6.3%
+     - 15.1%
    * - Qwen-2.5-7B-instruct
      - Data Default WWB
      - Similarity
@@ -209,6 +218,7 @@ the table for more information.
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 The Similarity metric is the distance from "perfect" and as such always positive. 
 Similarity is cosine similarity - the dot product of two vectors divided by the product of their lengths.
+
 .. raw:: html
 
    <link rel="stylesheet" type="text/css" href="../../_static/css/benchmark-banner.css">

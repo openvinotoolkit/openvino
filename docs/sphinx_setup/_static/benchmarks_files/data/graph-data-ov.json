@@ -10,7 +10,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.04,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -220,7 +220,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.04,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -233,7 +233,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 20456.96,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -501,7 +501,7 @@
                     {
                         "int4": "",
                         "int8": "",
-                        "fp16": 2.83,
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
@@ -799,7 +799,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -955,7 +955,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1.78,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -968,13 +968,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 561.11,
+                        "int8": 16.0,
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -1429,42 +1429,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Arc™ A-Series Graphics dGPU",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": true,
-        "whats_new_model": false,
-        "PlatformType": "Accelerator Platforms",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 2.18,
-                        "fp16": 2.19,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -1865,7 +1830,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.14,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -1878,7 +1843,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 6835.33,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -2075,7 +2040,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.06,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -2088,7 +2053,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 16196.18,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -2285,9 +2250,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.18,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.35,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -2530,9 +2495,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.17,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.04,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -2543,7 +2508,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 5759.21,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -2952,7 +2917,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.87,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -3197,7 +3162,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.33,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -4118,48 +4083,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 11.12,
-                        "fp16": 10.73,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ Ultra 7 processor 155H iGPU-only",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": true,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Core™, iGPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
                         "int8": 11.47,
                         "fp16": 11.1,
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -4282,7 +4212,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.54,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -4527,7 +4457,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.23,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -5191,7 +5121,7 @@
                     {
                         "int4": "",
                         "int8": "",
-                        "fp16": 0.75,
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
@@ -5483,48 +5413,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 5.46,
-                        "fp16": 5.61,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Core™ Ultra 9 processor 288V iGPU-only",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": true,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Core™, iGPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
                         "int8": 5.47,
                         "fp16": 5.59,
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -5612,7 +5507,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.15,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -5855,7 +5750,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.43,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -5868,7 +5763,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 2514.0,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -6277,7 +6172,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.22,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -6520,7 +6415,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.57,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -6533,7 +6428,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 2127.48,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -6940,9 +6835,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1.68,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.49,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -6953,7 +6848,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 734.76,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -7185,9 +7080,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.59,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.39,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -7430,9 +7325,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.71,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.19,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -7443,7 +7338,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1352.54,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -7852,7 +7747,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.14,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -8095,9 +7990,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.5,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.13,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -8108,7 +8003,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1834.27,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -8515,7 +8410,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1.14,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -8760,9 +8655,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1.35,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.35,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -8773,7 +8668,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 895.22,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -9145,9 +9040,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.54,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.48,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -9392,7 +9287,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.18,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -9810,7 +9705,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1.3,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -9823,13 +9718,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 765.77,
+                        "int8": 36.8,
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -10278,48 +10173,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1.91,
-                        "fp16": 1.92,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Data Center GPU Flex 170 dGPU",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Accelerator Platforms",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
                         "int8": 1.92,
                         "fp16": 1.93,
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -10545,7 +10405,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.16,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -10558,7 +10418,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 6247.36,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -10768,7 +10628,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 21420.36,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -10920,181 +10780,6 @@
         }
     },
     {
-        "Platform": "Intel® Xeon® GNR29 CPU-only",
-        "Model": "bert-base-cased",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 4.47,
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® GNR29 CPU-only",
-        "Model": "mobilenet-v2",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 1.93,
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® GNR29 CPU-only",
-        "Model": "resnet-50",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 1.88,
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® GNR29 CPU-only",
-        "Model": "ssd-resnet34-1200",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 9.35,
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® GNR29 CPU-only",
-        "Model": "yolo_v8n",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "FPS",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 3.9,
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
         "Platform": "Intel® Xeon® Gold 5218T CPU-only",
         "Model": "bert-base-cased",
         "featured_SKU": false,
@@ -11140,9 +10825,9 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 3.15,
+                        "int8": "",
                         "fp16": "",
-                        "fp32": 0.91,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -11387,7 +11072,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 2.45,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -11632,7 +11317,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 2.25,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -11875,7 +11560,7 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.18,
+                        "int8": "",
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
@@ -11888,13 +11573,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 5505.78,
+                        "int8": 113.3,
                         "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -12087,7 +11772,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 3.44,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -12384,42 +12069,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8380 CPU-only",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": false,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": 12.65,
-                        "fp16": 12.92,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -12540,8 +12190,8 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.73,
-                        "fp16": 0.64,
+                        "int8": "",
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12553,13 +12203,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1357.53,
-                        "fp16": 1544.72,
+                        "int8": 27.6,
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -12752,7 +12402,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 5.18,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -13043,48 +12693,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 3.36,
-                        "fp16": 3.31,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8480+ CPU-only",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": true,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
                         "int8": 3.37,
                         "fp16": 3.32,
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -13205,8 +12820,8 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 0.77,
-                        "fp16": 0.68,
+                        "int8": "",
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
@@ -13218,13 +12833,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 1290.6,
-                        "fp16": 1468.28,
+                        "int8": 26.2,
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -13417,7 +13032,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 6.41,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -13708,48 +13323,13 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 3.03,
-                        "fp16": 2.94,
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "ms",
-                "UnitDesc": "lower is better"
-            }
-        }
-    },
-    {
-        "Platform": "Intel® Xeon® Platinum 8580 CPU-only",
-        "Model": "stable-diffusion-v1-5",
-        "featured_SKU": true,
-        "whats_new_model": false,
-        "PlatformType": "Intel® Xeon®, CPU-only",
-        "Parameters": {
-            "throughput": {
-                "Precisions": [
-                    {
-                        "int4": "",
-                        "int8": "",
-                        "fp16": "",
-                        "fp32": "",
-                        "bf16": ""
-                    }
-                ],
-                "Unit": "Tokens per sec",
-                "UnitDesc": "higher is better"
-            },
-            "latency": {
-                "Precisions": [
-                    {
-                        "int4": "",
                         "int8": 3.04,
                         "fp16": 2.94,
                         "fp32": "",
                         "bf16": ""
                     }
                 ],
-                "Unit": "ms",
+                "Unit": "sec",
                 "UnitDesc": "lower is better"
             }
         }
@@ -13874,7 +13454,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.22,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -14080,7 +13660,7 @@
         "Platform": "Intel® Core™ Ultra 7 Processor 265H",
         "Model": "flux.1-schnell",
         "featured_SKU": true,
-        "whats_new_model": false,
+        "whats_new_model": true,
         "PlatformType": "Intel® Core™, iGPU-only",
 		"IE_type": "iGPU",
         "Parameters": {
@@ -14123,7 +13703,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 45.3,
+                        "int4": "",
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14136,7 +13716,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 22.05,
+                        "int4": "",
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14159,7 +13739,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 64.5,
+                        "int4": 12.6,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14172,7 +13752,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 15.5,
+                        "int4": 79.5,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14195,7 +13775,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 69.7,
+                        "int4": 13.1,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14208,7 +13788,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 14.3,
+                        "int4": 76.1,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14231,7 +13811,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 72.1,
+                        "int4": 12.5,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14244,7 +13824,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 13.9,
+                        "int4": 79.8,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14267,7 +13847,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 121.4,
+                        "int4": 27.2,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14280,7 +13860,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 8.2,
+                        "int4": 36.7,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14305,7 +13885,7 @@
                     {
                         "int4": "",
                         "int8": "",
-                        "fp16": 1.96,
+                        "fp16": "",
                         "fp32": "",
                         "bf16": ""
                     }
@@ -14339,7 +13919,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 70.3,
+                        "int4": 14.0,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14352,7 +13932,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 14.2,
+                        "int4": 71.6,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14411,7 +13991,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 108.5,
+                        "int4": 19.9,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14424,7 +14004,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 9.2,
+                        "int4": 50.2,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14447,7 +14027,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 78.4,
+                        "int4": 13.3,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14460,7 +14040,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 12.8,
+                        "int4": 75.0,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14483,7 +14063,7 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 78.4,
+                        "int4": 13.3,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14496,7 +14076,7 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 12.8,
+                        "int4": 75.2,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14605,8 +14185,8 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 5.25,
-                        "fp16": 5.1,
+                        "int8": 5.4,
+                        "fp16": 5.4,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -14690,6 +14270,42 @@
     },
     {
         "Platform": "Intel® Core™ Ultra 7 Processor 265H",
+        "Model": "llama-2-7b-chat",
+        "featured_SKU": true,
+        "whats_new_model": true,
+        "PlatformType": "Intel® Core™, NPU-only",
+		"IE_type": "NPU",
+        "Parameters": {
+            "throughput": {
+                "Precisions": [
+                    {
+                        "int4": 10.4,
+                        "int8": "",
+                        "fp16": "",
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "Tokens per sec",
+                "UnitDesc": "higher is better"
+            },
+            "latency": {
+                "Precisions": [
+                    {
+                        "int4": 95.8,
+                        "int8": "",
+                        "fp16": "",
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "ms",
+                "UnitDesc": "lower is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Core™ Ultra 7 Processor 265H",
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
@@ -14713,6 +14329,78 @@
                 "Precisions": [
                     {
                         "int4": "",
+                        "int8": "",
+                        "fp16": "",
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "ms",
+                "UnitDesc": "lower is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Core™ Ultra 7 Processor 265H",
+        "Model": "mistral-7B-instruct-V0.2",
+        "featured_SKU": true,
+        "whats_new_model": true,
+        "PlatformType": "Intel® Core™, NPU-only",
+		"IE_type": "NPU",
+        "Parameters": {
+            "throughput": {
+                "Precisions": [
+                    {
+                        "int4": 8.0,
+                        "int8": "",
+                        "fp16": "",
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "Tokens per sec",
+                "UnitDesc": "higher is better"
+            },
+            "latency": {
+                "Precisions": [
+                    {
+                        "int4": 125.6,
+                        "int8": "",
+                        "fp16": "",
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "ms",
+                "UnitDesc": "lower is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Core™ Ultra 7 Processor 265H",
+        "Model": "phi-3-mini-4k-instruct",
+        "featured_SKU": true,
+        "whats_new_model": true,
+        "PlatformType": "Intel® Core™, NPU-only",
+		"IE_type": "NPU",
+        "Parameters": {
+            "throughput": {
+                "Precisions": [
+                    {
+                        "int4": 11.1,
+                        "int8": "",
+                        "fp16": "",
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "Tokens per sec",
+                "UnitDesc": "higher is better"
+            },
+            "latency": {
+                "Precisions": [
+                    {
+                        "int4": 90.1,
                         "int8": "",
                         "fp16": "",
                         "fp32": "",
@@ -14918,7 +14606,7 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 0.24,
+                        "fp32": "",
                         "bf16": ""
                     }
                 ],
@@ -15314,8 +15002,8 @@
                         "int4": "",
                         "int8": "",
                         "fp16": "",
-                        "fp32": 11.92,
-                        "bf16": 83.42
+                        "fp32": "",
+                        "bf16": ""
                     }
                 ],
                 "Unit": "FPS",
