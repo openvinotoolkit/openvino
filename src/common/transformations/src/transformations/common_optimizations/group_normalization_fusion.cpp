@@ -14,7 +14,7 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -73,14 +73,11 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
     auto mvn_m = wrap_type<ov::op::v6::MVN>({pre_mvn_reshape_m, mvn_reduction_axes_const_m});
 
     auto instance_norm_gamma_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
-    auto instance_norm_gamma_multiply_m = wrap_type<ov::op::v1::Multiply>({mvn_m, instance_norm_gamma_m});
-    auto instance_norm_opt_gamma_m =
-        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{mvn_m, instance_norm_gamma_multiply_m});
+    auto instance_norm_opt_gamma_m = optional<ov::op::v1::Multiply>({mvn_m, instance_norm_gamma_m});
 
     auto instance_norm_beta_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
-    auto instance_norm_beta_add_m = wrap_type<ov::op::v1::Add>({instance_norm_opt_gamma_m, instance_norm_beta_m});
-    auto instance_norm_opt_gamma_opt_beta_m = std::make_shared<ov::pass::pattern::op::Or>(
-        ov::OutputVector{instance_norm_opt_gamma_m, instance_norm_beta_add_m});
+    auto instance_norm_opt_gamma_opt_beta_m =
+        optional<ov::op::v1::Add>({instance_norm_opt_gamma_m, instance_norm_beta_m});
 
     auto post_instance_norm_shape_m = any_input(all_of({rank_equals(1), has_static_dim(0)}));
     auto post_instance_norm_reshape_m =
