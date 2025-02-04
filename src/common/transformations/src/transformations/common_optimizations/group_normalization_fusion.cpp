@@ -7,15 +7,13 @@
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -135,6 +133,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         if (group_norm_beta_1d_out_ps != expected_param_shape)
             return false;
 
+        auto gather_axis_const_m = op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto gather_indices_vals = std::vector<int64_t>();
+        for (auto i = 0; i < num_groups; i++)
+            gather_indices_vals.insert(gather_indices_vals.end(), channels_to_groups_ratio, i);
+        auto gather_indices_const_m =
+            op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
+
         std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
         if (pattern_map.count(instance_norm_beta_m) > 0) {
             const auto& instance_norm_beta = pattern_map.at(instance_norm_beta_m);
@@ -158,13 +163,20 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             } else {
                 instance_norm_beta_1d_m = std::make_shared<ov::op::v0::Squeeze>(instance_norm_beta);
             }
-            ov::OutputVector instance_norm_beta_concat_inputs;
-            for (auto i = 0; i < channels_to_groups_ratio; i++)
-                instance_norm_beta_concat_inputs.push_back(instance_norm_beta_1d_m);
-            instance_norm_beta_1d_m = std::make_shared<ov::op::v0::Concat>(instance_norm_beta_concat_inputs, 0);
+
+            instance_norm_beta_1d_m = std::make_shared<ov::op::v8::Gather>(instance_norm_beta_1d_m,
+                                                                           gather_indices_const_m,
+                                                                           gather_axis_const_m);
+
             const auto& instance_norm_beta_1d_ps = instance_norm_beta_1d_m->get_output_partial_shape(0);
             if (instance_norm_beta_1d_ps != expected_param_shape)
                 return false;
+
+            // group_norm_beta = group_norm_gamma * instance_norm_beta + group_norm_beta
+            auto group_norm_beta_corr_multiply_m =
+                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d_m, instance_norm_beta_1d_m);
+            group_norm_beta_1d_m =
+                std::make_shared<ov::op::v1::Add>(group_norm_beta_corr_multiply_m, group_norm_beta_1d_m);
         }
 
         if (pattern_map.count(instance_norm_gamma_m) > 0) {
@@ -190,35 +202,17 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             } else {
                 instance_norm_gamma_1d_m = std::make_shared<ov::op::v0::Squeeze>(instance_norm_gamma);
             }
-            ov::OutputVector instance_norm_gamma_concat_inputs;
-            for (auto i = 0; i < channels_to_groups_ratio; i++)
-                instance_norm_gamma_concat_inputs.push_back(instance_norm_gamma_1d_m);
-            instance_norm_gamma_1d_m = std::make_shared<ov::op::v0::Concat>(instance_norm_gamma_concat_inputs, 0);
+
+            instance_norm_gamma_1d_m = std::make_shared<ov::op::v8::Gather>(instance_norm_gamma_1d_m,
+                                                                            gather_indices_const_m,
+                                                                            gather_axis_const_m);
             const auto& instance_norm_gamma_1d_ps = instance_norm_gamma_1d_m->get_output_partial_shape(0);
             if (instance_norm_gamma_1d_ps != expected_param_shape)
                 return false;
 
-            // group_norm_gamma /= instance_norm_gamma
+            // group_norm_gamma *= instance_norm_gamma
             group_norm_gamma_1d_m =
-                std::make_shared<ov::op::v1::Divide>(group_norm_gamma_1d_m, instance_norm_gamma_1d_m);
-
-            if (pattern_map.count(instance_norm_beta_m) > 0) {
-                // group_norm_beta -= group_norm_gamma * instance_norm_beta / instance_norm_gamma
-                auto group_norm_beta_corr_multiply_m =
-                    std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d_m, instance_norm_beta_1d_m);
-                auto group_norm_beta_corr_divide_m =
-                    std::make_shared<ov::op::v1::Divide>(group_norm_beta_corr_multiply_m, instance_norm_gamma_1d_m);
-                group_norm_beta_1d_m =
-                    std::make_shared<ov::op::v1::Subtract>(group_norm_beta_1d_m, group_norm_beta_corr_divide_m);
-            }
-        } else {
-            if (pattern_map.count(instance_norm_beta_m) > 0) {
-                // group_norm_beta -= group_norm_gamma * instance_norm_beta
-                auto group_norm_beta_corr_multiply_m =
-                    std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d_m, instance_norm_beta_1d_m);
-                group_norm_beta_1d_m =
-                    std::make_shared<ov::op::v1::Subtract>(group_norm_beta_1d_m, group_norm_beta_corr_multiply_m);
-            }
+                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d_m, instance_norm_gamma_1d_m);
         }
 
         // we need to cast mvn to MVN layer type in order to read actual epsilon value
