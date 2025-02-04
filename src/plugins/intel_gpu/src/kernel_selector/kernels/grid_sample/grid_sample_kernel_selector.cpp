@@ -10,8 +10,8 @@
 namespace kernel_selector {
 
 grid_sample_kernel_selector::grid_sample_kernel_selector() {
-    Attach<GridSampleKernelRef>();
     Attach<GridSampleKernelOptBilinear>();
+    Attach<GridSampleKernelRef>();
 }
 
 KernelsData grid_sample_kernel_selector::GetBestKernels(const Params& params) const {

@@ -34,7 +34,6 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
 
     KernelsData GetKernelsData(const Params& params) const override;
-    ParamsKey GetSupportedKey() const override;
 
 protected:
     virtual CommonDispatchData CalcDispatch(const grid_sample_params& kernel_params) const = 0;

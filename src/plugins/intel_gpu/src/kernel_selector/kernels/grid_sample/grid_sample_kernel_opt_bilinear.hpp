@@ -10,11 +10,15 @@ namespace kernel_selector {
 
 class GridSampleKernelOptBilinear : public GridSampleKernelBase {
 public:
+    using TBase = GridSampleKernelBase;
     GridSampleKernelOptBilinear() : GridSampleKernelBase("grid_sample_opt_bilinear") {}
 
 protected:
+    ParamsKey GetSupportedKey() const override;
     CommonDispatchData CalcDispatch(const grid_sample_params& kernel_params) const override;
     KernelsPriority GetKernelsPriority(const Params& /*params*/) const override;
+    bool Validate(const Params& params) const override;
+    JitConstants GetJitConstants(const grid_sample_params& kernel_params) const override;
 };
 
 }  // namespace kernel_selector

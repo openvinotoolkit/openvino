@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-typedef __global INPUT0_TYPE data_t;
-typedef __global INPUT1_TYPE grid_t;
-typedef __global OUTPUT_TYPE output_t;
+typedef INPUT0_TYPE data_t;
+typedef INPUT1_TYPE grid_t;
+typedef OUTPUT_TYPE output_t;
 
 typedef INPUT0_TYPE data_et;
 typedef float grid_et;
@@ -213,33 +213,70 @@ inline data_et bicubic(const data_t* data, const size_t n, const size_t c, const
 
 #define interpolate FUNC_CALL(interpolate)
 
-KERNEL(grid_sample_ref)(const data_t * data,
-                        const grid_t * grid,
-                        output_t * output
+KERNEL(grid_sample_opt_bilinear)(const __global data_t* restrict data,
+                        const __global grid_t* restrict grid,
+                        __global output_t* restrict output
                         #if HAS_FUSED_OPS_DECLS
                         , FUSED_OPS_DECLS
                         #endif
                        ) {
-#if INPUT0_BATCH_NUM != INPUT1_BATCH_NUM
-#error [clDNN grid_sample_ref.cl]: the batch dimension in the input data tensor's shape doesn't match the batch dimension in the grid tensor's shape
+
+#if !defined(INTERPOLATION_MODE_BILINEAR)
+#error [clDNN grid_sample_opt_bilinear.cl]: This kernel only support bilinear interppolation mode.
 #endif
+    __local grid_t grid_for_this_block_shared[GRID_ELEMENTS_PER_BLOCK*2];
 
-#if INPUT1_SIZE_X != 2
-#error [clDNN grid_sample_ref.cl]: wrong dimension of grid tensor's
-#endif
+    const int nhw = get_global_id(0);
+    const int n = nhw / (OUTPUT_BATCH_NUM*OUTPUT_SIZE_Y*OUTPUT_SIZE_X);
 
-    const uint nc = get_global_id(0);
-    const uint n = nc % OUTPUT_BATCH_NUM;
-    const uint c = nc / OUTPUT_BATCH_NUM;
-    const uint h = get_global_id(1);
-    const uint w = get_global_id(2);
+    const int GRID_OFFSET_FOR_THIS_BLOCK = GRID_ELEMENTS_PER_BLOCK*2*get_group_id(0);
+    const int BLOCK_SIZE = get_local_size(0);
 
-    const grid_et y_n = get_grid_single_value(grid, n, 1, h, w);
-    const grid_et x_n = get_grid_single_value(grid, n, 0, h, w);
+    const grid_t* restrict grid_for_this_block = grid + GRID_OFFSET_FOR_THIS_BLOCK;
 
-    const output_et out = interpolate(data, n, c, y_n, x_n);
+    const int GRID_ELEMS_FOR_THIS_BLOCK = min(OUTPUT_SIZE_Y*OUTPUT_SIZE_X*2 - GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMENTS_PER_BLOCK*2); 
 
-    set_output_single_value(out, output, n, c, h, w);
+    // if( get_local_linear_id() == 11) {
+    //     printf("Thread %i: GRID_OFFSET_FOR_THIS_BLOCK: %i, GRID_ELEMS_FOR_THIS_BLOCK: %i\n", get_local_linear_id(), GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMS_FOR_THIS_BLOCK);
+    // }
+
+    for(int i = get_local_linear_id(); i < GRID_ELEMS_FOR_THIS_BLOCK; i+= BLOCK_SIZE) { 
+        grid_for_this_block_shared[i] = grid_for_this_block[i];
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for(int thisThreadHW = get_local_linear_id()*2; thisThreadHW < GRID_ELEMS_FOR_THIS_BLOCK; thisThreadHW += 2*BLOCK_SIZE) {
+        const int globalThisThreadHW = (thisThreadHW + GRID_OFFSET_FOR_THIS_BLOCK)/2;
+        const int h = globalThisThreadHW / OUTPUT_SIZE_X;
+        const int w = globalThisThreadHW % OUTPUT_SIZE_X;
+
+        // if( get_local_linear_id() == 11) {
+        //     printf("Thread %i: OUTPUT_SIZE_Y: %i, OUTPUT_SIZE_X: %i\n", get_local_linear_id(), OUTPUT_SIZE_Y, OUTPUT_SIZE_X);
+        //     printf("Thread %i: h: %i, w: %i\n", get_local_linear_id(), h, w);
+        // }
+
+        const grid_et x_n = grid_for_this_block_shared[thisThreadHW];
+        const grid_et y_n = grid_for_this_block_shared[thisThreadHW+1];
+        const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);
+        const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);
+        const grid_et y_topleft = floor(y_d);
+        const grid_et x_topleft = floor(x_d);
+        const grid_et dy = y_d - y_topleft;
+        const grid_et dx = x_d - x_topleft;
+    
+        for(int c = 0; c < OUTPUT_FEATURE_NUM; ++c) {
+            const data_et v00 = get_padded(data, n, c, y_topleft, x_topleft);
+            const data_et v01 = get_padded(data, n, c, y_topleft, x_topleft + 1);
+            const data_et v10 = get_padded(data, n, c, y_topleft + 1, x_topleft);
+            const data_et v11 = get_padded(data, n, c, y_topleft + 1, x_topleft + 1);
+
+            const data_et q0 = (1 - dx) * v00 + dx * v01;
+            const data_et q1 = (1 - dx) * v10 + dx * v11;
+            const data_et out = dy * q1 + (1 - dy) * q0;
+            set_output_single_value(out, output, n, c, h, w);
+        }
+    }
 }
 #undef interpolate
 #undef get_padded

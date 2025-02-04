@@ -16,6 +16,7 @@ public:
     GridSampleKernelRef() : GridSampleKernelBase("grid_sample_ref") {}
 
 protected:
+    ParamsKey GetSupportedKey() const override;
     CommonDispatchData CalcDispatch(const grid_sample_params& kernel_params) const override;
 };
 

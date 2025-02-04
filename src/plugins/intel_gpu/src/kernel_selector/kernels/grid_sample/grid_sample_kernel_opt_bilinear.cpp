@@ -8,18 +8,61 @@
 
 namespace kernel_selector {
 
+constexpr size_t THREADS_PER_BLOCK = 256;
+constexpr size_t GRID_ELEMENTS_PER_BLOCK = THREADS_PER_BLOCK;
+
 CommonDispatchData GridSampleKernelOptBilinear::CalcDispatch(const grid_sample_params& kernel_params) const {
     CommonDispatchData dispatch_data;
     const auto& output = kernel_params.outputs.front();
 
-    dispatch_data.gws = {output.Batch().v * output.Feature().v, output.Y().v, output.X().v};
-    dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo);
+    auto blocks = (output.Batch().v * output.Y().v * output.X().v + THREADS_PER_BLOCK) / THREADS_PER_BLOCK;
 
+    dispatch_data.gws = {blocks * THREADS_PER_BLOCK, 1, 1};
+    dispatch_data.lws = {THREADS_PER_BLOCK, 1, 1};
+
+    std::cout << "GWS: [" << dispatch_data.gws[0] << ", " << dispatch_data.gws[1] << ", " << dispatch_data.gws[2] << "]"
+              << std::endl;
+    std::cout << "LWS: [" << dispatch_data.lws[0] << ", " << dispatch_data.lws[1] << ", " << dispatch_data.lws[2] << "]"
+              << std::endl;
     return dispatch_data;
 }
 
 KernelsPriority GridSampleKernelOptBilinear::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_8;
+}
+
+bool GridSampleKernelOptBilinear::Validate(const Params& params) const {
+    if (!TBase::Validate(params))
+        return false;
+
+    const auto& kernel_params = static_cast<const grid_sample_params&>(params);
+    if (kernel_params.interpolation_mode != grid_sample_params::InterpolationMode::BILINEAR)
+        return false;
+
+    return true;
+}
+
+JitConstants GridSampleKernelOptBilinear::GetJitConstants(const grid_sample_params& kernel_params) const {
+    auto jit_constants = TBase::GetJitConstants(kernel_params);
+
+    jit_constants.AddConstants({
+        MakeJitConstant("GRID_ELEMENTS_PER_BLOCK", GRID_ELEMENTS_PER_BLOCK),
+    });
+
+    return jit_constants;
+}
+
+ParamsKey GridSampleKernelOptBilinear::GetSupportedKey() const {
+    ParamsKey key;
+    key.EnableAllInputDataType();
+    key.EnableAllOutputDataType();
+    key.EnableDifferentTypes();
+    key.EnableInputLayout(DataLayout::bfyx);
+    key.EnableOutputLayout(DataLayout::bfyx);
+    key.EnableTensorOffset();
+    key.EnableTensorPitches();
+    key.EnableBatching();
+    return key;
 }
 
 }  // namespace kernel_selector

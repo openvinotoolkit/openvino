@@ -26,29 +26,6 @@ KernelsData GridSampleKernelBase::GetKernelsData(const Params& params) const {
     return {kernel_data};
 }
 
-ParamsKey GridSampleKernelBase::GetSupportedKey() const {
-    ParamsKey key;
-    key.EnableAllInputDataType();
-    key.EnableAllOutputDataType();
-    key.EnableDifferentTypes();
-    key.EnableInputLayout(DataLayout::bfyx);
-    key.EnableOutputLayout(DataLayout::bfyx);
-    key.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
-    key.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    key.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    key.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    key.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    key.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    key.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    key.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    key.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    key.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    key.EnableTensorOffset();
-    key.EnableTensorPitches();
-    key.EnableBatching();
-    return key;
-}
-
 bool GridSampleKernelBase::Validate(const Params& params) const {
     if (params.GetType() != KernelType::GRID_SAMPLE) {
         return false;
