@@ -226,18 +226,18 @@ KERNEL(grid_sample_opt_bilinear)(const __global data_t* restrict data,
 #endif
     __local grid_t grid_for_this_block_shared[GRID_ELEMENTS_PER_BLOCK*2];
 
-    const int nhw = get_global_id(0);
-    const int n = nhw / (OUTPUT_BATCH_NUM*OUTPUT_SIZE_Y*OUTPUT_SIZE_X);
+    const int n = get_global_id(0);
 
-    const int GRID_OFFSET_FOR_THIS_BLOCK = GRID_ELEMENTS_PER_BLOCK*2*get_group_id(0);
-    const int BLOCK_SIZE = get_local_size(0);
+    const int GRID_OFFSET_FOR_THIS_BLOCK = GRID_ELEMENTS_PER_BLOCK*2*get_group_id(1);
+    const int BLOCK_SIZE = get_local_size(1);
 
     const grid_t* restrict grid_for_this_block = grid + GRID_OFFSET_FOR_THIS_BLOCK;
 
     const int GRID_ELEMS_FOR_THIS_BLOCK = min(OUTPUT_SIZE_Y*OUTPUT_SIZE_X*2 - GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMENTS_PER_BLOCK*2); 
 
     // if( get_local_linear_id() == 11) {
-    //     printf("Thread %i: GRID_OFFSET_FOR_THIS_BLOCK: %i, GRID_ELEMS_FOR_THIS_BLOCK: %i\n", get_local_linear_id(), GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMS_FOR_THIS_BLOCK);
+    //     printf("Thread %i: get_num_groups(0): %i, GRID_OFFSET_FOR_THIS_BLOCK: %i\n", get_local_linear_id(), get_num_groups(0), GRID_OFFSET_FOR_THIS_BLOCK);
+    //     //printf("Thread %i: GRID_OFFSET_FOR_THIS_BLOCK: %i, GRID_ELEMS_FOR_THIS_BLOCK: %i\n", get_local_linear_id(), GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMS_FOR_THIS_BLOCK);
     // }
 
     for(int i = get_local_linear_id(); i < GRID_ELEMS_FOR_THIS_BLOCK; i+= BLOCK_SIZE) { 

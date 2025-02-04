@@ -15,15 +15,15 @@ CommonDispatchData GridSampleKernelOptBilinear::CalcDispatch(const grid_sample_p
     CommonDispatchData dispatch_data;
     const auto& output = kernel_params.outputs.front();
 
-    auto blocks = (output.Batch().v * output.Y().v * output.X().v + THREADS_PER_BLOCK) / THREADS_PER_BLOCK;
+    auto blocks = (output.Y().v * output.X().v + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 
-    dispatch_data.gws = {blocks * THREADS_PER_BLOCK, 1, 1};
-    dispatch_data.lws = {THREADS_PER_BLOCK, 1, 1};
+    dispatch_data.gws = {output.Batch().v, blocks * THREADS_PER_BLOCK, 1};
+    dispatch_data.lws = {1, THREADS_PER_BLOCK, 1};
 
-    std::cout << "GWS: [" << dispatch_data.gws[0] << ", " << dispatch_data.gws[1] << ", " << dispatch_data.gws[2] << "]"
-              << std::endl;
-    std::cout << "LWS: [" << dispatch_data.lws[0] << ", " << dispatch_data.lws[1] << ", " << dispatch_data.lws[2] << "]"
-              << std::endl;
+    // std::cout << "GWS: [" << dispatch_data.gws[0] << ", " << dispatch_data.gws[1] << ", " << dispatch_data.gws[2] << "]"
+    //           << std::endl;
+    // std::cout << "LWS: [" << dispatch_data.lws[0] << ", " << dispatch_data.lws[1] << ", " << dispatch_data.lws[2] << "]"
+    //           << std::endl;
     return dispatch_data;
 }
 
