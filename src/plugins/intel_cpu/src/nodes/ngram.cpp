@@ -109,7 +109,7 @@ void Ngram::execute(const dnnl::stream& strm) {
     } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        THROW_CPU_NODE_ERR("Unsupported idces precision: ", idcesPrecision);
+        THROW_CPU_NODE_ERR("Unsupported indices precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:

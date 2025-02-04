@@ -56,7 +56,7 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();

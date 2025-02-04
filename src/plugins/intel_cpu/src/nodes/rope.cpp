@@ -25,7 +25,7 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);

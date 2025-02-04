@@ -1084,7 +1084,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 void BinaryConvolution::createPrimitive() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
 
     auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();

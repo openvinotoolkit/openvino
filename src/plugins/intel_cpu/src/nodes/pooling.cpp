@@ -507,7 +507,7 @@ void Pooling::prepareParams() {
         dnnlExecPtr = result.first;
 
         if (!dnnlExecPtr) {
-            THROW_CPU_NODE_ERR("Primitive descriptor was not found for node ", getName(), ".");
+            THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());

@@ -1084,7 +1084,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     : Node(op, context, SDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& cpuConfig = context->getConfig();
     const auto& keyCachePrecision = cpuConfig.keyCachePrecision;

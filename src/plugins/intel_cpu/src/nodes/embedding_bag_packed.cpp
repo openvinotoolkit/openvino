@@ -54,7 +54,7 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul) {
-        THROW_CPU_NODE_ERR("layer has indices data with invalid rank.");
+        THROW_CPU_NODE_ERR("has indices data with invalid rank.");
     }
 }
 

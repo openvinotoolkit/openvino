@@ -466,7 +466,7 @@ void ExtractImagePatches::execute(const dnnl::stream& strm) {
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
-        THROW_CPU_NODE_ERR("Can't execute extract image patches node. Primitive wasn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 

@@ -2465,7 +2465,7 @@ void Interpolate::prepareParams() {
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
-        THROW_CPU_NODE_ERR("Interpolate layer only supports resize on spatial dimensions(depth, height and width)");
+        THROW_CPU_NODE_ERR("only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
@@ -2724,7 +2724,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        THROW_CPU_NODE_ERR("Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 

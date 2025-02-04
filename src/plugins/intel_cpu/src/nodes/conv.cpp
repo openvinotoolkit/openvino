@@ -420,7 +420,7 @@ void Convolution::getSupportedDescriptors() {
         return;
     }
     if (!attrs.empty()) {
-        THROW_CPU_NODE_ERR("has not empty attrs vector");
+        THROW_CPU_NODE_ERR("has a non-empty attrs vector");
     }
 
     attrs.reserve(2);
@@ -1363,7 +1363,7 @@ void Convolution::prepareParams() {
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->getDescWithType<DnnlMemoryDesc>();

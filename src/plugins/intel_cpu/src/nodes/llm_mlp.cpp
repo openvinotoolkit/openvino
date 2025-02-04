@@ -504,7 +504,7 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     std::string errorMessage;
     const auto& config = context->getConfig();
     if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
     m_mlp_config = node_mlp->get_config();

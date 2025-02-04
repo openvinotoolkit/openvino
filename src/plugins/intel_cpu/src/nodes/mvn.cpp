@@ -2319,7 +2319,7 @@ void MVN::execute(const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        THROW_CPU_NODE_ERR("Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 

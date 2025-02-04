@@ -148,7 +148,7 @@ void Transpose::prepareParams() {
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
-            THROW_CPU_NODE_ERR("Reorder primitive descriptor was not found for Transpose node ", getName(), ".");
+            THROW_CPU_NODE_ERR("reorder primitive descriptor was not found.");
         }
         prim = result;
 
