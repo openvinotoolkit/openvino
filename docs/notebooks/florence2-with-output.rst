@@ -51,11 +51,15 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.3.0" "einops" "torch>2.1" "torchvision" "matplotlib>=3.4" "timm>=0.9.8" "transformers>=4.41" "pillow" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "einops" "torch>2.1" "torchvision" "matplotlib>=3.4" "timm>=0.9.8" "transformers>=4.41" "pillow" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U --pre "openvino>=2024.6" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
 
 
 .. parsed-literal::
 
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: Could not find a version that satisfies the requirement openvino>=2024.6 (from versions: 2021.3.0, 2021.4.0, 2021.4.1, 2021.4.2, 2022.1.0, 2022.2.0, 2022.3.0, 2022.3.1, 2022.3.2, 2023.0.0.dev20230119, 2023.0.0.dev20230217, 2023.0.0.dev20230407, 2023.0.0.dev20230427, 2023.0.0, 2023.0.1, 2023.0.2, 2023.1.0.dev20230623, 2023.1.0.dev20230728, 2023.1.0.dev20230811, 2023.1.0, 2023.2.0.dev20230922, 2023.2.0, 2023.3.0, 2024.0.0.dev20240215, 2024.0.0rc2, 2024.0.0, 2024.1.0rc2, 2024.1.0, 2024.2.0rc1, 2024.2.0rc2, 2024.2.0, 2024.3.0.dev20240807, 2024.3.0rc1, 2024.3.0rc2, 2024.3.0, 2024.4.0rc1, 2024.4.0rc2, 2024.4.0, 2024.4.1.dev20240926, 2024.4.1rc1)
+    ERROR: No matching distribution found for openvino>=2024.6
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -63,19 +67,24 @@ Prerequisites
 
     import requests
     from pathlib import Path
-
+    
     if not Path("ov_florence2_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/florence2/ov_florence2_helper.py")
         open("ov_florence2_helper.py", "w").write(r.text)
-
-
+    
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/florence2/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("florence2.ipynb")
 
 Select model
 ------------
@@ -92,18 +101,18 @@ available model. By default, we will use
 .. code:: ipython3
 
     from ov_florence2_helper import convert_florence2, get_model_selector
-
+    
     model_selector = get_model_selector()
-
+    
     model_selector
 
 
 .. parsed-literal::
 
-    2024-12-10 01:48:13.363088: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 01:48:13.396921: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-04 02:29:03.827716: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-04 02:29:03.861899: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-12-10 01:48:14.055295: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2025-02-04 02:29:04.528243: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -122,7 +131,7 @@ Convert model
 Florence2 is PyTorch model. OpenVINO supports PyTorch models via
 conversion to OpenVINO Intermediate Representation (IR). `OpenVINO model
 conversion
-API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__
 should be used for these purposes. ``ov.convert_model`` function accepts
 original PyTorch model instance and example input for tracing and
 returns ``ov.Model`` representing this model in OpenVINO framework.
@@ -169,7 +178,7 @@ pipeline.
 
     model_id = model_selector.value
     model_path = Path(model_id.split("/")[-1])
-
+    
     # Uncomment the line to see conversion code
     # ??convert_florence2
 
@@ -193,25 +202,19 @@ pipeline.
 
 .. parsed-literal::
 
-    SUPPORT.md:   0%|          | 0.00/1.24k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    .gitattributes:   0%|          | 0.00/1.56k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    configuration_florence2.py:   0%|          | 0.00/15.1k [00:00<?, ?B/s]
+    LICENSE:   0%|          | 0.00/1.14k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
     SECURITY.md:   0%|          | 0.00/2.66k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    SUPPORT.md:   0%|          | 0.00/1.24k [00:00<?, ?B/s]
 
 
 
@@ -235,7 +238,13 @@ pipeline.
 
 .. parsed-literal::
 
-    LICENSE:   0%|          | 0.00/1.14k [00:00<?, ?B/s]
+    configuration_florence2.py:   0%|          | 0.00/15.1k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    .gitattributes:   0%|          | 0.00/1.56k [00:00<?, ?B/s]
 
 
 
@@ -253,7 +262,7 @@ pipeline.
 
 .. parsed-literal::
 
-    tokenizer.json:   0%|          | 0.00/1.36M [00:00<?, ?B/s]
+    processing_florence2.py:   0%|          | 0.00/46.4k [00:00<?, ?B/s]
 
 
 
@@ -265,7 +274,7 @@ pipeline.
 
 .. parsed-literal::
 
-    processing_florence2.py:   0%|          | 0.00/46.4k [00:00<?, ?B/s]
+    tokenizer.json:   0%|          | 0.00/1.36M [00:00<?, ?B/s]
 
 
 
@@ -282,7 +291,7 @@ pipeline.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
       warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
     Florence2LanguageForConditionalGeneration has generative capabilities, as `prepare_inputs_for_generation` is explicitly overwritten. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, `PreTrainedModel` will NOT inherit from `GenerationMixin`, and this model will lose the ability to call `generate` and other related functions.
       - If you're using `trust_remote_code=True`, you can get rid of this warning by loading the model with an auto class. See https://huggingface.co/docs/transformers/en/model_doc/auto#auto-classes
@@ -300,7 +309,7 @@ pipeline.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/chkpt/modeling_florence2.py:277: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
@@ -341,7 +350,7 @@ pipeline.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
     /opt/home/k8sworker/.cache/huggingface/modules/transformers_modules/chkpt/modeling_florence2.py:1205: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       is_causal = True if self.is_causal and attention_mask is None and tgt_len > 1 else False
@@ -363,9 +372,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -390,7 +399,7 @@ will use ``generate`` method.
 .. code:: ipython3
 
     from ov_florence2_helper import OVFlorence2Model
-
+    
     # Uncomment the line to see model class code
     # ??OVFlorence2Model
 
@@ -407,16 +416,16 @@ responsible for input data preparation and decoding model output.
 
     import requests
     from PIL import Image
-
+    
     from transformers import AutoProcessor
-
+    
     processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-
+    
     prompt = "<OD>"
-
+    
     url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/car.jpg?download=true"
     image = Image.open(requests.get(url, stream=True).raw)
-
+    
     image
 
 
@@ -431,16 +440,16 @@ Let’s check model capabilities in Object Detection.
 .. code:: ipython3
 
     inputs = processor(text=prompt, images=image, return_tensors="pt")
-
+    
     generated_ids = model.generate(input_ids=inputs["input_ids"], pixel_values=inputs["pixel_values"], max_new_tokens=1024, do_sample=False, num_beams=3)
     generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
-
+    
     parsed_answer = processor.post_process_generation(generated_text, task="<OD>", image_size=(image.width, image.height))
 
 .. code:: ipython3
 
     from gradio_helper import plot_bbox
-
+    
     fig = plot_bbox(image, parsed_answer["<OD>"])
 
 
@@ -610,9 +619,9 @@ image, providing both text and region information.
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
+    
     demo = make_demo(model, processor)
-
+    
     try:
         demo.launch(debug=False, height=600)
     except Exception:
@@ -625,7 +634,7 @@ image, providing both text and region information.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 

@@ -105,7 +105,7 @@ Prerequisites
     %pip install -q "nncf>=2.11.0"
     %pip install -Uq "openvino>=2024.3.0"
     %pip install -q "git+https://github.com/THU-MIG/yolov10.git" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "torch>=2.1" "torchvision>=0.16" tqdm opencv-python "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1,<2.6" "torchvision>=0.16" tqdm opencv-python "gradio>=4.19" "matplotlib>=3.9" --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
@@ -114,13 +114,19 @@ Prerequisites
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file, VideoPlayer, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("yolov10-optimization.ipynb")
 
 Download PyTorch model
 ----------------------
@@ -145,7 +151,8 @@ the same steps are also applicable to other models in YOLO V10 series.
     file_name = model_weights_url.split("/")[-1]
     model_name = file_name.replace(".pt", "")
     
-    download_file(model_weights_url, directory=models_dir)
+    if not (models_dir / file_name).exists():
+        download_file(model_weights_url, directory=models_dir)
 
 
 .. parsed-literal::
@@ -323,11 +330,12 @@ will be used for launching model.
     from PIL import Image
     
     IMAGE_PATH = Path("./data/coco_bike.jpg")
-    download_file(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
-        filename=IMAGE_PATH.name,
-        directory=IMAGE_PATH.parent,
-    )
+    if not IMAGE_PATH.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
+            filename=IMAGE_PATH.name,
+            directory=IMAGE_PATH.parent,
+        )
 
 
 .. parsed-literal::
@@ -480,10 +488,12 @@ step using checkbox bellow:
 .. code:: ipython3
 
     # Fetch skip_kernel_extension module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -517,11 +527,10 @@ preparing input data.
         LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
         CFG_PATH = OUT_DIR / "coco.yaml"
         
-        download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
-        download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
-        download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-        
         if not (OUT_DIR / "coco/labels").exists():
+            download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
+            download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
+            download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
             with ZipFile(LABELS_PATH, "r") as zip_ref:
                 zip_ref.extractall(OUT_DIR)
             with ZipFile(DATA_PATH, "r") as zip_ref:
@@ -1041,11 +1050,12 @@ The following code runs model inference on a video:
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        download_file(
-            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
-            directory="data",
-        )
         VIDEO_SOURCE = "data/people.mp4"
+        if not Path(VIDEO_SOURCE).exists():
+            download_file(
+                "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
+                directory="data",
+            )
 
 
 .. parsed-literal::
@@ -1103,8 +1113,3 @@ Gradio Interactive Demo
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

@@ -32,6 +32,22 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
+.. code:: ipython3
+
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("localai.ipynb")
+
 Prepare Docker
 --------------
 
@@ -49,11 +65,6 @@ image and a message.
 
 .. parsed-literal::
 
-    Unable to find image 'hello-world:latest' locally
-    latest: Pulling from library/hello-world
-    
-    [1BDigest: sha256:305243c734571da2d100c8c8b3c3167a098cab6049c9a5b066b6021a60fcb966
-    Status: Downloaded newer image for hello-world:latest
     
     Hello from Docker!
     This message shows that your installation appears to be working correctly.
@@ -174,7 +185,7 @@ request from a separate notebook.
 
 .. parsed-literal::
 
-    67e1a2a8123aa15794c027278aed2c258a04e06883663459bbeaca22ff014740
+    471a3e7e745080f9d62b3b4791103efedec7dabb43f2d6c7ca57b1b6023aa823
     docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error running hook #1: error running hook: exit status 1, stdout: , stderr: Auto-detected mode as 'legacy'
     nvidia-container-cli: requirement error: invalid expression: unknown.
 

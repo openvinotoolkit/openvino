@@ -82,6 +82,11 @@ Prerequisites
             r = requests.get(base_helper_url + helper_file)
             with Path(helper_file).open("w") as f:
                 f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("outetts-text-to-speech.ipynb")
 
 .. code:: ipython3
 
@@ -285,8 +290,10 @@ description.
     from notebook_utils import download_file
     
     ref_audio_url = "https://huggingface.co/OuteAI/OuteTTS-0.1-350M/resolve/main/samples/2.wav"
+    file_path = Path("2.wav")
     
-    file_path = download_file(ref_audio_url)
+    if not file_path.exists():
+        file_path = download_file(ref_audio_url)
 
 
 .. parsed-literal::

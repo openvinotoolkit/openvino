@@ -147,10 +147,23 @@ applicable for other models from pix2struct family.
     import gc
     from pathlib import Path
     from optimum.intel.openvino import OVModelForPix2Struct
-
+    
+    import requests
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("pix2struct-docvqa.ipynb")
+    
     model_id = "google/pix2struct-docvqa-base"
     model_dir = Path(model_id.split("/")[-1])
-
+    
     if not model_dir.exists():
         ov_model = OVModelForPix2Struct.from_pretrained(model_id, export=True, compile=False)
         ov_model.half()
@@ -167,17 +180,10 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -210,7 +216,7 @@ by ``Pix2StructProcessor.decode``
 .. code:: ipython3
 
     from transformers import Pix2StructProcessor
-
+    
     processor = Pix2StructProcessor.from_pretrained(model_id)
     ov_model = OVModelForPix2Struct.from_pretrained(model_dir, device=device.value)
 
@@ -224,26 +230,35 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2025/get-started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2024/get-started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 
     import requests
     from PIL import Image
     from io import BytesIO
-
-
+    
+    
     def load_image(image_file):
-        response = requests.get(image_file)
-        image = Image.open(BytesIO(response.content)).convert("RGB")
-        return image
-
-
+        if isinstance(image_file, str) and image_file.startswith("https://"):
+            response = requests.get(image_file)
+            image = Image.open(BytesIO(response.content))
+        else:
+            image = Image.open(image_file)
+        return image.convert("RGB")
+    
+    
+    test_image_path = Path("ov_docs.png")
     test_image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/aa46ef0c-c14d-4bab-8bb7-3b22fe73f6bc"
-
-    image = load_image(test_image_url)
+    
+    if not test_image_path.exists():
+        image = load_image(test_image_url)
+        image.save(test_image_path)
+    else:
+        image = load_image(test_image_path)
+    
     text = "What performance hints do?"
-
+    
     inputs = processor(images=image, text=text, return_tensors="pt")
     display(image)
 
@@ -287,16 +302,16 @@ Interactive demo
         inputs = processor(images=img, text=question, return_tensors="pt")
         predictions = ov_model.generate(**inputs, max_new_tokens=256)
         return processor.decode(predictions[0], skip_special_tokens=True)
-
-
+    
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/pix2struct-docvqa/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(fn=generate)
-
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -304,8 +319,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

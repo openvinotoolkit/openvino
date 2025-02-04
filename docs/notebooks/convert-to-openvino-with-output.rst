@@ -39,14 +39,46 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
+    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64'"
+    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64'"
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin'"
+    %pip install -q --no-deps "tensorflow-hub"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "openvino>=2024.4.0" "requests" "tqdm" "transformers>=4.31" "onnx!=1.16.2" "torch>=2.1" "torchvision" "tensorflow_hub" "tensorflow"
+    "openvino>=2024.4.0" "requests" "tqdm" "transformers>=4.31" "onnx!=1.16.2" "torch>=2.1" "torchvision" "tf_keras"
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    fastapi 0.115.8 requires typing-extensions>=4.8.0, but you have typing-extensions 4.5.0 which is incompatible.
+    mypy 1.14.1 requires typing-extensions>=4.6.0, but you have typing-extensions 4.5.0 which is incompatible.
+    pydantic 2.10.6 requires typing-extensions>=4.12.2, but you have typing-extensions 4.5.0 which is incompatible.
+    pydantic-core 2.27.2 requires typing-extensions!=4.7.0,>=4.6.0, but you have typing-extensions 4.5.0 which is incompatible.
+    torch 2.4.1+cpu requires typing-extensions>=4.8.0, but you have typing-extensions 4.5.0 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    tensorflow 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
 
+
+.. code:: ipython3
+
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("convert-to-openvino.ipynb")
 
 OpenVINO IR format
 ------------------
@@ -54,7 +86,7 @@ OpenVINO IR format
 
 
 OpenVINO `Intermediate Representation
-(IR) <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
 is the proprietary model format of OpenVINO. It is produced after
 converting a model with model conversion API. Model conversion API
 translates the frequently used deep learning operations to their
@@ -74,13 +106,13 @@ These model formats can be read, compiled, and converted to OpenVINO IR,
 either automatically or explicitly.
 
 For more details, refer to `Model
-Preparation <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__
+Preparation <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 documentation.
 
 .. code:: ipython3
 
     # OVC CLI tool parameters description
-
+    
     ! ovc --help
 
 
@@ -89,12 +121,12 @@ documentation.
     usage: ovc INPUT_MODEL... [-h] [--output_model OUTPUT_MODEL]
                [--compress_to_fp16 [True | False]] [--version] [--input INPUT]
                [--output OUTPUT] [--extension EXTENSION] [--verbose]
-
+    
     positional arguments:
       INPUT_MODEL           Input model file(s) from TensorFlow, ONNX,
                             PaddlePaddle. Use openvino.convert_model in Python to
                             convert models from PyTorch.
-
+    
     optional arguments:
       -h, --help            show this help message and exit
       --output_model OUTPUT_MODEL
@@ -151,7 +183,7 @@ This notebook uses two models for conversion examples:
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     # create a directory for models files
     MODEL_DIRECTORY_PATH = Path("model")
     MODEL_DIRECTORY_PATH.mkdir(exist_ok=True)
@@ -164,14 +196,14 @@ NLP model from Hugging Face and export it in ONNX format:
 
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
     import torch
-
+    
     ONNX_NLP_MODEL_PATH = MODEL_DIRECTORY_PATH / "distilbert.onnx"
-
+    
     # download model
     hf_model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
     # initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-
+    
     if not ONNX_NLP_MODEL_PATH.exists():
         inputs = tokenizer("Hi, how are you?", return_tensors="pt")
         input_names = list(inputs.keys())
@@ -184,10 +216,10 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-12-09 23:09:00.018226: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-09 23:09:00.080568: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-03 23:50:32.463242: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-03 23:50:32.496498: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-12-09 23:09:00.743048: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2025-02-03 23:50:33.168481: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -202,7 +234,7 @@ CV classification model from torchvision:
 .. code:: ipython3
 
     from torchvision.models import resnet50, ResNet50_Weights
-
+    
     # create model object
     pytorch_model = resnet50(weights=ResNet50_Weights.DEFAULT)
     # switch model from training to inference mode
@@ -398,9 +430,9 @@ Convert PyTorch model to ONNX format:
 
     import torch
     import warnings
-
+    
     ONNX_CV_MODEL_PATH = MODEL_DIRECTORY_PATH / "resnet.onnx"
-
+    
     if ONNX_CV_MODEL_PATH.exists():
         print(f"ONNX model {ONNX_CV_MODEL_PATH} already exists.")
     else:
@@ -425,11 +457,11 @@ To convert a model to OpenVINO IR, use the following API:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     # ov.convert_model returns an openvino.runtime.Model object
     print(ONNX_NLP_MODEL_PATH)
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
-
+    
     # then model can be serialized to *.xml & *.bin files
     ov.save_model(ov_model, MODEL_DIRECTORY_PATH / "distilbert.xml")
 
@@ -473,13 +505,13 @@ inputs. Doing so at the model preparation stage, not at runtime, can be
 beneficial in terms of performance and memory consumption.
 
 For more information refer to `Setting Input
-Shapes <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/setting-input-shapes.html>`__
+Shapes <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting-input-shapes.html>`__
 documentation.
 
 .. code:: ipython3
 
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, 128]), ("attention_mask", [1, 128])])
 
 .. code:: ipython3
@@ -512,7 +544,7 @@ conversion API parameter as ``-1`` or ``?`` when using ``ovc``:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH, input=[("input_ids", [1, -1]), ("attention_mask", [1, -1])])
 
 .. code:: ipython3
@@ -547,10 +579,10 @@ sequence length dimension:
 .. code:: ipython3
 
     import openvino as ov
-
-
+    
+    
     sequence_length_dim = ov.Dimension(10, 128)
-
+    
     ov_model = ov.convert_model(
         ONNX_NLP_MODEL_PATH,
         input=[
@@ -593,7 +625,7 @@ disabled by setting ``compress_to_fp16`` flag to ``False``:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_NLP_MODEL_PATH)
     ov.save_model(ov_model, MODEL_DIRECTORY_PATH / "distilbert.xml", compress_to_fp16=False)
 
@@ -623,18 +655,18 @@ Convert Models from memory
 
 Model conversion API supports passing original framework Python object
 directly. More details can be found in
-`PyTorch <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-pytorch.html>`__,
-`TensorFlow <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__,
-`PaddlePaddle <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-paddle.html>`__
+`PyTorch <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html>`__,
+`TensorFlow <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__,
+`PaddlePaddle <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__
 frameworks conversion guides.
 
 .. code:: ipython3
 
     import openvino as ov
     import torch
-
+    
     example_input = torch.rand(1, 3, 224, 224)
-
+    
     ov_model = ov.convert_model(pytorch_model, example_input=example_input, input=example_input.shape)
 
 
@@ -646,21 +678,21 @@ frameworks conversion guides.
 .. code:: ipython3
 
     import os
-
+    
     import openvino as ov
     import tensorflow_hub as hub
-
+    
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
-
+    
     model = hub.load("https://www.kaggle.com/models/google/movenet/frameworks/TensorFlow2/variations/singlepose-lightning/versions/4")
     movenet = model.signatures["serving_default"]
-
+    
     ov_model = ov.convert_model(movenet)
 
 
 .. parsed-literal::
 
-    2024-12-09 23:09:17.262024: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2025-02-03 23:50:49.384602: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1960] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -679,7 +711,7 @@ OVC or can be replaced with functionality from ``ov.PrePostProcessor``
 class. Refer to `Optimize Preprocessing
 notebook <optimize-preprocessing-with-output.html>`__ for
 more information about `Preprocessing
-API <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing.html>`__.
 Here is the migration guide from legacy model preprocessing to
 Preprocessing API.
 
@@ -693,7 +725,7 @@ for both inputs and outputs. Some preprocessing requires to set input
 layouts, for example, setting a batch, applying mean or scales, and
 reversing input channels (BGR<->RGB). For the layout syntax, check the
 `Layout API
-overview <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview.html>`__.
+overview <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview.html>`__.
 To specify the layout, you can use the layout option followed by the
 layout value.
 
@@ -704,9 +736,9 @@ Resnet50 model that was exported to the ONNX format:
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
@@ -735,9 +767,9 @@ and the layout of an original model:
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nhwc"))
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
@@ -771,14 +803,14 @@ more examples.
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nchw"))
     prep.input("input.1").preprocess().mean([255 * x for x in [0.485, 0.456, 0.406]])
     prep.input("input.1").preprocess().scale([255 * x for x in [0.229, 0.224, 0.225]])
-
+    
     ov_model = prep.build()
 
 .. code:: python
@@ -809,9 +841,9 @@ the color channels before inference.
 
     # Converter API
     import openvino as ov
-
+    
     ov_model = ov.convert_model(ONNX_CV_MODEL_PATH)
-
+    
     prep = ov.preprocess.PrePostProcessor(ov_model)
     prep.input("input.1").tensor().set_layout(ov.Layout("nchw"))
     prep.input("input.1").preprocess().reverse_channels()

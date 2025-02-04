@@ -235,8 +235,10 @@ Install required packages
 
 .. code:: ipython3
 
-    %pip install -q "torch" transformers "diffusers>=0.24.0" "controlnet-aux>=0.0.6" "peft>=0.6.2" accelerate --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch" einops torchvision transformers "diffusers>=0.24.0" timm "peft>=0.6.2" accelerate --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" pillow "gradio>=4.19" "datasets>=2.14.6" "nncf>=2.7.0" "matplotlib>=3.4"
+    %pip install -q -no-deps "controlnet-aux>=0.0.6"
+    %pip install -q scipy opencv-python filelock scikit-image
 
 Prepare PyTorch models
 
@@ -360,10 +362,11 @@ color-coded image.
     from PIL import Image
     import numpy as np
     
-    example_image_url = "https://huggingface.co/lllyasviel/control_v11p_sd15_normalbae/resolve/main/images/input.png"
-    r = requests.get(example_image_url)
-    with open("example.png", "wb") as f:
-        f.write(r.content)
+    if not Path("example.png").exists():
+        example_image_url = "https://huggingface.co/lllyasviel/control_v11p_sd15_normalbae/resolve/main/images/input.png"
+        r = requests.get(example_image_url)
+        with open("example.png", "wb") as f:
+            f.write(r.content)
     
     processor = NormalBaeDetector.from_pretrained("lllyasviel/Annotators")
     
@@ -1259,6 +1262,11 @@ select device from dropdown list for running inference using OpenVINO
     device = device_widget()
     
     device
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("lcm-lora-controlnet.ipynb")
 
 
 

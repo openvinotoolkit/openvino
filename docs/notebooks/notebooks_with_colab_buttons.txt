@@ -3,7 +3,6 @@ async-api
 auto-device
 clip-language-saliency-map
 convert-to-openvino
-cross-lingual-books-alignment
 depth-anything
 depth-anything-v2
 detectron2-to-openvino

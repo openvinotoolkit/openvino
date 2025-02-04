@@ -113,6 +113,11 @@ Import required modules and set constants
     OV_TEXT_ENCODER_MODEL_PATH = Path("models/ov_text_encoder_model.xml")
     OV_DIFFUSION_MODEL_PATH = Path("models/ov_diffusion_model.xml")
     OV_DECODER_MODEL_PATH = Path("models/ov_decoder_model.xml")
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("stable-diffusion-keras-cv.ipynb")
 
 Create KerasCV Stable Diffusion pipeline
 

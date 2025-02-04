@@ -17,11 +17,11 @@ This tutorial shows how to convert a TensorFlow `Mask R-CNN with
 Inception ResNet
 V2 <https://tfhub.dev/tensorflow/mask_rcnn/inception_resnet_v2_1024x1024/1>`__
 instance segmentation model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets.html>`__
+Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
 (OpenVINO IR) format, using `Model Conversion
-API <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/2025/openvino-workflow/running-inference.html>`__
+Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
 
@@ -72,22 +72,12 @@ Install required packages:
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
-
+    
     %pip install -q "matplotlib>=3.4"
-
-    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    
+    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64'" # macOS M1 and M2
+    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64'" # macOS x86
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin'"
 
 The notebook uses utility functions. The cell below will download the
 ``notebook_utils`` Python module from GitHub.
@@ -96,21 +86,19 @@ The notebook uses utility functions. The cell below will download the
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-
-    open("notebook_utils.py", "w").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    24624
-
-
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("tensorflow-instance-segmentation-to-openvino.ipynb")
 
 Imports
 -------
@@ -121,15 +109,15 @@ Imports
 
     # Standard python modules
     from pathlib import Path
-
+    
     # External modules and dependencies
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-
+    
     # Notebook utils module
     from notebook_utils import download_file, device_widget
-
+    
     # OpenVINO modules
     import openvino as ov
 
@@ -145,23 +133,23 @@ Define model related variables and create corresponding directories:
     # Create directories for models files
     model_dir = Path("is-model")
     model_dir.mkdir(exist_ok=True)
-
+    
     # Create directory for TensorFlow model
     tf_model_dir = model_dir / "tf"
     tf_model_dir.mkdir(exist_ok=True)
-
+    
     # Create directory for OpenVINO IR model
     ir_model_dir = model_dir / "ir"
     ir_model_dir.mkdir(exist_ok=True)
-
+    
     model_name = "mask_rcnn_inception_resnet_v2_1024x1024"
-
+    
     openvino_ir_path = ir_model_dir / f"{model_name}.xml"
-
+    
     tf_model_url = (
         "https://www.kaggle.com/models/tensorflow/mask-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1?tf-hub-format=compressed"
     )
-
+    
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
 Download Model from TensorFlow Hub
@@ -175,13 +163,14 @@ from TensorFlow Hub:
 
 .. code:: ipython3
 
-    download_file(url=tf_model_url, filename=tf_model_archive_filename, directory=tf_model_dir);
+    if not (tf_model_dir / tf_model_archive_filename).exists():
+        download_file(url=tf_model_url, filename=tf_model_archive_filename, directory=tf_model_dir);
 
 
 
 .. parsed-literal::
 
-    mask_rcnn_inception_resnet_v2_1024x1024.tar.gz:   0%|          | 0.00/232M [00:00<?, ?B/s]
+    model/tf/mask_rcnn_inception_resnet_v2_1024x1024.tar.gz:   0%|          | 0.00/232M [00:00<?, ?B/s]
 
 
 Extract TensorFlow Instance Segmentation model from the downloaded
@@ -190,7 +179,7 @@ archive:
 .. code:: ipython3
 
     import tarfile
-
+    
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
@@ -218,7 +207,7 @@ when the model is run in the future.
 .. code:: ipython3
 
     ov_model = ov.convert_model(tf_model_dir)
-
+    
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
@@ -238,7 +227,7 @@ select device from dropdown list for running inference using OpenVINO
 
     core = ov.Core()
     device = device_widget()
-
+    
     device
 
 
@@ -246,7 +235,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -294,12 +283,12 @@ the first (and highest) detection score.
 
     model_inputs = compiled_model.inputs
     model_outputs = compiled_model.outputs
-
+    
     print("Model inputs count:", len(model_inputs))
     print("Model inputs:")
     for _input in model_inputs:
         print("  ", _input)
-
+    
     print("Model outputs count:", len(model_outputs))
     print("Model outputs:")
     for output in model_outputs:
@@ -336,7 +325,7 @@ the first (and highest) detection score.
        <ConstOutput: names[detection_multiclass_scores] shape[1,?,..182] type: f32>
        <ConstOutput: names[detection_scores] shape[1,?] type: f32>
        <ConstOutput: names[proposal_boxes_normalized, final_anchors] shape[1,?,..8] type: f32>
-
+    
 
 Get an Image for Test Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -348,19 +337,19 @@ Load and save an image:
 .. code:: ipython3
 
     image_path = Path("./data/coco_bike.jpg")
-
-    download_file(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
-        filename=image_path.name,
-        directory=image_path.parent,
-    );
-
+    
+    if not image_path.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
+            filename=image_path.name,
+            directory=image_path.parent,
+        );
 
 
 .. parsed-literal::
 
-    coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
-
+    'data/coco_bike.jpg' already exists.
+    
 
 Read the image, resize and convert it to the input shape of the network:
 
@@ -368,16 +357,16 @@ Read the image, resize and convert it to the input shape of the network:
 
     # Read the image
     image = cv2.imread(filename=str(image_path))
-
+    
     # The network expects images in RGB format
     image = cv2.cvtColor(image, code=cv2.COLOR_BGR2RGB)
-
+    
     # Resize the image to the network input shape
     resized_image = cv2.resize(src=image, dsize=(255, 255))
-
+    
     # Add batch dimension to image
     network_input_image = np.expand_dims(resized_image, 0)
-
+    
     # Show the image
     plt.imshow(image)
 
@@ -386,7 +375,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f4a2c79b1c0>
+    <matplotlib.image.AxesImage at 0x7f637057bd30>
 
 
 
@@ -413,23 +402,23 @@ be extracted from the result. For further model result visualization
     detection_boxes = compiled_model.output("detection_boxes")
     image_detection_boxes = inference_result[detection_boxes]
     print("image_detection_boxes:", image_detection_boxes.shape)
-
+    
     detection_masks = compiled_model.output("detection_masks")
     image_detection_masks = inference_result[detection_masks]
     print("image_detection_masks:", image_detection_masks.shape)
-
+    
     detection_classes = compiled_model.output("detection_classes")
     image_detection_classes = inference_result[detection_classes]
     print("image_detection_classes:", image_detection_classes.shape)
-
+    
     detection_scores = compiled_model.output("detection_scores")
     image_detection_scores = inference_result[detection_scores]
     print("image_detection_scores:", image_detection_scores.shape)
-
+    
     num_detections = compiled_model.output("num_detections")
     image_num_detections = inference_result[num_detections]
     print("image_detections_num:", image_num_detections)
-
+    
     # Alternatively, inference result data can be extracted by model output name with `.get()` method
     assert (inference_result[detection_boxes] == inference_result.get("detection_boxes")).all(), "extracted inference result data should be equal"
 
@@ -441,7 +430,7 @@ be extracted from the result. For further model result visualization
     image_detection_classes: (1, 100)
     image_detection_scores: (1, 100)
     image_detections_num: [100.]
-
+    
 
 Inference Result Visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -453,12 +442,12 @@ Define utility functions to visualize the inference results
 .. code:: ipython3
 
     from typing import Optional
-
-
+    
+    
     def add_detection_box(box: np.ndarray, image: np.ndarray, mask: np.ndarray, label: Optional[str] = None) -> np.ndarray:
         """
         Helper function for adding single bounding box to the image
-
+    
         Parameters
         ----------
         box : np.ndarray
@@ -469,18 +458,18 @@ Define utility functions to visualize the inference results
             Segmentation mask in format (H, W)
         label : str, optional
             Detection box label string, if not provided will not be added to result image (default is None)
-
+    
         Returns
         -------
         np.ndarray
             NumPy array including image, detection box, and segmentation mask
-
+    
         """
         ymin, xmin, ymax, xmax = box
         point1, point2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
         box_color = [np.random.randint(0, 255) for _ in range(3)]
         line_thickness = round(0.002 * (image.shape[0] + image.shape[1]) / 2) + 1
-
+    
         result = cv2.rectangle(
             img=image,
             pt1=point1,
@@ -489,7 +478,7 @@ Define utility functions to visualize the inference results
             thickness=line_thickness,
             lineType=cv2.LINE_AA,
         )
-
+    
         if label:
             font_thickness = max(line_thickness - 1, 1)
             font_face = 0
@@ -535,12 +524,12 @@ Define utility functions to visualize the inference results
     def get_mask_frame(box, frame, mask):
         """
         Transform a binary mask to fit within a specified bounding box in a frame using perspective transformation.
-
+    
         Args:
             box (tuple): A bounding box represented as a tuple (y_min, x_min, y_max, x_max).
             frame (numpy.ndarray): The larger frame or image where the mask will be placed.
             mask (numpy.ndarray): A binary mask image to be transformed.
-
+    
         Returns:
             numpy.ndarray: A transformed mask image that fits within the specified bounding box in the frame.
         """
@@ -568,10 +557,10 @@ Define utility functions to visualize the inference results
 .. code:: ipython3
 
     from typing import Dict
-
+    
     from openvino.runtime.utils.data_helpers import OVDict
-
-
+    
+    
     def visualize_inference_result(
         inference_result: OVDict,
         image: np.ndarray,
@@ -580,7 +569,7 @@ Define utility functions to visualize the inference results
     ):
         """
         Helper function for visualizing inference result on the image
-
+    
         Parameters
         ----------
         inference_result : OVDict
@@ -597,9 +586,9 @@ Define utility functions to visualize the inference results
         detection_scores = inference_result.get("detection_scores")
         num_detections = inference_result.get("num_detections")
         detection_masks = inference_result.get("detection_masks")
-
+    
         detections_limit = int(min(detections_limit, num_detections[0]) if detections_limit is not None else num_detections[0])
-
+    
         # Normalize detection boxes coordinates to original image size
         original_image_height, original_image_width, _ = image.shape
         normalized_detection_boxes = detection_boxes[0, :detections_limit] * [
@@ -622,7 +611,7 @@ Define utility functions to visualize the inference results
                 mask=mask_reframed,
                 label=label,
             )
-
+    
         plt.imshow(result)
 
 TensorFlow Instance Segmentation model
@@ -638,18 +627,19 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 .. code:: ipython3
 
     coco_labels_file_path = Path("./data/coco_91cl.txt")
-
-    download_file(
-        url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
-        filename=coco_labels_file_path.name,
-        directory=coco_labels_file_path.parent,
-    );
+    
+    if not coco_labels_file_path.exists():
+        download_file(
+            url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
+            filename=coco_labels_file_path.name,
+            directory=coco_labels_file_path.parent,
+        );
 
 
 
 .. parsed-literal::
 
-    coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
+    data/coco_91cl.txt:   0%|          | 0.00/421 [00:00<?, ?B/s]
 
 
 Then we need to create dictionary ``coco_labels_map`` with mappings
@@ -661,14 +651,14 @@ file:
     with open(coco_labels_file_path, "r") as file:
         coco_labels = file.read().strip().split("\n")
         coco_labels_map = dict(enumerate(coco_labels, 1))
-
+    
     print(coco_labels_map)
 
 
 .. parsed-literal::
 
     {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplan', 6: 'bus', 7: 'train', 8: 'truck', 9: 'boat', 10: 'traffic light', 11: 'fire hydrant', 12: 'street sign', 13: 'stop sign', 14: 'parking meter', 15: 'bench', 16: 'bird', 17: 'cat', 18: 'dog', 19: 'horse', 20: 'sheep', 21: 'cow', 22: 'elephant', 23: 'bear', 24: 'zebra', 25: 'giraffe', 26: 'hat', 27: 'backpack', 28: 'umbrella', 29: 'shoe', 30: 'eye glasses', 31: 'handbag', 32: 'tie', 33: 'suitcase', 34: 'frisbee', 35: 'skis', 36: 'snowboard', 37: 'sports ball', 38: 'kite', 39: 'baseball bat', 40: 'baseball glove', 41: 'skateboard', 42: 'surfboard', 43: 'tennis racket', 44: 'bottle', 45: 'plate', 46: 'wine glass', 47: 'cup', 48: 'fork', 49: 'knife', 50: 'spoon', 51: 'bowl', 52: 'banana', 53: 'apple', 54: 'sandwich', 55: 'orange', 56: 'broccoli', 57: 'carrot', 58: 'hot dog', 59: 'pizza', 60: 'donut', 61: 'cake', 62: 'chair', 63: 'couch', 64: 'potted plant', 65: 'bed', 66: 'mirror', 67: 'dining table', 68: 'window', 69: 'desk', 70: 'toilet', 71: 'door', 72: 'tv', 73: 'laptop', 74: 'mouse', 75: 'remote', 76: 'keyboard', 77: 'cell phone', 78: 'microwave', 79: 'oven', 80: 'toaster', 81: 'sink', 82: 'refrigerator', 83: 'blender', 84: 'book', 85: 'clock', 86: 'vase', 87: 'scissors', 88: 'teddy bear', 89: 'hair drier', 90: 'toothbrush', 91: 'hair brush'}
-
+    
 
 Finally, we are ready to visualize model inference results on the
 original test image:
@@ -722,4 +712,4 @@ utilization.
 For more information, refer to the `Optimize Preprocessing
 tutorial <optimize-preprocessing-with-output.html>`__ and
 to the overview of `Preprocessing
-API <https://docs.openvino.ai/2025/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details.html>`__.

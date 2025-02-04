@@ -92,6 +92,7 @@ provides already pretrained model from ``cerspense``.
     import base64
     import tempfile
     import warnings
+    from pathlib import Path
 
     import diffusers
     import transformers
@@ -102,6 +103,19 @@ provides already pretrained model from ``cerspense``.
     import gradio as gr
 
     import openvino as ov
+
+    import requests
+
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("zeroscope-text2video.ipynb")
 
 Original 576x320 inference requires a lot of RAM (>100GB), so let’s run
 our example on a smaller frame size, keeping the same aspect ratio. Try
@@ -725,13 +739,6 @@ Select inference device
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
-
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import device_widget
 

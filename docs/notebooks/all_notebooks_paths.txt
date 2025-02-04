@@ -12,9 +12,9 @@ notebooks/clip-language-saliency-map/clip-language-saliency-map.ipynb
 notebooks/clip-zero-shot-image-classification/clip-zero-shot-classification.ipynb
 notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb
 notebooks/convert-to-openvino/convert-to-openvino.ipynb
-notebooks/cross-lingual-books-alignment/cross-lingual-books-alignment.ipynb
 notebooks/ct-segmentation-quantize/ct-segmentation-quantize-nncf.ipynb
 notebooks/ddcolor-image-colorization/ddcolor-image-colorization.ipynb
+notebooks/deepseek-r1/deepseek-r1.ipynb
 notebooks/depth-anything/depth-anything.ipynb
 notebooks/depth-anything/depth-anything-v2.ipynb
 notebooks/detectron2-to-openvino/detectron2-to-openvino.ipynb
@@ -42,6 +42,8 @@ notebooks/hello-world/hello-world.ipynb
 notebooks/hugging-face-hub/hugging-face-hub.ipynb
 notebooks/hunyuan-dit-image-generation/hunyuan-dit-image-generation.ipynb
 notebooks/image-classification-quantization/image-classification-quantization.ipynb
+notebooks/image-to-image-genai/image-to-image-genai.ipynb
+notebooks/inpainting-genai/inpainting-genai.ipynb
 notebooks/instant-id/instant-id.ipynb
 notebooks/instruct-pix2pix-image-editing/instruct-pix2pix-image-editing.ipynb
 notebooks/internvl2/internvl2.ipynb
@@ -63,9 +65,11 @@ notebooks/llm-agent-react/llm-agent-react-langchain.ipynb
 notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb
 notebooks/llm-chatbot/llm-chatbot.ipynb
 notebooks/llm-question-answering/llm-question-answering.ipynb
+notebooks/llm-rag-langchain/llm-rag-langchain-genai.ipynb
 notebooks/llm-rag-langchain/llm-rag-langchain.ipynb
 notebooks/llm-rag-llamaindex/llm-rag-llamaindex.ipynb
 notebooks/localai/localai.ipynb
+notebooks/ltx-video/ltx-video.ipynb
 notebooks/magika-content-type-recognition/magika-content-type-recognition.ipynb
 notebooks/meter-reader/meter-reader.ipynb
 notebooks/minicpm-v-multimodal-chatbot/minicpm-v-multimodal-chatbot.ipynb
@@ -75,11 +79,13 @@ notebooks/mobileclip-video-search/mobileclip-video-search.ipynb
 notebooks/modelscope-to-openvino/modelscope-to-openvino.ipynb
 notebooks/model-server/model-server.ipynb
 notebooks/multilora-image-generation/multilora-image-generation.ipynb
+notebooks/multimodal-rag/multimodal-rag-llamaindex.ipynb
 notebooks/music-generation/music-generation.ipynb
 notebooks/named-entity-recognition/named-entity-recognition.ipynb
 notebooks/nano-llava-multimodal-chatbot/nano-llava-multimodal-chatbot.ipynb
 notebooks/nuextract-structure-extraction/nuextract-structure-extraction.ipynb
 notebooks/object-detection-webcam/object-detection.ipynb
+notebooks/omnigen/omnigen.ipynb
 notebooks/omniparser/omniparser.ipynb
 notebooks/oneformer-segmentation/oneformer-segmentation.ipynb
 notebooks/openvino-api/openvino-api.ipynb
@@ -114,6 +120,7 @@ notebooks/rmbg-background-removal/rmbg-background-removal.ipynb
 notebooks/s3d-mil-nce-text-to-video-retrieval/s3d-mil-nce-text-to-video-retrieval.ipynb
 notebooks/sam2-image-segmentation/segment-anything-2-image.ipynb
 notebooks/sam2-video-segmentation/segment-anything-2-video.ipynb
+notebooks/sana-image-generation/sana-image-generation.ipynb
 notebooks/sdxl-turbo/sdxl-turbo.ipynb
 notebooks/segment-anything/segment-anything.ipynb
 notebooks/siglip-zero-shot-image-classification/siglip-zero-shot-image-classification.ipynb

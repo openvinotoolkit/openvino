@@ -69,32 +69,14 @@ Install required packages
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q pillow numpy
-    %pip install -q "openvino>=2023.2.0" "opencv-python"
+    %pip install -q "openvino>=2023.2.0" "opencv-python" "matplotlib>=3.4"
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-    
-    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q tf_keras tensorflow_hub
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64'"
+    %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64'"
+    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin'"
+    %pip install -q --no-deps tensorflow_hub
+    %pip install -q tf_keras
 
 Image classification
 --------------------
@@ -143,6 +125,17 @@ Import libraries
     import openvino as ov
     
     tf.get_logger().setLevel("ERROR")
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("tensorflow-hub.ipynb")
 
 .. code:: ipython3
 
@@ -184,9 +177,10 @@ For this model, the size of the input images is fixed to ``height`` x
     
     IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    r = requests.get(IMAGE_URL)
-    with IMAGE_PATH.open("wb") as f:
-        f.write(r.content)
+    if not IMAGE_PATH.exists():
+        r = requests.get(IMAGE_URL)
+        with IMAGE_PATH.open("wb") as f:
+            f.write(r.content)
     grace_hopper = PIL.Image.open(IMAGE_PATH).resize(IMAGE_SHAPE)
     grace_hopper
 
@@ -240,13 +234,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()
@@ -258,7 +245,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -442,7 +429,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
