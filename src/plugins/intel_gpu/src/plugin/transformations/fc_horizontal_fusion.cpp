@@ -321,9 +321,12 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         bool can_be_merged = true;
         std::shared_ptr<ov::op::v0::Constant> const_node = nullptr;
         for (auto& output : output_split->outputs()) {
+            if (output.get_target_inputs().size() != 1) {
+                can_be_merged = false;
+                break;
+            }
             auto target_node = output.get_target_inputs().begin()->get_node();
-            if (output.get_target_inputs().size() > 1 ||
-                !ov::is_type<ov::op::v1::Multiply>(target_node)) {
+            if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
                 can_be_merged = false;
                 break;
             }
@@ -331,7 +334,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             for (auto& input : target_node->inputs()) {
                 if (input.get_source_output() != output) {
                     if (is_scalar_const(input.get_source_output())) {
-                        const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+                        const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                             input.get_source_output().get_node_shared_ptr());
                         const_values.emplace_back(const_node->cast_vector<float>()[0]);
                     } else {
