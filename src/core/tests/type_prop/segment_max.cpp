@@ -14,8 +14,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using op::v0::Constant, op::v0::Parameter,
 using op::v1::Add, op::v1::ReduceMax, op::v1::StridedSlice, op::v3::ShapeOf;
