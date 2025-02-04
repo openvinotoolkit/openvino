@@ -58,6 +58,7 @@ void istft(const float* in_data,
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
     std::vector<float> window_sum(batch_size * signal_length);
+    std::vector<float> frame_signal(frame_size);
 
     for (size_t batch = 0, batch_in_start = 0, batch_out_start = 0; batch < batch_size; ++batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
@@ -68,8 +69,6 @@ void istft(const float* in_data,
             const auto out_frame_end = out_frame_start + frame_size;
 
             std::vector<float> frame_data(data_t.data() + in_frame_start, data_t.data() + in_frame_end);
-            std::vector<float> frame_signal(frame_size);
-
             reference::irdft(frame_data,
                              fft_out_shape,
                              {0},
