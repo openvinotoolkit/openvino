@@ -8,9 +8,7 @@
 #include "openvino/op/istft.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const ISTFT* op,
                                  const std::vector<TShape>& input_shapes,
@@ -123,6 +121,4 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
 
     return output_shapes;
 }
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16
