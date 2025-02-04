@@ -65,15 +65,17 @@ class TestSparseSegmentMean(CommonTFLayerTest):
         [[10, 20], [7], 8],
         [[10, 2, 4], [10], 4]
     ])
+    @pytest.mark.parametrize('custom_eps', [1e-3])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_sparse_segment_mean(self, data_type, indices_type, segment_indices_type,
-                                 shape, indices_shape, segments_num,
+                                 shape, indices_shape, segments_num, custom_eps,
                                  ie_device, precision, ir_version, temp_dir,
                                  use_legacy_frontend):
-        if ie_device == 'GPU':
-            pytest.skip("GPU error: to_shape was called on a dynamic shape, ticket: 152352")
+        kwargs = {
+            'custom_eps': custom_eps,
+        }
         self._test(*self.create_sparse_segment_mean(data_type, indices_type, segment_indices_type,
                                                     shape, indices_shape, segments_num),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   use_legacy_frontend=use_legacy_frontend, **kwargs)
