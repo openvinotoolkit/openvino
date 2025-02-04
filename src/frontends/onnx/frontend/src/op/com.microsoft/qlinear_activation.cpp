@@ -87,8 +87,6 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
         pads.resize(num_spatial_dims * 2, pads.size() == 1 ? pads[0] : 0);
         strides.resize(num_spatial_dims, strides.size() == 1 ? strides[0] : 1);
 
-        size_t num_spatial_dims_ = kernel_shape.size();
-
         auto avg_pool = std::make_shared<v1::AvgPool>(input_dequantized,
                                                       Strides(strides.begin(), strides.end()),
                                                       Shape(pads.begin(), pads.begin() + num_spatial_dims),
