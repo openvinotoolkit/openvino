@@ -18,6 +18,7 @@ namespace test {
 class TypePropPagedAttentionV16Test : public TypePropOpTest<op::v16::PagedAttention> {};
 
 TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_13_inputs) {
+
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -85,6 +86,7 @@ TEST_F(TypePropPagedAttentionV16Test, paged_attention_static_16_inputs_eviction_
                              rotated_block_indices,
                              rotation_deltas,
                              rotation_trig_lut};
+
 
     const auto op = std::make_shared<op::v16::PagedAttention>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);

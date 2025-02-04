@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -46,7 +46,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
-                                   CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
+                                   CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
+                                   CMAKE_VERBOSE_MAKEFILE)
             if(${cmake_var})
                 list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
             endif()
@@ -141,8 +142,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             EXCLUDE_FROM_ALL ON
         )
 
-        list(APPEND LIB_INCLUDE_DIRS ${ONEDNN_INSTALL_DIR}/include)
-        list(APPEND LIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src)
+        set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
@@ -158,6 +158,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
             INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
+            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${LIB_INCLUDE_DIRS}"
             INTERFACE_COMPILE_DEFINITIONS "${LIB_DEFINITIONS}"
         )
         add_dependencies(onednn_gpu_tgt onednn_gpu_build)

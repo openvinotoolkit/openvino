@@ -312,23 +312,17 @@ This step is optional. It modifies the transformation function to a device-speci
 Result model overview
 #####################
 
-Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use `Model Downloader <https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/model_tools/README.md>`__ tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
-
-.. code-block:: sh
-
-   omz_downloader --name resnet-50-tf --precisions FP16-INT8
-
-After that you should quantize model by the `Model Quantizer <https://github.com/openvinotoolkit/open_model_zoo/blob/releases/2023/3/tools/model_tools/README.md>`__ tool.
-
-.. code-block:: sh
-
-   omz_quantizer --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+Let's explore the resnet-50-tf model, quantized to ``fp16``, which is a TensorFlow
+implementation of `ResNet-50 <https://github.com/tensorflow/models/tree/v2.2.0/official/r1/resnet>`__
+- an image classification model pre-trained on the ImageNet dataset. Originally
+redistributed in the "Saved model" format, converted to a frozen graph using the
+"tf.graph_util" module.
 
 
 Inference
 +++++++++
 
-The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../learn-openvino/openvino-samples/benchmark-tool>`.
+The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../get-started/learn-openvino/openvino-samples/benchmark-tool>`.
 
 .. code-block:: sh
 
@@ -346,7 +340,7 @@ Result model depends on different factors:
 
 
 Information about layer precision is stored in the performance counters that are
-available from the OpenVINO Runtime API. For example, the part of performance counters table for quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__  model inference on CPU Plugin looks as follows:
+available from the OpenVINO Runtime API. For example, the part of performance counters table for the resnet-50-tf model inferred on CPU Plugin looks as follows:
 
 .. list-table::
     :header-rows: 1

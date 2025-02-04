@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -74,8 +74,9 @@ void Concat::getSupportedDescriptors() {
         const auto& dims = getInputShapeAtPort(i).getDims();
         bool incorrectDims = false;
         for (size_t j = 0; j < firstParentDims.size(); j++) {
-            if (j == axis)
+            if (j == axis) {
                 continue;
+            }
             if (dims.size() != firstParentDims.size() || !dimsEqualWeak(firstParentDims[j], dims[j])) {
                 incorrectDims = true;
                 break;
@@ -93,13 +94,15 @@ void Concat::getSupportedDescriptors() {
     if (childDims[axis] != Shape::UNDEFINED_DIM &&
         std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) {
             return dim == 1;
-        }))
+        })) {
         canBeInPlace = true;
+    }
 }
 
 void Concat::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto& originInputPrecisions = getOriginalInputPrecisions();
     inputPrecision = originInputPrecisions[0];
@@ -112,8 +115,9 @@ void Concat::initSupportedPrimitiveDescriptors() {
     }
 
     // Concat doesn't support different precision on inputs so fallback on FP32 in such case
-    if (isMixedPrecision)
+    if (isMixedPrecision) {
         inputPrecision = ov::element::f32;
+    }
 
     // Concat supports only equal precisions for inputs and output
     outputPrecision = inputPrecision;
@@ -126,8 +130,9 @@ void Concat::initSupportedPrimitiveDescriptors() {
     if (dstShape.getRank() > channelAxis) {
         for (auto& item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
             const VectorDims& blkDims = dstShape.getDims();
-            if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0)
+            if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0) {
                 continue;
+            }
 
             bool blocked = true;
             for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -189,8 +194,9 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     if (!canBeInPlace || std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape) {
             return shape.hasZeroDims();
-        }))
+        })) {
         return;
+    }
 
     // Optimized inplace case
     for (auto refPdIndex : pdIndexesToReuse) {
@@ -211,8 +217,9 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     // for that case.
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         for (size_t j = i + 1; j < getParentEdges().size(); j++) {
-            if (getParentEdgeAt(i) == getParentEdgeAt(j))
+            if (getParentEdgeAt(i) == getParentEdgeAt(j)) {
                 canBeInPlace = false;
+            }
         }
     }
 
@@ -226,13 +233,15 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         auto parent = parentEdge->getParent();
 
         auto parent_pdesc = parent->getSelectedPrimitiveDescriptor();
-        if (parent_pdesc == nullptr)
+        if (parent_pdesc == nullptr) {
             continue;
+        }
 
         const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
-        if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size()))
+        if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size())) {
             OPENVINO_THROW("Cannot find index of output node");
+        }
         const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -244,13 +253,15 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         auto childEdge = getChildEdgeAt(i);
         auto child = childEdge->getChild();
         const auto* prim_desc = child->getSelectedPrimitiveDescriptor();
-        if (prim_desc == nullptr)
+        if (prim_desc == nullptr) {
             continue;
+        }
 
         const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
-        if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size()))
+        if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size())) {
             OPENVINO_THROW("Cannot find index of output node");
+        }
         const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -336,15 +347,18 @@ bool Concat::needPrepareParams() const {
 }
 
 void Concat::prepareParams() {
-    if (canOptimizeNspc || isInPlace())
+    if (canOptimizeNspc || isInPlace()) {
         return;
+    }
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         OPENVINO_THROW("Destination memory is undefined.");
+    }
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    }
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
@@ -379,8 +393,9 @@ void Concat::prepareParams() {
                 break;
             }
         }
-        if (canOptimize1DCase)
+        if (canOptimize1DCase) {
             return;
+        }
     }
 
     std::vector<memory::desc> srcs_d;
@@ -453,8 +468,9 @@ size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
 
 void Concat::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    }
 
     if (!isInPlace()) {
         Node::initOptimalPrimitiveDescriptor();
@@ -493,7 +509,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
         getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
 
-void Concat::execute(dnnl::stream strm) {
+void Concat::execute(const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
@@ -637,8 +653,9 @@ void Concat::execRef() {
                        numSrc,
                        [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
                            // check if zero memory
-                           if (srcPtrs[a] == nullptr)
+                           if (srcPtrs[a] == nullptr) {
                                return;
+                           }
 
                            size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2 +
                                           inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
@@ -697,8 +714,9 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    }
     auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/batch_to_space.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateBatchToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::BatchToSpace>& op) {
     validate_inputs_count(op, {4});
@@ -26,7 +25,7 @@ static void CreateBatchToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     bool non_constant_input = false;
     for (size_t i = 1; i < 4; ++i) {
-        auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+        auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
         bool is_const_input = (inConst != nullptr);
         OPENVINO_ASSERT((i == 1) || (i >= 2 && non_constant_input != is_const_input),
@@ -45,7 +44,7 @@ static void CreateBatchToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         p.add_primitive(*op, batchToSpacePrim);
     } else {
         for (size_t i = 1; i < 4; ++i) {
-            auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+            auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
             std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
             int32_t default_size = i == 1 ? 1 : 0;
@@ -68,5 +67,4 @@ static void CreateBatchToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
 REGISTER_FACTORY_IMPL(v1, BatchToSpace);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/stft.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -32,8 +33,7 @@
 #endif
 
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 const cldnn::primitive_id ProgramBuilder::m_preProcessTag("_cldnn_input_preprocess");
 const cldnn::primitive_id ProgramBuilder::m_preCustomLayerTag("_cldnn_custom_preprocess");
@@ -360,7 +360,8 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
     // HACK: SearchSorted has specific shape requirements.
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
-    if (ov::is_type<ov::op::v15::SearchSorted>(op))
+    // Similar case for STFT.
+    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
@@ -420,5 +421,4 @@ void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size
                    " ", op->get_type_info().version_id, ")");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

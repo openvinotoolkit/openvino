@@ -14,9 +14,6 @@ Refer to :doc:`Introduction to OpenVINO Extension <../openvino-extensibility>` t
 understand the entire flow.
 
 This API is applicable to new frontends only, which exist for ONNX, TensorFlow Lite, PaddlePaddle, and TensorFlow.
-If a different model format is used, follow legacy
-:doc:`Model Optimizer Extensions <../legacy-features/transition-legacy-conversion-api/legacy-model-optimizer-extensibility>`
-guide.
 
 .. note::
 

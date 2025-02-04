@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,7 @@ void regclass_graph_AttributeVisitor(py::module m) {
         "on_attributes",
         [](ov::AttributeVisitor* self, py::dict& attributes) {
             py::object float_32_type = py::module_::import("numpy").attr("float32");
+            py::object model = py::module_::import("openvino").attr("Model");
             for (const auto& attribute : attributes) {
                 if (py::isinstance<py::bool_>(attribute.second)) {
                     visit_attribute<bool>(attributes, attribute, self);
@@ -48,6 +49,10 @@ void regclass_graph_AttributeVisitor(py::module m) {
                     visit_attribute<float>(attributes, attribute, self);
                 } else if (py::isinstance<ov::Model>(attribute.second)) {
                     visit_attribute<std::shared_ptr<ov::Model>>(attributes, attribute, self);
+                } else if (py::isinstance(attribute.second, model)) {
+                    auto attr_casted = attribute.second.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+                    self->on_attribute<std::shared_ptr<ov::Model>>(attribute.first.cast<std::string>(), attr_casted);
+                    attributes[attribute.first] = std::move(attr_casted);
                 } else if (py::isinstance<ov::Dimension>(attribute.second)) {
                     visit_attribute<ov::Dimension>(attributes, attribute, self);
                 } else if (py::isinstance<ov::PartialShape>(attribute.second)) {

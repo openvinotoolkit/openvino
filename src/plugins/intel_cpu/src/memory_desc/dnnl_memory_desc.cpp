@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,9 @@ DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) : DnnlMemoryDesc(
 DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc)
     : MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims)), Dnnl),
       desc(DnnlExtensionUtils::clone_desc(cdesc)) {
-    if (getFormatKind() == dnnl::memory::format_kind::any)
+    if (getFormatKind() == dnnl::memory::format_kind::any) {
         OPENVINO_THROW("Unexpected: Memory format any is prohibited!");
+    }
 }
 
 ov::element::Type DnnlMemoryDesc::getPrecision() const {
@@ -99,8 +100,9 @@ bool DnnlMemoryDesc::hasEmptyExtraData() const {
 }
 
 bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {
-    if (!getShape().hasZeroDims())
+    if (!getShape().hasZeroDims()) {
         return false;
+    }
 
     dnnl::impl::memory_desc_wrapper wrapped(desc.get());
     return getShape().hasZeroDims() && wrapped.offset0() != DNNL_RUNTIME_DIM_VAL;

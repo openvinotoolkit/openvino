@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ struct MVNAttrs {
 
 class MVNExecutor {
 public:
-    MVNExecutor(const ExecutorContext::CPtr context);
+    MVNExecutor(ExecutorContext::CPtr context);
     virtual bool init(const MVNAttrs& mvnAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

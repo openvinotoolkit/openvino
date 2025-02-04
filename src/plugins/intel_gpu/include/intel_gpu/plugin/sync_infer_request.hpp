@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,7 @@
 #include <memory>
 #include <atomic>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class CompiledModel;
 
@@ -121,5 +120,4 @@ private:
     uint64_t total_output_bytes = 0;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

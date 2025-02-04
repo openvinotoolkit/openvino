@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TRANSFORMATIONS_API bool is_decompression(const std::shared_ptr<Node>& node);
  */
 class TRANSFORMATIONS_API Decompression : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("decompression", "0");
+    OPENVINO_RTTI("decompression", "0", RuntimeAttribute);
 
     Decompression() = default;
 

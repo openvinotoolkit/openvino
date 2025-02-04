@@ -264,7 +264,8 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         return "jit";
     }
 #endif
-    if (eltwise_type == utils::EltwiseTypes::MOD) {
+    if (eltwise_type == utils::EltwiseTypes::FLOOR_MOD ||
+        eltwise_type == utils::EltwiseTypes::MOD) {
         return "ref";
     } else {
         return "acl";
@@ -317,10 +318,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
         utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-        utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
-#elif defined(OPENVINO_ARCH_ARM64)
-        utils::EltwiseTypes::FLOOR_MOD,
 #endif
+        utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::SQUARED_DIFF,
         utils::EltwiseTypes::MOD,
     };
@@ -331,6 +330,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;

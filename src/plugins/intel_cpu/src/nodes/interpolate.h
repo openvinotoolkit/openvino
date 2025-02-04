@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,14 +74,14 @@ public:
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
 
 public:
-    Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -170,8 +170,8 @@ private:
         VectorDims srcDimPad5d, dstDim5d;
         ov::element::Type inputPrec, outputPrec;
         size_t srcDataSize, dstDataSize;
-        int spatialDimSize;
         size_t dataRank;
+        int spatialDimSize;
         std::vector<int> auxTable;
         std::vector<uint8_t> pillow_working_buf;
         size_t m_threads_num = 0lu;
@@ -346,8 +346,6 @@ private:
     std::vector<int32_t> lastSizes;
 
     VectorDims lastOutputDims;
-
-    std::string errorPrefix;
 
     bool canUseAclExecutor = false;
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto convert = std::dynamic_pointer_cast<const ov::opset1::Convert>(op);
+        const auto convert = ov::as_type_ptr<const ov::opset1::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
@@ -36,12 +36,10 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "Convert node with name '" + getName() + "'";
-    } else {
+    if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
@@ -53,7 +51,7 @@ Convert::Convert(const Shape& shape,
                  const ov::element::Type& inPrc,
                  const ov::element::Type& outPrc,
                  const std::string& nodeName,
-                 const GraphContext::CPtr context)
+                 const GraphContext::CPtr& context)
     : Node("Convert", {shape}, {shape}, {inPrc}, {outPrc}, nodeName, context) {
     convertParams.origPrc = outPrc;
 
@@ -61,33 +59,37 @@ Convert::Convert(const Shape& shape,
     if (isDynamicNode()) {
         shapeInference = std::make_shared<ShapeInferPassThrough>();
     }
-
-    errorPrefix = "Convert node with name '" + getName() + "'";
 }
 
 void Convert::getSupportedDescriptors() {
     // if tensor descriptors are set via setDescs method we need to update the inDims/outDims data
     // from correspond tensor descriptors.
-    if (outputShapes.empty())
+    if (outputShapes.empty()) {
         outputShapes.push_back(output->getShape());
-    if (inputShapes.empty())
+    }
+    if (inputShapes.empty()) {
         inputShapes.push_back(input->getShape());
-    if (getParentEdges().size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
-    if (getChildEdges().empty())
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+    }
+    if (getParentEdges().size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
+    }
+    if (getChildEdges().empty()) {
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
+    }
 }
 
 bool Convert::isSupportedDesc(const MemoryDesc& desc) {
     bool isSupported = desc.getType() & MemoryDescType::Blocked;
-    if (desc.getType() == MemoryDescType::DnnlBlocked)
+    if (desc.getType() == MemoryDescType::DnnlBlocked) {
         isSupported &= desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
+    }
     return isSupported;
 }
 
 void Convert::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     NodeConfig config;
     PortConfig dataIn;
@@ -157,7 +159,7 @@ void Convert::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptorsBuilder(config);
         }
     } else {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges");
     }
 }
 
@@ -173,19 +175,20 @@ void Convert::prepareParams() {
     selectedPD->setImplementationType(execPtr->implType());
 }
 
-void Convert::executeDynamicImpl(dnnl::stream strm) {
+void Convert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Convert::execute(dnnl::stream strm) {
+void Convert::execute(const dnnl::stream& strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 
     const auto parentPaddElemCount = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     const auto childPaddElemCount = childMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
-    if (parentPaddElemCount != childPaddElemCount)
-        OPENVINO_THROW(errorPrefix, " has different elements number in input and output buffers");
+    if (parentPaddElemCount != childPaddElemCount) {
+        THROW_CPU_NODE_ERR("has different elements number in input and output buffers");
+    }
 
     MemoryCPtr srcMemory = getSrcMemoryAtPort(0);
     MemoryPtr dstMemory = getDstMemoryAtPort(0);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,8 +63,9 @@ bool transform(const std::shared_ptr<ov::Node>& sequenceOp) {
         ov::replace_node(sequenceOp->get_input_node_shared_ptr(0), reshape1);
 
         const auto& seqTargetInputs = sequenceOp->get_output_target_inputs(0);
-        if (seqTargetInputs.empty())
+        if (seqTargetInputs.empty()) {
             return false;
+        }
         auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
         auto lstmOutShape = ov::op::util::make_try_fold<ov::opset1::ShapeOf>(sequenceOp->output(0));
@@ -95,8 +96,9 @@ ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
             return false;
         }
         // Bidirectional cases are not supported
-        if (gruSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (gruSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
+        }
 
         return transform(gruSequence);
     };
@@ -115,8 +117,9 @@ ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
             return false;
         }
         // Bidirectional cases are not supported
-        if (rnnSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (rnnSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
+        }
 
         return transform(rnnSequence);
     };

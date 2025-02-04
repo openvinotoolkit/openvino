@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ namespace pass {
  */
 class Canonicalization: public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Canonicalization");
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::Canonicalization");
     using BlockedShapeVector = op::Subgraph::BlockedShapeVector;
     using Layout = std::vector<size_t>;
     explicit Canonicalization(const BlockedShapeVector& blocked_input_shapes);

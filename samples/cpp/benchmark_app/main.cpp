@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,9 +61,11 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-    if (FLAGS_api == "sync" && FLAGS_nireq > FLAGS_niter) {
-        throw std::logic_error(
-            "Number of iterations should be greater than number of infer requests when using sync API.");
+    if (FLAGS_api == "sync") {
+        if ((FLAGS_t == 0) && (FLAGS_nireq > FLAGS_niter)) {
+            throw std::logic_error(
+                "Number of iterations should be greater than number of infer requests when using sync API.");
+        }
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
@@ -490,21 +492,11 @@ int main(int argc, char* argv[]) {
                 }
             };
 
-            auto fix_pin_option = [](const std::string& str) -> std::string {
-                if (str == "NO")
-                    return "NONE";
-                else if (str == "YES")
-                    return "CORE";
-                else
-                    return str;
-            };
-
             auto set_nthreads_pin = [&](const std::string& str) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
+                auto property_name =
+                    str == "nthreads" ? ov::inference_num_threads.name() : ov::hint::enable_cpu_pinning.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
-                                                  : ov::affinity(fix_pin_option(FLAGS_pin));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                                                  : ov::hint::enable_cpu_pinning(FLAGS_pin);
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config[property.first] = property.second;
@@ -531,9 +523,7 @@ int main(int argc, char* argv[]) {
             }
         }
         auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
-            if (device_name.find(item.first) == 0)
-                return true;
-            return false;
+            return device_name.find(item.first) == 0;
         });
         ov::AnyMap device_config = {};
         if (result != config.end())
@@ -556,6 +546,11 @@ int main(int argc, char* argv[]) {
         }
 
         bool isDynamicNetwork = false;
+        auto areNetworkInputsDynamic = [](const benchmark_app::InputsInfo& input_info) {
+            return std::any_of(input_info.begin(), input_info.end(), [](const auto& info) {
+                return info.second.partialShape.is_dynamic();
+            });
+        };
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
@@ -730,12 +725,7 @@ int main(int argc, char* argv[]) {
             model = preproc.build();
 
             // Check if network has dynamic shapes
-            auto input_info = app_inputs_info[0];
-            isDynamicNetwork = std::any_of(input_info.begin(),
-                                           input_info.end(),
-                                           [](const std::pair<std::string, benchmark_app::InputInfo>& i) {
-                                               return i.second.partialShape.is_dynamic();
-                                           });
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             topology_name = model->get_friendly_name();
 
@@ -797,6 +787,7 @@ int main(int argc, char* argv[]) {
                                               FLAGS_scale_values,
                                               FLAGS_mean_values,
                                               compiledModel.inputs());
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
 
             batchSize = get_batch_size(app_inputs_info.at(0));
             warn_if_no_batch(app_inputs_info.at(0));

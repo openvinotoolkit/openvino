@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::FakeQuantizeDecomposition")
         auto& pattern_to_output = m.get_pattern_value_map();
-        const auto fake_quantize_node = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(
+        const auto fake_quantize_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(
             pattern_to_output.at(fake_quantize).get_node_shared_ptr());
 
         if (!fake_quantize_node || transformation_callback(fake_quantize_node)) {
@@ -358,7 +358,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(const 
         if (!greater_equal->constant_fold(result, greater_equal->input_values()))
             return false;
 
-        const auto res_node = std::dynamic_pointer_cast<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
+        const auto res_node = ov::as_type_ptr<const ov::op::v0::Constant>(result[0].get_node_shared_ptr());
         const auto comp_result = res_node->cast_vector<bool>();
         return !std::any_of(comp_result.begin(), comp_result.end(), [](const bool value) {
             return value;

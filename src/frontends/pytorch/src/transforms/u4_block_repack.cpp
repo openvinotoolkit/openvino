@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,7 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
         std::make_shared<Matcher>(m_reshape2, "ov::frontend::pytorch::pass::U4BlockRepack"),
         [=](Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
-            auto constant =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
             if (!constant)
                 return false;
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
@@ -89,13 +88,13 @@ U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
                 if (reshape_targets.size() != 1)
                     return false;
                 auto convert = reshape_targets.begin()->get_node()->shared_from_this();
-                if (!std::dynamic_pointer_cast<ov::op::v0::Convert>(convert))
+                if (!ov::as_type_ptr<ov::op::v0::Convert>(convert))
                     return false;
                 auto convert_targets = convert->output(0).get_target_inputs();
                 if (convert_targets.size() != 1)
                     return false;
                 auto subtract = convert_targets.begin()->get_node()->shared_from_this();
-                if (!std::dynamic_pointer_cast<ov::op::v1::Subtract>(subtract))
+                if (!ov::as_type_ptr<ov::op::v1::Subtract>(subtract))
                     return false;
                 pattern_root = subtract;
                 copy_from.push_back(std::move(convert));
@@ -145,8 +144,7 @@ U4ConvertReshape::U4ConvertReshape() {
         std::make_shared<Matcher>(m_reshape, "ov::frontend::pytorch::pass::U4ConvertReshape"),
         [=](Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
-            auto u4_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
+            auto u4_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output[m_constant].get_node_shared_ptr());
             if (!u4_const)
                 return false;
 
@@ -158,15 +156,15 @@ U4ConvertReshape::U4ConvertReshape() {
 
             std::shared_ptr<v0::Constant> new_const;
             if (pattern_to_output.count(m_constant_8)) {
-                auto constant_8 = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                    pattern_to_output[m_constant_8].get_node_shared_ptr());
+                auto constant_8 =
+                    ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output[m_constant_8].get_node_shared_ptr());
                 if (ov::shape_size(constant_8->get_output_shape(0)) != 1 ||
                     constant_8->get_output_element_type(0).is_real() || constant_8->cast_vector<int64_t>()[0] != 8)
                     return false;
 
                 if (pattern_to_output.count(m_constant_1)) {
-                    auto constant_1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                        pattern_to_output[m_constant_1].get_node_shared_ptr());
+                    auto constant_1 =
+                        ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output[m_constant_1].get_node_shared_ptr());
                     if (ov::shape_size(constant_1->get_output_shape(0)) != 1 ||
                         constant_1->get_output_element_type(0).is_real() || constant_1->cast_vector<int64_t>()[0] != 1)
                         return false;

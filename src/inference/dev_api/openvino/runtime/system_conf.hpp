@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,6 +82,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
  * @return     `True` is ARM NEON FP16 instructions are available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
+
+/**
+ * @brief      Checks whether CPU supports ARM SVE capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` if ARM SVE instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_sve();
 
 /**
  * @brief      Checks whether CPU supports AVX capability
@@ -211,6 +218,13 @@ OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
  * @return     socket ID in cpu mapping
  */
 OPENVINO_RUNTIME_API int get_current_socket_id();
+
+/**
+ * @brief      Returns the numa node ID in cpu mapping table of the currently running thread.
+ * @ingroup    ov_dev_api_system_conf
+ * @return     numa node ID in cpu mapping
+ */
+OPENVINO_RUNTIME_API int get_current_numa_node_id();
 
 /**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU

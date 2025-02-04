@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -14,6 +14,7 @@
 #    include <regex>
 #    include <sstream>
 #    include <string>
+#    include <utility>
 
 #    include "edge.h"
 #    include "nodes/node_config.h"
@@ -60,8 +61,8 @@ class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
         : model(model),
-          tag(tag),
-          prefix(prefix) {}
+          tag(std::move(tag)),
+          prefix(std::move(prefix)) {}
     const ov::Model& model;
     const std::string tag;
     const std::string prefix;
@@ -86,9 +87,7 @@ struct PrintableDelta {
 
 class PrintableTimer {
 public:
-    PrintableTimer() : t0(std::chrono::high_resolution_clock::now()) {
-        t1 = t0;
-    }
+    PrintableTimer() : t0(std::chrono::high_resolution_clock::now()), t1(t0) {}
 
     std::chrono::high_resolution_clock::time_point t0;
     std::chrono::high_resolution_clock::time_point t1;
@@ -182,6 +181,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define CREATE_DEBUG_TIMER(x) PrintableTimer x
 
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
+
 /*
  * important debugging tools for accuracy issues
  *   OV_CPU_INFER_PRC_POS_PATTERN : positive regex pattern to filter node type & orgname.
@@ -208,9 +209,9 @@ struct EnforceInferPrcDebug {
     int count_limit = atoi(safe_getenv("OV_CPU_INFER_PRC_CNT", "9999999").c_str());
     int count = 0;
 
-    EnforceInferPrcDebug() {
-        str_pos_pattern = std::getenv("OV_CPU_INFER_PRC_POS_PATTERN");
-        str_neg_pattern = std::getenv("OV_CPU_INFER_PRC_NEG_PATTERN");
+    EnforceInferPrcDebug()
+        : str_pos_pattern(std::getenv("OV_CPU_INFER_PRC_POS_PATTERN")),
+          str_neg_pattern(std::getenv("OV_CPU_INFER_PRC_NEG_PATTERN")) {
         if (str_pos_pattern || str_neg_pattern) {
             pattern_verbose = true;
         } else {
@@ -245,7 +246,7 @@ struct EnforceInferPrcDebug {
         }
     }
 
-    bool enabled(std::string type, std::string name, std::string org_names) {
+    bool enabled(const std::string& type, const std::string& name, const std::string& org_names) {
         std::string tag = type + "@" + org_names;
         std::smatch match;
         bool matched = true;
@@ -286,6 +287,8 @@ bool getEnvBool(const char* name);
 #    define DEBUG_LOG_EXT(name, ...)
 
 #    define CREATE_DEBUG_TIMER(x)
+
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
 

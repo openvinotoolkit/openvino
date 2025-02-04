@@ -287,8 +287,9 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
-        if (std::is_same<ov::bfloat16, Tdst>::value)
+        if (std::is_same<ov::bfloat16, Tdst>::value) {
             fp16_to_bf16(dst);
+        }
         return;
     }
 
@@ -503,7 +504,7 @@ void MKernel::run(int M,  // actual M
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
@@ -520,7 +521,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
-    assert(BM <= M);
+    assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0}, end{0};
         splitter(BM, nthr, ithr, start, end);
@@ -550,12 +551,13 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.f,
         1.0f,
         1.f,
+        data_type::f32,
         true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table
         Xbyak::Opmask(1),                   // k_mask

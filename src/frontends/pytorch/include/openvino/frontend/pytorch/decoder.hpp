@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/pytorch/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -14,8 +15,10 @@ namespace pytorch {
 using DecoderRTInfo = std::unordered_map<std::string, ov::Any>;
 
 /// Plays a role of node, block and module decoder (kind of temporary fat API)
-class TorchDecoder : public IDecoder {
+class PYTORCH_FRONTEND_API TorchDecoder : public IDecoder {
 public:
+    ~TorchDecoder() override;
+
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
     // Using Any here is an easy way to avoid template definition, returned object is supposed to be of one of the
     // fundamental types like int, float etc.
@@ -113,13 +116,12 @@ public:
     /// \brief Returns if output may contain alias of input in AliasDB
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const = 0;
 
-    /// Returns new nodes for inputs inlined in the op itself
-    // Used in Torch.FX decoder
-    virtual OutputVector inlined_input(size_t index) const = 0;
-
     /// Returns if input is inlined
     // Used in Torch.FX decoder
     virtual bool is_input_inlined(size_t index) const = 0;
+
+    /// Return decoder for inlined input
+    virtual std::shared_ptr<TorchDecoder> get_inlined_input_decoder(size_t index) const = 0;
 
     /// Returns named attribute as Any. For example kwargs input for FX graph
     virtual ov::Any get_attribute(const std::string& name) const = 0;

@@ -88,7 +88,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagram for memory mapping / reuse
 void LoRA::createPrimitive() {
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
     std::vector<MemoryPtr> inputMemory;
@@ -99,18 +99,18 @@ void LoRA::createPrimitive() {
         inputMemory.emplace_back(std::move(mem));
     }
 
-    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
     std::vector<MemoryPtr> outputMemory{getDstMemoryAtPort(0)};
     m_graph.Activate(inputMemory, outputMemory);
 }
 
-void LoRA::execute(dnnl::stream) {
+void LoRA::execute(const dnnl::stream&) {
     m_graph.Infer();
 }
 
-void LoRA::executeDynamicImpl(dnnl::stream strm) {
+void LoRA::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

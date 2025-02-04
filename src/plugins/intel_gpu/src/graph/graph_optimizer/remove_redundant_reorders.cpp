@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -294,6 +294,12 @@ void remove_redundant_reorders::run(program& p) {
 
         auto o_layout = r_node.get_output_layout();
         const auto& i_layout = r_node.get_input_layout(0);
+
+        auto is_r_node_rank_changed = r_node.get_output_layout().get_rank() != r_node.get_dependency(0).get_output_layout().get_rank();
+        if (is_r_node_rank_changed &&
+            ((!update_implementations && r_node.get_dependency(0).is_type<crop>()) ||
+             (r_node.get_dependency(0).is_type<crop>() && r_node.get_dependency(0).can_be_optimized())))
+            continue;
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.

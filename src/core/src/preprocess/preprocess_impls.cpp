@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -211,7 +211,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
 
     // Replace parameter
     for (auto consumer : consumers) {
-        if (dynamic_cast<ov::opset8::Result*>(consumer.get_node())) {
+        if (ov::as_type<ov::opset8::Result>(consumer.get_node())) {
             // Some result points to old parameter (Param->Result case), need to trigger revalidation
             need_validate = true;
         }
@@ -370,30 +370,40 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     }
 
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
-    // Move result tensor names from previous input to new
-    const auto result_input_names = result->get_input_tensor(0).get_names();
-    result->get_input_tensor(0).set_names({});
-    node.get_tensor().set_names(result_input_names);
+    if (get_tensor_data()->get_names_compatibility_mode()) {
+        // Move result tensor names from previous input to new
+        const auto result_input_names = result->get_input_tensor(0).get_names();
+        result->get_input_tensor(0).set_names({});
+        node.get_tensor().set_names(result_input_names);
 
-    if (!post_processing_applied) {
-        return;
-    }
+        if (!post_processing_applied) {
+            return;
+        }
 
-    if (orig_parent->get_output_size() == 1) {
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
+        if (orig_parent->get_output_size() == 1) {
+            node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
 
-        // Reset friendly name of input node to avoid names collision
-        // when there is at a new node inserted by post-processing steps
-        // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
-        // as it's required for old API correct work
-        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+            // Reset friendly name of input node to avoid names collision
+            // when there is at a new node inserted by post-processing steps
+            // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+            // as it's required for old API correct work
+            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+        } else if (node.get_node_shared_ptr() != orig_parent) {
+            // Result node is changed - add ".<idx>" suffix
+            node.get_node_shared_ptr()->set_friendly_name(
+                orig_parent->get_friendly_name() + "." +
+                std::to_string(result->get_input_source_output(0).get_index()));
+        }
+        result->input(0).replace_source_output(node);
+        result->revalidate_and_infer_types();
     } else if (node.get_node_shared_ptr() != orig_parent) {
         // Result node is changed - add ".<idx>" suffix
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
-                                                      std::to_string(result->get_input_source_output(0).get_index()));
+        const auto suffix = std::string(".") + std::to_string(result->get_input_source_output(0).get_index());
+        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + suffix);
+
+        result->input(0).replace_source_output(node);
+        result->revalidate_and_infer_types();
     }
-    result->input(0).replace_source_output(node);
-    result->revalidate_and_infer_types();
 
     // Update layout
     if (!context.layout().empty()) {
@@ -405,7 +415,7 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
     const auto& start_out_node_names = node.get_tensor().get_names();
-    result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
+    result = ov::as_type_ptr<opset8::Result>(node.get_node_shared_ptr());
     auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
     PostprocessingContext context(model_layout);
     if (get_tensor_data()->is_layout_set()) {

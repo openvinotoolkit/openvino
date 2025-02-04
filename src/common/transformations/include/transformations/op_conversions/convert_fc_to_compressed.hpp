@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,11 @@ class TRANSFORMATIONS_API ConvertFullyConnectedToFullyConnectedCompressed;
 
 class ov::pass::ConvertFullyConnectedToFullyConnectedCompressed : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertFullyConnectedToFullyConnectedCompressed");
+
     using SupportsPredicate =
         std::function<bool(const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t)>;
 
-    OPENVINO_RTTI("ConvertFullyConnectedToFullyConnectedCompressed", "0");
     ConvertFullyConnectedToFullyConnectedCompressed(const std::vector<ov::element::Type>& supported_activation_types,
                                                     const std::vector<ov::element::Type>& supported_weights_types,
                                                     SupportsPredicate supports_config = nullptr,

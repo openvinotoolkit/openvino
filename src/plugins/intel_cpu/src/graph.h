@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "memory_control.hpp"
+#include "memory_state.h"
 #include "node.h"
 #include "nodes/input.h"
 #include "openvino/core/node_vector.hpp"
@@ -64,11 +65,11 @@ public:
     }
 
     template <typename NET>
-    void CreateGraph(NET& model, const GraphContext::CPtr context);
+    void CreateGraph(NET& model, const GraphContext::CPtr& context);
 
     void CreateGraph(const std::vector<NodePtr>& graphNodes,
                      const std::vector<EdgePtr>& graphEdges,
-                     const GraphContext::CPtr context,
+                     const GraphContext::CPtr& context,
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
@@ -87,26 +88,40 @@ public:
         return _name;
     }
 
-    std::map<std::size_t, NodePtr>& GetInputNodesMap() {
-        return inputNodesMap;
-    }
-
-    std::map<std::size_t, NodePtr>& GetOutputNodesMap() {
-        return outputNodesMap;
-    }
-
-    NodePtr getInputNodeByIndex(const std::size_t& index) {
+    NodePtr getInputNodeByIndex(std::size_t index) {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
+            return nullptr;
         return input->second;
     }
 
-    NodePtr getOutputNodeByIndex(const std::size_t& index) {
+    NodePtr getOutputNodeByIndex(std::size_t index) {
         auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
+            return nullptr;
         return output->second;
+    }
+
+    NodeConstPtr getInputNodeByIndex(std::size_t index) const {
+        auto input = inputNodesMap.find(index);
+        if (input == inputNodesMap.end())
+            return nullptr;
+        return input->second;
+    }
+
+    NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
+        auto output = outputNodesMap.find(index);
+        if (output == outputNodesMap.end())
+            return nullptr;
+        return output->second;
+    }
+
+    size_t inputsNumber() const {
+        return inputNodesMap.size();
+    }
+
+    size_t outputsNumber() const {
+        return outputNodesMap.size();
     }
 
     dnnl::engine getEngine() const {
@@ -117,13 +132,16 @@ public:
         return m_context;
     }
 
+    std::vector<MemStatePtr> memoryStates() const;
+    void assignStates(const std::vector<MemStatePtr>& state);
+
     void GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const;
 
     void CreateEdge(const NodePtr& parent, const NodePtr& child, int parentPort = 0, int childPort = 0);
     void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
-    void AddNode(NodePtr node);
+    void AddNode(const NodePtr& node);
     void DropNode(const NodePtr& node);
     void DropDWConvNode(const NodePtr& node);
 
@@ -148,8 +166,8 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    NodePtr InsertReorder(EdgePtr edge,
-                          std::string layerName,
+    NodePtr InsertReorder(const EdgePtr& edge,
+                          const std::string& layerName,
                           const MemoryDesc& inDesc,
                           const MemoryDesc& outDesc,
                           bool isOptimized = false,
@@ -168,7 +186,7 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(EdgePtr edge, NodePtr node, bool initNode = false);
+    bool InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode = false);
 
     /**
      * @brief Insert Node between two specified nodes.
@@ -188,7 +206,12 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
+    bool InsertNode(const NodePtr& parent,
+                    const NodePtr& child,
+                    const NodePtr& node,
+                    int parentPort,
+                    int childPort,
+                    bool initNode = false);
 
     std::shared_ptr<ov::Model> dump() const;
 
@@ -202,13 +225,11 @@ public:
         return graphHasDynamicInput;
     }
 
-    const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
-
     /**
      * Init graph using \p model, \p context, \p inputConfigs and \p outputConfigs
      */
     void Init(const std::shared_ptr<const ov::Model>& model,
-              const GraphContext::CPtr context,
+              const GraphContext::CPtr& context,
               const std::vector<node::Input::InputConfig>& inputConfigs = {},
               const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
@@ -218,7 +239,7 @@ public:
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
                   const std::vector<MemoryPtr>& externalOutputMemory = {});
 
-    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
+    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() {
         return outputNodesMemBlocksMap;
     }
 

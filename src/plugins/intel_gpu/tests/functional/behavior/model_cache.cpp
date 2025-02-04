@@ -13,21 +13,24 @@
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
 
 namespace {
-typedef std::tuple<bool, ov::element::Type, ov::element::Type> testParams;
+typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type> testParams;
 
 class CheckWeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<testParams> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<testParams> obj) {
         bool use_compile_model_api_;
+        bool do_encryption_;
         ov::element::Type inference_mode_;
         ov::element::Type model_dtype_;
-        std::tie(use_compile_model_api_, inference_mode_, model_dtype_) = obj.param;
+        std::tie(use_compile_model_api_, do_encryption_, inference_mode_, model_dtype_) = obj.param;
 
         std::ostringstream result;
         const char separator = '_';
         result << "use_compile_model_api=" << use_compile_model_api_ << separator;
+        result << "_do_encryption=" << do_encryption_;
         result << "inference_mode=" << inference_mode_ << separator;
         result << "model_dtype=" << model_dtype_;
         return result.str();
@@ -40,6 +43,7 @@ protected:
     std::string cache_path;
     std::string cache_dir;
     bool use_compile_model_api;  // for loading from cache
+    bool do_encryption;
     ov::element::Type inference_mode;
     ov::element::Type model_dtype;
 
@@ -55,7 +59,7 @@ void CheckWeightlessCacheAccuracy::SetUp() {
     cache_path = filePrefix + ".blob";
     cache_dir = filePrefix + "_cache_dir";
 
-    std::tie(use_compile_model_api, inference_mode, model_dtype) = GetParam();
+    std::tie(use_compile_model_api, do_encryption, inference_mode, model_dtype) = GetParam();
 }
 
 void CheckWeightlessCacheAccuracy::TearDown() {
@@ -75,6 +79,14 @@ void CheckWeightlessCacheAccuracy::run() {
     ov::AnyMap config_with_weights_path = {ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE),
                                            ov::weights_path(bin_path),
                                            ov::hint::inference_precision(inference_mode)};
+
+    if (do_encryption) {
+        ov::EncryptionCallbacks encryption_callbacks;
+        encryption_callbacks.encrypt = ov::util::codec_xor;
+        encryption_callbacks.decrypt = ov::util::codec_xor;
+        config.insert(ov::cache_encryption_callbacks(encryption_callbacks));
+        config_with_weights_path.insert(ov::cache_encryption_callbacks(encryption_callbacks));
+    }
     auto core = ov::test::utils::PluginCache::get().core();
     ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
 
@@ -150,6 +162,7 @@ const std::vector<ov::element::Type> model_dtypes = {
 INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracy,
                          CheckWeightlessCacheAccuracy,
                          ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
                                             ::testing::ValuesIn(inference_modes),
                                             ::testing::ValuesIn(model_dtypes)),
                          CheckWeightlessCacheAccuracy::get_test_case_name);

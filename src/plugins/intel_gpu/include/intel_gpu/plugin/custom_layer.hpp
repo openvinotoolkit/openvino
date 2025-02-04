@@ -1,18 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <memory>
 #include <string>
-#include <sstream>
 #include <vector>
 #include <map>
 #include "pugixml.hpp"
-#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/format.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
 using CustomLayerMap = std::map<std::string, CustomLayerPtr>;
@@ -82,5 +80,4 @@ protected:
     std::string m_ErrorMessage;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

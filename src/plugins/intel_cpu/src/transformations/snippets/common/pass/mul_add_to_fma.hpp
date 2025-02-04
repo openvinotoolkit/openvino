@@ -17,6 +17,7 @@ namespace pass {
  */
 class MulAddToFMA : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("MulAddToFMA");
     MulAddToFMA();
 };
 

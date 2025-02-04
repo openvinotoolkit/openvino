@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct pooling_onednn : typed_primitive_onednn_impl<pooling> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<pooling_onednn>(*this);
+        return std::make_unique<pooling_onednn>(*this);
     }
 
     static std::shared_ptr<dnnl::pooling_forward::primitive_desc> get_pooling_primitive_descriptor(const kernel_impl_params& impl_params,
@@ -155,7 +155,7 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_pooling_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<pooling_onednn>(engine, config, attr, *prim_desc);
+        return std::make_unique<pooling_onednn>(engine, config, attr, *prim_desc);
     }
 };
 

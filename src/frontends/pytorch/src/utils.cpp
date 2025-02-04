@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "op_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -40,15 +41,24 @@ namespace pytorch {
 
 using namespace ov::op;
 
-void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs, bool allow_complex) {
     auto num_inputs = context.get_input_size();
     FRONT_END_OP_CONVERSION_CHECK(num_inputs >= min_inputs,
                                   "Got less inputs ",
                                   num_inputs,
                                   " than expected ",
                                   min_inputs);
+    if (!allow_complex) {
+        // verify that no input is complex
+        for (int i = 0; i < static_cast<int>(std::min(num_inputs, max_inputs)); ++i) {
+            auto input = context.get_input(i);
+            auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+            PYTORCH_OP_CONVERSION_CHECK(!complex_type_mark, "The operation doesn't allow complex type.");
+        }
+    }
+    // Check that additional inputs are all None, otherwise raise exception
     for (auto i = max_inputs; i < num_inputs; i++) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected: ", i + 1);
     }
 }
 
@@ -200,8 +210,7 @@ element::Type convert_dtype(int64_t pt_type) {
 };
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
-    if (std::dynamic_pointer_cast<v0::Constant>(
-            context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
+    if (ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
         auto dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
         return context.mark_node(std::make_shared<v0::Convert>(input_tensor, dtype));
     } else if (const auto& fw_node =
@@ -373,7 +382,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 }
 
 std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type) {
-    auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+    auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node);
     if (!fw_node) {
         return nullptr;
     }
@@ -386,7 +395,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
 
 std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
                                                           std::initializer_list<std::string> types) {
-    auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+    auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node);
     if (!fw_node) {
         return nullptr;
     }
@@ -410,7 +419,7 @@ std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
 }
 
 bool is_none_node(const Output<Node>& node) {
-    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
+    if (const auto& fw_node_inp = ov::as_type_ptr<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
         const auto& attrs = fw_node_inp->get_attrs();
         if (attrs.find("none_value") != attrs.end()) {
             return true;
@@ -523,7 +532,7 @@ Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
 Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     if (context.get_input_type(idx).is<type::List>() &&
-        std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(x.get_node_shared_ptr())) {
+        ov::as_type_ptr<ov::op::util::FrameworkNode>(x.get_node_shared_ptr())) {
         auto elems = get_list_as_outputs(x, true);
         if (elems.size() == 0)
             // Can we figure real type for empty list?
@@ -562,7 +571,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
     auto current_output = start;
     auto zero = v0::Constant::create(element::i32, Shape{}, {0});
     while (const auto& input_fw_node =
-               std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
+               ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
         if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end()) {
             break;
@@ -637,30 +646,6 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
     auto _value = rg.make<v1::ConvertLike>(value, data);
     auto bool_mask = rg.make<v0::Convert>(mask, element::boolean);
     return rg.make<v1::Select>(bool_mask, _value, data);
-}
-
-Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end) {
-    OutputVector list_elems;
-    for (size_t i = begin; i < end; i++) {
-        if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
-            auto const_val = context.const_input<int64_t>(i);
-            std::vector<int64_t> dim_vec;
-            dim_vec.push_back(const_val);
-            auto dim_const = v0::Constant::create(element::i64, Shape{1}, dim_vec);
-            list_elems.push_back(dim_const);
-        } else {
-            auto input_dim = context.get_input(static_cast<int>(i));
-            if (input_dim.get_partial_shape().rank() == 0) {
-                auto zero = v0::Constant::create(element::i32, Shape{}, {0});
-                auto unsqueezed_dim = context.mark_node(std::make_shared<v0::Unsqueeze>(input_dim, zero));
-                list_elems.push_back(unsqueezed_dim);
-            } else {
-                list_elems.push_back(input_dim);
-            }
-        }
-    }
-    auto concat = std::make_shared<v0::Concat>(list_elems, 0);
-    return concat;
 }
 
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask) {
@@ -859,6 +844,16 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     new_output = gather->output(0);
     use_input_as_output = false;
     return true;
+}
+
+Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& complex_input) {
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(complex_input, element::i32));
+
+    auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
+    auto stop = v0::Constant::create(element::i32, Shape{1}, {-1});
+    auto step = v0::Constant::create(element::i32, Shape{1}, {1});
+    // Removing last dim from shape
+    return context.mark_node(std::make_shared<v8::Slice>(input_shape, zero, stop, step, zero));
 }
 
 }  // namespace pytorch

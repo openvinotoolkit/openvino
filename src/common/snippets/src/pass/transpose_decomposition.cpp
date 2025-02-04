@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,9 +60,9 @@ TransposeDecomposition::TransposeDecomposition() {
         const auto subtensor = std::vector<size_t>{1};
         const auto& layout = order->cast_vector<size_t>();
 
-        // todo: LoadReshape used here is essentially Load + an easy way to maintain correct shape propagation
+        // todo: LoadReorder used here is essentially Load + an easy way to maintain correct shape propagation
         //  fix this in future and develop a more consistent shape propagation approach.
-        auto load = std::make_shared<snippets::op::LoadReshape>(data_input, subtensor[0], 0, layout);
+        auto load = std::make_shared<snippets::op::LoadReorder>(data_input, subtensor[0], 0, layout);
         auto store = std::make_shared<snippets::op::Store>(load, subtensor[0]);
 
         PortDescriptorUtils::set_port_descriptor(load->input(0), subtensor, layout);
