@@ -185,6 +185,12 @@ inline int64_t file_size(const ov::util::Path& path) {
     return ec ? -1 : static_cast<int64_t>(size);
 }
 
+#ifdef _MSC_VER
+inline int64_t file_size(const char* path) {
+    return file_size(ov::util::string_to_wstring(path));
+}
+#endif
+
 /**
  * @brief      Returns file size for file
  * @param[in]  path  The file name
@@ -373,16 +379,6 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
 #if defined(_MSC_VER) || defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
 inline ov::util::Path make_path(const wchar_t* file) {
     return {std::wstring(file)};
-}
-#endif
-
-#if defined(_MSC_VER)
-inline ov::util::Path make_path(const char* file) {
-    return {ov::util::string_to_wstring(file)};
-}
-#else
-inline ov::util::Path make_path(const char* file) {
-    return {file};
 }
 #endif
 
