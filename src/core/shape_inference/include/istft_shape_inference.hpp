@@ -94,7 +94,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
 
         const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
         if (sig_len_in) {  // Set desired length of the signal dimension, if provided
-            output_shapes[0] = TRShape{(*sig_len_in)[0]};
+            output_shapes[0][0] = TDim{(*sig_len_in)[0]};
         }
     } else if (frame_size && frame_step) {  // Otherwise infer the length of the signal
         const auto& frame_size_val = (*frame_size)[0];
@@ -106,7 +106,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         if (!op->get_center()) {
             signal_length += frame_size_val;
         }
-        output_shapes[0] = TRShape{std::move(signal_length)};
+        output_shapes[0][0] = std::move(signal_length);
     }
 
     if (!is_data_3D) {  // Copy batch dimension
