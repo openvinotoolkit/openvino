@@ -249,12 +249,12 @@ protected:
         const auto value_shape = transpose_pshape(impl_param.get_input_layout(2).get_partial_shape(), desc->input_v_transpose_order);
 
         OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
-        for (size_t i = 0; i < query_shape.size(); ++i) {
-            if (query_shape[i].is_static() && key_shape[i].is_static() && value_shape[i].is_static()) {
-                if (query_shape[i].get_length() > key_shape[i].get_length()) {
-                    config.broadcast_axis = desc->input_k_transpose_order[i];
-                    config.group_size = query_shape[i].get_length() / key_shape[i].get_length();
-                }
+
+        const auto num_heads_dim = 1;
+        if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
+            if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
+                config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
+                config.group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
             }
         }
 

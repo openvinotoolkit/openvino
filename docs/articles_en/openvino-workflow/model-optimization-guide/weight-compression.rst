@@ -7,7 +7,7 @@ LLM Weight Compression
 
    weight-compression/4-bit-weight-quantization
    weight-compression/microscaling-quantization
-   
+
 
 
 Weight compression enhances the efficiency of models by reducing their memory footprint,
@@ -18,14 +18,14 @@ only targets weights, keeping activations as floating-point numbers. This means 
 of the model's accuracy while improving its
 speed and reducing its size. The reduction in size is especially noticeable with larger models.
 For instance the 8 billion parameter Llama 3 model can be reduced
-from about 16.1 GB to 4.8 GB using 4-bit weight quantization on top of bfloat16 model.
+from about 16.1 GB to 4.8 GB using 4-bit weight quantization on top of a bfloat16 model.
 
 .. note::
 
    With smaller language models (i.e. less than 1B parameters), low-bit weight
    compression may result in more accuracy reduction than with larger models.
 
-LLMs and other GenAI models that require
+LLMs and other generative AI models that require
 extensive memory to store the weights during inference can benefit
 from weight compression as it:
 

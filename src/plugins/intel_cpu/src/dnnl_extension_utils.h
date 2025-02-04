@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "common/c_types_map.hpp"
@@ -26,8 +27,17 @@ class IMemory;
 
 class DnnlExtensionUtils {
 public:
+    struct throw_tag {};
+    struct nothrow_tag {};
+
+public:
     static uint8_t sizeOfDataType(dnnl::memory::data_type dataType);
-    static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType);
+    static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType,
+                                                         throw_tag tag = throw_tag{});
+
+    static std::optional<dnnl::memory::data_type> ElementTypeToDataType(const ov::element::Type& elementType,
+                                                                        nothrow_tag) noexcept;
+
     static ov::element::Type DataTypeToElementType(const dnnl::memory::data_type& dataType);
     static Dim convertToDim(const dnnl::memory::dim& dim);
     static dnnl::memory::dim convertToDnnlDim(const Dim& dim);

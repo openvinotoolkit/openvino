@@ -233,7 +233,18 @@ private:
 
     size_t src_stride = 0;
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, TAIL8_FILL, TAIL4_FILL, TAIL2_FILL, TAIL1_FILL, LOAD_EMITTERS_NUM };
+    enum : uint8_t {
+        VECTOR,
+        TAIL8,
+        TAIL4,
+        TAIL2,
+        TAIL1,
+        TAIL8_FILL,
+        TAIL4_FILL,
+        TAIL2_FILL,
+        TAIL1_FILL,
+        LOAD_EMITTERS_NUM
+    };
     std::unique_ptr<jit_load_emitter> load_emitter[LOAD_EMITTERS_NUM];
     std::vector<size_t> load_pool_gpr_idxs;
 
@@ -1106,7 +1117,7 @@ private:
     Vmm vmm_d_weights = Vmm(0);
     Vmm vmm_d_bias = Vmm(1);
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
+    enum : uint8_t { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
     std::unique_ptr<jit_load_emitter> load_emitter[EMITTERS_NUM];
     std::unique_ptr<jit_store_emitter> store_emitter[EMITTERS_NUM];
     std::vector<size_t> store_pool_gpr_idxs;

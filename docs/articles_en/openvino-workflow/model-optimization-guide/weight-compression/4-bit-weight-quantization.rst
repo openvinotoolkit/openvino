@@ -137,8 +137,8 @@ trade-offs after optimization:
 
 .. tip::
 
-   NNCF allows stacking the supported optimization methods. For example, AWQ, Scale Estimation
-   and GPTQ methods can be enabled all together to achieve better accuracy.
+   NNCF enables you to stack the supported optimization methods. For example, AWQ,
+   Scale Estimation and GPTQ methods may be enabled all together to achieve better accuracy.
 
 4-bit Weight Quantization with GPTQ
 ###################################

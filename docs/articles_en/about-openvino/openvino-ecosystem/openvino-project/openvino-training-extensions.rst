@@ -16,7 +16,7 @@ inference. It allows you to export and convert the models to the needed format. 
 Detailed Workflow
 #################
 
-.. image:: ../../assets/images/training_extensions_framework.png
+.. image:: ../../../assets/images/training_extensions_framework.png
 
 1. To start working with OpenVINO Training Extensions, prepare and annotate your dataset. For example, on CVAT.
 
@@ -25,7 +25,7 @@ Detailed Workflow
    .. note::
       Prepare a separate dataset or split the dataset you have for more accurate quality evaluation.
 
-3. Having successful evaluation results received, you have an opportunity to deploy your model or continue optimizing it, using NNCF. For more information about these frameworks, go to :doc:`Optimization Guide <../../openvino-workflow/model-optimization>`.
+3. Having successful evaluation results received, you have an opportunity to deploy your model or continue optimizing it, using NNCF. For more information about these frameworks, go to :doc:`Optimization Guide <../../../openvino-workflow/model-optimization>`.
 
 If the results are unsatisfactory, add datasets and perform the same steps, starting with dataset annotation.
 

@@ -2090,8 +2090,8 @@ int Node::inPlaceOutPort(int portIdx) const {
 }
 
 void Node::resolveInPlaceDirection() {
-    enum InplaceDirectionType { UP, DOWN, CYCLIC, NONE };
-    enum PortType { INPUT, OUTPUT };
+    enum InplaceDirectionType : uint8_t { UP, DOWN, CYCLIC, NONE };
+    enum PortType : uint8_t { INPUT, OUTPUT };
 
     auto inPlaceDirection = [](const Node* node, PortType portType, int portNum) -> InplaceDirectionType {
         if (PortType::INPUT == portType) {

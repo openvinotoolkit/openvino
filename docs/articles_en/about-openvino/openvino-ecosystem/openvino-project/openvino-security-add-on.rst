@@ -17,7 +17,7 @@ In this release, one person performs the role of both the Model Developer and th
 Overview
 ########
 
-The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../openvino-workflow/model-server/ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
+The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../../openvino-workflow/model-server/ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
 
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each.
 
@@ -45,7 +45,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-.. image:: ../../assets/images/ovsa_diagram.svg
+.. image:: ../../../assets/images/ovsa_diagram.svg
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in `this document. <https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md>`__
 
@@ -743,7 +743,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
    The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named ``ovsa_isv``. It is possible to have all roles set up on the same Host Machine.
 
-.. image:: ../../assets/images/ovsa_example.svg
+.. image:: ../../../assets/images/ovsa_example.svg
 
 Model Developer Instructions
 ++++++++++++++++++++++++++++
