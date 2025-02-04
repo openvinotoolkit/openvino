@@ -435,15 +435,15 @@ int main(int argc, char* argv[]) {
         auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
         InputsInfo info_map;
 
-//        std::cout << "Performing reshape" << std::endl;
-//        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
-//
-//        std::cout << "Configuring model pre & post processing" << std::endl;
-//        configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml,
-//                                   FLAGS_oml, FLAGS_ioml);
-//        if (FLAGS_shape.empty()) {
-//            setModelBatch(model, FLAGS_override_model_batch_size);
-//        }
+        std::cout << "Performing reshape" << std::endl;
+        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
+
+        std::cout << "Configuring model pre & post processing" << std::endl;
+        configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml,
+                                   FLAGS_oml, FLAGS_ioml);
+        if (FLAGS_shape.empty()) {
+            setModelBatch(model, FLAGS_override_model_batch_size);
+        }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
