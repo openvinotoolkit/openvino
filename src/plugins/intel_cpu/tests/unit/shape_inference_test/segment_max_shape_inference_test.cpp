@@ -9,8 +9,7 @@
 
 using namespace ov;
 using namespace ov::intel_cpu;
-using ov::op::v0::Constant;
-using ov::op::v0::Parameter;
+using ov::op::v0::Constant, ov::op::v0::Parameter;
 using testing::HasSubstr;
 
 struct SegmentMaxTestParams {
