@@ -46,7 +46,7 @@ void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
             ss << static_cast<uint64_t>(*ptr);
         }
     }
-    ss << std::endl;
+    ss << '\n';
     std::cout << ss.str();
 }
 
@@ -60,7 +60,7 @@ void RegPrinter::print_vmm_prc(const char* name, const char* ori_name, PRC_T* pt
     for (size_t i = 1; i < vlen / sizeof(float); i++) {
         ss << ", " << ptr[i];
     }
-    ss << "}" << std::endl;
+    ss << "}" << '\n';
     std::cout << ss.str();
 }
 template void RegPrinter::print_vmm_prc<float, 16>(const char* name, const char* ori_name, float* ptr);

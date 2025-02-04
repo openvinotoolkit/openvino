@@ -267,7 +267,7 @@ void serializeToCout(const Graph& graph) {
                           << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
             }
         }
-        std::cout << " ]" << std::endl;
+        std::cout << " ]" << '\n';
     }
 }
 
@@ -310,13 +310,13 @@ void summary_perf(const Graph& graph) {
         return;
     }
 
-    std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << std::endl;
+    std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << '\n';
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
-              << std::endl;
-    std::cout << "     Total(us): " << (uint64_t)(total) << std::endl;
-    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << std::endl;
+              << '\n';
+    std::cout << "     Total(us): " << (uint64_t)(total) << '\n';
+    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << '\n';
     {
-        std::cout << " perf_by_type:" << std::endl;
+        std::cout << " perf_by_type:" << '\n';
         std::vector<std::pair<std::string, double>> A;
         A.reserve(perf_by_type.size());
         for (auto& it : perf_by_type) {
@@ -333,12 +333,12 @@ void summary_perf(const Graph& graph) {
                 break;
             }
             ss << std::setw(10) << std::right << percentage << " % :  " << std::setw(8) << std::right << it.second
-               << "(us)  " << it.first << std::endl;
+               << "(us)  " << it.first << '\n';
             std::cout << ss.str();
         }
     }
     {
-        std::cout << " perf_by_node:" << std::endl;
+        std::cout << " perf_by_node:" << '\n';
         std::vector<std::pair<NodePtr, double>> A;
         A.reserve(perf_by_node.size());
         for (auto& it : perf_by_node) {
@@ -361,7 +361,7 @@ void summary_perf(const Graph& graph) {
             ss << std::setw(10) << std::right << std::fixed << std::setprecision(2) << percentage << " %  "
                << std::setw(8) << std::right << node->PerfCounter().avg() << "(us)x" << node->PerfCounter().count()
                << " #" << node->getExecIndex() << " " << node->getName() << " "
-               << node->getTypeStr() + "_" + node->getPrimitiveDescriptorType() << std::endl;
+               << node->getTypeStr() + "_" + node->getPrimitiveDescriptorType() << '\n';
             std::cout << ss.str();
         }
     }

@@ -13,8 +13,10 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install software-properties-common && \
+    apt-get install software-properties-common wget && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    add-apt-repository --yes --no-update "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" && \
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
@@ -38,7 +40,7 @@ RUN apt-get update && \
         # Compiler \
         clang-15 \
         # Static analyzer
-        clang-tidy-15 \
+        clang-tidy-18 \
         # clang-tidy uses clang-format as a dependency
         clang-format-15 \
         && \

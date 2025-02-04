@@ -1562,7 +1562,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    enum LayoutType { Planar, ChannelsFirst, Blocked };
+    enum LayoutType : uint8_t { Planar, ChannelsFirst, Blocked };
 
     auto initDesc = [&](LayoutType lt, const bool useEltwiseExecutor = false, const bool useJit = false) -> NodeDesc {
         auto createMemoryDesc =

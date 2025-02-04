@@ -223,7 +223,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     }
 #endif
 
-    enum LayoutType { Planar, ChannelsFirst, Blocked };
+    enum LayoutType : uint8_t { Planar, ChannelsFirst, Blocked };
     auto initDesc = [&](LayoutType lt) -> NodeDesc {
         auto createMemoryDesc =
             [lt](const Shape& shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
