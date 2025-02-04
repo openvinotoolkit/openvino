@@ -177,7 +177,7 @@ TEST_P(TypePropISTFTTestP, istft_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(0), signal_shape);
 }
 
-TEST_F(TypePropISTFTTest, istft_shape_length_const_out_1D) {
+TEST_F(TypePropISTFTTest, shape_length_const_out_1D) {
     const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{6, 13, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
     const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
@@ -190,7 +190,7 @@ TEST_F(TypePropISTFTTest, istft_shape_length_const_out_1D) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{36}));
 }
 
-TEST_F(TypePropISTFTTest, istft_shape_length_const_out_2D) {
+TEST_F(TypePropISTFTTest, shape_length_const_out_2D) {
     const auto in_data = std::make_shared<Parameter>(element::f32, PartialShape{4, 6, 13, 2});
     const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
     const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
@@ -203,7 +203,7 @@ TEST_F(TypePropISTFTTest, istft_shape_length_const_out_2D) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 36}));
 }
 
-TEST_F(TypePropISTFTTest, istft_shape_of_length_out_2D_with_symbols) {
+TEST_F(TypePropISTFTTest, shape_of_length_out_2D_with_symbols) {
     auto marked_signal = Dimension(36);
     auto symbol_s = std::make_shared<Symbol>();
     marked_signal.set_symbol(symbol_s);
