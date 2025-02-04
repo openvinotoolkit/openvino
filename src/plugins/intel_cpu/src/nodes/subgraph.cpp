@@ -11,6 +11,7 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
@@ -540,6 +541,13 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
+                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                    ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                    getName());
+#endif  // SNIPPETS_DEBUG_CAPS
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::InitLoops,
