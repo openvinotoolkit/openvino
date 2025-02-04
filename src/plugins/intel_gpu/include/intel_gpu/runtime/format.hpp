@@ -63,6 +63,8 @@ struct format_traits {
 
     /// @brief Checks if order has @p c dimension.
     bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
+
+    size_t query_size = 0;
 };
 
 /// @brief Represents memory formats (orders).
