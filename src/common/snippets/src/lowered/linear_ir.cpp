@@ -433,14 +433,23 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     const auto output_ports = new_expr_it->get()->get_output_ports();
     for (const auto& old_expr : old_exprs) {
         for (size_t i = 0; i < old_expr->get_input_count(); ++i) {
-            m_loop_manager->replace_loop_ports(loop_ids,
-                                               old_expr->get_input_port(i),
-                                               {new_expr_it->get()->get_input_port(i)});
+            for (const auto& loop_id : loop_ids) {
+                const auto& loop_info = m_loop_manager->get_loop_info(loop_id);
+                if (!loop_info->is_loop_port(old_expr->get_input_port(i))) {
+                    continue;
+                }
+                for (size_t j = 0; j < new_expr_it->get()->get_input_count(); ++j) {
+                    if (new_expr_it->get()->get_input_port_connector(j)->get_source() ==
+                        old_expr->get_input_port_connector(i)->get_source()) {
+                        m_loop_manager->replace_loop_ports(loop_ids,
+                                                           old_expr->get_input_port(i),
+                                                           {new_expr_it->get()->get_input_port(j)});
+                    }
+                }
+            }
         }
         for (size_t i = 0; i < old_expr->get_output_count(); ++i) {
-            m_loop_manager->replace_loop_ports(loop_ids,
-                                               old_expr->get_output_port(i),
-                                               {new_expr_it->get()->get_output_port(i)});
+            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_output_port(i), output_ports);
         }
         erase(find(old_expr));
     }
