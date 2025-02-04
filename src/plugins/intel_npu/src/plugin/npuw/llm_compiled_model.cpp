@@ -178,7 +178,6 @@ private:
     }
 };
 
-
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
@@ -331,14 +330,6 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
         }
     }
     return ppp.build();
-}
-
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
-    rewr.run_on_model(model);
-
-    ov::pass::Validate().run_on_model(model);
-    return false;
 }
 
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
