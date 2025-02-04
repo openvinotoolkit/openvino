@@ -151,7 +151,7 @@ unset **Use preconverted models** checkbox.
    from user side and at least 64GB RAM for conversion.
 
 `Weight
-compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
+compression <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__
 is a technique for enhancing the efficiency of models, especially those
 with large memory requirements. This method reduces the model’s memory
 footprint, a crucial factor for Large Language Models (LLMs). We provide
@@ -682,7 +682,7 @@ is the interface between the
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
 It provides ease-to-use cli interface for exporting models to `OpenVINO
 Intermediate Representation
-(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+(IR) <https://docs.openvino.ai/2025/documentation/openvino-ir-format.html>`__
 format.
 
 .. raw:: html
@@ -932,7 +932,7 @@ history, we should move LLMPipeline to chat mode using ``start_chat()``
 method.
 
 More info about OpenVINO LLM inference can be found in `LLM Inference
-Guide <https://docs.openvino.ai/2024/openvino-workflow-generative.html>`__
+Guide <https://docs.openvino.ai/2025/openvino-workflow-generative.html>`__
 
 .. raw:: html
 

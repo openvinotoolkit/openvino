@@ -22,8 +22,8 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API ReduceBaseTransformation : public LayerTransformation {
 public:
     ReduceBaseTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
+    bool transform(ov::pass::pattern::Matcher& m) override;
+    bool canBeTransformed(const std::shared_ptr<Node>& reduce) const override;
 
 protected:
     virtual void changeDequantizationValues(

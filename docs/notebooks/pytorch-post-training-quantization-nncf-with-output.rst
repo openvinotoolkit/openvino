@@ -91,22 +91,22 @@ Imports
     import zipfile
     from pathlib import Path
     from typing import List, Tuple
-    
+
     import nncf
     import openvino as ov
-    
+
     import torch
     from torchvision.datasets import ImageFolder
     from torchvision.models import resnet50
     import torchvision.transforms as transforms
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
 
@@ -125,21 +125,21 @@ Settings
 
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {torch_device} device")
-    
+
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     BASE_MODEL_NAME = "resnet50"
     IMAGE_SIZE = [64, 64]
-    
+
     OUTPUT_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     # Paths where PyTorch and OpenVINO IR models will be stored.
     fp32_checkpoint_filename = Path(BASE_MODEL_NAME + "_fp32").with_suffix(".pth")
     fp32_ir_path = OUTPUT_DIR / Path(BASE_MODEL_NAME + "_fp32").with_suffix(".xml")
     int8_ir_path = OUTPUT_DIR / Path(BASE_MODEL_NAME + "_int8").with_suffix(".xml")
-    
-    
+
+
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/304_resnet50_fp32.pth"
     download_file(fp32_pth_url, directory=MODEL_DIR, filename=fp32_checkpoint_filename)
 
@@ -185,29 +185,29 @@ Download and Prepare Tiny ImageNet dataset
         zip_ref.extractall(path=output_dir)
         zip_ref.close()
         print(f"Successfully downloaded and extracted dataset to: {output_dir}")
-    
-    
+
+
     def create_validation_dir(dataset_dir: Path):
         VALID_DIR = dataset_dir / "val"
         val_img_dir = VALID_DIR / "images"
-    
+
         fp = open(VALID_DIR / "val_annotations.txt", "r")
         data = fp.readlines()
-    
+
         val_img_dict = {}
         for line in data:
             words = line.split("\t")
             val_img_dict[words[0]] = words[1]
         fp.close()
-    
+
         for img, folder in val_img_dict.items():
             newpath = val_img_dir / folder
             if not newpath.exists():
                 os.makedirs(newpath)
             if (val_img_dir / img).exists():
                 os.rename(val_img_dir / img, newpath / img)
-    
-    
+
+
     DATASET_DIR = OUTPUT_DIR / "tiny-imagenet-200"
     if not DATASET_DIR.exists():
         download_tiny_imagenet_200(OUTPUT_DIR)
@@ -237,7 +237,7 @@ process.
 
     class AverageMeter(object):
         """Computes and stores the average and current value"""
-    
+
         def __init__(self, name: str, fmt: str = ":f"):
             self.name = name
             self.fmt = fmt
@@ -245,52 +245,52 @@ process.
             self.avg = 0
             self.sum = 0
             self.count = 0
-    
+
         def update(self, val: float, n: int = 1):
             self.val = val
             self.sum += val * n
             self.count += n
             self.avg = self.sum / self.count
-    
+
         def __str__(self):
             fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
             return fmtstr.format(**self.__dict__)
-    
-    
+
+
     class ProgressMeter(object):
         """Displays the progress of validation process"""
-    
+
         def __init__(self, num_batches: int, meters: List[AverageMeter], prefix: str = ""):
             self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
             self.meters = meters
             self.prefix = prefix
-    
+
         def display(self, batch: int):
             entries = [self.prefix + self.batch_fmtstr.format(batch)]
             entries += [str(meter) for meter in self.meters]
             print("\t".join(entries))
-    
+
         def _get_batch_fmtstr(self, num_batches: int):
             num_digits = len(str(num_batches // 1))
             fmt = "{:" + str(num_digits) + "d}"
             return "[" + fmt + "/" + fmt.format(num_batches) + "]"
-    
-    
+
+
     def accuracy(output: torch.Tensor, target: torch.Tensor, topk: Tuple[int] = (1,)):
         """Computes the accuracy over the k top predictions for the specified values of k"""
         with torch.no_grad():
             maxk = max(topk)
             batch_size = target.size(0)
-    
+
             _, pred = output.topk(maxk, 1, True, True)
             pred = pred.t()
             correct = pred.eq(target.view(1, -1).expand_as(pred))
-    
+
             res = []
             for k in topk:
                 correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
                 res.append(correct_k.mul_(100.0 / batch_size))
-    
+
             return res
 
 Validation function
@@ -302,8 +302,8 @@ Validation function
 
     from typing import Union
     from openvino.runtime.ie_api import CompiledModel
-    
-    
+
+
     def validate(
         val_loader: torch.utils.data.DataLoader,
         model: Union[torch.nn.Module, CompiledModel],
@@ -318,13 +318,13 @@ Validation function
         if not isinstance(model, CompiledModel):
             model.eval()
             model.to(torch_device)
-    
+
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(val_loader):
                 images = images.to(torch_device)
                 target = target.to(torch_device)
-    
+
                 # Compute the output.
                 if isinstance(model, CompiledModel):
                     output_layer = model.output(0)
@@ -332,20 +332,20 @@ Validation function
                     output = torch.from_numpy(output)
                 else:
                     output = model(images)
-    
+
                 # Measure accuracy and record loss.
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 top1.update(acc1[0], images.size(0))
                 top5.update(acc5[0], images.size(0))
-    
+
                 # Measure elapsed time.
                 batch_time.update(time.time() - end)
                 end = time.time()
-    
+
                 print_frequency = 10
                 if i % print_frequency == 0:
                     progress.display(i)
-    
+
             print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f} Total time: {total_time:.3f}".format(top1=top1, top5=top5, total_time=end - start_time))
         return top1.avg
 
@@ -375,8 +375,8 @@ values.
         else:
             raise RuntimeError("There is no checkpoint to load")
         return model
-    
-    
+
+
     model = create_model(MODEL_DIR / fp32_checkpoint_filename)
 
 
@@ -412,7 +412,7 @@ Create train and validation DataLoaders
             val_dir,
             transforms.Compose([transforms.Resize(IMAGE_SIZE), transforms.ToTensor(), normalize]),
         )
-    
+
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -421,7 +421,7 @@ Create train and validation DataLoaders
             pin_memory=True,
             sampler=None,
         )
-    
+
         val_loader = torch.utils.data.DataLoader(
             val_dataset,
             batch_size=batch_size,
@@ -430,8 +430,8 @@ Create train and validation DataLoaders
             pin_memory=True,
         )
         return train_loader, val_loader
-    
-    
+
+
     train_loader, val_loader = create_dataloaders()
 
 Model quantization and benchmarking
@@ -480,7 +480,7 @@ layers. The framework is designed so that modifications to your original
 training code are minor. Quantization is the simplest scenario and
 requires a few modifications. For more information about NNCF Post
 Training Quantization (PTQ) API, refer to the `Basic Quantization Flow
-Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__.
+Guide <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__.
 
 1. Create a transformation function that accepts a sample from the
    dataset and returns data suitable for model inference. This enables
@@ -493,8 +493,8 @@ Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/
     def transform_fn(data_item):
         images, _ = data_item
         return images
-    
-    
+
+
     calibration_dataset = nncf.Dataset(train_loader, transform_fn)
 
 2. Create a quantized model from the pre-trained ``FP32`` model and the
@@ -585,14 +585,14 @@ Python API. The models will be saved to the ‘OUTPUT’ directory for later
 benchmarking.
 
 For more information about model conversion, refer to this
-`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
+`page <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 
     dummy_input = torch.randn(128, 3, *IMAGE_SIZE)
-    
+
     model_ir = ov.convert_model(model, example_input=dummy_input, input=[-1, 3, *IMAGE_SIZE])
-    
+
     ov.save_model(model_ir, fp32_ir_path)
 
 
@@ -609,7 +609,7 @@ For more information about model conversion, refer to this
 .. code:: ipython3
 
     quantized_model_ir = ov.convert_model(quantized_model, example_input=dummy_input, input=[-1, 3, *IMAGE_SIZE])
-    
+
     ov.save_model(quantized_model_ir, int8_ir_path)
 
 
@@ -621,7 +621,7 @@ For more information about model conversion, refer to this
       return self._level_high.item()
     /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
-    
+
     Mismatched elements: 25564 / 25600 (99.9%)
     Greatest absolute difference: 0.18935883045196533 at index (76, 149) (up to 1e-05 allowed)
     Greatest relative difference: 31.012773856527517 at index (104, 168) (up to 1e-05 allowed)
@@ -633,7 +633,7 @@ Select inference device for OpenVINO
 .. code:: ipython3
 
     device = device_widget()
-    
+
     device
 
 
@@ -697,7 +697,7 @@ IV. Compare performance of INT8 model and FP32 model in OpenVINO
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
+Tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
@@ -730,20 +730,20 @@ throughput (frames per second) values.
         """Prints the output from benchmark_app in human-readable format"""
         parsed_output = [line for line in benchmark_output if "FPS" in line]
         print(*parsed_output, sep="\n")
-    
-    
+
+
     print("Benchmark FP32 model (OpenVINO IR)")
     benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d $device.value -api async -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
-    
+
     print("Benchmark INT8 model (OpenVINO IR)")
     benchmark_output = ! benchmark_app -m "$int8_ir_path" -d $device.value -api async -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
-    
+
     print("Benchmark FP32 model (OpenVINO IR) synchronously")
     benchmark_output = ! benchmark_app -m "$fp32_ir_path" -d $device.value -api sync -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
-    
+
     print("Benchmark INT8 model (OpenVINO IR) synchronously")
     benchmark_output = ! benchmark_app -m "$int8_ir_path" -d $device.value -api sync -t 15 -shape "[1, 3, 512, 512]"
     parse_benchmark_output(benchmark_output)
@@ -766,11 +766,11 @@ Show device Information for reference:
 .. code:: ipython3
 
     import openvino.properties as props
-    
-    
+
+
     core = ov.Core()
     devices = core.available_devices
-    
+
     for device_name in devices:
         device_full_name = core.get_property(device_name, props.device.full_name)
         print(f"{device_name}: {device_full_name}")
