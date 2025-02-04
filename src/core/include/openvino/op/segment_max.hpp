@@ -40,7 +40,7 @@ public:
     const op::FillMode get_fill_mode() const;
 
 private:
-    op::FillMode m_fill_mode;
+    op::FillMode m_fill_mode{};
 };
 
 }  // namespace v16
