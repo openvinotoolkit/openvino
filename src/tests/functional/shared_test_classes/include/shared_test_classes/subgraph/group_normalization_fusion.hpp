@@ -350,7 +350,7 @@ protected:
         return outputs;
     }
 
-    virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
 
         auto itTargetShape = targetInputStaticShapes.begin();
