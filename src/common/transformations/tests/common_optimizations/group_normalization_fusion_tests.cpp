@@ -4,564 +4,527 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/data_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/group_normalization.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "shared_test_classes/subgraph/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
-#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;
 
-using ValuesContainerWithPositiveTestFlag =
-    std::tuple<bool,                // whether it's a positive test that should run reference model or a negative test
-               PartialShape,        // (partial) shape of input/output tensor (all dims except channel can be dynamic)
+using GroupNormalizationFusionSubgraphTestValues =
+    std::tuple<PartialShape,        // (partial) shape of input/output tensor (all dims except channel can be dynamic)
                Shape,               // shape of optional instance norm gamma tensor (or empty shape if not used)
                Shape,               // shape of optional instance norm beta tensor (or empty shape if not used)
                Shape,               // shape of group norm gamma tensor
                Shape,               // shape of group norm beta tensor
                unsigned long long,  // number of groups
-               float>;              // epsilon
+               float,               // epsilon
+               bool>;               // whether it's a positive test that should run reference model or a negative test
 
-template <element::Type_t T_act_elem,
-          element::Type_t T_gn_gamma_elem = T_act_elem,
-          element::Type_t T_gn_beta_elem = T_act_elem,
-          element::Type_t T_in_gamma_elem = T_act_elem,
-          element::Type_t T_in_beta_elem = T_act_elem>
-class GroupNormalizationFusionTestsFixture : public TestWithParam<ValuesContainerWithPositiveTestFlag> {
+template <element::Type_t T_elem>
+class GroupNormalizationFusionTransformationTestsF
+    : public ov::test::GroupNormalizationFusionTestBase<T_elem>,
+      public testing::TestWithParam<GroupNormalizationFusionSubgraphTestValues> {
+protected:
+    bool positiveTest;
+    ov::pass::Manager manager;
+    ov::pass::Manager manager_ref;
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Model> model_ref;
+
+    virtual void read_test_parameters() {
+        const auto& params = GetParam();
+
+        dataShape = std::get<0>(params);
+        if (!dataShape.rank().is_static())
+            throw std::runtime_error("Rank of input tensor has to be static!");
+        if (dataShape.rank().get_max_length() < 2)
+            throw std::runtime_error("Expected at least two dimensions in input tensor!");
+        if (!dataShape[1].is_static())
+            throw std::runtime_error("Channel dimension in input tensor has to be static!");
+
+        numChannels = static_cast<size_t>(dataShape[1].get_max_length());
+        instanceNormGammaShape = std::get<1>(params);
+        instanceNormBetaShape = std::get<2>(params);
+        groupNormGammaShape = std::get<3>(params);
+        groupNormBetaShape = std::get<4>(params);
+        numGroups = std::get<5>(params);
+        epsilon = std::get<6>(params);
+        positiveTest = std::get<7>(params);
+
+        instanceNormGammaPresent = (instanceNormGammaShape != Shape{});
+        instanceNormBetaPresent = (instanceNormBetaShape != Shape{});
+
+        if (positiveTest) {
+            if ((instanceNormGammaShape != Shape{}) && (shape_size(instanceNormGammaShape) != numGroups))
+                throw std::runtime_error("Shape of instance norm gamma has to either be empty or contain "
+                                         "exactly <numGroups> elements");
+            if ((instanceNormBetaShape != Shape{}) && (shape_size(instanceNormBetaShape) != numGroups))
+                throw std::runtime_error("Shape of instance norm beta has to either be empty shape or contain "
+                                         "exactly <numGroups> elements");
+            if (shape_size(groupNormGammaShape) != numChannels)
+                throw std::runtime_error("Shape of group norm gamma has to contain exactly <numChannels> elements");
+            if (shape_size(groupNormBetaShape) != numChannels)
+                throw std::runtime_error("Shape of group norm beta has to contain exactly <numChannels> elements");
+
+            instanceNormGammaPresent = instanceNormGammaPresent && (shape_size(instanceNormGammaShape) == numGroups);
+            instanceNormBetaPresent = instanceNormBetaPresent && (shape_size(instanceNormBetaShape) == numGroups);
+        }
+    }
+
+    std::shared_ptr<ov::Model> create_ref_model() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(T_elem_t, dataShape);
+
+        auto group_norm_beta_corr_vals = groupNormBetaVals;
+        if (instanceNormBetaPresent)
+            for (auto i = 0; i < group_norm_beta_corr_vals.size(); i++)
+                group_norm_beta_corr_vals[i] =
+                    groupNormGammaVals[i] * instanceNormBetaVals[i / (numChannels / numGroups)] + groupNormBetaVals[i];
+        auto group_norm_beta_1d = op::v0::Constant::create(T_elem_t, Shape{numChannels}, group_norm_beta_corr_vals);
+
+        auto group_norm_gamma_corr_vals = groupNormGammaVals;
+        if (instanceNormGammaPresent)
+            for (auto i = 0; i < group_norm_gamma_corr_vals.size(); i++)
+                group_norm_gamma_corr_vals[i] =
+                    groupNormGammaVals[i] * instanceNormGammaVals[i / (numChannels / numGroups)];
+        auto group_norm_gamma_1d = op::v0::Constant::create(T_elem_t, Shape{numChannels}, group_norm_gamma_corr_vals);
+
+        auto group_norm = std::make_shared<ov::op::v12::GroupNormalization>(input,
+                                                                            group_norm_gamma_1d,
+                                                                            group_norm_beta_1d,
+                                                                            numGroups,
+                                                                            epsilon);
+
+        return std::make_shared<Model>(NodeVector{group_norm}, ParameterVector{input});
+    }
+
 public:
-    static constexpr element::Type_t T_act_elem_t = T_act_elem;
-    static constexpr element::Type_t T_gn_gamma_elem_t = T_gn_gamma_elem;
-    static constexpr element::Type_t T_gn_beta_elem_t = T_gn_beta_elem;
-    static constexpr element::Type_t T_in_gamma_elem_t = T_in_gamma_elem;
-    static constexpr element::Type_t T_in_beta_elem_t = T_in_beta_elem;
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupNormalizationFusionSubgraphTestValues>& obj) {
+        const auto& params = obj.param;
 
-    typedef typename ov::element_type_traits<T_act_elem_t>::value_type T_act_store_t;
-    typedef typename ov::element_type_traits<T_gn_gamma_elem_t>::value_type T_gn_gamma_store_t;
-    typedef typename ov::element_type_traits<T_gn_beta_elem_t>::value_type T_gn_beta_store_t;
-    typedef typename ov::element_type_traits<T_in_gamma_elem_t>::value_type T_in_gamma_store_t;
-    typedef typename ov::element_type_traits<T_in_beta_elem_t>::value_type T_in_beta_store_t;
+        const auto& data_shape = std::get<0>(params);
+        const auto& instance_norm_gamma_shape = std::get<1>(params);
+        const auto& instance_norm_beta_shape = std::get<2>(params);
+        const auto& group_norm_gamma_shape = std::get<3>(params);
+        const auto& group_norm_beta_shape = std::get<4>(params);
+        const auto& num_groups = std::get<5>(params);
+        const auto& epsilon = std::get<6>(params);
+        const auto& positive_test = std::get<7>(params);
 
-    void TestBody() override {
-        auto params = GetParam();
-        auto positive_test = std::get<0>(params);
-        auto data_shape = std::get<1>(params);
-        ASSERT_TRUE(data_shape[1].is_static());
-        auto num_channels = static_cast<unsigned long long>(data_shape[1].get_max_length());
-        auto instance_norm_gamma_shape = std::get<2>(params);
-        auto instance_norm_beta_shape = std::get<3>(params);
-        auto group_norm_gamma_shape = std::get<4>(params);
-        auto group_norm_beta_shape = std::get<5>(params);
-        auto num_groups = std::get<6>(params);
-        auto epsilon = std::get<7>(params);
+        std::ostringstream results;
 
-        if (positive_test) {
-            if ((instance_norm_gamma_shape != Shape{}) && (shape_size(instance_norm_gamma_shape) != num_groups))
-                FAIL() << "Unexpected shape of instance norm beta - expected either empty shape (which means that it "
-                          "will not  be put in the graph) or shape with exactly num_groups elements that can be "
-                          "merged with the result of MVN.";
+        results << "T=" << T_elem_t << "_";
+        results << "Input=" << ov::test::utils::partialShape2str({data_shape}) << "_";
+        results << "InstNormGamma=" << ov::test::utils::partialShape2str({instance_norm_gamma_shape}) << "_";
+        results << "InstNormBeta=" << ov::test::utils::partialShape2str({instance_norm_beta_shape}) << "_";
+        results << "GroupNormGamma=" << ov::test::utils::partialShape2str({group_norm_gamma_shape}) << "_";
+        results << "GroupNormBeta=" << ov::test::utils::partialShape2str({group_norm_beta_shape}) << "_";
+        results << "NumGroups=" << num_groups << "_";
+        results << "Epsilon=" << epsilon << "_";
+        results << "PositiveTest=" << std::boolalpha << positive_test << "_";
 
-            if ((instance_norm_beta_shape != Shape{}) && (shape_size(instance_norm_beta_shape) != num_groups))
-                FAIL() << "Unexpected shape of instance norm beta - expected either empty shape (which means that it "
-                          "will not  be put in the graph) or shape with exactly num_groups elements that can be "
-                          "merged with the result of MVN.";
+        return results.str();
+    }
 
-            if (shape_size(group_norm_gamma_shape) != num_channels)
-                FAIL()
-                    << "Unexpected shape of group norm gamma - expected shape with exactly num_channels elements that "
-                       "can be merged with the result of instance norm.";
+    void run() {
+        read_test_parameters();
+        generate_weights_init_values();
+        model = create_model();
 
-            if (shape_size(group_norm_beta_shape) != num_channels)
-                FAIL()
-                    << "Unexpected shape of group norm beta - expected shape with exactly num_channels elements that "
-                       "can be merged with the result of instance norm.";
-        }
-        auto instance_norm_gamma_present = (instance_norm_gamma_shape != Shape{});
-        auto instance_norm_beta_present = (instance_norm_beta_shape != Shape{});
-        auto group_norm_beta_present = (group_norm_beta_shape != Shape{});
-        auto group_norm_gamma_present = (group_norm_gamma_shape != Shape{});
+        manager = ov::pass::Manager();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::GroupNormalizationFusion>();
+        OV_ASSERT_NO_THROW(manager.run_passes(model));
 
-        if (positive_test) {
-            instance_norm_gamma_present =
-                instance_norm_gamma_present && (shape_size(instance_norm_gamma_shape) == num_groups);
-            instance_norm_beta_present =
-                instance_norm_beta_present && (shape_size(instance_norm_beta_shape) == num_groups);
-            group_norm_beta_present = group_norm_beta_present && (shape_size(group_norm_beta_shape) == num_channels);
-            group_norm_gamma_present = group_norm_gamma_present && (shape_size(group_norm_gamma_shape) == num_channels);
-        }
+        if (positiveTest) {
+            model_ref = create_ref_model();
 
-        auto instance_norm_gamma_vals = std::vector<T_in_gamma_store_t>();
-        if (instance_norm_gamma_present)
-            instance_norm_gamma_vals =
-                test::utils::generateVector<T_in_gamma_elem_t>(shape_size(instance_norm_gamma_shape));
+            manager_ref = ov::pass::Manager();
+            manager_ref.register_pass<ov::pass::InitNodeInfo>();
+            OV_ASSERT_NO_THROW(manager_ref.run_passes(model_ref));
 
-        auto instance_norm_beta_vals = std::vector<T_in_beta_store_t>();
-        if (instance_norm_beta_present)
-            instance_norm_beta_vals =
-                test::utils::generateVector<T_in_beta_elem_t>(shape_size(instance_norm_beta_shape));
+            const auto& f_parameters = model->get_parameters();
+            const auto& f_ref_parameters = model_ref->get_parameters();
+            ASSERT_EQ(f_parameters.size(), f_ref_parameters.size());
+            ASSERT_EQ(f_parameters.size(), 1);
+            ASSERT_EQ(f_parameters[0]->outputs().size(), f_ref_parameters[0]->outputs().size());
+            ASSERT_EQ(f_parameters[0]->outputs().size(), 1);
+            ASSERT_EQ(f_parameters[0]->get_element_type(), f_ref_parameters[0]->get_element_type());
+            ASSERT_EQ(f_parameters[0]->get_element_type(), T_elem);
 
-        auto group_norm_gamma_vals = std::vector<T_gn_gamma_store_t>();
-        if (group_norm_gamma_present)
-            group_norm_gamma_vals = test::utils::generateVector<T_gn_gamma_elem_t>(shape_size(group_norm_gamma_shape));
+            const auto& f_results = model->get_results();
+            const auto& f_ref_results = model_ref->get_results();
+            ASSERT_EQ(f_results.size(), f_ref_results.size());
+            ASSERT_EQ(f_results.size(), 1);
+            ASSERT_EQ(f_results[0]->outputs().size(), f_ref_results[0]->outputs().size());
+            ASSERT_EQ(f_results[0]->outputs().size(), 1);
+            ASSERT_EQ(f_results[0]->inputs().size(), f_ref_results[0]->inputs().size());
+            ASSERT_EQ(f_results[0]->inputs().size(), 1);
+            ASSERT_EQ(f_results[0]->get_element_type(), f_ref_results[0]->get_element_type());
+            ASSERT_EQ(f_results[0]->get_element_type(), T_elem);
+            ASSERT_EQ(f_results[0]->get_output_partial_shape(0), f_ref_results[0]->get_output_partial_shape(0));
+            ASSERT_EQ(f_results[0]->get_output_partial_shape(0), f_parameters[0]->get_output_partial_shape(0));
+            ASSERT_EQ(f_ref_results[0]->get_output_partial_shape(0), f_ref_parameters[0]->get_output_partial_shape(0));
+            ASSERT_EQ(f_ref_results[0]->get_output_partial_shape(0), dataShape);
 
-        auto group_norm_beta_vals = std::vector<T_gn_beta_store_t>();
-        if (group_norm_beta_present)
-            group_norm_beta_vals = test::utils::generateVector<T_gn_beta_elem_t>(shape_size(group_norm_beta_shape));
+            const auto& gn_node = f_results[0]->get_input_node_shared_ptr(0);
+            const auto& gn_ref_node = f_ref_results[0]->get_input_node_shared_ptr(0);
+            ASSERT_TRUE(ov::is_type<ov::op::v12::GroupNormalization>(gn_node));
+            ASSERT_TRUE(ov::is_type<ov::op::v12::GroupNormalization>(gn_ref_node));
+            ASSERT_EQ(gn_node->inputs().size(), gn_ref_node->inputs().size());
+            ASSERT_EQ(gn_node->inputs().size(), 3);
+            ASSERT_EQ(gn_node->get_input_partial_shape(0), gn_ref_node->get_input_partial_shape(0));
+            ASSERT_EQ(gn_node->get_input_partial_shape(0), dataShape);
+            ASSERT_EQ(shape_size(gn_node->get_input_shape(1)), shape_size(gn_ref_node->get_input_shape(1)));
+            ASSERT_EQ(shape_size(gn_node->get_input_shape(1)), numChannels);
+            ASSERT_EQ(shape_size(gn_node->get_input_shape(2)), shape_size(gn_ref_node->get_input_shape(2)));
+            ASSERT_EQ(shape_size(gn_node->get_input_shape(2)), numChannels);
 
-        std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
-        {
-            auto input = std::make_shared<op::v0::Parameter>(T_act_elem_t, data_shape);
-            auto pre_mvn_shape_const = op::v0::Constant::create<long long>(element::i64,
-                                                                           Shape{3},
-                                                                           {0, static_cast<long long>(num_groups), -1});
-            auto pre_mvn_reshape = std::make_shared<ov::op::v1::Reshape>(input, pre_mvn_shape_const, true);
-
-            auto mvn_axes_const = op::v0::Constant::create<long long>(element::i64, Shape{1}, {1});
-            auto mvn = std::make_shared<op::v6::MVN>(pre_mvn_reshape,
-                                                     mvn_axes_const,
-                                                     true,
-                                                     epsilon,
-                                                     op::MVNEpsMode::INSIDE_SQRT);
-
-            std::shared_ptr<Node> opt_instance_norm_gamma_multiply = mvn;
-            if (instance_norm_gamma_present) {
-                auto instance_norm_gamma_const =
-                    op::v0::Constant::create(T_in_gamma_elem_t, instance_norm_gamma_shape, instance_norm_gamma_vals);
-                opt_instance_norm_gamma_multiply = std::make_shared<op::v1::Multiply>(mvn, instance_norm_gamma_const);
-            }
-
-            std::shared_ptr<ov::Node> opt_instance_norm_beta_add = opt_instance_norm_gamma_multiply;
-            if (instance_norm_beta_present) {
-                auto instance_norm_beta_const =
-                    op::v0::Constant::create(T_in_beta_elem_t, instance_norm_beta_shape, instance_norm_beta_vals);
-                opt_instance_norm_beta_add =
-                    std::make_shared<ov::op::v1::Add>(opt_instance_norm_gamma_multiply, instance_norm_beta_const);
-            }
-
-            auto post_instance_norm_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
-
-            auto post_instance_norm_reshape =
-                std::make_shared<op::v1::Reshape>(opt_instance_norm_beta_add, post_instance_norm_shape, true);
-
-            std::shared_ptr<ov::Node> opt_group_norm_gamma_multiply = post_instance_norm_reshape;
-            if (group_norm_gamma_present) {
-                auto group_norm_gamma_const =
-                    op::v0::Constant::create(T_gn_gamma_elem_t, group_norm_gamma_shape, group_norm_gamma_vals);
-                opt_group_norm_gamma_multiply =
-                    std::make_shared<op::v1::Multiply>(post_instance_norm_reshape, group_norm_gamma_const);
-            }
-
-            std::shared_ptr<ov::Node> opt_group_norm_beta_add = opt_group_norm_gamma_multiply;
-            if (group_norm_beta_present) {
-                auto group_norm_beta_const =
-                    op::v0::Constant::create(T_gn_beta_elem_t, group_norm_beta_shape, group_norm_beta_vals);
-                opt_group_norm_beta_add =
-                    std::make_shared<op::v1::Add>(opt_group_norm_gamma_multiply, group_norm_beta_const);
-            }
-
-            model = std::make_shared<Model>(NodeVector{opt_group_norm_beta_add}, ParameterVector{input});
-
-            pass::Manager m;
-            m.register_pass<ov::pass::GroupNormalizationFusion>();
-            OV_ASSERT_NO_THROW(m.run_passes(model));
-        }
-
-        if (positive_test) {
-            auto input = std::make_shared<ov::op::v0::Parameter>(T_act_elem_t, data_shape);
-
-            std::shared_ptr<ov::Node> group_norm_beta_1d = nullptr;
-            std::shared_ptr<ov::Node> group_norm_gamma_1d = nullptr;
-
-            if (instance_norm_gamma_present) {
-                if (!group_norm_gamma_present)
-                    group_norm_gamma_vals = std::vector<T_gn_gamma_store_t>(num_channels, 1);
-                auto group_norm_gamma_corr_vals = group_norm_gamma_vals;
-                for (auto i = 0; i < group_norm_gamma_corr_vals.size(); i++)
-                    group_norm_gamma_corr_vals[i] /= instance_norm_gamma_vals[i % num_groups];
-                group_norm_gamma_1d =
-                    op::v0::Constant::create(T_gn_gamma_elem_t, Shape{num_channels}, group_norm_gamma_corr_vals);
-                if (instance_norm_beta_present) {
-                    if (!group_norm_beta_present)
-                        group_norm_beta_vals = std::vector<T_gn_beta_store_t>(num_channels, 0);
-                    auto group_norm_beta_corr_vals = group_norm_beta_vals;
-                    for (auto i = 0; i < group_norm_beta_corr_vals.size(); i++)
-                        group_norm_beta_corr_vals[i] -=
-                            (group_norm_gamma_corr_vals[i] * instance_norm_beta_vals[i % num_groups]) /
-                            instance_norm_gamma_vals[i % num_groups];
-                    group_norm_beta_1d =
-                        op::v0::Constant::create(T_gn_beta_elem_t, Shape{num_channels}, group_norm_beta_corr_vals);
-                }
-            } else {
-                if (instance_norm_beta_present) {
-                    if (!group_norm_beta_present)
-                        group_norm_beta_vals = std::vector<T_gn_beta_store_t>(num_channels, 0);
-                    auto group_norm_beta_corr_vals = group_norm_beta_vals;
-                    for (auto i = 0; i < group_norm_beta_corr_vals.size(); i++)
-                        group_norm_beta_corr_vals[i] -=
-                            group_norm_gamma_vals[i] * instance_norm_beta_vals[i % num_groups];
-                    group_norm_beta_1d =
-                        op::v0::Constant::create(T_gn_beta_elem_t, Shape{num_channels}, group_norm_beta_corr_vals);
-                }
-            }
-
-            if (group_norm_gamma_present) {
-                if (group_norm_gamma_1d == nullptr) {
-                    group_norm_gamma_1d =
-                        op::v0::Constant::create(T_gn_gamma_elem_t, Shape{num_channels}, group_norm_gamma_vals);
-                }
-            } else {
-                group_norm_gamma_1d = std::make_shared<op::v0::Constant>(T_gn_gamma_elem_t, Shape{num_channels}, 1);
-            }
-
-            if (group_norm_beta_present) {
-                if (group_norm_beta_1d == nullptr) {
-                    group_norm_beta_1d =
-                        op::v0::Constant::create(T_gn_beta_elem_t, Shape{num_channels}, group_norm_beta_vals);
-                }
-            } else {
-                group_norm_beta_1d = std::make_shared<op::v0::Constant>(T_gn_beta_elem_t, Shape{num_channels}, 0);
-            }
-
-            auto group_norm = std::make_shared<ov::op::v12::GroupNormalization>(input,
-                                                                                group_norm_gamma_1d,
-                                                                                group_norm_beta_1d,
-                                                                                num_groups,
-                                                                                epsilon);
-
-            model_ref = std::make_shared<Model>(NodeVector{group_norm}, ParameterVector{input});
-        }
-
-        if (positive_test) {
-            ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(model), 1);
-            auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::ACCURACY);
-            auto res = fc.compare(model, model_ref);
-            ASSERT_TRUE(res.valid) << res.message;
+            const auto& gn_node_casted = ov::as_type_ptr<ov::op::v12::GroupNormalization>(gn_node);
+            const auto& gn_ref_node_casted = ov::as_type_ptr<ov::op::v12::GroupNormalization>(gn_ref_node);
+            ASSERT_EQ(gn_node_casted->get_epsilon(), gn_ref_node_casted->get_epsilon());
+            ASSERT_EQ(gn_node_casted->get_epsilon(), epsilon);
+            ASSERT_EQ(gn_node_casted->get_num_groups(), gn_ref_node_casted->get_num_groups());
+            ASSERT_EQ(gn_node_casted->get_num_groups(), numGroups);
         } else {
             ASSERT_EQ(count_ops_of_type<ov::op::v12::GroupNormalization>(model), 0);
         }
     }
 };
 
-class GroupNormalizationFusionTestsFixture_f16 : public GroupNormalizationFusionTestsFixture<element::Type_t::f16> {};
-class GroupNormalizationFusionTestsFixture_bf16 : public GroupNormalizationFusionTestsFixture<element::Type_t::bf16> {};
-class GroupNormalizationFusionTestsFixture_f32 : public GroupNormalizationFusionTestsFixture<element::Type_t::f32> {};
-class GroupNormalizationFusionTestsFixture_u8 : public GroupNormalizationFusionTestsFixture<element::Type_t::u8> {};
-class GroupNormalizationFusionTestsFixture_u16 : public GroupNormalizationFusionTestsFixture<element::Type_t::u16> {};
-class GroupNormalizationFusionTestsFixture_u32 : public GroupNormalizationFusionTestsFixture<element::Type_t::u32> {};
-class GroupNormalizationFusionTestsFixture_u64 : public GroupNormalizationFusionTestsFixture<element::Type_t::u64> {};
-class GroupNormalizationFusionTestsFixture_i8 : public GroupNormalizationFusionTestsFixture<element::Type_t::i8> {};
-class GroupNormalizationFusionTestsFixture_i16 : public GroupNormalizationFusionTestsFixture<element::Type_t::i16> {};
-class GroupNormalizationFusionTestsFixture_i32 : public GroupNormalizationFusionTestsFixture<element::Type_t::i32> {};
-class GroupNormalizationFusionTestsFixture_i64 : public GroupNormalizationFusionTestsFixture<element::Type_t::i64> {};
-class GroupNormalizationFusionTestsFixture_f8e4m3
-    : public GroupNormalizationFusionTestsFixture<element::Type_t::f8e4m3> {};
-class GroupNormalizationFusionTestsFixture_f8e5m2
-    : public GroupNormalizationFusionTestsFixture<element::Type_t::f8e5m2> {};
-class GroupNormalizationFusionTestsFixture_f4e2m1
-    : public GroupNormalizationFusionTestsFixture<element::Type_t::f4e2m1> {};
-class GroupNormalizationFusionTestsFixture_f8e8m0
-    : public GroupNormalizationFusionTestsFixture<element::Type_t::f8e8m0> {};
+class GroupNormalizationFusionTransformationTestsF_f32
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::f32> {};
+class GroupNormalizationFusionTransformationTestsF_f16
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::f16> {};
+class GroupNormalizationFusionTransformationTestsF_bf16
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::bf16> {};
+class GroupNormalizationFusionTransformationTestsF_u8
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::u8> {};
+class GroupNormalizationFusionTransformationTestsF_u16
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::u16> {};
+class GroupNormalizationFusionTransformationTestsF_u32
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::u32> {};
+class GroupNormalizationFusionTransformationTestsF_u64
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::u64> {};
+class GroupNormalizationFusionTransformationTestsF_i8
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::i8> {};
+class GroupNormalizationFusionTransformationTestsF_i16
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::i16> {};
+class GroupNormalizationFusionTransformationTestsF_i32
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::i32> {};
+class GroupNormalizationFusionTransformationTestsF_i64
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::i64> {};
+class GroupNormalizationFusionTransformationTestsF_f8e4m3
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::f8e4m3> {};
+class GroupNormalizationFusionTransformationTestsF_f8e5m2
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::f8e5m2> {};
+class GroupNormalizationFusionTransformationTestsF_f4e2m1
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::f4e2m1> {};
+class GroupNormalizationFusionTransformationTestsF_f8e8m0
+    : public GroupNormalizationFusionTransformationTestsF<element::Type_t::f8e8m0> {};
 
-TEST_P(GroupNormalizationFusionTestsFixture_f16, GroupNormalizationFusionTests_f16) {
-    GroupNormalizationFusionTestsFixture_f16::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_f32, GroupNormalizationFusionTransformationTests_f32) {
+    GroupNormalizationFusionTransformationTestsF_f32::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_bf16, GroupNormalizationFusionTests_bf16) {
-    GroupNormalizationFusionTestsFixture_bf16::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_f16, GroupNormalizationFusionTransformationTests_f16) {
+    GroupNormalizationFusionTransformationTestsF_f16::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_f32, GroupNormalizationFusionTests_f32) {
-    GroupNormalizationFusionTestsFixture_f32::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_bf16, GroupNormalizationFusionTransformationTests_bf16) {
+    GroupNormalizationFusionTransformationTestsF_bf16::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_u8, GroupNormalizationFusionTests_u8) {
-    GroupNormalizationFusionTestsFixture_u8::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_u8, GroupNormalizationFusionTransformationTests_u8) {
+    GroupNormalizationFusionTransformationTestsF_u8::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_u16, GroupNormalizationFusionTests_u16) {
-    GroupNormalizationFusionTestsFixture_u16::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_u16, GroupNormalizationFusionTransformationTests_u16) {
+    GroupNormalizationFusionTransformationTestsF_u16::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_u32, GroupNormalizationFusionTests_u32) {
-    GroupNormalizationFusionTestsFixture_u32::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_u32, GroupNormalizationFusionTransformationTests_u32) {
+    GroupNormalizationFusionTransformationTestsF_u32::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_u64, GroupNormalizationFusionTests_u64) {
-    GroupNormalizationFusionTestsFixture_u64::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_u64, GroupNormalizationFusionTransformationTests_u64) {
+    GroupNormalizationFusionTransformationTestsF_u64::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_i8, GroupNormalizationFusionTests_i8) {
-    GroupNormalizationFusionTestsFixture_i8::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_i8, GroupNormalizationFusionTransformationTests_i8) {
+    GroupNormalizationFusionTransformationTestsF_i8::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_i16, GroupNormalizationFusionTests_i16) {
-    GroupNormalizationFusionTestsFixture_i16::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_i16, GroupNormalizationFusionTransformationTests_i16) {
+    GroupNormalizationFusionTransformationTestsF_i16::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_i32, GroupNormalizationFusionTests_i32) {
-    GroupNormalizationFusionTestsFixture_i32::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_i32, GroupNormalizationFusionTransformationTests_i32) {
+    GroupNormalizationFusionTransformationTestsF_i32::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_i64, GroupNormalizationFusionTests_i64) {
-    GroupNormalizationFusionTestsFixture_i64::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_i64, GroupNormalizationFusionTransformationTests_i64) {
+    GroupNormalizationFusionTransformationTestsF_i64::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_f8e4m3, GroupNormalizationFusionTests_f8e4m3) {
-    GroupNormalizationFusionTestsFixture_f8e4m3::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_f8e4m3, GroupNormalizationFusionTransformationTests_f8e4m3) {
+    GroupNormalizationFusionTransformationTestsF_f8e4m3::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_f8e5m2, GroupNormalizationFusionTests_f8e5m2) {
-    GroupNormalizationFusionTestsFixture_f8e5m2::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_f8e5m2, GroupNormalizationFusionTransformationTests_f8e5m2) {
+    GroupNormalizationFusionTransformationTestsF_f8e5m2::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_f4e2m1, GroupNormalizationFusionTests_f4e2m1) {
-    GroupNormalizationFusionTestsFixture_f4e2m1::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_f4e2m1, GroupNormalizationFusionTransformationTests_f4e2m1) {
+    GroupNormalizationFusionTransformationTestsF_f4e2m1::run();
 }
 
-TEST_P(GroupNormalizationFusionTestsFixture_f8e8m0, GroupNormalizationFusionTests_f8e8m0) {
-    GroupNormalizationFusionTestsFixture_f8e8m0::TestBody();
+TEST_P(GroupNormalizationFusionTransformationTestsF_f8e8m0, GroupNormalizationFusionTransformationTests_f8e8m0) {
+    GroupNormalizationFusionTransformationTestsF_f8e8m0::run();
 }
 
-using RawValuesContainer = std::tuple<PartialShape, Shape, Shape, Shape, Shape, unsigned long long, float>;
+using GroupNormalizationFusionSubgraphTestAdditionalValues =
+    std::tuple<bool>;  // whether it's a positive test that should run reference model or a negative test
 
-std::vector<RawValuesContainer> valid_vals = {
+std::vector<ov::test::GroupNormalizationFusionTestBaseValues> valid_vals = {
     std::make_tuple(PartialShape{1, 320}, Shape{}, Shape{}, Shape{320}, Shape{320}, 1, 1e-5f),
-    std::make_tuple(Shape{1, 320, 2, 2},
+    std::make_tuple(PartialShape{1, 320, 2, 2},
                     Shape{1, 1, 1},
                     Shape{1, 1, 1},
                     Shape{320, 1, 1},
                     Shape{1, 320, 1, 1},
                     1,
                     1e-5f),
-    std::make_tuple(PartialShape{1, 320, 2, 2, 2},
+    std::make_tuple(PartialShape{5, 320, 2, 2, 2},
                     Shape{1, 320, 1},
                     Shape{1, 320, 1},
                     Shape{320, 1, 1, 1},
                     Shape{320, 1, 1, 1},
                     320,
                     1e-5f),
-    std::make_tuple(PartialShape{Dimension::dynamic(),
-                                 320,
-                                 Dimension::dynamic(),
-                                 Dimension::dynamic(),
-                                 Dimension::dynamic(),
-                                 Dimension::dynamic()},
-                    Shape{1, 320, 1},
-                    Shape{1, 320, 1},
-                    Shape{320, 1, 1, 1, 1},
-                    Shape{320, 1, 1, 1, 1},
-                    320,
+    std::make_tuple(
+        PartialShape{Dimension::dynamic(), 320, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+        Shape{1, 320, 1},
+        Shape{1, 320, 1},
+        Shape{320, 1, 1, 1},
+        Shape{320, 1, 1, 1},
+        320,
+        1e-5f),
+    std::make_tuple(PartialShape{3, 320}, Shape{32, 1}, Shape{32, 1}, Shape{320}, Shape{320}, 32, 1e-5f),
+    std::make_tuple(PartialShape{2, 9, 4, 5, 6},
+                    Shape{3, 1},
+                    Shape{3, 1},
+                    Shape{1, 9, 1, 1, 1},
+                    Shape{1, 9, 1, 1, 1},
+                    3,
                     1e-5f),
-    std::make_tuple(PartialShape{Dimension::dynamic(), 320},
-                    Shape{32, 1},
-                    Shape{32, 1},
-                    Shape{320},
-                    Shape{320},
-                    32,
-                    1e-5f),
-    std::make_tuple(PartialShape{1, 320, Dimension::dynamic()},
-                    Shape{32, 1},
-                    Shape{32, 1},
-                    Shape{320, 1},
-                    Shape{320, 1},
-                    32,
-                    1e-5f),
-    std::make_tuple(PartialShape{1, 320, 2, Dimension::dynamic()},
+    std::make_tuple(PartialShape{1, 320, 2, 4},
                     Shape{1, 32, 1},
                     Shape{1, 32, 1},
                     Shape{320, 1, 1},
                     Shape{320, 1, 1},
                     32,
                     1e-5f),
-    std::make_tuple(PartialShape{2, 320, 4, 8}, Shape{}, Shape{}, Shape{320, 1, 1}, Shape{1, 320, 1, 1}, 32, 1e-5f),
-    std::make_tuple(PartialShape{1, 512, Dimension::dynamic(), Dimension::dynamic()},
+    std::make_tuple(PartialShape{8, 320, 4, 8}, Shape{}, Shape{}, Shape{320, 1, 1}, Shape{1, 320, 1, 1}, 32, 1e-5f),
+    std::make_tuple(PartialShape{1, 512, 4, 8},
                     Shape{},
                     Shape{1, 128, 1},
                     Shape{1, 512, 1, 1},
                     Shape{512, 1, 1},
                     128,
                     1e-6f),
-    std::make_tuple(PartialShape{1, 512, 2, 2},
+    std::make_tuple(PartialShape{1, 192, 2, 2},
                     Shape{1, 64, 1},
                     Shape{},
-                    Shape{1, 512, 1, 1},
-                    Shape{1, 512, 1, 1},
+                    Shape{1, 192, 1, 1},
+                    Shape{1, 192, 1, 1},
                     64,
                     1e-6f)};
 
-auto invalid_vals =
-    Values(std::make_tuple(false, PartialShape{1, 320}, Shape{}, Shape{}, Shape{}, Shape{}, 1, 1e-5f),
-           std::make_tuple(false,
-                           PartialShape{1, 320, 2, 2},
-                           Shape{1, 1, 1},
-                           Shape{1, 1, 1},
-                           Shape{1, 1, 1},
-                           Shape{1, 1, 1, 1},
-                           1,
-                           1e-5f),
-           std::make_tuple(false, PartialShape{1, 320, 2, 2}, Shape{}, Shape{}, Shape{320, 1, 1}, Shape{}, 1, 1e-5f),
-           std::make_tuple(false, PartialShape{1, 320, 2, 2}, Shape{}, Shape{}, Shape{}, Shape{1, 320, 1, 1}, 1, 1e-5f),
-           std::make_tuple(false,
-                           PartialShape{1, 320, 2, 2},
-                           Shape{1, 1, 1},
-                           Shape{1, 32, 1},
-                           Shape{320, 1, 1},
-                           Shape{320, 1, 1},
-                           32,
-                           1e-5f),
-           std::make_tuple(false,
-                           PartialShape{1, 320, 2, 2},
-                           Shape{1, 32, 1},
-                           Shape{1, 1, 1},
-                           Shape{320, 1, 1},
-                           Shape{320, 1, 1},
-                           32,
-                           1e-5f),
-           std::make_tuple(false,
-                           PartialShape{Dimension::dynamic(), 512, Dimension::dynamic(), Dimension::dynamic()},
-                           Shape{},
-                           Shape{},
-                           Shape{1, 512, 1, 1},
-                           Shape{1, 512, 1, 1},
-                           100,
-                           1e-6f));
+std::vector<ov::test::GroupNormalizationFusionTestBaseValues> invalid_vals = {
+    std::make_tuple(PartialShape{1, 320}, Shape{}, Shape{}, Shape{}, Shape{}, 1, 1e-5f),
+    std::make_tuple(PartialShape{1, 320, 2, 2},
+                    Shape{1, 1, 1},
+                    Shape{1, 1, 1},
+                    Shape{1, 1, 1},
+                    Shape{1, 1, 1, 1},
+                    1,
+                    1e-5f),
+    std::make_tuple(PartialShape{1, 320, 2, 2}, Shape{}, Shape{}, Shape{320, 1, 1}, Shape{}, 1, 1e-5f),
+    std::make_tuple(PartialShape{1, 320, 2, 2}, Shape{}, Shape{}, Shape{}, Shape{1, 320, 1, 1}, 1, 1e-5f),
+    std::make_tuple(PartialShape{1, 320, 2, 2},
+                    Shape{1, 1, 1},
+                    Shape{1, 32, 1},
+                    Shape{320, 1, 1},
+                    Shape{320, 1, 1},
+                    32,
+                    1e-5f),
+    std::make_tuple(PartialShape{1, 320, 2, 2},
+                    Shape{1, 32, 1},
+                    Shape{1, 1, 1},
+                    Shape{320, 1, 1},
+                    Shape{320, 1, 1},
+                    32,
+                    1e-5f),
+    std::make_tuple(PartialShape{Dimension::dynamic(), 512, Dimension::dynamic(), Dimension::dynamic()},
+                    Shape{},
+                    Shape{},
+                    Shape{1, 512, 1, 1},
+                    Shape{1, 512, 1, 1},
+                    100,
+                    1e-6f)};
 
-std::vector<ValuesContainerWithPositiveTestFlag> add_positive_test_flag_to_vals(
-    const bool positive_test,
-    const std::vector<RawValuesContainer>& vals) {
-    std::vector<ValuesContainerWithPositiveTestFlag> res;
-    for (const RawValuesContainer& t : vals) {
-        auto new_val = std::tuple_cat(std::tuple<bool>(positive_test), t);
-        res.push_back(new_val);
-    }
-    return res;
-}
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationPositiveTests_f32,
+                         GroupNormalizationFusionTransformationTestsF_f32,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
+                         GroupNormalizationFusionTransformationTestsF_f32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionPositiveTests_f16,
-                         GroupNormalizationFusionTestsFixture_f16,
-                         ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationPositiveTests_f16,
+                         GroupNormalizationFusionTransformationTestsF_f16,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
+                         GroupNormalizationFusionTransformationTestsF_f16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f16,
-                         GroupNormalizationFusionTestsFixture_f16,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationPositiveTests_bf16,
+                         GroupNormalizationFusionTransformationTestsF_bf16,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(true))),
+                         GroupNormalizationFusionTransformationTestsF_bf16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionPositiveTests_bf16,
-                         GroupNormalizationFusionTestsFixture_bf16,
-                         ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTests_f32,
+                         GroupNormalizationFusionTransformationTestsF_f32,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_bf16,
-                         GroupNormalizationFusionTestsFixture_bf16,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTests_f16,
+                         GroupNormalizationFusionTransformationTestsF_f16,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionPositiveTests_f32,
-                         GroupNormalizationFusionTestsFixture_f32,
-                         ValuesIn(add_positive_test_flag_to_vals(true, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTests_bf16,
+                         GroupNormalizationFusionTransformationTestsF_bf16,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_bf16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTests_f32,
-                         GroupNormalizationFusionTestsFixture_f32,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u8,
+                         GroupNormalizationFusionTransformationTestsF_u8,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u8::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u8,
-                         GroupNormalizationFusionTestsFixture_u8,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u16,
+                         GroupNormalizationFusionTransformationTestsF_u16,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u8,
-                         GroupNormalizationFusionTestsFixture_u8,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u32,
+                         GroupNormalizationFusionTransformationTestsF_u32,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u16,
-                         GroupNormalizationFusionTestsFixture_u16,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_u64,
+                         GroupNormalizationFusionTransformationTestsF_u64,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u64::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u16,
-                         GroupNormalizationFusionTestsFixture_u16,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_i8,
+                         GroupNormalizationFusionTransformationTestsF_i8,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_i8::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u32,
-                         GroupNormalizationFusionTestsFixture_u32,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_i16,
+                         GroupNormalizationFusionTransformationTestsF_i16,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_i16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u32,
-                         GroupNormalizationFusionTestsFixture_u32,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_i32,
+                         GroupNormalizationFusionTransformationTestsF_i32,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_i32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_u64,
-                         GroupNormalizationFusionTestsFixture_u64,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_f8e5m2,
+                         GroupNormalizationFusionTransformationTestsF_f8e5m2,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f8e5m2::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_u64,
-                         GroupNormalizationFusionTestsFixture_u64,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_f4e2m1,
+                         GroupNormalizationFusionTransformationTestsF_f4e2m1,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f4e2m1::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i8,
-                         GroupNormalizationFusionTestsFixture_i8,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsValidVals_f8e8m0,
+                         GroupNormalizationFusionTransformationTestsF_f8e8m0,
+                         ValuesIn(ov::test::expand_vals(valid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f8e8m0::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i8,
-                         GroupNormalizationFusionTestsFixture_i8,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u8,
+                         GroupNormalizationFusionTransformationTestsF_u8,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u8::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i16,
-                         GroupNormalizationFusionTestsFixture_i16,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u16,
+                         GroupNormalizationFusionTransformationTestsF_u16,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i16,
-                         GroupNormalizationFusionTestsFixture_i16,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u32,
+                         GroupNormalizationFusionTransformationTestsF_u32,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i32,
-                         GroupNormalizationFusionTestsFixture_i32,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_u64,
+                         GroupNormalizationFusionTransformationTestsF_u64,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_u64::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i32,
-                         GroupNormalizationFusionTestsFixture_i32,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_i8,
+                         GroupNormalizationFusionTransformationTestsF_i8,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_i8::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_i64,
-                         GroupNormalizationFusionTestsFixture_i64,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_i16,
+                         GroupNormalizationFusionTransformationTestsF_i16,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_i16::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_i64,
-                         GroupNormalizationFusionTestsFixture_i64,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_i32,
+                         GroupNormalizationFusionTransformationTestsF_i32,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_i32::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f8e4m3,
-                         GroupNormalizationFusionTestsFixture_f8e4m3,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInalidVals_f8e5m2,
+                         GroupNormalizationFusionTransformationTestsF_f8e5m2,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f8e5m2::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e4m3,
-                         GroupNormalizationFusionTestsFixture_f8e4m3,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_f4e2m1,
+                         GroupNormalizationFusionTransformationTestsF_f4e2m1,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f4e2m1::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f8e5m2,
-                         GroupNormalizationFusionTestsFixture_f8e5m2,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
-
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e5m2,
-                         GroupNormalizationFusionTestsFixture_f8e5m2,
-                         invalid_vals);
-
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f4e2m1,
-                         GroupNormalizationFusionTestsFixture_f4e2m1,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
-
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f4e2m1,
-                         GroupNormalizationFusionTestsFixture_f4e2m1,
-                         invalid_vals);
-
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsValidVals_f8e8m0,
-                         GroupNormalizationFusionTestsFixture_f8e8m0,
-                         ValuesIn(add_positive_test_flag_to_vals(false, valid_vals)));
-
-INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionNegativeTestsInvalidVals_f8e8m0,
-                         GroupNormalizationFusionTestsFixture_f8e8m0,
-                         invalid_vals);
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationFusionTransformationNegativeTestsInvalidVals_f8e8m0,
+                         GroupNormalizationFusionTransformationTestsF_f8e8m0,
+                         ValuesIn(ov::test::expand_vals(invalid_vals,
+                                                        GroupNormalizationFusionSubgraphTestAdditionalValues(false))),
+                         GroupNormalizationFusionTransformationTestsF_f8e8m0::getTestCaseName);
