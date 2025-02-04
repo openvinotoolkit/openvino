@@ -260,7 +260,7 @@ Graph modifications of a model shall be performed after the model is
 read from a drive and before it is loaded on the actual device.
 
 Pre-processing support following operations (please, see more details
-`here <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess15PreProcessStepsD0Ev>`__)
+`here <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess15PreProcessStepsD0Ev>`__)
 
 -  Mean/Scale Normalization
 -  Converting Precision
@@ -295,7 +295,7 @@ Create ``PrePostProcessor`` Object
 
 
 The
-`PrePostProcessor() <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
+`PrePostProcessor() <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
@@ -320,7 +320,7 @@ about user’s input tensor will be initialized to same data
 (type/shape/etc) as model’s input parameter. User application can
 override particular parameters according to application’s data. Refer to
 the following
-`page <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess9InputInfo6tensorEv>`__
+`page <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess9InputInfo6tensorEv>`__
 for more information about parameters for overriding.
 
 Below is all the specified input information:
