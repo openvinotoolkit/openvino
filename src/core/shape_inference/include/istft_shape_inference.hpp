@@ -51,7 +51,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                0 < frame_size_val,
-                               "Provided frame size  must be greater than zero, bit got: ",
+                               "Provided frame size must be greater than zero, but got: ",
                                frame_size_val);
         const bool is_win_shape_correct =
             window_shape.is_dynamic() || (TDimVal{0} < window_shape[0].get_length() &&

@@ -408,7 +408,20 @@ TEST_F(TypePropISTFTTest, frame_step_incompatible_value) {
         const auto frame_step = Constant::create<int32_t>(element::i32, {}, {-1});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
                         NodeValidationFailure,
-                        HasSubstr("Provided frame step is -1 but must be greater than zero"));
+                        HasSubstr("Provided frame step must be greater than zero, but got: -1"));
+    }
+}
+
+TEST_F(TypePropISTFTTest, frame_size_incompatible_value) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{9, 9, 2});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{8});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {3});
+
+    {
+        const auto frame_size = Constant::create<int32_t>(element::i32, {}, {-1});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, center, normalized),
+                        NodeValidationFailure,
+                        HasSubstr("Provided frame size must be greater than zero, but got: -1"));
     }
 }
 
