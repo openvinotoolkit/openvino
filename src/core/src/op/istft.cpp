@@ -74,8 +74,8 @@ bool ISTFT::visit_attributes(AttributeVisitor& visitor) {
 void ISTFT::validate_and_infer_types() {
     OV_OP_SCOPE(v16_ISTFT_validate_and_infer_types);
     const auto input_size = get_input_size();
-    const auto is_in_count_correct = input_size == 4 || input_size == 5;
-    NODE_VALIDATION_CHECK(this, is_in_count_correct, "Expected 4 or 5 inputs to be provided.");
+    const auto is_input_count_correct = input_size == 4 || input_size == 5;
+    NODE_VALIDATION_CHECK(this, is_input_count_correct, "Expected 4 or 5 inputs to be provided.");
 
     auto data_type = get_input_element_type(0);
     const auto& window_type = get_input_element_type(1);
@@ -89,10 +89,8 @@ void ISTFT::validate_and_infer_types() {
                           has_valid_window_type,
                           "Expected floating point type of the 'window' input, matching the type of `data` input.");
 
-    check_int_input_at(this, 2);
-    check_int_input_at(this, 3);
-    if (input_size == 5) {
-        check_int_input_at(this, 4);
+    for(size_t port = 2; port < input_size; ++port){
+        check_int_input_at(this, port);
     }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
