@@ -2553,10 +2553,9 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const TReg aux1 = TReg(aux_vec_idxs[0]);
     const TReg aux2 = TReg(aux_vec_idxs[1]);
 
-    h->fexp(aux1.s, src.s);
     h->ld1r(aux2.s, table_val2("one"));
     h->fadd(aux1.s, aux1.s, aux2.s);
-    h->flog(dst.s, aux1.s);
+    h->flog_approx(dst.s, aux1.s);
 }
 
 void jit_softplus_emitter::register_table_entries() {
