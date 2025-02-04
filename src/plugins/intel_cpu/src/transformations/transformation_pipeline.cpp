@@ -181,6 +181,7 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 #include "openvino/core/validation_util.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -1039,9 +1040,34 @@ void Transformations::MainSnippets(void) {
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
     // We consider the presence of `ScaledDotProductAttentionWithKVCache` and `PagedAttentionExtension` ops
-    // in the model as a sign that this model is LLM.
-    const auto is_LLM = ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model) ||
-                        ov::op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
+    // and `KVCache` subgraph in the model as a sign that this model is LLM.
+    const auto is_LLM = [this]() -> bool {
+        using namespace ov::pass::pattern;
+
+        const auto past = wrap_type<ov::op::v6::ReadValue>();
+        const auto convert_past = wrap_type<ov::op::v0::Convert>({past});
+        const auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
+        const auto beam_idx = wrap_type<ov::op::v0::Parameter>();
+        const auto gather_past =
+            wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
+        const auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+        const auto concat_past_input =
+            std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
+        const auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
+        const auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
+        const auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
+        const auto present = wrap_type<ov::op::v6::Assign>({present_input});
+        const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
+
+        for (const auto& op : model->get_ordered_ops()) {
+            if (kvcache_matcher->match(op))
+                return true;
+            if (ov::is_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(op) ||
+                ov::is_type<ov::op::PagedAttentionExtension>(op))
+                return true;
+        }
+        return false;
+    }();
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
     const auto is_infer_prc_supported_by_MHA =
