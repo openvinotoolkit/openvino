@@ -33,8 +33,12 @@ public:
 #    define OV_CREATE_EXTENSION create_extensions
 #endif
 
+struct OPENVINO_API FeExtension {
+    virtual ~FeExtension();
+};
+
 template <class T, class... FEs>
-class OPENVINO_API FeExtension : public T, public FEs... {
+class OPENVINO_API FeExtensionBase : public T, public FeExtension, public FEs... {
 public:
     using T::T;
 };
@@ -54,28 +58,28 @@ struct OPENVINO_API IsTf {
 
 // These classes can be defined in customer code
 template <class T>
-class OPENVINO_API IrFeExtension : public FeExtension<T, IsIr> {
+class OPENVINO_API IrFeExtension : public FeExtensionBase<T, IsIr> {
 public:
-    using FeExtension<T, IsIr>::FeExtension;
+    using FeExtensionBase<T, IsIr>::FeExtensionBase;
 };
 
 template <class T>
-class OPENVINO_API OnnxFeExtension : public FeExtension<T, IsOnnx> {
+class OPENVINO_API OnnxFeExtension : public FeExtensionBase<T, IsOnnx> {
 public:
-    using FeExtension<T, IsOnnx>::FeExtension;
+    using FeExtensionBase<T, IsOnnx>::FeExtensionBase;
 };
 
 template <class T>
-class OPENVINO_API TfFeExtension : public FeExtension<T, IsTf> {
+class OPENVINO_API TfFeExtension : public FeExtensionBase<T, IsTf> {
 public:
-    using FeExtension<T, IsTf>::FeExtension;
+    using FeExtensionBase<T, IsTf>::FeExtensionBase;
 };
 
 // As example. It is possible to create extensions for several FEs
 template <class T>
-class OPENVINO_API IrAndOnnxFeExtension : public FeExtension<T, IsIr, IsOnnx> {
+class OPENVINO_API IrAndOnnxFeExtension : public FeExtensionBase<T, IsIr, IsOnnx> {
 public:
-    using FeExtension<T, IsIr, IsOnnx>::FeExtension;
+    using FeExtensionBase<T, IsIr, IsOnnx>::FeExtensionBase;
 };
 
 }  // namespace ov

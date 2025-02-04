@@ -15,6 +15,7 @@ using namespace ov;
 
 ov::Extension::~Extension() = default;
 ov::BaseOpExtension::~BaseOpExtension() = default;
+ov::FeExtension::~FeExtension() = default;
 ov::IsIr::~IsIr() = default;
 ov::IsOnnx::~IsOnnx() = default;
 ov::IsTf::~IsTf() = default;

@@ -254,6 +254,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    // check if this extension is not intended for other FEs
+    if (ov::as_type_ptr<ov::FeExtension>(extension)) {
+        // this is a FeExtension. Check if it is for onnx FE
+        if (!ov::as_type_ptr<ov::IsOnnx>(extension))
+            return;
+    }
+
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_extensions.telemetry = telemetry;
     } else if (auto transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
