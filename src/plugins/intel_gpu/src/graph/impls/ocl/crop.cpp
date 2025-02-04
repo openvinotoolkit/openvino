@@ -8,6 +8,8 @@
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
 
+#include "openvino/core/validation_util.hpp"
+
 namespace cldnn {
 namespace ocl {
 
@@ -55,7 +57,28 @@ public:
         }
 
         update_shapes(*_kernel_data.params, impl_param);
-        auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
+
+        // The padding sizes are reset to 0 up to crop_axis, as kernel reads data using
+        // "input[GET_INDEX(INPUT, order) + runtime_offset]", where GET_INDEX handles all paddings before
+        // specified axis. However, for proper runtime offset calculation, we have to consider paddings
+        // after the crop_axis, which requires subtracting input_offset from the runtime buffer, since
+        // padding for the first element is already included in the GET_INDEX() call.
+        // For example, for input shape like: [1, 32, 128 (pad_before=512, pad_after=0), 8 (pad_before=4, pad_after=4)]
+        // with crop_axis=2 and split_lengths = {64, 64},
+        // runtime_offset should be set in terms of [1, 32, 128 (pad_before=0, pad_after=0), 8 (pad_before=4, pad_after=4)] shape.
+        // So crop.out0's runtime_offset=0 and crop.out1's runtime_offset=1024.
+
+        auto input_layout = impl_param.get_input_layout();
+        auto crop_axis = ov::util::normalize(impl_param.typed_desc<crop>()->axis, static_cast<int64_t>(input_layout.get_partial_shape().size()));
+
+        input_layout.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
+        for (size_t i = 0; i <= static_cast<size_t>(crop_axis); i++) {
+            input_layout.data_padding._lower_size[i] = 0;
+            input_layout.data_padding._upper_size[i] = 0;
+        }
+
+        auto input_offset = convert_data_tensor(input_layout).GetFirstElementOffset();
+        auto runtime_offset = convert_data_tensor(input_layout, impl_param.input_offsets[0]).GetFirstElementOffset() - input_offset;
         kernel_selector::ScalarDescriptor s;
         s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
         s.v.u32 = static_cast<uint32_t>(runtime_offset);
