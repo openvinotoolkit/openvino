@@ -71,8 +71,9 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
         std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
                                                                 {element::bf16, element::bf16},
                                                                 {element::f32, element::f32}};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
             supported_types.insert({element::i8, element::i8});
+        }
         return supported_types;
     } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_COMPENSATIONS) {
         return {{element::i8, element::i8, element::f32}};
@@ -94,15 +95,17 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
     init_binary_call_regs(2, mem_ptrs_idxs);
-    if (in.size() > 2)
+    if (in.size() > 2) {
         mem_ptrs_idxs.emplace_back(in[2]);
+    }
 
-    if (std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(m_kernel_executor))
+    if (std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmAMXKernelExecutor>(mem_ptrs_idxs);
-    else if (std::dynamic_pointer_cast<BrgemmKernelExecutor>(m_kernel_executor))
+    } else if (std::dynamic_pointer_cast<BrgemmKernelExecutor>(m_kernel_executor)) {
         emit_call<BrgemmKernelExecutor>(mem_ptrs_idxs);
-    else
+    } else {
         OV_CPU_JIT_EMITTER_THROW("uknown execuor type");
+    }
 }
 
 template <typename T, typename std::enable_if<std::is_base_of<BrgemmBaseKernelExecutor, T>::value, bool>::type>
@@ -138,8 +141,9 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     }
 
     // No scratchpad => need to write nullptr manually
-    if (mem_ptrs.size() < 4)
+    if (mem_ptrs.size() < 4) {
         h->mov(h->qword[h->rsp + brgemm_args_offsets.back()], reinterpret_cast<uintptr_t>(nullptr));
+    }
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {
