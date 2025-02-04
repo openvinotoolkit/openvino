@@ -20,6 +20,35 @@
 
 using namespace ov::pass::pattern;
 
+template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
+bool pre_mvn_shape_vals_correct(const std::shared_ptr<ov::op::v0::Constant>& pre_mvn_shape_const,
+                                const ov::PartialShape& input_ps,
+                                const ov::Dimension::value_type num_groups) {
+    bool res = true;
+    std::vector<T> pre_mvn_shape_vals = pre_mvn_shape_const->get_vector<T>();
+    if (input_ps[0].is_dynamic()) {
+        if (pre_mvn_shape_vals[0] != 0)
+            res = false;
+    } else {
+        if ((pre_mvn_shape_vals[0] != 0) && (pre_mvn_shape_vals[0] != input_ps[0].get_max_length()))
+            res = false;
+    }
+    if ((pre_mvn_shape_vals[1] != 0) && (pre_mvn_shape_vals[1] != num_groups))
+        res = false;
+    if (pre_mvn_shape_vals[2] != -1)
+        res = false;
+    return res;
+}
+
+template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
+bool mvn_reduction_axes_correct(const std::shared_ptr<ov::op::v0::Constant>& mvn_reduction_axes_const) {
+    bool res = true;
+    std::vector<T> mvn_reduce_axes = mvn_reduction_axes_const->get_vector<T>();
+    if ((mvn_reduce_axes[0] != 2) && (mvn_reduce_axes[0] != -1))
+        return false;
+    return res;
+}
+
 ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
     MATCHER_SCOPE(GroupNormalizationFusion);
 
@@ -40,8 +69,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         wrap_type<ov::op::v1::Reshape>({input_m, pre_mvn_shape_const_m},
                                        all_of({has_real_not_quantized_type, rank_equals(3), has_static_dim(1)}));
 
-    auto axes_const_m = wrap_type<ov::op::v0::Constant>(all_of({rank_equals(1), has_static_dim(0)}));
-    auto mvn_m = wrap_type<ov::op::v6::MVN>({pre_mvn_reshape_m, axes_const_m});
+    auto mvn_reduction_axes_const_m = wrap_type<ov::op::v0::Constant>(all_of({rank_equals(1), has_static_dim(0)}));
+    auto mvn_m = wrap_type<ov::op::v6::MVN>({pre_mvn_reshape_m, mvn_reduction_axes_const_m});
 
     auto instance_norm_gamma_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
     auto instance_norm_gamma_multiply_m = wrap_type<ov::op::v1::Multiply>({mvn_m, instance_norm_gamma_m});
@@ -78,6 +107,51 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         const auto& num_channels = input_ps[1].get_max_length();
         const auto& num_groups = pre_mvn_reshape_out_ps[1].get_max_length();
 
+        // we expect to reshape input in a way that would merge all spatial dimensions
+        // but leave batch and channel dimensions untouched
+        const auto& pre_mvn_shape = pattern_map.at(pre_mvn_shape_const_m);
+        const auto& pre_mvn_shape_const =
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pre_mvn_shape_const_m).get_node_shared_ptr());
+        const auto& pre_mvn_shape_out_ps = pre_mvn_shape.get_shape();
+        if (pre_mvn_shape_out_ps[0] != 3)
+            return false;
+        switch (pre_mvn_shape_const->get_element_type()) {
+        case ov::element::i8:
+            if (!pre_mvn_shape_vals_correct<int8_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::i16:
+            if (!pre_mvn_shape_vals_correct<int16_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::i32:
+            if (!pre_mvn_shape_vals_correct<int32_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::i64:
+            if (!pre_mvn_shape_vals_correct<int64_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::u8:
+            if (!pre_mvn_shape_vals_correct<uint8_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::u16:
+            if (!pre_mvn_shape_vals_correct<uint16_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::u32:
+            if (!pre_mvn_shape_vals_correct<uint32_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        case ov::element::u64:
+            if (!pre_mvn_shape_vals_correct<uint64_t>(pre_mvn_shape_const, input_ps, num_groups))
+                return false;
+            break;
+        default:
+            return false;
+        }
+
         // number of channels has to be divisible by number of groups
         if (num_channels % num_groups != 0)
             return false;
@@ -88,15 +162,31 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         if (input_ps[0].get_max_length() != pre_mvn_reshape_out_ps[0].get_max_length())
             return false;
 
+        // we expect to execute normalization over last dimension of MVN input
+        const auto& mvn_reduction_axes = pattern_map.at(mvn_reduction_axes_const_m);
+        const auto& mvn_reduction_axes_const =
+            ov::as_type_ptr<ov::op::v0::Constant>(mvn_reduction_axes.get_node_shared_ptr());
+        const auto& mvn_reduction_axes_out_shape = mvn_reduction_axes.get_shape();
+        if (mvn_reduction_axes_out_shape[0] != 1)
+            return false;
+        switch (mvn_reduction_axes_const->get_element_type()) {
+        case ov::element::i32:
+            mvn_reduction_axes_correct<int32_t>(mvn_reduction_axes_const);
+            break;
+        case ov::element::i64:
+            mvn_reduction_axes_correct<int64_t>(mvn_reduction_axes_const);
+            break;
+        default:
+            break;
+        }
+
         const auto& post_instance_norm_reshape_out_ps =
             pattern_map.at(post_instance_norm_reshape_m).get_partial_shape();
-
         // post instance norm shape has to be same as in pattern input
         if (post_instance_norm_reshape_out_ps != input_ps)
             return false;
 
         const auto& group_norm_gamma = pattern_map.at(group_norm_gamma_m);
-
         // group_norm_gamma has to share the same data type as
         // pattern input
         if (group_norm_gamma.get_element_type() != T)
