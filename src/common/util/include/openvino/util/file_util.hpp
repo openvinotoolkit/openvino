@@ -376,5 +376,15 @@ inline ov::util::Path make_path(const wchar_t* file) {
 }
 #endif
 
+#if defined(_MSC_VER)
+inline ov::util::Path make_path(const char* file) {
+    return {ov::util::string_to_wstring(file)};
+}
+#else
+inline ov::util::Path make_path(const char* file) {
+    return {file};
+}
+#endif
+
 }  // namespace util
 }  // namespace ov
