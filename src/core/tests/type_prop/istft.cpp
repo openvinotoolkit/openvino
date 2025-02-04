@@ -12,8 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using op::v0::Constant;
 using op::v0::Parameter;
@@ -423,5 +422,4 @@ TEST_F(TypePropISTFTTest, window_incompatible_dim_with_frame_size) {
                     HasSubstr("Window input dimension must be in range [1, 8]"));
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

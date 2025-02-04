@@ -10,8 +10,7 @@
 #include "openvino/op/parameter.hpp"
 #include "visitors/visitors.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 TEST(attributes, istft) {
     NodeBuilder::opset().insert<ov::op::v16::ISTFT>();
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{9, 9, 3});
@@ -53,6 +52,4 @@ TEST(attributes, istft_with_length) {
     EXPECT_EQ(op->get_center(), g_op->get_center());
     EXPECT_EQ(op->get_normalized(), g_op->get_normalized());
 }
-
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
