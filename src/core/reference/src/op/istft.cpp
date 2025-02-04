@@ -59,6 +59,9 @@ void istft(const float* in_data,
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
     const auto in_batch_single_step = num_frames * fft_out_shape_size;
+    const int64_t margin = center ? (frame_size / 2) : 0;
+    const int64_t data_end = signal_length - margin;
+    const int64_t copy_end = final_signal_length < data_end ? final_signal_length : data_end;
 
     std::vector<float> window_sum(batch_size * signal_length);
     std::vector<float> frame_signal(frame_size);
@@ -112,28 +115,15 @@ void istft(const float* in_data,
             postprocess_func = window_div;
         }
 
-        std::transform(result + batch_out_start,
-                       result + batch_out_start + signal_length,
-                       window_sum.begin(),
-                       result + batch_out_start,
-                       postprocess_func);
+        std::transform(result, result + signal_length, window_sum.begin(), result, postprocess_func);
 
-        if (center) {
-            const int64_t margin = (frame_size / 2);
-            const int64_t data_end = signal_length - margin;
-            int64_t signal_end = final_signal_length < data_end ? final_signal_length : data_end;
-            const size_t result_start = batch_out_start + margin;
-            std::copy(result + result_start,
-                      result + result_start + signal_end,
-                      final_result + (batch * final_signal_length));
-        } else {
-            std::copy(result + batch_out_start,
-                      result + batch_out_start + final_signal_length,
-                      final_result + batch_out_start);
-        }
+        const auto result_start = result + margin;
+        std::copy(result_start, result_start + copy_end, final_result);
 
         batch_in_start += in_batch_single_step;
         batch_out_start += signal_length;
+        result += batch_out_start;
+        final_result += final_signal_length;
     }
 }
 }  // namespace reference
