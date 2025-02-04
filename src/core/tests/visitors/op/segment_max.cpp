@@ -8,8 +8,8 @@
 
 #include "visitors/visitors.hpp"
 
-using ov::op::v0::Parameter;
-using ov::op::v16::SegmentMax;
+namespace ov::test{
+using ov::op::v0::Parameter, 
 using ov::test::NodeBuilder;
 
 TEST(attributes, segment_max_v16_with_num_segments) {
