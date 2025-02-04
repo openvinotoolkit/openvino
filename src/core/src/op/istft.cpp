@@ -10,9 +10,7 @@
 #include "itt.hpp"
 #include "openvino/reference/istft.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 namespace {
 void check_int_input_at(const Node* op, size_t input_idx) {
     const auto& in_type = op->get_input_element_type(input_idx);
@@ -118,11 +116,4 @@ bool ISTFT::get_normalized() const {
     return m_normalized;
 }
 
-void ISTFT::set_normalized(const bool normalized) {
-    OV_OP_SCOPE(v16_ISTFT_set_normalized);
-    m_normalized = normalized;
-}
-
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16

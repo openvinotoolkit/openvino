@@ -6,9 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 /// \brief An operation ISTFT that computes the Inverse Short Time Fourier Transform.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ISTFT : public Op {
@@ -56,12 +54,9 @@ public:
     void set_center(const bool center);
 
     bool get_normalized() const;
-    void set_normalized(const bool normalized);
 
 private:
     bool m_center = false;
     bool m_normalized = false;
 };
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16
