@@ -1,5 +1,5 @@
 {
-    "p": "",
+    "p": "This page relates to OpenVINO 2024.6. <a href='https://docs.openvino.ai/'>Go to the most recent official documentation version, 2025.</a>",
     "version": "1",
     "style": "warning",
     "_styles": "warning info critical"
