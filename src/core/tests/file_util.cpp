@@ -459,59 +459,6 @@ TEST(file_util, unicode_path_cast_from_wstring_to_char8_t) {
 #endif
 }
 
-#if defined(__ANDROID__) || defined(ANDROID)
-
-class CutAndroidPathTests : public ::testing::TestWithParam<std::tuple<ov::util::Path, ov::util::Path>> {};
-
-TEST_P(CutAndroidPathTests, HandlesStringPaths) {
-    const auto& [file_name, expected] = GetParam();
-    ov::util::Path result = ov::util::cut_android_path(file_name);
-    EXPECT_EQ(result, expected);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    WStringPathTests,
-    CutAndroidPathTests,
-    ::testing::Values(std::make_tuple(ov::util::Path(L"path/to/file"), ov::util::Path(L"path/to/file")),
-                      std::make_tuple(ov::util::Path(L"path/to/file!extra"), ov::util::Path(L"path/to/file")),
-                      std::make_tuple(ov::util::Path(L""), ov::util::Path(L"")),
-                      std::make_tuple(ov::util::Path(L"path/to/file!extra!more"), ov::util::Path(L"path/to/file")),
-                      std::make_tuple(ov::util::make_path(L"狗"), ov::util::make_path(L"狗")),
-                      std::make_tuple(ov::util::make_path(L"~/いろはにほへど/狗.txt"),
-                                      ov::util::make_path(L"~/いろはにほへど/狗.txt")),
-                      std::make_tuple(ov::util::make_path(L"~/いろはにほへど/狗.txt!"),
-                                      ov::util::make_path(L"~/いろはにほへど/狗.txt")),
-                      std::make_tuple(ov::util::make_path(L"!~/いろはにほへど/狗.txt"), ov::util::make_path(L"")),
-                      std::make_tuple(ov::util::make_path(L"~/いろはにほへど/狗!.txt"),
-                                      ov::util::make_path(L"~/いろはにほへど/狗")),
-                      std::make_tuple(ov::util::Path(L"!"), ov::util::Path(L""))));
-
-INSTANTIATE_TEST_SUITE_P(
-    StringPathTests,
-    CutAndroidPathTests,
-    ::testing::Values(
-        std::make_tuple(ov::util::Path(""), ov::util::Path("")),
-        std::make_tuple(ov::util::Path("!"), ov::util::Path("")),
-        std::make_tuple(ov::util::Path("My!/path/example.txt"), ov::util::Path("My")),
-        std::make_tuple(ov::util::Path("My/path!example.txt"), ov::util::Path("My/path")),
-        std::make_tuple(ov::util::Path("My/path/example.txt!"), ov::util::Path("My/path/example.txt")),
-        std::make_tuple(ov::util::Path("My/path/example.txt"), ov::util::Path("My/path/example.txt")),
-        std::make_tuple(ov::util::Path("!My/path/example.txt!"), ov::util::Path("")),
-        std::make_tuple(ov::util::Path(u8"~/いろはにほへど/狗.txt"), ov::util::Path(u8"~/いろはにほへど/狗.txt")),
-        std::make_tuple(ov::util::Path(u"~/いろはにほへど/狗.txt"), ov::util::Path(u"~/いろはにほへど/狗.txt")),
-        std::make_tuple(ov::util::Path(U"D:\\いろはにほへど\\猫.txt"), ov::util::Path(U"D:\\いろはにほへど\\猫.txt")),
-        std::make_tuple(ov::util::Path(u8"~/いろはにほへど/狗.txt!"), ov::util::Path(u8"~/いろはにほへど/狗.txt")),
-        std::make_tuple(ov::util::Path(u"~/いろはにほへど/狗.txt!"), ov::util::Path(u"~/いろはにほへど/狗.txt")),
-        std::make_tuple(ov::util::Path(U"D:\\いろはにほへど\\猫.txt!"), ov::util::Path(U"D:\\いろはにほへど\\猫.txt")),
-        std::make_tuple(ov::util::Path(u8"!~/いろはにほへど/狗.txt"), ov::util::Path(u8"")),
-        std::make_tuple(ov::util::Path(u"!~/いろはにほへど/狗.txt"), ov::util::Path(u"")),
-        std::make_tuple(ov::util::Path(U"!D:\\いろはにほへど\\猫.txt"), ov::util::Path(U"")),
-        std::make_tuple(ov::util::Path(u8"~/いろはにほへど/狗!.txt"), ov::util::Path(u8"~/いろはにほへど/狗")),
-        std::make_tuple(ov::util::Path(u"~/いろはにほへど/狗!.txt"), ov::util::Path(u"~/いろはにほへど/狗")),
-        std::make_tuple(ov::util::Path(U"D:\\いろはにほへど\\猫!.txt"), ov::util::Path(U"D:\\いろはにほへど\\猫"))));
-
-#endif
-
 class FileUtilTest : public ::testing::Test {
 protected:
     void SetUp() override {
