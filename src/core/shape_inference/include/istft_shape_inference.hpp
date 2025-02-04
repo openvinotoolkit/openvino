@@ -80,7 +80,8 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
     }
     const auto is_data_3D = data_shape.size() == 3;
 
-    std::vector<TRShape> output_shapes;
+    // Init output shape with dynamic dimension and update if more info can be inferred
+    std::vector<TRShape> output_shapes{TRShape{TDim(ov::util::dim::inf_bound)}};
     if (inputs_count == 5) {
         const auto& length_shape = input_shapes[4];
         const bool has_len_valid_shape =
@@ -93,9 +94,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
 
         const auto sig_len_in = get_input_const_data_as_shape<TRShape>(op, 4, ta);
         if (sig_len_in) {  // Set desired length of the signal dimension, if provided
-            output_shapes.emplace_back(TRShape{(*sig_len_in)[0]});
-        } else {
-            output_shapes.emplace_back(TRShape{TDim(ov::util::dim::inf_bound)});
+            output_shapes[0] = TRShape{(*sig_len_in)[0]};
         }
     } else if (frame_size && frame_step) {  // Otherwise infer the length of the signal
         const auto& frame_size_val = (*frame_size)[0];
@@ -107,9 +106,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         if (!op->get_center()) {
             signal_length += frame_size_val;
         }
-        output_shapes.emplace_back(TRShape{std::move(signal_length)});
-    } else {  // Not enough info to infer the signal lenght, set dynamic dimension
-        output_shapes.emplace_back(TRShape{TDim(ov::util::dim::inf_bound)});
+        output_shapes[0] = TRShape{std::move(signal_length)};
     }
 
     if (!is_data_3D) {  // Copy batch dimension
