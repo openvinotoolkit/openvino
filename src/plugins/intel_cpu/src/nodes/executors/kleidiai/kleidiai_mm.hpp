@@ -3,6 +3,8 @@
 //
 #pragma once
 
+#include "../acl/acl_fullyconnected_utils.hpp"
+
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "arm_neon.h"
@@ -21,7 +23,7 @@ public:
     MatMulKleidiAIExecutor(const FCAttrs& attrs,
                            const PostOps& postOps,
                            const MemoryArgs& memory,
-                           const ExecutorContext::CPtr context);
+                           const ExecutorContext::CPtr& context);
 
     void execute(const MemoryArgs& memory) override;
 
@@ -51,8 +53,9 @@ private:
     };
 
     const FCAttrs& m_attrs;
+    ACLFCAttrs aclfcAttrs;
     const MemoryArgs& m_memoryArgs;
-    const MemoryCPtr packedWeights;
+    MemoryCPtr packedWeights;
     int64_t M, N, K;
     int curNumaNode = -1;
 };
