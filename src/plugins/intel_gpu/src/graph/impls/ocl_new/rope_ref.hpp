@@ -7,8 +7,7 @@
 
 #include <memory>
 
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 struct RopeRef : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::rope::ref")
@@ -36,5 +35,4 @@ struct RopeRef : public ImplementationManager {
     }
 };
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl

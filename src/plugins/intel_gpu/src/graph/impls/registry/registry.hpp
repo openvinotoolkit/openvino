@@ -42,7 +42,7 @@
 #define FOR_EACH_(N, prim, ...) EXPAND(CAT(INSTANTIATE_, N)(prim, __VA_ARGS__))
 #define INSTANTIATE(prim, ...) EXPAND(FOR_EACH_(COUNT(__VA_ARGS__), prim, __VA_ARGS__))
 
-#define CREATE_INSTANCE(Type, ...) std::make_shared<cldnn::Type>(__VA_ARGS__),
+#define CREATE_INSTANCE(Type, ...) std::make_shared<Type>(__VA_ARGS__),
 #define GET_INSTANCE(Type, ...) cldnn::implementation_map<cldnn::Type>::get(__VA_ARGS__)
 
 #define OV_GPU_GET_INSTANCE_1(prim, impl_type, shape_types) GET_INSTANCE(prim, impl_type, shape_types),

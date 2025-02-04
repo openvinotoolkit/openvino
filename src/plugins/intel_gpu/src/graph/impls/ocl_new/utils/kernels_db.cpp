@@ -1,63 +1,39 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "kernels_db.hpp"
 #include <assert.h>
-#include <algorithm>
-#include <vector>
+#include <string_view>
+#include <array>
 #include <utility>
 #include "openvino/core/except.hpp"
 
-#ifndef NDEBUG
-#include <fstream>
-#include <iostream>
-#endif
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
-KernelsDB::KernelsDB()
-    // :
-//     primitives({
-// #include "ks_primitive_db.inc"
-//       }),
-//       batch_headers({
-// #include "ks_primitive_db_batch_headers.inc"
-//       }
-    //   )
-    {
-        m_kernels = {
-            {"sdpa_ref", {{
-            (std::string) R"__krnl(
-            this is the kernels code
-            #ifdef APPLY_SCALE_TO_QUERY
-            #undef APPLY_SCALE_TO_QUERY
-            #endif
-            #ifdef HAS_KV_CACHE_ZP_INPUT
-            #undef HAS_KV_CACHE_ZP_INPUT
-            #endif
-            #ifdef GET_COMPRESSION_INDEX
-            #undef GET_COMPRESSION_INDEX
-            #endif
-            #ifdef GET_COMPRESSION_INDEX
-            #undef GET_COMPRESSION_INDEX
-            #endif
-            )__krnl"}, {}} },
-        };
+std::string_view OCLSourcesDB::get_kernel_template(std::string_view template_name) {
+    static constexpr std::array sources = {
+        #include "gpu_kernel_sources.inc"
+    };
+    for (const auto& s : sources) {
+        if (std::get<0>(s) == template_name) {
+            return std::get<1>(s);
+        }
     }
-
-const KernelTemplateDesc& KernelsDB::get_template(const KernelTemplateID& id) const {
-    try {
-        auto codes = m_kernels.find(id);
-        OPENVINO_ASSERT(codes != m_kernels.end(), "[GPU] Cannot find the kernel " + id + " in kernels database.");
-        return codes->second;
-    } catch (...) {
-        OPENVINO_THROW("[GPU] Cannot find the kernel " + id + " in kernels database.");
-    }
+    OPENVINO_THROW("Kernel template ", template_name, " not found");
 }
 
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+std::string_view OCLSourcesDB::get_kernel_header(std::string_view header_name) {
+    static constexpr std::array headers = {
+        #include "gpu_kernel_headers.inc"
+    };
+    for (const auto& s : headers) {
+        if (std::get<0>(s) == header_name) {
+            return std::get<1>(s);
+        }
+    }
+    OPENVINO_THROW("Kernel header ", header_name, " not found");
+}
+
+}  // namespace ov::intel_gpu::ocl

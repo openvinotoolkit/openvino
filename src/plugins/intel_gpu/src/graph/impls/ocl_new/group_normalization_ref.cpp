@@ -9,8 +9,7 @@
 #include "primitive_ocl_base.hpp"
 #include "group_normalization_inst.h"
 
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 namespace {
 
@@ -179,7 +178,7 @@ public:
 
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<GroupNormalizationRefImpl>(*this);
+        return std::make_unique<GroupNormalizationRefImpl>(*this);
     }
 
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
@@ -194,10 +193,9 @@ public:
 
 std::unique_ptr<primitive_impl> GroupNormalizationRef::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<group_normalization>());
-    return cldnn::make_unique<GroupNormalizationRefImpl>(node, params);
+    return std::make_unique<GroupNormalizationRefImpl>(node, params);
 }
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::group_normalization)

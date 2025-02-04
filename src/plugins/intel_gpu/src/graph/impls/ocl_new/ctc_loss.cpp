@@ -10,9 +10,7 @@
 #include "ctc_loss_inst.hpp"
 #include "utils/kernel_base.hpp"
 
-namespace cldnn {
-namespace ocl {
-
+namespace ov::intel_gpu::ocl {
 namespace {
 
 using namespace ov::intel_gpu::ocl;
@@ -58,7 +56,6 @@ std::unique_ptr<primitive_impl> CTCLoss::create_impl(const program_node& node, c
     // return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
 }
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ctc_loss)

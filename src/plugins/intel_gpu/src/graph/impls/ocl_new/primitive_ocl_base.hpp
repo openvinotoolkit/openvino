@@ -19,9 +19,7 @@
 #include <vector>
 #include <utility>
 
-namespace cldnn {
-namespace ocl {
-
+namespace ov::intel_gpu::ocl {
 /*
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
@@ -35,7 +33,7 @@ struct PrimitiveImplOCL : public primitive_impl {
     template<typename StageType, typename... Args>
     size_t add_stage(const program_node& node, const kernel_impl_params& params, Args&&... args) {
         static_assert(std::is_base_of<ov::intel_gpu::ocl::KernelGeneratorBase, StageType>::value, "StageType must derive from KernelGeneratorBase");
-        auto stage = cldnn::make_unique<StageType>(std::forward<Args>(args)...);
+        auto stage = std::make_unique<StageType>(std::forward<Args>(args)...);
         _kernel_data.push_back(stage->get_kernel_data(node, params));
 
         return _kernel_data.size() - 1;
@@ -242,5 +240,4 @@ protected:
     }
 };
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl

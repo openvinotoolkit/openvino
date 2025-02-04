@@ -6,9 +6,7 @@
 #include "utils/kernel_base.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 namespace {
 
 static std::string get_broadcast_input_str(const size_t input_rank, const int64_t axes, const int64_t val) {
@@ -216,6 +214,4 @@ JitConstants SDPABase::get_jit_constants(const program_node& node, const kernel_
     return jit;
 }
 
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace namespace ocl

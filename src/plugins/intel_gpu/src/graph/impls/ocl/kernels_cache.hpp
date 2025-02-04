@@ -17,6 +17,7 @@
 #include <atomic>
 #include <string>
 
+#include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
 
@@ -57,12 +58,13 @@ public:
         bool dump_custom_program;
         bool has_microkernels;
         std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
+        kernel_language language;
 
         explicit batch_program(int32_t _bucket_id,
                                int32_t _batch_id,
                                std::string _options,
                                const std::map<std::string, std::string>& batch_headers,
-                               bool is_cm = false)
+                               kernel_language _language)
             : bucket_id(_bucket_id),
               batch_id(_batch_id),
               hash_value(0),
@@ -71,8 +73,9 @@ public:
               options(_options),
               dump_custom_program(false),
               has_microkernels(false),
-              entry_point_to_id({}) {
-            if (!is_cm) {
+              entry_point_to_id({}),
+              language(_language) {
+            if (language == kernel_language::OCLC) {
                 static const std::vector<std::string> micro_kernel_include_names {
                     "generic_vector_ops",
                     "tile_ops",
@@ -85,10 +88,13 @@ public:
                         micro_headers.push_back(kv.second);
                     }
                 }
-            } else {
+            } else if (language != kernel_language::CM) {
                 source.push_back("#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
-            for (const auto& kv : batch_headers)
-                source.push_back(kv.second);
+                for (const auto& kv : batch_headers)
+                    source.push_back(kv.second);
+            } else if (language != kernel_language::OCLC_V2) {
+                for (const auto& kv : batch_headers)
+                    source.push_back(kv.second);
             }
         }
     };

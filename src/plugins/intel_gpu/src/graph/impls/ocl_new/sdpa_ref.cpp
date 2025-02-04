@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sdpa_ref.hpp"
@@ -10,8 +10,7 @@
 #include "kv_cache_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 namespace {
 
@@ -108,7 +107,6 @@ protected:
     }
 };
 
-
 }  // namespace
 
 class SDPARefImpl : public PrimitiveImplOCL {
@@ -121,7 +119,6 @@ public:
         INDIRECT_STAGE = add_stage<SDPARefGenerator>(node, params, false);
         REGULAR_STAGE = add_stage<SDPARefGenerator>(node, params, false);
     }
-
 
     static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
         return primitive->input_size() - 1;
@@ -171,16 +168,15 @@ public:
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<SDPARefImpl>(*this);
+        return std::make_unique<SDPARefImpl>(*this);
     }
 };
 
 std::unique_ptr<primitive_impl> SDPARef::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<scaled_dot_product_attention>());
-    return cldnn::make_unique<SDPARefImpl>(node, params);
+    return std::make_unique<SDPARefImpl>(node, params);
 }
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scaled_dot_product_attention)

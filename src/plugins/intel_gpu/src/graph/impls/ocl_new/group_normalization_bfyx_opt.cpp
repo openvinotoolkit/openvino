@@ -8,8 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_ocl_base.hpp"
 
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 namespace {
 
@@ -372,5 +371,4 @@ std::unique_ptr<primitive_impl> GroupNormalizationBfyxOpt::create_impl(const pro
     // return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
 }
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl

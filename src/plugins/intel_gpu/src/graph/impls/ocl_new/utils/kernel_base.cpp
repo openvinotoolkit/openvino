@@ -3,12 +3,12 @@
 //
 
 #include "kernel_base.hpp"
+#include "intel_gpu/runtime/kernel_args.hpp"
+#include "kernels_db.hpp"
 #include "jitter.hpp"
 #include <cctype>
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 class CodeBuilder {
     std::ostringstream oss;
@@ -64,8 +64,6 @@ public:
     }
 };
 
-const primitive_db KernelGeneratorBase::db;
-
 JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& node, const kernel_impl_params& params) const {
     JitConstants jit_constants;
 
@@ -112,7 +110,7 @@ std::string SingleKernelGenerator::build_code(const std::string& template_name, 
     }
 
     try {
-        code.add_line(db.get(template_name)[0]);
+        code.add_line(std::string(OCLSourcesDB::get_kernel_template(template_name)));
     } catch (std::exception&) {
         OPENVINO_THROW("[GPU] Couldn't find kernel template: ", template_name);
     }
@@ -127,6 +125,7 @@ std::string SingleKernelGenerator::build_code(const std::string& template_name, 
 KernelData SingleKernelGenerator::get_kernel_data(const program_node& node, const kernel_impl_params& params) const {
     KernelData kd;
     auto kernel_str = std::make_shared<KernelString>();
+    kernel_str->language = kernel_language::OCLC_V2;
     auto entry_point = get_entry_point(node, params);
     auto jit = get_jit_constants(node, params);
     auto dispatch_data_f = get_dispatch_data_func(params);
@@ -207,6 +206,4 @@ DispatchData SingleKernelGenerator::get_dispatch_data(const kernel_impl_params& 
     return f(params);
 }
 
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::ocl
