@@ -554,3 +554,7 @@ extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov
 extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,
                                                           const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::PagedAttention>(std::shared_ptr<ov::Node> node,
+                                                                ov::TensorVector& outputs,
+                                                                const ov::TensorVector& inputs);

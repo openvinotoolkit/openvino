@@ -259,5 +259,75 @@ void paged_attn_memcpy(const PlainTensor& k,
     }
 }
 
+void paged_attention(char* out,
+                     const char* query,		 
+                     const char* key, 		
+                     const char* value, 
+                     const char* key_cache,	
+                     const char* value_cache,
+                     const ov::element::Type dtype,
+                     const ov::Shape& qkv_shape,		
+                     const ov::Shape& kv_cache_shape,
+                     const int32_t* past_lens,
+                     const int32_t* subsequence_begins,	
+                     const int32_t* block_indices,		
+                     const int32_t* block_indices_begins,                        
+                     const int32_t scale,					
+                     const int32_t sliding_window, 		
+                     const int32_t* alibi_slopes,			
+                     const int32_t max_context_len) {
+    // Assuming qkv_shape is [batch_size, num_heads, seq_len, head_dim]
+    int batch_size = qkv_shape[0];
+    int num_heads = qkv_shape[1];
+    int seq_len = qkv_shape[2];
+    int head_dim = qkv_shape[3];
+
+    // Determine the size of each element based on dtype
+    size_t element_size = dtype.size();
+
+    // Cast input buffers to the correct data type
+    const float* query_f = reinterpret_cast<const float*>(query);
+    const float* key_f = reinterpret_cast<const float*>(key);
+    const float* value_f = reinterpret_cast<const float*>(value);
+    const float* key_cache_f = reinterpret_cast<const float*>(key_cache);
+    const float* value_cache_f = reinterpret_cast<const float*>(value_cache);
+
+    // Initialize output buffer
+    std::vector<float> output(batch_size * num_heads * seq_len * head_dim, 0.0f);
+
+    // Iterate over each batch and head
+    for (int b = 0; b < batch_size; ++b) {
+        for (int h = 0; h < num_heads; ++h) {
+            // Compute attention scores
+            for (int i = 0; i < seq_len; ++i) {
+                float score = 0.0f;
+                for (int j = 0; j < head_dim; ++j) {
+                    int query_idx = b * num_heads * seq_len * head_dim + h * seq_len * head_dim + i * head_dim + j;
+                    int key_idx = b * num_heads * seq_len * head_dim + h * seq_len * head_dim + i * head_dim + j;
+                    score += query_f[query_idx] * key_f[key_idx];
+                }
+                score /= std::sqrt(static_cast<float>(head_dim));
+                score *= scale;
+
+                // Apply sliding window and ALiBi slopes
+                if (sliding_window > 0) {
+                    int window_start = std::max(0, i - sliding_window);
+                    int window_end = std::min(seq_len, i + sliding_window + 1);
+                    for (int k = window_start; k < window_end; ++k) {
+                        score += alibi_slopes[k];
+                    }
+                }
+
+                // Store the computed score in the output buffer
+                int output_idx = b * num_heads * seq_len * head_dim + h * seq_len * head_dim + i * head_dim;
+                output[output_idx] = score;
+            }
+        }
+    }
+
+    // Copy the output to the out buffer
+    std::memcpy(out, output.data(), output.size() * element_size);
+}
+
 }  // namespace reference
 }  // namespace ov

@@ -845,6 +845,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v12::Pad> &nod
     return std::make_shared<ov::Model>(results, params, "Pad-12");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::PagedAtention>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4, 4})};
+    const auto paged_attention = std::make_shared<ov::op::v16::PagedAtention>(params[0]);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(paged_attention)};
+    return std::make_shared<ov::Model>(results, params, "PagedAttention");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Parameter> &node) {
     const auto in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, Shape{3, 4});
     return std::make_shared<ov::Model>(in, ParameterVector{in}, "Parameter-1");
