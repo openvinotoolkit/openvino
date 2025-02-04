@@ -221,7 +221,7 @@ void Bucketize::prepareParams() {
                                  std::multiplies<size_t>());
 }
 
-bool Bucketize::canBeSkipped() const {
+bool Bucketize::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

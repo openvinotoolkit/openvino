@@ -315,8 +315,8 @@ void MatrixNms::prepareParams() {
     }
 }
 
-bool MatrixNms::canBeSkipped() const {
-    return !isDynamicNode() && Node::canBeSkipped();
+bool MatrixNms::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
 }
 
 bool MatrixNms::isExecutable() const {

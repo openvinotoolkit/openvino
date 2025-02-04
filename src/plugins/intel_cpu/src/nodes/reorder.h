@@ -26,7 +26,7 @@ public:
     bool created() const override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
-    bool canBeSkipped() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     void createPrimitive() override;

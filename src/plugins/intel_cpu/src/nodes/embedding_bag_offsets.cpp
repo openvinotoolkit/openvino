@@ -161,7 +161,7 @@ void EmbeddingBagOffset::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-bool EmbeddingBagOffset::canBeSkipped() const {
+bool EmbeddingBagOffset::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

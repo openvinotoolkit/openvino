@@ -962,7 +962,7 @@ void NormalizeL2::createPrimitive() {
     }
 }
 
-bool NormalizeL2::canBeSkipped() const {
+bool NormalizeL2::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

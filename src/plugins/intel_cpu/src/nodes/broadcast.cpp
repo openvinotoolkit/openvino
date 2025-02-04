@@ -189,7 +189,7 @@ bool Broadcast::needShapeInfer() const {
     return false;
 }
 
-bool Broadcast::canBeSkipped() const {
+bool Broadcast::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

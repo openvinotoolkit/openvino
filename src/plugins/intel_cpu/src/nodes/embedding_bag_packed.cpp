@@ -126,7 +126,7 @@ void EmbeddingBagPacked::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-bool EmbeddingBagPacked::canBeSkipped() const {
+bool EmbeddingBagPacked::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

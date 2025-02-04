@@ -361,7 +361,7 @@ void Interaction::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-bool Interaction::canBeSkipped() const {
+bool Interaction::neverExecute() const {
     return false;
 }
 

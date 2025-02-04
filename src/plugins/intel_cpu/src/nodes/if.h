@@ -29,7 +29,7 @@ public:
     bool created() const override;
 
     void execute(const dnnl::stream& strm) override;
-    bool canBeSkipped() const override {
+    bool neverExecute() const override {
         return false;
     }
     bool isExecutable() const override {

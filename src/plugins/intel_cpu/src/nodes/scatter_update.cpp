@@ -70,7 +70,7 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-bool ScatterUpdate::canBeSkipped() const {
+bool ScatterUpdate::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(DATA_ID);
 }
 

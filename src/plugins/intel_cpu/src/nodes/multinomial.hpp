@@ -30,7 +30,7 @@ public:
 
     void createPrimitive() override;
 
-    bool canBeSkipped() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;

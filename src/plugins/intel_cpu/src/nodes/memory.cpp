@@ -235,7 +235,7 @@ void MemoryOutputBase::assignState(const MemStatePtr& newState) {
     assignExtMemory(state->output_mem(), state->internal_desc());
 }
 
-bool MemoryOutputBase::canBeSkipped() const {
+bool MemoryOutputBase::neverExecute() const {
     return false;
 }
 
@@ -504,7 +504,7 @@ void MemoryInputBase::deregisterSibling(MemoryOutputBase* node) {
     }
 }
 
-bool MemoryInputBase::canBeSkipped() const {
+bool MemoryInputBase::neverExecute() const {
     return false;
 }
 

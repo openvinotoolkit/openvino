@@ -28,8 +28,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool Reorder::canBeSkipped() const {
-    return isOptimized || Node::canBeSkipped();
+bool Reorder::neverExecute() const {
+    return isOptimized || Node::neverExecute();
 }
 
 bool Reorder::isExecutable() const {

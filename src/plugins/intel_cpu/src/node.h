@@ -327,7 +327,7 @@ public:
 
     bool isInPlace() const;
 
-    virtual bool canBeSkipped() const {
+    virtual bool neverExecute() const {
         return getSelectedPrimitiveDescriptor()->hasZeroInputDims();
     }
     // must be called only after Graph::ResolveEdgeConflicts()

@@ -23,7 +23,7 @@ public:
 
     void initOptimalPrimitiveDescriptor() override;
 
-    bool canBeSkipped() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;

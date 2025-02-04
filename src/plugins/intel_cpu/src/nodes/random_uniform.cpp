@@ -236,7 +236,7 @@ bool RandomUniform::needShapeInfer() const {
     return !m_const_inputs[SHAPE];
 }
 
-bool RandomUniform::canBeSkipped() const {
+bool RandomUniform::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(SHAPE);
 }
 

@@ -127,7 +127,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool Transpose::canBeSkipped() const {
+bool Transpose::neverExecute() const {
     return isOptimized || getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

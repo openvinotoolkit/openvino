@@ -254,10 +254,9 @@ public:
               const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
     /**
-     * Activate execution graph using \p externalInputMemory and \p externalOutputMemory
+     * Activate execution graph
      */
-    void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
-                  const std::vector<MemoryPtr>& externalOutputMemory = {});
+    void Activate();
 
     /**
      * Register the graph in the global allocation context by transforming

@@ -33,7 +33,7 @@ public:
         execute(strm);
     }
 
-    bool canBeSkipped() const override {
+    bool neverExecute() const override {
         return false;
     };
     bool isExecutable() const override {

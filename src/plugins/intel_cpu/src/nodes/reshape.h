@@ -18,7 +18,7 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
-    bool canBeSkipped() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     bool needShapeInfer() const override;

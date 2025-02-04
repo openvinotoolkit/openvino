@@ -31,7 +31,7 @@ public:
         return false;
     }
 
-    bool canBeSkipped() const override {
+    bool neverExecute() const override {
         return false;
     }
 

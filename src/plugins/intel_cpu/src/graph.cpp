@@ -308,7 +308,7 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
 
         if (!node->isConstant() &&  // constants are executed once in scope of compile_model
             !staticZeroDims &&      // never execute static nodes with zero dim input / output tensors
-            (CPU_DEBUG_CAPS_ALWAYS_TRUE(!node->canBeSkipped()) ||  // execute all executable nodes
+            (CPU_DEBUG_CAPS_ALWAYS_TRUE(!node->neverExecute()) ||  // execute all executable nodes
              dynamicNonInputOutput)) {                             // plus dynamic ones, except inputs / outputs
             graphIdToExecutableId[i] = executableGraphNodes.size();
             executableGraphNodes.emplace_back(node);
@@ -350,42 +350,11 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     Configure();
 }
 
-static void UseExternalInputMemory(const std::map<std::size_t, NodePtr>& inputNodesMap,
-                                   const std::vector<MemoryPtr>& memory) {
-    for (size_t i = 0; i < memory.size(); i++) {
-        const auto& node = inputNodesMap.at(i);
-
-        auto childEdges = node->getChildEdgesAtPort(0);
-        for (const auto& childEdge : childEdges) {
-            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::Uninitialized, "Unexpected edge status");
-
-            childEdge->reuse(memory[i]);
-        }
-    }
-}
-
-static void UseExternalOutputMemory(const std::map<std::size_t, NodePtr>& outputNodesMap,
-                                    const std::vector<MemoryPtr>& memory) {
-    for (size_t i = 0; i < memory.size(); i++) {
-        const auto& node = outputNodesMap.at(i);
-
-        const auto& parentEdge = node->getParentEdgeAt(0);
-        OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::Uninitialized, "Unexpected edge status");
-
-        parentEdge->reuse(memory[i]);
-    }
-}
-
-void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
-                     const std::vector<MemoryPtr>& externalOutputMemory) {
+void Graph::Activate() {
     // @todo It is possible that execution graph is already created in scope of
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
     // We probably want to avoid such uncertancy
     // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
-
-    UseExternalInputMemory(inputNodesMap, externalInputMemory);
-    UseExternalOutputMemory(outputNodesMap, externalOutputMemory);
-
     Allocate();
 
     CreatePrimitivesAndExecConstants();

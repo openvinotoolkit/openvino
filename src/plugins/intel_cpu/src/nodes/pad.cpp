@@ -210,7 +210,7 @@ void Pad::createPrimitive() {
     }
 }
 
-bool Pad::canBeSkipped() const {
+bool Pad::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }
 

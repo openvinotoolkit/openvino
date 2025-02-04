@@ -68,7 +68,7 @@ public:
     void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
 
     bool isExecutable() const override final;  // NOLINT
-    bool canBeSkipped() const override final;  // NOLINT
+    bool neverExecute() const override final;  // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -151,7 +151,7 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
-    bool canBeSkipped() const override final;  // NOLINT
+    bool neverExecute() const override final;  // NOLINT
     bool isExecutable() const override final;  // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);

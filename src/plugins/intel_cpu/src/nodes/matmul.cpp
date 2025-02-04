@@ -737,7 +737,7 @@ const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
     return priorities;
 }
 
-bool MatMul::canBeSkipped() const {
+bool MatMul::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
 }
 

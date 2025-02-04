@@ -24,7 +24,7 @@ public:
     }
 
     // pastkv may have zero dimension
-    bool canBeSkipped() const override {
+    bool neverExecute() const override {
         return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
                getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(1) ||
                getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(2);

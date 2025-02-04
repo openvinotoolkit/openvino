@@ -29,7 +29,7 @@ namespace {
 constexpr size_t channelAxis = 1lu;
 }
 
-bool Concat::canBeSkipped() const {
+bool Concat::neverExecute() const {
     return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
 }
 

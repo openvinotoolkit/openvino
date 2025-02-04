@@ -116,7 +116,7 @@ void Multinomial::prepareParams() {
     m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
 }
 
-bool Multinomial::canBeSkipped() const {
+bool Multinomial::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(PROBS_PORT) ||
            getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT);
 }

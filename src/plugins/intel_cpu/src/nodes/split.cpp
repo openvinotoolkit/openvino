@@ -293,7 +293,7 @@ void Split::prepareParams() {
     }
 }
 
-bool Split::canBeSkipped() const {
+bool Split::neverExecute() const {
     return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 

@@ -2237,7 +2237,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool Reduce::canBeSkipped() const {
+bool Reduce::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }
 

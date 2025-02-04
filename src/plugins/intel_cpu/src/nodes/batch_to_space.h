@@ -17,7 +17,7 @@ public:
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
 
-    bool canBeSkipped() const override {
+    bool neverExecute() const override {
         const auto& spd = getSelectedPrimitiveDescriptor();
         return spd->hasZeroInputDims() || spd->hasZeroOutputDims();
     }

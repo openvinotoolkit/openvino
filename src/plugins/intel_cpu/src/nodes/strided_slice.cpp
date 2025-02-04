@@ -325,7 +325,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool StridedSlice::canBeSkipped() const {
+bool StridedSlice::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0) ||
            getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }

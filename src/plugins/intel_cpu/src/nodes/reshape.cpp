@@ -142,7 +142,7 @@ void Reshape::execute(const dnnl::stream& strm) {
     }
 }
 
-bool Reshape::canBeSkipped() const {
+bool Reshape::neverExecute() const {
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
@@ -154,7 +154,7 @@ bool Reshape::canBeSkipped() const {
 }
 
 bool Reshape::isExecutable() const {
-    return !canBeSkipped();
+    return !neverExecute();
 }
 
 bool Reshape::created() const {
