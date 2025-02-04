@@ -12,15 +12,15 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Eltwise {
-
+OPENVINO_SUPPRESS_DEPRECATED_START
 const auto params_4D =
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
                                           ::testing::ValuesIn(eltwiseOpTypesBinInp()),
                                           ::testing::ValuesIn(secondaryInputTypes()),
                                           ::testing::ValuesIn(opTypes()),
                                           ::testing::ValuesIn(netType()),
-                                          ::testing::Values(ov::element::dynamic),
-                                          ::testing::Values(ov::element::dynamic),
+                                          ::testing::Values(ov::element::dynamic, ElementType::undefined),
+                                          ::testing::Values(ov::element::dynamic, ElementType::undefined),
                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                           ::testing::ValuesIn(additional_config())),
                        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
@@ -35,14 +35,14 @@ const auto params_4D_Snippets =
                                           ::testing::ValuesIn(secondaryInputTypes()),
                                           ::testing::ValuesIn(opTypes()),
                                           ::testing::ValuesIn(netType()),
-                                          ::testing::Values(ov::element::dynamic),
-                                          ::testing::Values(ov::element::dynamic),
+                                          ::testing::Values(ov::element::dynamic, ElementType::undefined),
+                                          ::testing::Values(ov::element::dynamic, ElementType::undefined),
                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                           ::testing::Values(additional_config()[0])),
                        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
                        ::testing::Values(emptyFusingSpec),
                        ::testing::Values(true));
-
+OPENVINO_SUPPRESS_DEPRECATED_END
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_Snippets, EltwiseLayerCPUTest, params_4D_Snippets, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec =

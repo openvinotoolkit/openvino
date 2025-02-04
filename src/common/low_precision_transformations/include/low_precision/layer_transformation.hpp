@@ -49,7 +49,7 @@ public:
 
     bool empty() const noexcept {
         OPENVINO_SUPPRESS_DEPRECATED_START
-        assert(((precision == element::dynamic || precisoin == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+        assert(((precision == element::dynamic || precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
                ((precision != element::dynamic && precision != element::undefined) && (max != 0.f)));
         return (precision == element::dynamic || precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
         OPENVINO_SUPPRESS_DEPRECATED_END
