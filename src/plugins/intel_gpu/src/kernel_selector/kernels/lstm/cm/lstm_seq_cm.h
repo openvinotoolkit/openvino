@@ -19,7 +19,7 @@ public:
     bool Validate(const Params& p) const override;
 private:
     struct lstm_shape{
-        uint32_t batch_size, input_size, hidden_size, seq_len, num_dir, num_gates;
+        size_t batch_size, input_size, hidden_size, seq_len, num_dir, num_gates;
     };
     lstm_shape GetShape(const Params& params) const;
 };
