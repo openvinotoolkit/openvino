@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
@@ -333,14 +333,6 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
     return ppp.build();
 }
 
-bool optimize_value_tensors1(std::shared_ptr<ov::Model> model) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
-    rewr.run_on_model(model);
-
-    ov::pass::Validate().run_on_model(model);
-    return false;
-}
 
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
