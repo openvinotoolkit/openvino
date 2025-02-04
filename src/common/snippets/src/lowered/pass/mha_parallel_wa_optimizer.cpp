@@ -93,7 +93,12 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MHAParallelWAOptimizer")
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim, new_kernel_dim;
-    if (!split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim))
+    bool split_res = split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim);
+    std::cout << "Split result: " << split_res << ", Master shape: " << ov::PartialShape(config->master_shape)
+              << ", Concurrency: " << m_concurrency << ", New batch dimension: " << new_batch_dim
+              << ", New kernel dimension: " << new_kernel_dim << std::endl;
+
+    if (!split_res)
         return false;
     auto& master_shape = config->master_shape;
     *++master_shape.rbegin() = new_kernel_dim;
