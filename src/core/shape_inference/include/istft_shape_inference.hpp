@@ -51,9 +51,8 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                0 < frame_size_val,
-                               "Provided frame size is ",
-                               frame_size_val,
-                               " but must be greater than zero.");
+                               "Provided frame size  must be greater than zero, bit got: ",
+                               frame_size_val);
         const bool is_win_shape_correct =
             window_shape.is_dynamic() || (TDimVal{0} < window_shape[0].get_length() &&
                                           window_shape[0].get_length() <= static_cast<TDimVal>(frame_size_val));
@@ -71,9 +70,8 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                0 < frame_step_val,
-                               "Provided frame step is ",
-                               frame_step_val,
-                               " but must be greater than zero.");
+                               "Provided frame step must be greater than zero, but got: ",
+                               frame_step_val);
     }
 
     // For the input with dynamic rank, output shape is also fully dynamic
