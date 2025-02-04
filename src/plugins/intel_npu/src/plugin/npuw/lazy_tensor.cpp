@@ -289,6 +289,8 @@ struct Convert {
 
 using Transform = std::variant<op::Const, op::Concat, op::Unpack, op::Permute, op::Convert>;
 
+enum class TransformType : int { CONST = 0, CONCAT, UNPACK, PERMUTE, CONVERT };
+
 struct LazyTensorImpl {
 public:
     LazyTensorImpl() = default;
@@ -381,23 +383,23 @@ void LazyTensorImpl::serialize(std::ostream& stream) const {
     write(stream, m_hash);
     // FIXME: create proper op identificators instead of int
     std::visit(overloaded{[&stream](const op::Concat& op) {
-                              write(stream, int{0});
+                              write(stream, static_cast<int>(TransformType::CONCAT));
                               op.serialize(stream);
                           },
                           [&stream](const op::Const& op) {
-                              write(stream, int{1});
+                              write(stream, static_cast<int>(TransformType::CONST));
                               op.serialize(stream);
                           },
                           [&stream](const op::Convert& op) {
-                              write(stream, int{2});
+                              write(stream, static_cast<int>(TransformType::CONVERT));
                               op.serialize(stream);
                           },
                           [&stream](const op::Permute& op) {
-                              write(stream, int{3});
+                              write(stream, static_cast<int>(TransformType::PERMUTE));
                               op.serialize(stream);
                           },
                           [&stream](const op::Unpack& op) {
-                              write(stream, int{4});
+                              write(stream, static_cast<int>(TransformType::UNPACK));
                               op.serialize(stream);
                           }},
                m_transform);
@@ -409,20 +411,20 @@ std::shared_ptr<LazyTensorImpl> LazyTensorImpl::deserialize(std::istream& stream
     read(stream, lt_impl->m_hash);
     int op_type;
     read(stream, op_type);
-    switch (op_type) {
-    case 0:
+    switch (TransformType(op_type)) {
+    case TransformType::CONCAT:
         lt_impl->m_transform = op::Concat::deserialize(stream);
         break;
-    case 1:
+    case TransformType::CONST:
         lt_impl->m_transform = op::Const::deserialize(stream);
         break;
-    case 2:
+    case TransformType::CONVERT:
         lt_impl->m_transform = op::Convert::deserialize(stream);
         break;
-    case 3:
+    case TransformType::PERMUTE:
         lt_impl->m_transform = op::Permute::deserialize(stream);
         break;
-    case 4:
+    case TransformType::UNPACK:
         lt_impl->m_transform = op::Unpack::deserialize(stream);
         break;
     default:
