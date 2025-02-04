@@ -56,12 +56,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     # Install openvino package
     %pip install -q "openvino>=2024.4.0" pillow opencv-python "matplotlib>=3.4"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Imports
 -------
 
@@ -81,12 +75,18 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import load_image, device_widget
+        open("notebook_utils.py", "w").write(r.text)
+    from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("optical-character-recognition.ipynb")
 
 Settings
 --------
@@ -123,22 +123,23 @@ again.
         f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{recognition_model}/{precision}/{recognition_model}.xml"
     )
     
-    detection_model_path = download_ir_model(detection_model_url, model_dir / detection_model / precision)
+    detection_model_path = model_dir / detection_model / precision / f"{detection_model}.xml"
+    if not detection_model_path.exists():
+        detection_model_path = download_ir_model(detection_model_url, model_dir / detection_model / precision)
     
-    recognition_model_path = download_ir_model(recognition_model_url, model_dir / recognition_model / precision)
-
-
-
-.. parsed-literal::
-
-    horizontal-text-detection-0001.bin:   0%|          | 0.00/3.70M [00:00<?, ?B/s]
-
+    recognition_model_path = model_dir / recognition_model / precision / f"{recognition_model}.xml"
+    
+    if not recognition_model_path.exists():
+        recognition_model_path = download_ir_model(recognition_model_url, model_dir / recognition_model / precision)
 
 
 .. parsed-literal::
 
-    text-recognition-0014.bin:   0%|          | 0.00/17.4M [00:00<?, ?B/s]
-
+    'model/horizontal-text-detection-0001/FP16/horizontal-text-detection-0001.xml' already exists.
+    'model/horizontal-text-detection-0001/FP16/horizontal-text-detection-0001.bin' already exists.
+    'model/text-recognition-0014/FP16/text-recognition-0014.xml' already exists.
+    'model/text-recognition-0014/FP16/text-recognition-0014.bin' already exists.
+    
 
 Select inference device
 -----------------------
@@ -189,10 +190,16 @@ Load an Image
 
 .. code:: ipython3
 
-    # The `image_file` variable can point to a URL or a local image.
-    image_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg"
+    image_path = Path("intel_rnb.jpg")
     
-    image = load_image("intel_rnb.jpg", image_file)
+    if not image_path.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+            filename=image_path.name,
+            directory=image_path.parent,
+        )
+    else:
+        image = cv2.imread(str(image_path))
     
     # N,C,H,W = batch size, number of channels, height, width.
     N, C, H, W = detection_input_layer.shape
