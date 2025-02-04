@@ -36,11 +36,13 @@ public:
      * @param args The arguments to be forwarded to the pass constructor.
      */
     template <typename OptimizerType, typename... Args, typename = std::enable_if<std::is_base_of<RuntimeOptimizer, OptimizerType>::value>>
-    static void register_if_applicable(PassPipeline& pipeline, Args&&... args) {
+    static bool register_if_applicable(PassPipeline& pipeline, Args&&... args) {
         auto pass = std::make_shared<OptimizerType>(std::forward<Args>(args)...);
         if (pass->applicable()) {
             pipeline.register_pass(pass);
+            return true;
         }
+        return false;
     }
 
 protected:

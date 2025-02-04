@@ -8,6 +8,7 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/parallel_wa_optimizer.hpp"
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/loop_utils.hpp"
@@ -68,7 +69,8 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
-    RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
+    if (!RuntimeOptimizer::register_if_applicable<ParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this))
+        RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
