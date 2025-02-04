@@ -12,10 +12,10 @@
 
 namespace ov::op::v16 {
 namespace {
-void check_int_input_at(const Node* op, size_t input_idx) {
-    const auto& in_type = op->get_input_element_type(input_idx);
+void check_int_input_at(const Node* op, size_t port) {
+    const auto& in_type = op->get_input_element_type(port);
     const auto has_valid_type = in_type.is_dynamic() || in_type == element::i32 || in_type == element::i64;
-    NODE_VALIDATION_CHECK(op, has_valid_type, "Expected i32 or i64 type of the input at port: ", input_idx);
+    NODE_VALIDATION_CHECK(op, has_valid_type, "Expected i32 or i64 type of the input at port: ", port);
 }
 }  // namespace
 ISTFT::ISTFT(const Output<Node>& data,
@@ -89,7 +89,7 @@ void ISTFT::validate_and_infer_types() {
                           has_valid_window_type,
                           "Expected floating point type of the 'window' input, matching the type of `data` input.");
 
-    for(size_t port = 2; port < input_size; ++port){
+    for (size_t port = 2; port < input_size; ++port) {
         check_int_input_at(this, port);
     }
 
