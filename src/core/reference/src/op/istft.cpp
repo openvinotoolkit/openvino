@@ -47,17 +47,14 @@ void istft(const float* in_data,
     std::vector<float> pad_window(frame_size, 0);
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
 
-    const bool transpose_frames = true;
     std::vector<float> data_t(in_data, in_data + shape_size(data_shape));
-    if (transpose_frames) {
-        const auto stft_transp_out_shape = Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
-        transpose(reinterpret_cast<const char*>(in_data),
-                  reinterpret_cast<char*>(data_t.data()),
-                  Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]},
-                  sizeof(float),
-                  {0, 2, 1, 3},
-                  stft_transp_out_shape);
-    }
+    const auto stft_transp_out_shape = Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
+    transpose(reinterpret_cast<const char*>(in_data),
+              reinterpret_cast<char*>(data_t.data()),
+              Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]},
+              sizeof(float),
+              {0, 2, 1, 3},
+              stft_transp_out_shape);
 
     const auto fft_out_shape_size = shape_size(fft_out_shape);
     std::vector<float> window_sum(batch_size * signal_length);
