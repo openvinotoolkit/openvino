@@ -17,12 +17,8 @@
 namespace ov {
 namespace test {
 
-using ov::op::v0::Constant;
-using ov::op::v0::Parameter;
-using ov::op::v1::Add;
-using ov::op::v1::ReduceMax;
-using ov::op::v1::StridedSlice;
-using ov::op::v3::ShapeOf;
+using op::v0::Constant, op::v0::Parameter,
+using op::v1::Add, op::v1::ReduceMax, op::v1::StridedSlice, op::v3::ShapeOf;
 using testing::HasSubstr;
 
 class TypePropSegmentMaxTest : public TypePropOpTest<op::v16::SegmentMax> {};
