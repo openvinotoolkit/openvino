@@ -93,25 +93,30 @@ void istft(const float* in_data,
                            std::plus<float>());
         }
 
+        const auto norm_window_div = [sqrt_frame_size](float a, float b) {
+            if (b != 0.f)
+                return (a * sqrt_frame_size) / b;
+            else
+                return 0.f;
+        };
+        const auto window_div = [](float a, float b) {
+            if (b != 0.f)
+                return a / b;
+            else
+                return 0.f;
+        };
+        std::function<float(float, float)> postprocess_func;
         if (normalized) {
-            std::transform(result + batch_out_start,
-                           result + batch_out_start + signal_length,
-                           result + batch_out_start,
-                           [sqrt_frame_size](float a) {
-                               return a * sqrt_frame_size;
-                           });
+            postprocess_func = norm_window_div;
+        } else {
+            postprocess_func = window_div;
         }
 
         std::transform(result + batch_out_start,
                        result + batch_out_start + signal_length,
                        window_sum.begin(),
                        result + batch_out_start,
-                       [](float a, float b) {
-                           if (b != 0.f)
-                               return a / b;
-                           else
-                               return 0.f;
-                       });
+                       postprocess_func);
 
         if (center) {
             const int64_t margin = (frame_size / 2);
