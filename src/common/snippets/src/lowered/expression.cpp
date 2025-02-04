@@ -45,6 +45,11 @@ const PortDescriptorPtr& Expression::get_output_port_descriptor(size_t i) const 
     return m_output_port_descriptors[i];
 }
 
+const ExpressionPtr Expression::get_input_expr_ptr(size_t i) const {
+    OPENVINO_ASSERT(i < m_input_port_connectors.size(), "Failed to get input expression: target input port must be less than input count!");
+    return m_input_port_connectors[i]->get_source().get_expr();
+}
+
 std::shared_ptr<Node> Expression::get_node() const {
     if (!m_source_node)
         OPENVINO_THROW("An attempt to get uninitialized node from lowered expression");

@@ -75,7 +75,7 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
         return false;
 
     for (size_t i = 0; i < input_port_size; ++i) {
-        const auto& parent = expr->get_input_port_connector(i)->get_source().get_expr();
+        const auto parent = expr->get_input_expr_ptr(i);
         bool parent_scalar_with_single_consumer = ov::is_type<snippets::op::Scalar>(parent->get_node()) &&
                                                   parent->get_output_port_connector(0)->get_consumers().size() == 1;
         const auto& is_loop_port = inner_loop_info->is_loop_port(expr_input_ports[i]);
@@ -176,7 +176,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
 
                 // extract scalar on inputs if there are
                 for (size_t i = 0; i < port_expr->get_input_count(); ++i) {
-                    auto parent = port_expr->get_input_port_connector(i)->get_source().get_expr();
+                    const auto parent = port_expr->get_input_expr_ptr(i);
                     if (ov::is_type<snippets::op::Scalar>(parent->get_node())) {
                         extract_expr(parent, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
                     }

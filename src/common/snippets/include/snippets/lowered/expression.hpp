@@ -50,6 +50,8 @@ public:
     const std::vector<PortDescriptorPtr>& get_input_port_descriptors() const { return m_input_port_descriptors; }
     const std::vector<PortDescriptorPtr>& get_output_port_descriptors() const { return m_output_port_descriptors; }
 
+    const ExpressionPtr get_input_expr_ptr(size_t i) const;
+
     size_t get_input_count() const { return m_input_port_connectors.size(); }
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 

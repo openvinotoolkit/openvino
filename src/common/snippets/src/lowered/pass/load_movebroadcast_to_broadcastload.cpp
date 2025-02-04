@@ -44,7 +44,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
             if (count > 1)
                 continue;
 
-            const auto& load_parent_node = load_expr->get_input_port_connector(0)->get_source().get_expr()->get_node();
+            const auto load_parent_node = load_expr->get_input_expr_ptr(0)->get_node();
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
             const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load_parent_node, *outshape.rbegin(), load->get_offset());
             auto live_regs = load_expr->get_live_regs();
