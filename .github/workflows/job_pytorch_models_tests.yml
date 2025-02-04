@@ -35,7 +35,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
-      USE_SYSTEM_CACHE: False
+      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     steps:
       - name: Check sudo
         if: ${{ runner.os == 'Linux' }}
