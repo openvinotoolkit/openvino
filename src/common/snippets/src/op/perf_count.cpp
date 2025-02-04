@@ -63,10 +63,23 @@ void ConsoleDumper::update(const op::PerfCountEnd* node) {
 
 //////////////////utils::CSVDumper///////////////
 
-CSVDumper::CSVDumper(const std::string& csv_path) : csv_path(csv_path) {}
+CSVDumper::CSVDumper(const std::string csv_path) : csv_path(std::move(csv_path)) {}
 
 CSVDumper::~CSVDumper() {
-    dump_brgemm_params_to_csv();
+    if (m_debug_params_map.empty() || csv_path.empty()) {
+        return;
+    }
+    std::ofstream csv_file(csv_path, std::ios_base::app);
+    OPENVINO_ASSERT(csv_file.is_open(), "Failed to open csv file for brgemm debug parameters.");
+    if (csv_file.tellp() == 0) {
+        csv_file << "name,subgraph_name,in_type,out_type,in_shapes,out_shapes,in_layouts,out_layouts,M,N,K,m_block,n_"
+                    "block,k_block,acc_max_time,"
+                    "avg_max_time\n";
+    }
+    for (const auto& [_, params] : m_debug_params_map) {
+        csv_file << params << '\n';
+    }
+    csv_file.close();
 }
 
 void CSVDumper::update(const op::PerfCountEnd* node) {
@@ -93,23 +106,6 @@ void CSVDumper::update(const op::PerfCountEnd* node) {
     uint64_t acc_max = accumulation.combine(BinaryFunc);
 
     m_debug_params_map[node->get_friendly_name()] = m_params + std::to_string(acc_max) + ',' + std::to_string(avg_max);
-}
-
-void CSVDumper::dump_brgemm_params_to_csv() {
-    if (m_debug_params_map.empty() || csv_path.empty()) {
-        return;
-    }
-    std::ofstream csv_file(csv_path, std::ios_base::app);
-    OPENVINO_ASSERT(csv_file.is_open(), "Failed to open csv file for brgemm debug parameters.");
-    if (csv_file.tellp() == 0) {
-        csv_file << "name,subgraph_name,in_type,out_type,in_shapes,out_shapes,in_layouts,out_layouts,M,N,K,m_block,n_"
-                    "block,k_block,acc_max_time,"
-                    "avg_max_time\n";
-    }
-    for (const auto& [_, params] : m_debug_params_map) {
-        csv_file << params << '\n';
-    }
-    csv_file.close();
 }
 
 }  // namespace utils

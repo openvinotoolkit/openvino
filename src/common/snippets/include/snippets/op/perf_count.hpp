@@ -43,7 +43,6 @@ protected:
 class ConsoleDumper : public Dumper {
 public:
     ConsoleDumper() = default;
-    ConsoleDumper(const ConsoleDumper&) = delete;
     ~ConsoleDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
@@ -60,16 +59,13 @@ private:
  */
 class CSVDumper : public Dumper {
 public:
-    CSVDumper(const std::string &csv_path);
-    CSVDumper(const CSVDumper&) = delete;
+    CSVDumper(const std::string csv_path);
     ~CSVDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
 
 private:
     const std::string csv_path;
-
-    void dump_brgemm_params_to_csv();
 };
 
 } // namespace utils
