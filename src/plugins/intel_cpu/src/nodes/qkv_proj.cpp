@@ -25,9 +25,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, int n_workers) {
@@ -206,7 +204,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
-        uint8_t* psrc0 = input->getDataAs<uint8_t>();
+        auto* psrc0 = input->getDataAs<uint8_t>();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<T>();
         auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<T>();
@@ -479,6 +477,4 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
 #endif
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

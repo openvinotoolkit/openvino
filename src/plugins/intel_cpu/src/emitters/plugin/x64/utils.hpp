@@ -7,8 +7,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "snippets/emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::set<size_t> get_callee_saved_reg_idxs();
 /**
@@ -30,7 +29,7 @@ class EmitABIRegSpills {
 public:
     EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
     ~EmitABIRegSpills();
-    size_t get_num_spilled_regs() const {
+    [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
     }
     /**
@@ -60,5 +59,4 @@ private:
     bool rsp_status = true;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

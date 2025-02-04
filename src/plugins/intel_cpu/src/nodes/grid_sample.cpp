@@ -4,6 +4,8 @@
 
 #include "grid_sample.hpp"
 
+#include <memory>
+
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/grid_sample.hpp"
 
@@ -142,11 +144,11 @@ void GridSample::createPrimitive() {
     }
 
     if (x64::mayiuse(x64::avx512_core)) {
-        jitKernel.reset(new kernel::GridSampleKernel<x64::avx512_core>(jcp));
+        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::avx512_core>>(jcp);
     } else if (x64::mayiuse(x64::avx2)) {
-        jitKernel.reset(new kernel::GridSampleKernel<x64::avx2>(jcp));
+        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::avx2>>(jcp);
     } else if (x64::mayiuse(x64::sse41)) {
-        jitKernel.reset(new kernel::GridSampleKernel<x64::sse41>(jcp));
+        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::sse41>>(jcp);
     }
     if (!jitKernel) {
         THROW_CPU_NODE_ERR("could not create JIT kernel.");
@@ -275,7 +277,7 @@ void GridSample::prepareParams() {
 void GridSample::execute(const dnnl::stream& strm) {
     const void* srcData = getSrcDataAtPort(IN_DATA);
     const uint8_t* gridData = getSrcDataAtPortAs<uint8_t>(IN_GRID);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     auto threadBody = [&](const int ithr, const int nthr) {
         const auto& p = execParamsPerThread[ithr];

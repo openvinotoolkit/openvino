@@ -40,9 +40,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct ConvKey {
@@ -61,7 +59,7 @@ struct ConvKey {
 
     bool constWeight;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ConvKey& rhs) const;
 };
 
@@ -117,7 +115,7 @@ bool ConvKey::operator==(const ConvKey& rhs) const {
 class Convolution::FusedSubgraph {
 public:
     FusedSubgraph(const std::vector<NodePtr>& opList, const Convolution& conv, const GraphContext::CPtr& context) {
-        _graph = std::unique_ptr<Graph>(new Graph());
+        _graph = std::make_unique<Graph>();
 
         std::unordered_set<NodePtr> nodesSet;
         std::vector<EdgePtr> edges;
@@ -185,7 +183,7 @@ public:
         _graph->CreateGraph(nodes, edges, context, "fused_subgraph");
     }
 
-    std::shared_ptr<Input> getInput(size_t idx) const {
+    [[nodiscard]] std::shared_ptr<Input> getInput(size_t idx) const {
         if (idx < inputs.size()) {
             return inputs[idx];
         } else {
@@ -196,7 +194,7 @@ public:
         }
     }
 
-    std::shared_ptr<Input> getOutput(size_t idx) const {
+    [[nodiscard]] std::shared_ptr<Input> getOutput(size_t idx) const {
         if (idx < outputs.size()) {
             return outputs[idx];
         } else {
@@ -1068,7 +1066,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
         attr.set_input_zero_points(legacyInputZeroPoints.size(), 1 << 1 /*through C dim*/);
         if (!legacyInputZeroPointsMemPtr) {
             DnnlBlockedMemoryDesc memoryDesc(ov::element::u8, {legacyInputZeroPoints.size()});
-            legacyInputZeroPointsMemPtr.reset(new Memory(getEngine(), memoryDesc, legacyInputZeroPoints.data()));
+            legacyInputZeroPointsMemPtr =
+                std::make_shared<Memory>(getEngine(), memoryDesc, legacyInputZeroPoints.data());
         }
     }
 
@@ -1824,6 +1823,4 @@ VectorDims Convolution::outputStaticShape() const {
     return outputShape.getStaticDims();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

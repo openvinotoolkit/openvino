@@ -12,8 +12,7 @@
 #include "openvino/core/except.hpp"
 #include "precision_support.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // helper struct to tell wheter type T is any of given types U...
 // termination case when U... is empty -> return std::false_type
@@ -25,7 +24,7 @@ struct is_any_of : public std::false_type {};
 // otherwise call is_any_of<T, Rest...> recurrently
 template <class T, class U, class... Rest>
 struct is_any_of<T, U, Rest...>
-    : public std::conditional<std::is_same<T, U>::value, std::true_type, is_any_of<T, Rest...>>::type {};
+    : public std::conditional_t<std::is_same_v<T, U>, std::true_type, is_any_of<T, Rest...>> {};
 
 /**
  * @brief Returns normalized by size dims where missing dimensions are filled with units from the beginning
@@ -196,5 +195,4 @@ std::vector<T> reshapeDownToRank(const std::vector<T>& dims) {
     return reshapeDownToRank(dims, rank);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

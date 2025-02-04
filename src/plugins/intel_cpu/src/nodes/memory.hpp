@@ -13,9 +13,7 @@
 #include "ov_optional.hpp"
 #include "proxy_mem_blk.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class MemoryOutputBase;
 class MemoryInputBase;
@@ -177,7 +175,7 @@ protected:
     }
 
 private:
-    using executeHookPtr = void (MemoryInputBase::*)(void);
+    using executeHookPtr = void (MemoryInputBase::*)();
 
 private:
     void assignState();
@@ -288,6 +286,4 @@ private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

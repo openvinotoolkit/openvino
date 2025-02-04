@@ -16,9 +16,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -821,8 +819,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
 
 void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vector<MemoryCPtr>& srcMemory,
                                                                 const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
+    const auto* srcData = srcMemory[0]->getDataAs<const uint8_t>();
+    auto* dstData = dstMemory[0]->getDataAs<uint8_t>();
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -836,9 +834,9 @@ void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vecto
 
 void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vector<MemoryCPtr>& srcMemory,
                                                                 const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
-    const uint8_t* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
+    const auto* srcData = srcMemory[0]->getDataAs<const uint8_t>();
+    const auto* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
+    auto* dstData = dstMemory[0]->getDataAs<uint8_t>();
     cpu_parallel_memcpy(dstData, srcData, srcMemory[0]->getSize());
     if (srcMemory[1]->getSize() == 0) {
         // Updates are empty - do not apply
@@ -864,6 +862,4 @@ void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

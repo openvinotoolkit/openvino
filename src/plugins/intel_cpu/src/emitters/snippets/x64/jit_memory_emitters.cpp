@@ -4,6 +4,8 @@
 
 #include "jit_memory_emitters.hpp"
 
+#include <memory>
+
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
@@ -13,8 +15,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -97,7 +98,7 @@ void jit_memory_emitter::emit_code(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
+    auto reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
     Reg64 aux_gpr = is_offset_runtime ? Reg64(static_cast<int>(aux_gpr_idxs.back())) : Reg64();
 
     Reg64 data_reg;
@@ -126,7 +127,7 @@ void jit_memory_emitter::emit_code(const std::vector<size_t>& in_idxs,
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::Load>(expr->get_node()), "expects Load node");
-    load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
+    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count);
 }
 
 void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -188,11 +189,13 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
     if (ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::truncation));
+        store_emitter =
+            std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, arithmetic_mode::truncation);
     } else if (ov::is_type<ov::intel_cpu::StoreConvertSaturation>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count, arithmetic_mode::saturation));
+        store_emitter =
+            std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, arithmetic_mode::saturation);
     } else if (ov::is_type<ov::snippets::op::Store>(expr->get_node())) {
-        store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count));
+        store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count);
     } else {
         OV_CPU_JIT_EMITTER_THROW("expects Store node");
     }
@@ -207,5 +210,4 @@ void jit_store_memory_emitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

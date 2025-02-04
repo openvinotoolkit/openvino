@@ -10,9 +10,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                   std::string& errorMessage) noexcept {
@@ -80,7 +78,7 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
 }
 
 void CTCGreedyDecoderSeqLen::execute(const dnnl::stream& strm) {
-    const float* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
+    const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
     const int* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
     int* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
     int* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
@@ -188,6 +186,4 @@ bool CTCGreedyDecoderSeqLen::needPrepareParams() const {
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

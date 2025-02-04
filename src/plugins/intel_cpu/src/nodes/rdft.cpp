@@ -5,6 +5,7 @@
 #include "rdft.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/rdft.hpp>
@@ -23,9 +24,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
@@ -145,7 +144,7 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> configurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
-        configurators.push_back({LayoutType::ncsp, ov::element::i32});
+        configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
@@ -840,22 +839,22 @@ struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
         enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx512);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx2);
             }
         } else if (mayiuse(cpu::x64::sse41)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
+            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, rdftType);
+            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, complex_to_complex);
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_sse42);
@@ -1129,6 +1128,4 @@ std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDe
     return executor;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

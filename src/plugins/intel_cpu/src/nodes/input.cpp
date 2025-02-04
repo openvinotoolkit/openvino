@@ -17,22 +17,20 @@ using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
 struct jit_has_subnormals_base : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals_base)
 
-    typedef struct {
+    using args_t = struct {
         const float* src;
         const size_t count;
         bool hasSubnormals;
-    } args_t;
+    };
 
-    typedef void (*fn_t)(const args_t*);
+    using fn_t = void (*)(const args_t*);
 
     jit_has_subnormals_base() : jit_generator(jit_name()) {
         jit_ker_ = nullptr;
@@ -315,7 +313,7 @@ void Input::cloneBlobIfRequired() {
     // The presence of subnormals is better to determined at IR read time.
     auto hasSubnormals = [&]() {
         if (prec == ov::element::f32) {
-            uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
+            auto const* u32data = m_constOp->get_data_ptr<uint32_t>();
 
             if (!size) {
                 return false;
@@ -549,14 +547,14 @@ void Input::initSupportedPdDefault() {
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
 
-        outPortConfs.push_back({LayoutType::ncsp, precision});
+        outPortConfs.emplace_back(LayoutType::ncsp, precision);
         if (!getParentEdges().empty()) {
-            inPortConfs.push_back({LayoutType::ncsp, precision, true});
+            inPortConfs.emplace_back(LayoutType::ncsp, precision, true);
         }
     } else if (getType() == Type::Output) {
         auto precision = getOriginalInputPrecisionAtPort(0);
 
-        inPortConfs.push_back({LayoutType::ncsp, precision});
+        inPortConfs.emplace_back(LayoutType::ncsp, precision);
     }
 
     addSupportedPrimDesc(inPortConfs, outPortConfs, impl_desc_type::unknown);
@@ -575,6 +573,4 @@ void Input::initSupportedPdFromMemDesc() {
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

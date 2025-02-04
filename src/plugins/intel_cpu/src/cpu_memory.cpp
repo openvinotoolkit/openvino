@@ -18,8 +18,7 @@
 #    include <utility>
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 template <>
 DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
@@ -32,7 +31,7 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 
 namespace {
 inline void setSubnormalsToZero(float* data, size_t size) {
-    uint32_t* u32data = reinterpret_cast<uint32_t*>(data);
+    auto* u32data = reinterpret_cast<uint32_t*>(data);
     for (size_t i = 0; i < size; ++i) {
         if ((u32data[i] & (0xFF << 23)) == 0) {
             u32data[i] = 0;
@@ -729,5 +728,4 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     return ptr;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

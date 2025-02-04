@@ -24,9 +24,7 @@
 #include "utils/general_utils.h"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct MatMulKey {
@@ -37,7 +35,7 @@ struct MatMulKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const MatMulKey& rhs) const;
 };
 
@@ -741,6 +739,4 @@ bool MatMul::isExecutable() const {
     return !hasEmptyOutputTensors();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

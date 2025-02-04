@@ -74,12 +74,12 @@ void Unique::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inPortConfigs = {{LayoutType::ncsp, dataPrecision}};
     if (!flattened) {
-        inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
+        inPortConfigs.emplace_back(LayoutType::ncsp, axisPrecision);
     }
     std::vector<PortConfigurator> outPortConfigs;
     outPortConfigs.reserve(4);
     for (int i = 0; i < 4; i++) {
-        outPortConfigs.push_back({LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision});
+        outPortConfigs.emplace_back(LayoutType::ncsp, i == 0 ? dataPrecision : axisPrecision);
     }
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType);

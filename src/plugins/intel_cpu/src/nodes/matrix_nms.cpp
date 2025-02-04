@@ -16,9 +16,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngNmsSortResultType = ov::op::v8::MatrixNms::SortResultType;
 using ngNmseDcayFunction = ov::op::v8::MatrixNms::DecayFunction;
@@ -328,8 +326,8 @@ void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MatrixNms::execute(const dnnl::stream& strm) {
-    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
-    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
+    const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
@@ -424,7 +422,7 @@ void MatrixNms::execute(const dnnl::stream& strm) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), static_cast<size_t>(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
+    auto* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
     int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
     int* validOutputs = validOutputsMemPtr->getDataAs<int>();
     for (size_t i = 0; i < m_numPerBatch.size(); i++) {
@@ -468,6 +466,4 @@ void MatrixNms::checkPrecision(const ov::element::Type prec,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

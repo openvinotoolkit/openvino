@@ -24,11 +24,10 @@
 using namespace ov;
 using namespace ov::threading;
 
-#define INIT_VAL     -100
-#define TP_CPU_LIMIT 32
+constexpr int INIT_VAL = -100;
+constexpr int TP_CPU_LIMIT = 32;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
     if (proc_type_table.size() > 1) {
@@ -167,7 +166,7 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto check_threads_per_stream = [&]() {
         int count = 0;
-        while (1) {
+        while (true) {
             for (int n_type = MAIN_CORE_PROC; n_type <= HYPER_THREADING_PROC; n_type++) {
                 count += static_cast<int>(proc_type_table[0][n_type] / n_threads_per_stream);
             }
@@ -761,5 +760,4 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -17,8 +17,7 @@
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -29,7 +28,7 @@ enum emitter_in_out_map {
 
 // structure for storage of emitter parameters to hash in map
 struct emitter_params {
-    virtual size_t hash() const = 0;
+    [[nodiscard]] virtual size_t hash() const = 0;
 };
 
 class jit_emitter : public ov::snippets::Emitter {
@@ -67,8 +66,9 @@ public:
 
 #ifdef SNIPPETS_DEBUG_CAPS
     const char* info() const {
-        if (!info_.is_initialized())
+        if (!info_.is_initialized()) {
             info_.init(this);
+        }
         return info_.c_str();
     }
 #endif
@@ -184,5 +184,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

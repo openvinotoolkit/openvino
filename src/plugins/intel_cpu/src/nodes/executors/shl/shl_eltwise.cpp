@@ -8,8 +8,7 @@
 #include "utils/debug_capabilities.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
     if (one_of(algorithm, Algorithm::EltwiseAdd,
@@ -238,5 +237,4 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
     return;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

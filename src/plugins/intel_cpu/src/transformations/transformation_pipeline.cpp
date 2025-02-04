@@ -182,8 +182,7 @@
 #endif
 #include "openvino/core/validation_util.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
@@ -331,7 +330,7 @@ void Transformations::UpToLpt() {
     }
 }
 
-void Transformations::CpuSpecificOpSet(void) {
+void Transformations::CpuSpecificOpSet() {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
     ConvertToCPUSpecificOpset(model, config);
@@ -965,7 +964,7 @@ void Transformations::PostLpt() {
     postLPTPassManager.run_passes(model);
 }
 
-void Transformations::MainSnippets(void) {
+void Transformations::MainSnippets() {
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
@@ -1286,7 +1285,7 @@ void Transformations::MainSnippets(void) {
     snippetsManager.run_passes(model);
 }
 
-void Transformations::PostSnippets(void) {
+void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
@@ -1302,7 +1301,7 @@ void Transformations::PostSnippets(void) {
     postSnippetsManager.run_passes(model);
 }
 
-void Transformations::Snippets(void) {
+void Transformations::Snippets() {
     const bool useSnippets = config.snippetsMode != Config::SnippetsMode::Disable &&
                              CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
     if (!useSnippets) {
@@ -1314,5 +1313,4 @@ void Transformations::Snippets(void) {
     PostSnippets();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

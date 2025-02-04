@@ -9,8 +9,7 @@
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 GraphContext::GraphContext(Config config,
                            WeightsSharing::Ptr w_cache,
@@ -23,7 +22,7 @@ GraphContext::GraphContext(Config config,
       m_isGraphQuantizedFlag(isGraphQuantized),
       m_streamExecutor(std::move(streamExecutor)),
       m_subMemoryManager(std::move(sub_memory_manager)),
-      m_numNumaNodes(1),
+
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       m_networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
     if (m_streamExecutor) {
@@ -46,5 +45,4 @@ const dnnl::engine& GraphContext::getEngine() {
     return eng;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

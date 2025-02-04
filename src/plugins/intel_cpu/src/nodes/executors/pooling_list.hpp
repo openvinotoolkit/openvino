@@ -10,8 +10,7 @@
 #    include "acl/acl_pooling.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct PoolingExecutorDesc {
     ExecutorType executorType;
@@ -34,7 +33,7 @@ public:
         }
     }
 
-    ~PoolingExecutorFactory() = default;
+    ~PoolingExecutorFactory() override = default;
     virtual PoolingExecutorPtr makeExecutor(const PoolingAttrs& poolingAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs,
@@ -73,5 +72,4 @@ private:
 using PoolingExecutorFactoryPtr = std::shared_ptr<PoolingExecutorFactory>;
 using PoolingExecutorFactoryCPtr = std::shared_ptr<const PoolingExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

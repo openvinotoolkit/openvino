@@ -19,9 +19,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct Indexer4d {
@@ -371,13 +369,13 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
         }
 
         // Prepare memory
-        const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
-        const float* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-        const float* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
-        const float* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
+        const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const auto* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        float* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
-        float* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
         const int anchors_num = scoreDims[0];
 
@@ -477,6 +475,4 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::needPrepareParams() cons
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

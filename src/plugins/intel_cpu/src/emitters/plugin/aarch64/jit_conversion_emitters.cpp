@@ -9,9 +9,7 @@
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 // In aarch64, conversion between f16 and i16/u16 can be done with single instruction. The supported
 // conversion precicions are f32, i32, f16, i8 (byte), u8 (byte). If we introduce an intermediate
@@ -274,6 +272,4 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_idxs
     jit_convert_process<TReg>(src, dst, input_type, output_type, true);
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

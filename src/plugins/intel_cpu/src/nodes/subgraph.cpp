@@ -61,9 +61,7 @@
 #    include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
@@ -74,7 +72,7 @@ struct SubgraphKey {
           in_shapes(std::move(in_shapes_)) {}
     virtual ~SubgraphKey() = default;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -98,7 +96,7 @@ struct SubgraphCodeGeneratorKey {
         : attrs(std::move(attrs_)),
           broadcasting_mask(mask_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -119,7 +117,7 @@ struct SubgraphShapeInferResultKey {
         : in_shapes(std::move(in_shapes_)),
           body_hash(body_hash_) {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
@@ -752,6 +750,4 @@ void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

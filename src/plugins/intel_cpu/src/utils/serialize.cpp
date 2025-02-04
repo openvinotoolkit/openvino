@@ -10,8 +10,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 ////////// ModelSerializer //////////
 
@@ -194,5 +193,4 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     set_info(root, model);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

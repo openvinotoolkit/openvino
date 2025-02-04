@@ -5,6 +5,7 @@
 #include "dft.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
@@ -19,9 +20,7 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -105,7 +104,7 @@ void DFT::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConfigurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
@@ -588,11 +587,11 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (hasDFT && dftKernel == nullptr) {
         if (mayiuse(cpu::x64::avx512_core)) {
-            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx512_core>());
+            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx512_core>>();
         } else if (mayiuse(cpu::x64::avx2)) {
-            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::avx2>());
+            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx2>>();
         } else if (mayiuse(cpu::x64::sse41)) {
-            dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
+            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::sse41>>();
         } else {
             THROW_CPU_NODE_ERR("Can't create jit DFT kernel");
         }
@@ -604,11 +603,11 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 
     if (hasFFT && fftKernel == nullptr) {
         if (mayiuse(cpu::x64::avx512_core)) {
-            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx512_core>());
+            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx512_core>>();
         } else if (mayiuse(cpu::x64::avx2)) {
-            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::avx2>());
+            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx2>>();
         } else if (mayiuse(cpu::x64::sse41)) {
-            fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
+            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::sse41>>();
         } else {
             THROW_CPU_NODE_ERR("Can't create jit FFT kernel");
         }
@@ -619,6 +618,4 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 #endif
 }
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

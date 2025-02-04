@@ -11,9 +11,7 @@
 
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace utils {
+namespace ov::intel_cpu::utils {
 
 size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) {
     auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
@@ -22,7 +20,7 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     };
     const auto& ma_op = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(port.get_expr()->get_node());
     OPENVINO_ASSERT(ma_op, "Expected MemoryAccess op!");
-    size_t offset = ov::snippets::utils::get_dynamic_value<size_t>();
+    auto offset = ov::snippets::utils::get_dynamic_value<size_t>();
     size_t id = SIZE_MAX;
     switch (port.get_type()) {
     case ov::snippets::lowered::ExpressionPort::Type::Input:
@@ -96,6 +94,4 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h
     }
 }
 
-}  // namespace utils
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::utils

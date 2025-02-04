@@ -37,7 +37,7 @@ Checks: >
   -*,
   performance-*,
   google-*,
-  modernize-pass-by-value,
+  modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   -bugprone-easily-swappable-parameters,
   -bugprone-fold-init-type,
@@ -59,6 +59,7 @@ Checks: >
   -readability-uppercase-literal-suffix,
   -readability-function-cognitive-complexity,
   -modernize-concat-nested-namespaces,
+  -modernize-loop-convert,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes

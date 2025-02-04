@@ -15,10 +15,7 @@
 #    include "arm_sve.h"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
@@ -26,7 +23,7 @@ template <typename TDST,
 void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, float zp) {
     size_t i = 0;
     // loadu_si128/epi64 does not support const qualifier
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    auto* src_nc = const_cast<uint8_t*>(src);
 #if defined(HAVE_AVX512F)
     auto v_zp = _mm512_set1_ps(zp);
     auto v_scale = _mm512_set1_ps(scale);
@@ -71,7 +68,7 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
        0,1,2,3,4,5,6,7
     */
     size_t i = 0;
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    auto* src_nc = const_cast<uint8_t*>(src);
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(scale);
     auto v_zp_scale = _mm512_set1_ps(zp * scale);
@@ -164,7 +161,4 @@ void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, flo
 }
 #endif
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -15,8 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
 #    define OV_CPU_INSTANCE_MLAS_ARM64(...) {__VA_ARGS__},
@@ -101,29 +100,29 @@ public:
         curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
     }
 
-    MultiCachePtr getRuntimeCache() const {
+    [[nodiscard]] MultiCachePtr getRuntimeCache() const {
         auto runtimeCachePtr = runtimeCache.lock();
         assert(runtimeCachePtr);
         return runtimeCachePtr;
     }
 
-    DnnlScratchPadPtr getScratchPad() const {
+    [[nodiscard]] DnnlScratchPadPtr getScratchPad() const {
         return scratchPads[curNumaNodeId];
     }
 
-    std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
+    [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
         return privateWeighCache;
     }
 
-    const dnnl::engine& getEngine() const {
+    [[nodiscard]] const dnnl::engine& getEngine() const {
         return engine;
     }
 
-    const std::vector<impl_desc_type>& getImplPriorities() const {
+    [[nodiscard]] const std::vector<impl_desc_type>& getImplPriorities() const {
         return implPriorities;
     }
 
-    const WeightsSharing::Ptr getWeightsCache() const {
+    [[nodiscard]] const WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
     }
 
@@ -168,7 +167,7 @@ public:
     virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
     }
-    virtual impl_desc_type implType() const = 0;
+    [[nodiscard]] virtual impl_desc_type implType() const = 0;
     virtual void moveMemToNumaNode(int numaID) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'moveMemToNumaNode' method is not implemented by executor");
     }
@@ -176,5 +175,4 @@ public:
 };
 using ExecutorPtr = std::shared_ptr<Executor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

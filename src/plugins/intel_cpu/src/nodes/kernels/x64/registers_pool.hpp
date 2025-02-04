@@ -10,8 +10,7 @@
 #include "dnnl_types.h"
 #include "utils/cpu_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * The RegistersPool is the base class for the IsaRegistersPool template:
@@ -45,7 +44,7 @@ public:
         friend class RegistersPool;
 
     public:
-        Reg() {}
+        Reg() = default;
         Reg(const RegistersPool::Ptr& regPool) {
             initialize(regPool);
         }
@@ -131,7 +130,7 @@ public:
     static Ptr create(dnnl::impl::cpu::x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
 
     template <typename TReg>
-    size_t countFree() const {
+    [[nodiscard]] size_t countFree() const {
         static_assert(is_any_of<TReg,
                                 Xbyak::Xmm,
                                 Xbyak::Ymm,
@@ -196,7 +195,7 @@ protected:
             isFreeIndexVector.at(reg.getIdx()) = false;
         }
 
-        size_t countUnused() const {
+        [[nodiscard]] size_t countUnused() const {
             size_t count = 0;
             for (const auto& isFree : isFreeIndexVector) {
                 if (isFree) {
@@ -226,7 +225,7 @@ protected:
     virtual void returnOpmaskToPool(int idx) {
         OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set");
     }
-    virtual size_t countUnusedOpmask() const {
+    [[nodiscard]] virtual size_t countUnusedOpmask() const {
         OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set");
     }
 
@@ -398,5 +397,4 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
 #undef ISA_SWITCH_CASE
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

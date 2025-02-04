@@ -9,9 +9,7 @@
 #include "ctc_loss.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -65,11 +63,11 @@ void CTCLoss::executeDynamicImpl(const dnnl::stream& strm) {
 void CTCLoss::execute(const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
-    const float* logits = getSrcDataAtPortAs<const float>(0);
+    const auto* logits = getSrcDataAtPortAs<const float>(0);
     const int* logitsLength = getSrcDataAtPortAs<const int>(1);
     const int* labels = getSrcDataAtPortAs<const int>(2);
     const int* labelsLength = getSrcDataAtPortAs<const int>(3);
-    float* dstData = getDstDataAtPortAs<float>(0);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const size_t batchNum = inDims[0];
@@ -288,6 +286,4 @@ bool CTCLoss::created() const {
     return getType() == Type::CTCLoss;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

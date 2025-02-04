@@ -4,6 +4,7 @@
 
 #include "tensoriterator.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,9 +22,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
     NodeConfig config;
@@ -555,10 +554,10 @@ void TensorIterator::initSupportedPrimitiveDescriptors() {
 
 void TensorIterator::createPrimitive() {
     if (loopBodyConditionOutputIdx == -1) {
-        continue_cond_check.reset(new staticValueCheck(true));  // always true
+        continue_cond_check = std::make_shared<staticValueCheck>(true);  // always true
     }
     if (loopExecutionConditionIdx == -1) {
-        initial_cond_check.reset(new staticValueCheck(true));
+        initial_cond_check = std::make_shared<staticValueCheck>(true);
         lastUsedCond = initial_cond_check->getStatus();
     }
 
@@ -792,7 +791,7 @@ void TensorIterator::prepareLoopBodyCurrentIteration() {
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
         auto mem = output_mem[loopBodyConditionOutputIdx];
-        continue_cond_check.reset(new asBoolCheck(mem));
+        continue_cond_check = std::make_shared<asBoolCheck>(mem);
     }
 }
 
@@ -800,7 +799,7 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
         auto edge = getParentEdgeAt(loopExecutionConditionIdx);
         auto mem = edge->getMemoryPtr();
-        initial_cond_check.reset(new asBoolCheck(mem));
+        initial_cond_check = std::make_shared<asBoolCheck>(mem);
         if (IMPLICATION(compileStage, edge->getParent()->isConstant())) {
             lastUsedCond = initial_cond_check->getStatus();
         }
@@ -810,12 +809,12 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
 void TensorIterator::prepareTripCount(const bool compileStage) {
     bool read_data = false;
     if (loopTripCountIdx == -1) {
-        trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
+        trip_count_check = std::make_shared<staticValueCheck>(getNumIteration(inputPortMap, outputPortMap));
         read_data = true;
     } else {
         auto edge = getParentEdgeAt(loopTripCountIdx);
         auto mem = edge->getMemoryPtr();
-        trip_count_check.reset(new asIntCheck(mem));
+        trip_count_check = std::make_shared<asIntCheck>(mem);
         read_data = IMPLICATION(compileStage, edge->getParent()->isConstant());
     }
     if (read_data) {
@@ -903,7 +902,7 @@ void TensorIterator::restoreSubgraphInputByBackEdges() {
             redefineToMemories(to_mems, desc);
 
             // update first_mappers to replace its legacy input memory addr.
-            input_map.second.reset(new BackEdgePortHelper(context->getParamsCache(), from_mem, to_mem));
+            input_map.second = std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem);
         }
     }
 }
@@ -1028,6 +1027,4 @@ bool TensorIterator::created() const {
     return getType() == Type::TensorIterator;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

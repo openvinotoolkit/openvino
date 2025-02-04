@@ -11,8 +11,7 @@
 #include "nodes/executors/executor_config.hpp"
 #include "ov_optional.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo Consider alternative of using template arguments instead of std::functions
 template <typename Attrs>
@@ -60,7 +59,7 @@ public:
         return {};
     }
 
-    bool acceptsShapes(const MemoryArgs& memory) const {
+    [[nodiscard]] bool acceptsShapes(const MemoryArgs& memory) const {
         if (m_acceptsShape) {
             return m_acceptsShape(memory);
         }
@@ -80,19 +79,19 @@ public:
         return nullptr;
     }
 
-    bool shapeAgnostic() const {
+    [[nodiscard]] bool shapeAgnostic() const {
         return m_shapeRelation == ShapeTolerance::Agnostic;
     }
 
-    const char* name() const {
+    [[nodiscard]] const char* name() const {
         return m_name;
     }
 
-    const ExecutorType type() const {
+    [[nodiscard]] const ExecutorType type() const {
         return m_type;
     }
 
-    const OperationType operationType() const {
+    [[nodiscard]] const OperationType operationType() const {
         return m_operationType;
     }
 
@@ -109,5 +108,4 @@ private:
 
 template <typename Attrs>
 using ExecutorImplementationPtr = std::shared_ptr<ExecutorImplementation<Attrs>>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

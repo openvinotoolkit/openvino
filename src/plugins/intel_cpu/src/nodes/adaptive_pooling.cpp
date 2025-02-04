@@ -4,8 +4,7 @@
 
 #include "adaptive_pooling.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
@@ -22,9 +21,7 @@
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
@@ -288,6 +285,4 @@ inline void AdaptivePooling::setBinBorders(size_t* startPtr,
     *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

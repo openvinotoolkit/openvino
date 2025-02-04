@@ -4,6 +4,7 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -11,8 +12,7 @@
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
 #include "nodes/eltwise.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace x64 {
 
 using namespace Xbyak;
@@ -62,7 +62,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
         auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
                                                     : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa, element::bf16, mode);
     }
 
     const auto& jep = jep_;
@@ -943,5 +943,4 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
     return precisions;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

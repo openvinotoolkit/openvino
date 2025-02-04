@@ -10,8 +10,7 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AclReduceExecutor : public ReduceExecutor {
 public:
@@ -25,7 +24,7 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
@@ -41,9 +40,9 @@ private:
 
 class AclReduceExecutorBuilder : public ReduceExecutorBuilder {
 public:
-    bool isSupported(const ReduceAttrs& reduceAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported(const ReduceAttrs& reduceAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
         if (reduceAttrs.operation == Algorithm::ReduceMean) {
             if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision() ||
                 (srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16)) {
@@ -97,10 +96,9 @@ public:
         return true;
     }
 
-    ReduceExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] ReduceExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclReduceExecutor>(context);
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

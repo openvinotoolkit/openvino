@@ -6,9 +6,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
     : x64::jit_generator(name, isa),
@@ -252,7 +250,7 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
         vpgatherdd(v_dst, ptr[rSrcPtr + vSrcShift], vReadMask);
     } else {
         auto rAux = getReg64();
-        Xbyak::Reg32 r32Aux = Xbyak::Reg32(rAux.getIdx());
+        auto r32Aux = Xbyak::Reg32(rAux.getIdx());
         const uint8_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / sizeof(int);
 
         for (uint8_t i = 0; i < elPerVec; i++) {
@@ -292,8 +290,8 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm& v_dst,
 
         vpgatherdd(v_dst, ptr[rSrcPtr + vSrcShift], vReadMask);
     } else {
-        Xbyak::Xmm xmmDst = Xbyak::Xmm(v_dst.getIdx()), xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx()),
-                   xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
+        auto xmmDst = Xbyak::Xmm(v_dst.getIdx()), xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx()),
+             xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
         for (uint8_t i = 0; i < 2; i++) {
             gatherdd(xmmDst, rSrcPtr, xmmSrcShft, xmmReadMask, useMask, zeroFill);
 
@@ -621,7 +619,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
                              const bool zeroFill) {
     Xbyak::Label lEnd;
     auto rAux = getReg64();
-    Xbyak::Reg32 r32Aux = Xbyak::Reg32(rAux.getIdx());
+    auto r32Aux = Xbyak::Reg32(rAux.getIdx());
     const uint8_t typeSize = sizeof(int);
     const uint8_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
 
@@ -667,7 +665,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     } else if (isValidIsa(x64::avx)) {
         const uint8_t typeSize = sizeof(int);
         const uint8_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
-        Xbyak::Xmm xmmReadMask = Xbyak::Xmm(vReadMask.getIdx()), xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx());
+        auto xmmReadMask = Xbyak::Xmm(vReadMask.getIdx()), xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx());
         for (uint8_t i = 0; i < 2; i++) {
             memMovDD(rDst, rSrc, xmmReadMask, xmmSrcShft, rToStoreNum, useMask, zeroFill);
 
@@ -690,6 +688,4 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     L(lEnd);
 }
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

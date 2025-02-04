@@ -28,9 +28,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
@@ -47,9 +45,9 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, jpp_.src_prc, ov::element::f32, step));
-        store_emitter.reset(new jit_store_emitter(this, isa, ov::element::f32, jpp_.dst_prc, step));
-        store_empty_roi_emitter.reset(new jit_store_emitter(this, isa, jpp_.src_prc, jpp_.dst_prc, step));
+        load_emitter = std::make_unique<jit_load_emitter>(this, isa, jpp_.src_prc, ov::element::f32, step);
+        store_emitter = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, jpp_.dst_prc, step);
+        store_empty_roi_emitter = std::make_unique<jit_store_emitter>(this, isa, jpp_.src_prc, jpp_.dst_prc, step);
 
         this->preamble();
 
@@ -344,7 +342,7 @@ namespace {
 struct RoiPoolingKey {
     jit_roi_pooling_params refParams;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RoiPoolingKey& rhs) const;
 };
 
@@ -563,11 +561,11 @@ public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
         } else if (mayiuse(cpu::x64::avx2)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>>(jpp);
         } else if (mayiuse(cpu::x64::sse41)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>>(jpp);
         } else {
             OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
@@ -996,6 +994,4 @@ bool ROIPooling::created() const {
     return getType() == Type::ROIPooling;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -17,8 +17,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
 void serializeToXML(const Graph& graph, const std::string& path);
@@ -320,7 +319,7 @@ void summary_perf(const Graph& graph) {
         std::vector<std::pair<std::string, double>> A;
         A.reserve(perf_by_type.size());
         for (auto& it : perf_by_type) {
-            A.push_back(it);
+            A.emplace_back(it);
         }
         sort(A.begin(), A.end(), [](std::pair<std::string, double>& a, std::pair<std::string, double>& b) {
             return a.second > b.second;
@@ -342,7 +341,7 @@ void summary_perf(const Graph& graph) {
         std::vector<std::pair<NodePtr, double>> A;
         A.reserve(perf_by_node.size());
         for (auto& it : perf_by_node) {
-            A.push_back(it);
+            A.emplace_back(it);
         }
         sort(A.begin(), A.end(), [](std::pair<NodePtr, double>& a, std::pair<NodePtr, double>& b) {
             return a.second > b.second;
@@ -432,5 +431,4 @@ void average_counters(const Graph& graph) {
 }
 
 #endif
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

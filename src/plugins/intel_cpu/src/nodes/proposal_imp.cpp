@@ -15,10 +15,7 @@
 #endif
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 static void enumerate_proposals_cpu(const float* bottom4d,
                                     const float* d_anchor4d,
@@ -46,8 +43,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
     parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
-        const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
-        const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
+        const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
+        const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
         const float* p_box = d_anchor4d + h * bottom_W + w;
         const float* p_score = bottom4d + h * bottom_W + w;
@@ -442,7 +439,4 @@ void proposal_exec(const float* input0,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

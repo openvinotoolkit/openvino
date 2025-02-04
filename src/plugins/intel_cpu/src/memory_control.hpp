@@ -6,8 +6,7 @@
 
 #include "edge.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using edgeCluster = std::unordered_set<EdgePtr>;
 using edgeClusters = std::vector<edgeCluster>;
@@ -34,7 +33,7 @@ public:
 
     MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
 
-    bool allocated() const {
+    [[nodiscard]] bool allocated() const {
         return m_allocated;
     }
 
@@ -68,5 +67,4 @@ private:
     std::vector<value_type> m_controlUnits;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

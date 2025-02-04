@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <assert.h>
-
+#include <cassert>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -13,8 +12,7 @@
 
 #include "cpu_memory.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 class SubMemoryManager {
 public:
     struct MemoryInfo {
@@ -52,6 +50,4 @@ public:
     std::vector<int> _use_count;
     std::mutex _flagMutex;
 };
-}  // namespace intel_cpu
-
-}  // namespace ov
+}  // namespace ov::intel_cpu

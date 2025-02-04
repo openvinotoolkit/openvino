@@ -5,8 +5,8 @@
 #pragma once
 
 #include "jit_tpp_emitter.hpp"
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 class BinaryEltwiseTppEmitter : public TppEmitter {
 public:
@@ -65,7 +65,7 @@ public:
 class ReferenceUnaryEltwiseTppEmitter : public UnaryEltwiseTppEmitter {
 public:
     // Note: can create template to suppport different executor signatures
-    typedef std::function<float(float)> executor_function;
+    using executor_function = std::function<float(float)>;
     ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
@@ -87,10 +87,9 @@ public:
 private:
     executor_function executor{nullptr};
 
-    template <
-        class Tin,
-        class Tout,
-        typename std::enable_if<!std::is_same<Tin, Tout>::value || !std::is_same<Tin, float>::value, bool>::type = true>
+    template <class Tin,
+              class Tout,
+              std::enable_if_t<!std::is_same_v<Tin, Tout> || !std::is_same_v<Tin, float>, bool> = true>
     void evaluate_reference_impl(Tin* in0, Tout* out0) {
         for (int n = 0; n < m_shape.n; n++) {
             auto in0_row = in0;
@@ -113,5 +112,4 @@ private:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

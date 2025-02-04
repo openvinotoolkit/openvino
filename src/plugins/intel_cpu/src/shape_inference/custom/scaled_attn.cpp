@@ -10,9 +10,7 @@
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -66,7 +64,7 @@ public:
         return {{output_dims, present_k_dims, present_v_dims}, ShapeInferStatus::success};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -85,6 +83,4 @@ ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
     return make_shape_inference(m_op);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

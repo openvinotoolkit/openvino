@@ -10,8 +10,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
@@ -21,8 +20,7 @@ jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_gener
                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                  std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
-      m_regs_to_spill(std::move(live_regs)),
-      m_regs_initialized(false) {}
+      m_regs_to_spill(std::move(live_regs)) {}
 
 void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
                                                     const std::vector<size_t>& in,
@@ -66,5 +64,4 @@ const std::set<snippets::Reg>& jit_binary_call_emitter::get_regs_to_spill() cons
     return m_regs_to_spill;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

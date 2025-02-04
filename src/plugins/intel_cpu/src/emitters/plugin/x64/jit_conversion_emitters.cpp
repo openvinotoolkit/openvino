@@ -4,6 +4,8 @@
 
 #include "jit_conversion_emitters.hpp"
 
+#include <memory>
+
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl::impl::utils;
@@ -11,8 +13,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_convert_emitter::jit_convert_emitter(jit_generator* host,
                                          cpu_isa_t host_isa,
@@ -22,7 +23,7 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
       input_type(node->get_input_element_type(0)),
       output_type(node->get_output_element_type(0)) {
     if (output_type == ov::element::bf16) {
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
     }
 }
 
@@ -398,5 +399,4 @@ size_t jit_convert_saturation_emitter::aux_vecs_count() const {
     return output_type == ov::element::u8 && host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 1 : 0;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

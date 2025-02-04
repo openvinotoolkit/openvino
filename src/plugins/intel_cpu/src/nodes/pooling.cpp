@@ -32,9 +32,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct PoolingKey {
@@ -55,7 +53,7 @@ struct PoolingKey {
     dnnl::algorithm alg;
     impl_desc_type implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
@@ -775,6 +773,4 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     attr.set_post_ops(ops);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

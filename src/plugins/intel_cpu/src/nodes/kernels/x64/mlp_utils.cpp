@@ -10,10 +10,7 @@
 #endif
 #include "../scaled_attn/transpose_kernel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void llm_mlp_transpose_epi32_16x16(void* dst, void* src, int stride) {
     transpose_16x16_kernel(reinterpret_cast<uint32_t*>(dst),
@@ -192,7 +189,4 @@ void llm_mlp_dequantize_i32_f32(int Batch,
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

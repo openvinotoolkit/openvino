@@ -11,8 +11,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
@@ -140,7 +139,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
             config.outConfs[i].setMemDesc(
                 std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat));
         }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
     if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank &&
@@ -178,7 +177,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
             config.outConfs[i].setMemDesc(
                 std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i)));
         }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     } else {
         pushDesc(inFmt, outFmt);
     }
@@ -330,5 +329,4 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

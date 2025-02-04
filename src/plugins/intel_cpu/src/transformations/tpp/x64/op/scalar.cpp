@@ -6,10 +6,7 @@
 
 #include "modifiers.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 
 Scalar::Scalar(const snippets::op::Scalar& other) : ov::snippets::op::Scalar(other) {
     constructor_validate_and_infer_types();
@@ -26,7 +23,4 @@ bool Scalar::visit_attributes(AttributeVisitor& visitor) {
     ;
 }
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op

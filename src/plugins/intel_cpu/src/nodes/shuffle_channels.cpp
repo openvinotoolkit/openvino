@@ -5,6 +5,7 @@
 #include "shuffle_channels.h"
 
 #include <cmath>
+#include <memory>
 #include <openvino/op/shuffle_channels.hpp>
 #include <string>
 
@@ -20,9 +21,7 @@ using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
     using namespace dnnl::impl;
@@ -272,7 +271,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
         params.dst_block_dims[i] = params.src_block_dims[params.order[i]];
     }
 
-    permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
 void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
@@ -298,8 +297,8 @@ void ShuffleChannels::execute(const dnnl::stream& strm) {
 
     int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
 
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(0);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
     execPtr->exec(srcData, dstData, MB);
 }
 
@@ -307,6 +306,4 @@ bool ShuffleChannels::created() const {
     return getType() == Type::ShuffleChannels;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

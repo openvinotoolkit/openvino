@@ -4,16 +4,19 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <memory>
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 using namespace Xbyak;
 
-#define CONST_1_F    0x3f800000  // 1.f
-#define INF_MASK     0x7F800000
-#define INF_NEG_MASK 0xFF800000
+enum {
+    CONST_1_F = 0x3f800000,  // 1.f
+    INF_MASK = 0x7F800000,
+    INF_NEG_MASK = 0xFF800000
+};
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
@@ -2189,7 +2192,7 @@ size_t jit_exp_emitter::aux_vecs_count() const {
 /// ERF ///
 jit_erf_emitter::jit_erf_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
-    m_exp_emitter.reset(new jit_exp_emitter(host, host_isa, exec_prc));
+    m_exp_emitter = std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc);
     prepare_table();
 }
 
@@ -2828,5 +2831,4 @@ void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

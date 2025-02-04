@@ -7,6 +7,7 @@
 #include <partitioned_mem_blk.h>
 
 #include <cstdint>
+#include <memory>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -24,9 +25,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -57,8 +56,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, GatherShapeInferFactory(op)),
-      batchDims(0) {
+    : Node(op, context, GatherShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -291,9 +289,9 @@ void Gather::createPrimitive() {
         }
 
         if (x64::mayiuse(x64::avx512_core)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx512_core>(jcp));
+            jitKernel = std::make_shared<jitUniGatherKernel<x64::avx512_core>>(jcp);
         } else if (x64::mayiuse(x64::avx2)) {
-            jitKernel.reset(new jitUniGatherKernel<x64::avx2>(jcp));
+            jitKernel = std::make_shared<jitUniGatherKernel<x64::avx2>>(jcp);
         }
         if (jitKernel) {
             jitKernel->create_ker();
@@ -437,7 +435,7 @@ void Gather::execute(const dnnl::stream& strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
         const void* srcData = getSrcDataAtPort(GATHER_DATA);
-        uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+        auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -505,7 +503,7 @@ void Gather::executeDynamicImpl(const dnnl::stream& strm) {
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
         const void* srcData = getSrcDataAtPort(GATHER_DATA);
-        uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+        auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -642,9 +640,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
 template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
 void Gather::execCompressed4Bit() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
-    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
 
     // zp/scale
     float const_zp = 0;
@@ -726,9 +724,9 @@ void Gather::execCompressed4Bit() {
 
 template <typename OUT_TYPE, typename IN_TYPE>
 void Gather::execCompressed8Bit() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
-    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
 
     // zp/scale
     float const_zp = 0;
@@ -889,9 +887,9 @@ void Gather::execCompressed() {
 }
 
 void Gather::execReference() {
-    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
-    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
-    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
@@ -990,6 +988,4 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

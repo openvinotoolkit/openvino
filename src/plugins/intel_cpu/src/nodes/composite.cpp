@@ -10,9 +10,7 @@
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Composite::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -51,7 +49,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
 
     std::vector<Input::OutputConfig> graphOutputConfig;
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
+        graphOutputConfig.emplace_back(true, true);
     }
 
     // configure the inner graph to get the information about output memory descriptors
@@ -119,6 +117,4 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

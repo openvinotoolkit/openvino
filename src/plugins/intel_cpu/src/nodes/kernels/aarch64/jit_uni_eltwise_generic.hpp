@@ -32,9 +32,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 using namespace Xbyak_aarch64;
 using namespace dnnl::impl::cpu;
@@ -214,6 +212,4 @@ private:
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

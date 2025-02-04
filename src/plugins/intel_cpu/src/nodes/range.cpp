@@ -11,9 +11,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -150,7 +148,7 @@ Range::StatusCode Range::rangeKernel() {
         VectorDims newOutputShape{work_amount_dst};
         redefineOutputMemory({newOutputShape});
     }
-    data_t* dst_data = getDstDataAtPortAs<data_t>(0);
+    auto* dst_data = getDstDataAtPortAs<data_t>(0);
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t iwork = 0, end = 0;
         splitter(work_amount_dst, nthr, ithr, iwork, end);
@@ -166,6 +164,4 @@ bool Range::created() const {
     return getType() == Type::Range;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -9,8 +9,7 @@
 #include "nodes/common/permute_kernel.h"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct TransposeParams {
     PermuteParams permuteParams;
@@ -24,7 +23,7 @@ public:
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const dnnl::primitive_attr& attr) = 0;
-    virtual ~TransposeExecutor() = default;
+    ~TransposeExecutor() override = default;
 
 protected:
     PermuteParams permuteParams;
@@ -36,14 +35,13 @@ using TransposeExecutorCPtr = std::shared_ptr<const TransposeExecutor>;
 class TransposeExecutorBuilder {
 public:
     virtual ~TransposeExecutorBuilder() = default;
-    virtual bool isSupported(const TransposeParams& transposeParams,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const TransposeParams& transposeParams,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using TransposeExecutorBuilderPtr = std::shared_ptr<TransposeExecutorBuilder>;
 using TransposeExecutorBuilderCPtr = std::shared_ptr<const TransposeExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

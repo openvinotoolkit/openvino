@@ -18,8 +18,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
@@ -85,7 +84,7 @@ struct BrgemmCopyAKey {
           src_stride{src_stride},
           LDA{LDA} {}
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         size_t seed = 0;
         HASH(isa);
         HASH(dt);
@@ -314,5 +313,4 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
 #undef EQ
 #undef HASH
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

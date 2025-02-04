@@ -4,6 +4,7 @@
 
 #include "jit_load_store_emitters.hpp"
 
+#include <memory>
 #include <utility>
 
 #include "utils/bfloat16.hpp"
@@ -35,8 +36,7 @@ using namespace Xbyak::util;
         data_reg_updated = true;                                    \
     }
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 // heuristic threshold number by byte between mask load and emulation with several simple partial load
@@ -707,7 +707,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
       dst_prc_(dst_prc),
       mode_(mode) {
     prepare_table();
-    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+    uni_vcvtneps2bf16_ = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
 }
 
 inline bool jit_store_emitter::is_saturation() const {
@@ -1426,5 +1426,4 @@ void jit_store_emitter::register_table_entries() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

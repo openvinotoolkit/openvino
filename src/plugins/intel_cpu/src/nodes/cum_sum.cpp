@@ -13,9 +13,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "utils/bfloat16.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -251,7 +249,7 @@ inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset,
 
 size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
+    const auto dataShapeSize = static_cast<int64_t>(_data.getShape().getRank());
     int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
     case ov::element::i32: {
@@ -286,6 +284,4 @@ void CumSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

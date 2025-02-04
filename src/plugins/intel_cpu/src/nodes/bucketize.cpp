@@ -12,9 +12,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -253,6 +251,4 @@ bool Bucketize::created() const {
     return getType() == Type::Bucketize;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

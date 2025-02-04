@@ -39,9 +39,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
@@ -1068,7 +1066,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
             config.inConfs.push_back(config.outConfs[0]);
             config.outConfs[0].inPlace(2);
         }
-        supportedPrimitiveDescriptors.push_back({config, implType});
+        supportedPrimitiveDescriptors.emplace_back(config, implType);
     } else {
         // reference implementation
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
@@ -1077,7 +1075,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
         config.inConfs[1].setMemDesc(weiCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(1)));
         config.outConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::f32, getOutputShapeAtPort(0)));
-        supportedPrimitiveDescriptors.push_back({config, implType});
+        supportedPrimitiveDescriptors.emplace_back(config, implType);
     }
 }
 
@@ -1168,11 +1166,12 @@ void BinaryConvolution::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx512_core>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel =
+            std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx512_core>>(jcp, jcp_dw_conv, *attr.get());
     } else if (implType == impl_desc_type::jit_avx2) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::avx2>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx2>>(jcp, jcp_dw_conv, *attr.get());
     } else if (implType == impl_desc_type::sse42) {
-        bin_conv_kernel.reset(new jit_uni_bin_conv_kernel_f32<x64::sse41>(jcp, jcp_dw_conv, *attr.get()));
+        bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::sse41>>(jcp, jcp_dw_conv, *attr.get());
     }
     if (bin_conv_kernel) {
         bin_conv_kernel->create_ker();
@@ -1431,6 +1430,4 @@ bool BinaryConvolution::created() const {
     return getType() == Type::BinaryConvolution;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -9,10 +9,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "reduce.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace op {
+namespace ov::intel_cpu::tpp::op {
 namespace {
 struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
     CustomPowerStaticBuilder() : NodeFactory::TPPCustomBuilder() {
@@ -108,7 +105,4 @@ bool NodeFactory::is_supported(const std::shared_ptr<ov::Node>& n) {
            all_inputs_fp32;
 }
 
-}  // namespace op
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::op
