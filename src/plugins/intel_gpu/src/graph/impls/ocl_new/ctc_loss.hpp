@@ -6,8 +6,7 @@
 #include "program_node.h"
 
 #include <memory>
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 struct CTCLoss : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::ctc_loss")
@@ -27,5 +26,4 @@ struct CTCLoss : public ImplementationManager {
     }
 };
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl

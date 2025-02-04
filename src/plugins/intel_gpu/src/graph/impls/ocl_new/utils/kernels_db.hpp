@@ -4,44 +4,13 @@
 
 #pragma once
 
-#include <map>
-#include <vector>
+#include <string_view>
 #include <cctype>
-#include <string>
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
-
-using HeaderID = std::string;
-using KernelTemplateID = std::string;
-using Code = std::string;
-using KernelTemplateDesc = std::pair<std::vector<Code>, std::vector<HeaderID>>;
-
-struct CaseInsensitiveComparator {
-    bool operator()(const KernelTemplateID& lhs, const KernelTemplateID& rhs) const {
-        return std::lexicographical_compare(lhs.begin(),
-                                            lhs.end(),
-                                            rhs.begin(),
-                                            rhs.end(),
-                                            [](const char& a, const char& b) { return tolower(a) < tolower(b); });
-    }
+namespace ov::intel_gpu::ocl {
+struct OCLSourcesDB {
+    static std::string_view get_kernel_template(std::string_view template_name);
+    static std::string_view get_kernel_header(std::string_view header_name);
 };
 
-using HeadersMap = std::map<HeaderID, Code>;
-using KernelsMap = std::map<KernelTemplateID, KernelTemplateDesc, CaseInsensitiveComparator>;
-
-struct KernelsDB {
-    KernelsDB();
-
-    const KernelTemplateDesc& get_template(const KernelTemplateID& id) const;
-    const HeadersMap& get_headers() const { return m_headers; }
-
-private:
-    KernelsMap m_kernels;
-    HeadersMap m_headers;
-};
-
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::ocl

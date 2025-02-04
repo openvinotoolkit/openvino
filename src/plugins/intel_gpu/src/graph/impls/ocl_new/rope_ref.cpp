@@ -8,9 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_ocl_base.hpp"
 
-namespace cldnn {
-namespace ocl {
-
+namespace ov::intel_gpu::ocl {
 namespace {
 
 using namespace ov::intel_gpu::ocl;
@@ -172,7 +170,6 @@ std::unique_ptr<primitive_impl> RopeRef::create_impl(const program_node& node, c
     // return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
 }
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::rope)

@@ -7,8 +7,7 @@
 
 #include <memory>
 
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 struct GroupNormalizationBfyxOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::group_norm::bfyx_opt")
@@ -39,5 +38,4 @@ struct GroupNormalizationBfyxOpt : public ImplementationManager {
     }
 };
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl

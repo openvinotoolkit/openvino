@@ -3,7 +3,10 @@
 //
 
 #include "kernels_cache.hpp"
+#include <regex>
 
+#include "impls/ocl_new/utils/kernels_db.hpp"
+#include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -178,7 +181,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, is_cm));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, kernel_string->language));
             }
 
             // This is a temporary walk-around to avoid severe performance drop.
@@ -209,7 +212,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
                 || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, is_cm));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, headers, kernel_string->language));
             }
 
             auto& current_batch = current_bucket.back();
@@ -230,6 +233,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
     }
 
+    std::ofstream source_b("source_b.cl");
+    std::ofstream source_a("source_a.cl");
     // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
     // of the precompiled binaries or get_undef_jit calls
@@ -239,6 +244,54 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto options = c.first;
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
+            auto find_and_remove_includes = [](const std::string& code, std::set<std::string>& required_headers) {
+                std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
+                std::string processed_kernel;
+                std::sregex_iterator it(code.begin(), code.end(), include_regex);
+                std::sregex_iterator end;
+
+                size_t last_pos = 0;
+                for (; it != end; ++it) {
+                    auto header_name = (*it)[1].str();
+                    header_name = header_name.substr(header_name.find_last_of("/") + 1);
+                    header_name = header_name.substr(0, header_name.find_last_of("."));
+                    required_headers.insert(header_name);
+                    processed_kernel += code.substr(last_pos, it->position() - last_pos);
+                    last_pos = it->position() + it->length();
+                }
+                processed_kernel += code.substr(last_pos);
+                return processed_kernel;
+            };
+
+            auto process_batch_includes = [find_and_remove_includes](kernels_cache::batch_program& prog) {
+                std::list<std::string> sources_to_process(prog.source.begin(), prog.source.end());
+                prog.source.clear();
+                std::set<std::string> all_headers;
+                while (!sources_to_process.empty()) {
+                    std::set<std::string> new_headers;
+                    auto source = sources_to_process.front();
+                    sources_to_process.pop_front();
+                    prog.source.insert(prog.source.begin(), find_and_remove_includes(source, new_headers));
+                    for (auto& header : new_headers) {
+                        if (all_headers.count(header) == 0) {
+                            all_headers.insert(header);
+                            std::string_view header_code = ov::intel_gpu::ocl::OCLSourcesDB::get_kernel_header(header);
+                            sources_to_process.push_back(std::string(header_code));
+                        }
+                    }
+                }
+            };
+
+            for (auto& s : b.source)
+                source_b << s << "\n";
+
+            if (b.language == kernel_language::OCLC_V2)
+                process_batch_includes(b);
+
+            for (auto& s : b.source)
+                source_a << s << "\n";
+
+
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
             for (auto& ss : b.source)

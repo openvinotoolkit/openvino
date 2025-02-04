@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2024 Intel Corporation
+﻿// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,7 @@
 #include "jitter.hpp"
 #include <string>
 
-namespace ov {
-namespace intel_gpu {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 using namespace cldnn;
 
@@ -63,11 +61,6 @@ public:
     virtual KernelData get_kernel_data(const program_node& node, const kernel_impl_params& params) const = 0;
     virtual GetInternalBuffersFunc get_interanl_buffers_func(const program_node& node, const kernel_impl_params& params) const { return nullptr; }
     virtual DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const = 0;
-
-    static const primitive_db& get_db() { return db; }
-
-protected:
-    static const primitive_db db;
 };
 
 
@@ -95,41 +88,4 @@ protected:
     JitConstants m_jit_constants;
 };
 
-// class MultiStageKernelGenerator : public KernelGeneratorBase {
-// public:
-//     template<typename... Stages>
-//     explicit MultiStageKernelGenerator(Stages... stages) : KernelGeneratorBase() {
-//         add_stages(std::forward<Stages>(stages)...);
-//     }
-
-//     virtual ~MultiStageKernelGenerator() = default;
-
-//     KernelsData get_kernels_data(const program_node& node, const kernel_impl_params& params) const override {
-//         KernelsData kds;
-//         for (auto& k : m_kernels) {
-//             k->add_common_jit_constants(get_jit_constants(node, params));
-//             kds.push_back(k->get_kernel_data(node, params));
-//         }
-
-//         return kds;
-//     }
-
-//     virtual JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const { return {}; }
-
-// protected:
-//     template<typename CurrentStage, typename... OtherStages>
-//     void add_stages(CurrentStage current, OtherStages... others) {
-//         add_stages(current);
-//         add_stages(std::forward<OtherStages>(others)...);
-//     }
-//     template<typename CurrentStage>
-//     void add_stages(CurrentStage current) {
-//         m_kernels.push_back(std::make_shared<CurrentStage>(current));
-//     }
-
-//     std::vector<std::shared_ptr<SingleKernelGenerator>> m_kernels;
-// };
-
-}  // namespace ocl
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::ocl

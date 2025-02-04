@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 
 #include <memory>
 
-namespace cldnn {
-namespace ocl {
+namespace ov::intel_gpu::ocl {
 
 struct SDPARef : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::ref")
@@ -44,5 +43,4 @@ struct SDPARef : public ImplementationManager {
     }
 };
 
-}  // namespace ocl
-}  // namespace cldnn
+}  // namespace ov::intel_gpu::ocl
