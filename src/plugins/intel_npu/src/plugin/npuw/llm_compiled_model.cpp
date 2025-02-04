@@ -333,6 +333,13 @@ std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> m
     return ppp.build();
 }
 
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
+    rewr.run_on_model(model);
+
+    ov::pass::Validate().run_on_model(model);
+    return false;
+}
 
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::GraphRewrite rewr;
@@ -377,7 +384,6 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape[kv_axes_position.batch] = 1;
             new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
         }
-        LOG_DEBUG("static shape: " << input_name << ", shape=" << new_shape);
         new_shapes.emplace(input_name, new_shape);
     }
     model->reshape(new_shapes);
@@ -550,6 +556,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // preserve them somewhere.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
+    auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
+    auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -604,8 +612,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         generate_config_opt.value_or(get_default_generate_config(kvcache_model, npudesc, generate_hint))
             .as<ov::AnyMap>();
 
+    auto prefill_config_addition_value =
+        prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+    auto generate_config_addition_value =
+        generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
+    merge_config_with(prefill_config, prefill_config_addition_value);
+    merge_config_with(generate_config, generate_config_addition_value);
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
