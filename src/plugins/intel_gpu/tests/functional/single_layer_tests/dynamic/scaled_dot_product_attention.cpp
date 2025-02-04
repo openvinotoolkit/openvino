@@ -310,7 +310,26 @@ const std::vector<std::vector<InputShape>> shapes{
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
             {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
-    },
+    }
+};
+
+const std::vector<std::vector<int64_t>> disable_transpose{};
+const std::vector<std::vector<int64_t>> transpose_value{{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}};
+const std::vector<std::vector<int64_t>> transpose_all{{0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}};
+
+const auto dynamic_shape_params = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
+                                                   testing::ValuesIn(shapes),
+                                                   testing::Values(true, false),
+                                                   testing::Values(true, false),
+                                                   testing::Values(true, false),
+                                                   testing::ValuesIn({disable_transpose, transpose_value}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_GPU,
+                         ScaledAttnLayerGPUTest,
+                         dynamic_shape_params,
+                         ScaledAttnLayerGPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> static_shapes{
     // static shapes
     {
         // q shape
@@ -326,21 +345,32 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1, 1, 100, 100}}}
         },
     },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 64, 128},
+            {ov::Shape{1, 8, 64, 128}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 13, 128},
+            {ov::Shape{1, 8, 13, 128}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 64, 13},
+            {ov::Shape{1, 1, 64, 13}}}
+        },
+    },
 };
 
-const std::vector<std::vector<int64_t>> disable_transpose{};
-const std::vector<std::vector<int64_t>> enable_transpose{{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}};
+const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16),
+                                                  testing::ValuesIn(static_shapes),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::ValuesIn({disable_transpose, transpose_all}));
 
-const auto params = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
-                                                 testing::ValuesIn(shapes),
-                                                 testing::Values(true, false),
-                                                 testing::Values(true, false),
-                                                 testing::Values(true, false),
-                                                 testing::ValuesIn({disable_transpose, enable_transpose}));
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_GPU,
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
                          ScaledAttnLayerGPUTest,
-                         params,
+                         static_shape_params,
                          ScaledAttnLayerGPUTest::getTestCaseName);
 
 } // namespace

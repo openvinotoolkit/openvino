@@ -21,7 +21,7 @@ fantastic world of diffusion models for everyone!
 This notebook demonstrates how to run stable diffusion model using
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ library and
 `OpenVINO TorchDynamo
-backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
+backend <https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html>`__
 for Text-to-Image and Image-to-Image generation tasks.
 
 Notebook contains the following steps:
@@ -107,8 +107,8 @@ OpenVINO TorchDynamo backend
 
 
 The `OpenVINO TorchDynamo
-backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
-lets you enable `OpenVINO <https://docs.openvino.ai/2024/home.html>`__
+backend <https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html>`__
+lets you enable `OpenVINO <https://docs.openvino.ai/2025/index.html>`__
 support for PyTorch models with minimal changes to the original PyTorch
 script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
@@ -133,7 +133,7 @@ model files to a hard drive, after the first application run. This makes
 them available for the following application executions, reducing the
 first-inference latency. Read more about available `Environment
 Variables
-options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#options>`__
+options <https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html#options>`__
 
 .. code:: ipython3
 
@@ -198,7 +198,7 @@ backend:
     )
 
    **Note**: Read more about available `OpenVINO
-   backends <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#how-to-use>`__
+   backends <https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html#how-to-use>`__
 
 Run Image generation
 ~~~~~~~~~~~~~~~~~~~~
