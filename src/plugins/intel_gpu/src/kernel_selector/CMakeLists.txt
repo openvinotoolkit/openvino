@@ -18,7 +18,9 @@ file(GLOB_RECURSE KERNELS
   )
 
 file(GLOB_RECURSE CM_KERNELS
-  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*.cpp"
 )
 
 # Path which points to root directory where code generated elements are created
@@ -61,12 +63,33 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMENT "Updating file if the file changed (${PRIM_DB}) ..."
 )
 
+set(XETLA_HEADER "cm_xetla.h")
+if(WIN32)
+    add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory_if_different "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_CXX_COMPILER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}" -I ${XETLA_INCLUDE_DIR} -D _WIN32 -EP > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
+        COMMAND "${CMAKE_COMMAND}" -E rm "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
+        COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
+        DEPENDS "${CM_KERNELS}" "${CODEGEN_INCDIR}/${PRIM_DB}"
+        COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
+    )
+else()
+    add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory_if_different "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_CXX_COMPILER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}" -I ${XETLA_INCLUDE_DIR} -E -P > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
+        COMMAND "${CMAKE_COMMAND}" -E rm "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
+        COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
+        DEPENDS "${CM_KERNELS}" "${CODEGEN_INCDIR}/${PRIM_DB}"
+        COMMENT "Copying CM sources and preprocessing XeTLA headers ..."
+    )
+endif()
+
 add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}"
   COMMAND "${Python3_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
                                                       -out_file_name_prim_db "${CM_PRIM_DB}"
                                                       -out_file_name_batch_headers "${CM_PRIM_DB_BATCH_HEADERS}"
-                                                      -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels" -cm
-  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${CODEGEN_INCDIR}/${PRIM_DB}"
+                                                      -kernels "${CODEGEN_CACHE_DIR}/cm_kernels" -cm
+  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${CODEGEN_CACHE_DIR}/cm_kernels" "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${CM_PRIM_DB} ..."
 )
 

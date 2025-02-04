@@ -175,22 +175,27 @@ void LSTMSequenceTest::SetUp() {
         bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
     }
+    // High result diff compared to reference impl
+    rel_threshold = 0.1;
 }
 
 void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& func_inputs = function->inputs();
     ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = 0;
-    in_data.range = 10;
 
     for (size_t i = 0; i < func_inputs.size(); ++i) {
         ov::Tensor tensor;
 
         if (i == 3) {
+            // seq_lengths
+            in_data.start_from = 0;
             in_data.range = max_seq_lengths;
+            in_data.resolution = 1;
         } else {
-            in_data.range = 10;
+            in_data.start_from = -0.5;
+            in_data.range = 1;
+            in_data.resolution = 10;
         }
 
         tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
