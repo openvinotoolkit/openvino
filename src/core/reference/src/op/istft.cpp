@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/reference/add.hpp"
 #include "openvino/reference/irdft.hpp"
 #include "openvino/reference/transpose.hpp"
 
@@ -84,13 +85,13 @@ void istft(const float* in_data,
                            frame_signal.end(),
                            mid_result.begin() + out_frame_start,
                            mid_result.begin() + out_frame_start,
-                           std::plus<float>());
+                           func::add<float>);
 
             std::transform(window_sum.begin() + out_frame_start,
                            window_sum.begin() + out_frame_end,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
-                           std::plus<float>());
+                           func::add<float>);
         }
 
         const auto norm_window_div = [sqrt_frame_size](float a, float b) {
