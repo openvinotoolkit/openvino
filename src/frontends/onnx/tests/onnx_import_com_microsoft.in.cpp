@@ -1682,3 +1682,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_avg_pool) {
+    const auto model = convert_model("com.microsoft/qlinear_avg_pool.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> data_A = {140, 138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127,
+                                         126, 125, 124, 123, 122, 121, 120, 119, 118, 117, 116, 115, 114,
+                                         113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+                                         100, 99,  98,  97,  96,  95,  94,  93,  92,  91};
+
+    const std::vector<uint8_t> expected_output = {149};
+
+    test_case.add_input<uint8_t>(Shape{1, 1, 7, 7}, data_A);
+
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 1, 1}, expected_output);
+    test_case.run();
+}
