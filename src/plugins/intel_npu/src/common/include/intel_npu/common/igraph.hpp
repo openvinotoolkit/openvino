@@ -105,9 +105,10 @@ protected:
 
     std::shared_ptr<CommandQueue> _command_queue;
     uint32_t _group_ordinal;
-    ze_command_queue_workload_type_t _ze_workload_type;
+
+    ze_command_queue_workload_type_t _ze_workload_type = ZE_WORKLOAD_TYPE_DEFAULT;
+    ze_command_queue_priority_t _ze_queue_priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
     bool _turbo = false;
-    ze_command_queue_priority_t _ze_queue_priority;
 
     Logger _logger;
 };

@@ -127,7 +127,9 @@ void DriverGraph::initialize(const Config& config) {
         }
     }
 
-    _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+    if(config.has<WORKLOAD_TYPE>()) {
+        _ze_workload_type = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+    }
 
     create_new_command_queue();
 

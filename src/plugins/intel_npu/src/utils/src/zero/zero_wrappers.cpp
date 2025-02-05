@@ -166,7 +166,12 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
     auto result = zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle);
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueCreate", result);
 
-    if (_init_structs->getCommandQueueDdiTable().version()) {
+    // Setting workload_type=DEFAULT will reset model priority to NORMAL
+    // If both model_priority and workload_type are passed during model compilation,
+    // workload_type will be discarded. Only subsequent calls to set the workload type
+    // on runtime will take effect.
+    if (desc.workload != ZE_WORKLOAD_TYPE_DEFAULT &&  _init_structs->getCommandQueueDdiTable().version()) {
+        _log.debug("pfnSetWorkloadType %d", desc.workload);
         auto result = _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, desc.workload);
         THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType", result);
     }
