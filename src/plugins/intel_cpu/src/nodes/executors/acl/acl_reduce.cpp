@@ -66,8 +66,9 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
     for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
         int axis =
             axisCast(reduceAttrs.axes[i], srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
-        if (hasSrcNspcLayout && axis == -1)
+        if (hasSrcNspcLayout && axis == -1) {
             return false;
+        }
         castedAxes.push_back(axis);
     }
     switch (reduceAttrs.operation) {

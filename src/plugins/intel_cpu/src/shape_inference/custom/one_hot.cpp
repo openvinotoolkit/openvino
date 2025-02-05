@@ -36,8 +36,9 @@ ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     auto axis = oneHot->get_axis();
     auto dstShape = oneHot->get_output_partial_shape(0);
     int output_dims_size = dstShape.size();
-    if (0 == output_dims_size)
+    if (0 == output_dims_size) {
         output_dims_size = 1;
+    }
     if (axis < 0) {
         axis += output_dims_size;
     }
