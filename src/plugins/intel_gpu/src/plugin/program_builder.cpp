@@ -33,8 +33,7 @@
 #endif
 
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 const cldnn::primitive_id ProgramBuilder::m_preProcessTag("_cldnn_input_preprocess");
 const cldnn::primitive_id ProgramBuilder::m_preCustomLayerTag("_cldnn_custom_preprocess");
@@ -422,5 +421,4 @@ void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size
                    " ", op->get_type_info().version_id, ")");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -365,19 +365,15 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
     return graphHandle;
 }
 
-ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const std::vector<uint8_t>& network) const {
+ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle;
 
-    if (network.empty()) {
+    if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
     }
 
-    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                            nullptr,
-                            ZE_GRAPH_FORMAT_NATIVE,
-                            network.size(),
-                            network.data(),
-                            nullptr};
+    ze_graph_desc_t desc =
+        {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, &blobData, nullptr};
 
     _logger.debug("getGraphHandle - perform pfnCreate");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),

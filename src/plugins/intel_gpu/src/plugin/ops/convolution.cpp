@@ -23,8 +23,7 @@ using Convolution = ov::intel_gpu::op::Convolution;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::Convolution>& op) {
@@ -339,5 +338,4 @@ REGISTER_FACTORY_IMPL(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
