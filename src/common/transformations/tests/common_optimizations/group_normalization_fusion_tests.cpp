@@ -174,7 +174,7 @@ protected:
 
         auto group_norm_beta_corr_vals = this->groupNormBetaVals;
         if (this->instanceNormBetaPresent)
-            for (auto i = 0; i < group_norm_beta_corr_vals.size(); i++)
+            for (auto i = 0ull; i < group_norm_beta_corr_vals.size(); i++)
                 group_norm_beta_corr_vals[i] =
                     this->groupNormGammaVals[i] *
                         this->instanceNormBetaVals[i / (this->numChannels / this->numGroups)] +
@@ -183,7 +183,7 @@ protected:
 
         auto group_norm_gamma_corr_vals = this->groupNormGammaVals;
         if (this->instanceNormGammaPresent)
-            for (auto i = 0; i < group_norm_gamma_corr_vals.size(); i++)
+            for (auto i = 0ull; i < group_norm_gamma_corr_vals.size(); i++)
                 group_norm_gamma_corr_vals[i] = this->groupNormGammaVals[i] *
                                                 this->instanceNormGammaVals[i / (this->numChannels / this->numGroups)];
         auto group_norm_gamma_1d =
