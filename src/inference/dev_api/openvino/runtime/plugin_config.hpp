@@ -265,7 +265,7 @@ protected:
         if (!is_set_by_user(property)) {
             auto rt_info_val = rt_info.find(property.name());
             if (rt_info_val != rt_info.end()) {
-                set_user_property({property(rt_info_val->second.template as<T>())}, OptionVisibility::RELEASE | OptionVisibility::RELEASE_INTERNAL);
+                set_user_property({property(rt_info_val->second.template as<T>())}, OptionVisibility::RELEASE);
             }
         }
     }

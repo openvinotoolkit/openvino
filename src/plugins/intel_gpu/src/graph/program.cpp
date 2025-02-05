@@ -3,7 +3,6 @@
 //
 
 #include "impls/registry/implementation_manager.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -17,7 +16,6 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
 #include "primitive_type.h"
@@ -92,7 +90,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <sstream>
 #include <stdio.h>
 #include <string>
 #include <utility>
