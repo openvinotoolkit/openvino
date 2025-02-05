@@ -47,7 +47,7 @@ struct jit_uni_softmax_kernel {
         ker_(args);
     }
 
-    jit_uni_softmax_kernel() {}
+    jit_uni_softmax_kernel() = default;
     virtual ~jit_uni_softmax_kernel() = default;
 
     virtual void create_ker() = 0;

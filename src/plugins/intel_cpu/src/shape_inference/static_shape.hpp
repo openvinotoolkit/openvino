@@ -219,7 +219,7 @@ public:
     static_assert(sizeof(dim_type) == sizeof(StaticDimension),
                   "StaticDimension must have the same number of bytes as the CPU dimension type.");
 
-    constexpr StaticShapeAdapter() {}
+    constexpr StaticShapeAdapter() = default;
     constexpr StaticShapeAdapter(const TDims& dims) : m_dims{&dims} {}
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) = default;
 

@@ -36,7 +36,7 @@ struct jit_uni_dft_kernel {
         ker_(args);
     }
 
-    jit_uni_dft_kernel() {}
+    jit_uni_dft_kernel() = default;
     virtual ~jit_uni_dft_kernel() = default;
 
     virtual void create_ker() = 0;
@@ -50,7 +50,7 @@ struct jit_uni_fft_kernel {
         ker_(args);
     }
 
-    jit_uni_fft_kernel() {}
+    jit_uni_fft_kernel() = default;
     virtual ~jit_uni_fft_kernel() = default;
 
     virtual void create_ker() = 0;

@@ -43,7 +43,7 @@ struct jit_dft_kernel {
         ker_(args);
     }
 
-    jit_dft_kernel() {}
+    jit_dft_kernel() = default;
     virtual ~jit_dft_kernel() = default;
 
     virtual void create_ker() = 0;
