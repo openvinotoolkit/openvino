@@ -54,7 +54,6 @@ Checks: >
   -modernize-avoid-c-arrays,
   -modernize-loop-convert,
   -modernize-use-constraints,
-  -modernize-use-equals-default,
   -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
@@ -81,6 +80,8 @@ CheckOptions:
     value: reasonable
   - key: modernize-pass-by-value.IncludeStyle
     value: google
+  - key: modernize-use-equals-default.IgnoreMacros
+    value: false
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines
