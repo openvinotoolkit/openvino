@@ -14,8 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-
-namespace KERNEL_NAME{
+namespace KERNEL_NAME {
 
 #include "include/xetla_lstm.h"
 
@@ -45,8 +44,7 @@ _GENX_MAIN_ void KERNEL_NAME(dtype_a *x [[type("svmptr_t")]],
         int *sequence_lengths [[type("svmptr_t")]],
         dtype_c *hidden_history [[type("svmptr_t")]],
         dtype_c *hidden_state [[type("svmptr_t")]],
-        dtype_c *cell_state [[type("svmptr_t")]],
-        dtype_acc *context_h_scratchpad [[type("svmptr_t")]]) {
+        dtype_c *cell_state [[type("svmptr_t")]]) {
     sycl::nd_item<3> item;
     using loop_t = __xetla_kernel_lstm_loop<dtype_a, dtype_b, dtype_c,
             dtype_acc, INPUT_SIZE, hidden_size, directions, mem_layout_x,
@@ -57,7 +55,6 @@ _GENX_MAIN_ void KERNEL_NAME(dtype_a *x [[type("svmptr_t")]],
     }
     if constexpr (loop_t::slm_size != 0) { cm_slm_init(loop_t::slm_size); }
     loop_t::run(item, x, initial_hidden_state, initial_cell_state, R,
-            sequence_lengths, hidden_history, hidden_state, cell_state,
-            context_h_scratchpad);
+            sequence_lengths, hidden_history, hidden_state, cell_state);
 }
 }

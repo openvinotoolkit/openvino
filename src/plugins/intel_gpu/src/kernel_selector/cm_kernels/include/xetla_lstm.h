@@ -143,12 +143,13 @@ struct gemm_persistent {
             ? tile_size_y_b
             : compute_policy_t::block_size_y_b;
 
-    static constexpr reg_layout reg_layout_a = reg_layout::transpose_tiled;
-    using matA_tile_desc_t = subgroup::tile_desc_t<tile_size_x_a, tile_size_y_a,
-            block_size_x_a, block_size_y_a, reg_layout_a>;
+    static constexpr reg_layout reg_layout_a = reg_layout::tiled;
+    using matA_tile_desc_t
+            = subgroup::tile_desc_t<k_size, 1, k_size, 1, reg_layout_a>;
     using matA_t = subgroup::tile_t<dtype_a, matA_tile_desc_t>;
     using matA_payload_t = subgroup::mem_payload_t<mem_desc_a_t,
-            matA_tile_desc_t, msg_type::block_2d, arch_tag>;
+            matA_tile_desc_t,
+            subgroup::msg_type_v<matA_tile_desc_t, mem_space_a>, arch_tag>;
     using matA_acc_t = subgroup::tile_t<dtype_mma_a, matA_tile_desc_t>;
 
     static constexpr reg_layout reg_layout_b = reg_layout::tiled;
@@ -183,9 +184,10 @@ struct gemm_persistent {
     static constexpr uint32_t k_steps = k_size / compute_policy_t::k_stride;
     matB_acc_t matB_acc[k_steps];
 
-    inline void init(sycl::nd_item<3> &item, dtype_acc *a,
-            dtype_b *b, uint32_t mat_m, uint32_t mat_n, uint32_t mat_k,
-            uint32_t lda, uint32_t ldb, uint32_t ldc) {
+    inline void init(sycl::nd_item<3> &item,
+            typename mem_desc_a_t::base_t a, dtype_b *b, uint32_t mat_m,
+            uint32_t mat_n, uint32_t mat_k, uint32_t lda, uint32_t ldb,
+            uint32_t ldc) {
         work_group_t g(item.get_local_linear_id() % work_group_t::size);
         uint32_t wg_id = item.get_local_linear_id() / work_group_t::size;
 
@@ -240,36 +242,33 @@ struct gemm_persistent {
     }
 
     inline void run(matAcc_t &result) {
-        result.init(0);
 
         matAcc_t part_res[k_steps];
-        matA_t matA[k_steps];
-        matA_acc_t matA_acc[k_steps];
+        matA_t matA;
+        matA_acc_t matA_acc;
         matA_payload_t matA_payload(mem_desc_a);
+
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                matA, matA_payload);
+        subgroup::elemwise_cvt(matA_acc, matA);
+
+        cm_fence(CM_SW_BARRIER);
 
 #pragma unroll
         for (int i = 0; i < k_steps; i++) {
             part_res[i].init(0);
-        }
-
 #pragma unroll
-        for (int i = 0; i < k_steps; i++) {
-            subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
-                    matA[i], matA_payload);
-
-            matA_payload.template update_tdesc<update_dir_a>(
-                    matA_t::tile_size_x);
-
-            subgroup::elemwise_cvt(matA_acc[i], matA[i]);
-        }
-
-        cm_fence(CM_SW_BARRIER);
-#pragma unroll
-        for (int i = 0; i < k_steps; i++) {
-            tile_mma::mma(part_res[i], part_res[i], matB_acc[i], matA_acc[i]);
+            for (int j = 0; j < sg_k; j++) {
+                vector<float, k_size> tempA = matA_acc.reg;
+                float a = tempA[j + i * sg_k];
+                vector<float, sg_n *sg_k> tempB = matB_acc[i].reg;
+                vector<float, sg_n> tempB_simd
+                        = tempB.select<sg_n, 1>(j * sg_n);
+                part_res[i].reg += a * tempB_simd;
+            }
         }
         cm_fence(CM_SW_BARRIER);
-
+        result.init(0);
 #pragma unroll
         for (int i = 0; i < k_steps; i++) {
             result.reg += part_res[i].reg;
@@ -365,7 +364,7 @@ struct __xetla_kernel_lstm_loop {
 
     using gemm_t = gemm_persistent<dtype_a, dtype_b, dtype_acc, dtype_acc, wg_m,
             wg_n, sg_m, sg_n, sg_k, mem_layout::row_major, mem_layout_w,
-            mem_layout::row_major, mem_space::global, mem_space_w,
+            mem_layout::row_major, mem_space::local, mem_space_w,
             mem_space::local, mma_engine::fpu, hidden_size, arch_tag>;
 
     static constexpr uint32_t barrier_count = gemm_t::barrier_count + 1;
@@ -386,8 +385,7 @@ struct __xetla_kernel_lstm_loop {
     static inline void run(sycl::nd_item<3> &item, dtype_a *x,
             dtype_b *initial_hidden_state, dtype_b *initial_cell_state,
             dtype_b *R, int *sequence_lengths, dtype_c *hidden_history,
-            dtype_c *hidden_state, dtype_c *cell_state,
-            dtype_acc *context_h_scratchpad) {
+            dtype_c *hidden_state, dtype_c *cell_state) {
         xetla_nbarrier_t<num_threads, num_threads, arch_tag> nbarrier;
         nbarrier.init_nbarrier(
                 barrier_count - 1, nbarrier_role::producer_consumer);
@@ -401,16 +399,14 @@ struct __xetla_kernel_lstm_loop {
         dtype_b *context_c_init = initial_cell_state + hidden_size * dir_id;
         dtype_c *context_h_out = hidden_state + hidden_size * dir_id;
         dtype_c *context_c_out = cell_state + hidden_size * dir_id;
-        dtype_acc *context_h_scratchpad_dir
-                = context_h_scratchpad + hidden_size * dir_id;
 
         constexpr uint32_t slm_figo_offset = gemm_t::slm_size;
         constexpr uint32_t slm_h_offset = slm_figo_offset + figo_size_bytes;
         constexpr uint32_t slm_c_offset = slm_h_offset + context_size_bytes;
 
         gemm_t gemm = gemm_t();
-        gemm.init(item, context_h_scratchpad_dir, r_dir, matrix_m, matrix_n,
-                matrix_k, lda, ldb, ldc);
+        gemm.init(item, slm_h_offset, r_dir, matrix_m, matrix_n, matrix_k, lda,
+                ldb, ldc);
 
         using tile_desc_t
                 = subgroup::tile_desc_t<SIMD, 1, SIMD, 1, reg_layout::tiled>;
@@ -457,9 +453,9 @@ struct __xetla_kernel_lstm_loop {
                 local_id * SIMD, seq_start_y);
 
         tile_acc_t h_tile;
-        global_acc_payload_t h_tile_payload;
-        h_tile_payload.init(context_h_scratchpad_dir, hidden_size, 1,
-                hidden_size, minigroup_offset, 0);
+        local_acc_payload_t h_tile_payload;
+        h_tile_payload.init(
+                slm_h_offset, hidden_size, 1, hidden_size, minigroup_offset, 0);
 
         tile_acc_t c_tile;
         local_acc_payload_t c_tile_payload;
@@ -483,8 +479,7 @@ struct __xetla_kernel_lstm_loop {
                     c_tile_init, c_tile_payload_init);
             h_tile.reg = xetla_cvt<dtype_acc, dtype_b, SIMD>(h_tile_init.reg);
             c_tile.reg = xetla_cvt<dtype_acc, dtype_b, SIMD>(c_tile_init.reg);
-            tile_store<cache_hint::write_back, cache_hint::write_back>(
-                    h_tile, h_tile_payload);
+            tile_store(h_tile, h_tile_payload);
             tile_store(c_tile, c_tile_payload);
         }
         xetla_fence<memory_kind::untyped_global>();
@@ -531,7 +526,7 @@ struct __xetla_kernel_lstm_loop {
 #else
         for (int i = 0; i < seq_len; i++) {
 #endif
-                tile_load<cache_hint::uncached, cache_hint::uncached>(
+                tile_load<cache_hint::uncached, cache_hint::cached>(
                         x_tile, x_tile_payload);
                 x_tile_payload.template update_tdesc<tdesc_update_dir::y_dir>(
                         seq_inc);
@@ -568,8 +563,7 @@ struct __xetla_kernel_lstm_loop {
                     h_tile.reg = xetla_tanh<dtype_acc, SIMD>(c_tile.reg)
                             * o_tile.reg;
 
-                    tile_store<cache_hint::write_back, cache_hint::write_back>(
-                            h_tile, h_tile_payload);
+                    tile_store(h_tile, h_tile_payload);
 
                     out_tile.reg
                             = xetla_cvt<dtype_c, dtype_acc, SIMD>(h_tile.reg);
@@ -579,15 +573,14 @@ struct __xetla_kernel_lstm_loop {
                             .template update_tdesc<tdesc_update_dir::y_dir>(
                                     seq_inc);
                 }
-                xetla_fence<memory_kind::untyped_global>();
+                xetla_fence<memory_kind::shared_local>();
                 nbarrier.arrive_wait();
             }
 #ifdef UNROLL_SEQ_LEN
         }
 #endif
         if (local_id < (hidden_size / SIMD)) {
-            tile_load<cache_hint::cached, cache_hint::cached>(
-                    h_tile, h_tile_payload);
+            tile_load(h_tile, h_tile_payload);
             tile_load(c_tile, c_tile_payload);
 
             tile_c_t h_tile_out;

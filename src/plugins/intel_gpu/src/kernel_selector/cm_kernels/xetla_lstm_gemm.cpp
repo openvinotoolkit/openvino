@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-namespace KERNEL_NAME{
+namespace KERNEL_NAME {
 
 #include "include/xetla_lstm.h"
 

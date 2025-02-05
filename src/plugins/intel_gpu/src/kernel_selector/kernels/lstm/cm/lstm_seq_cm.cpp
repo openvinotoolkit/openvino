@@ -56,8 +56,6 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
     kd.internalBufferDataType = Datatype::F32;
     auto temp_buffer_size = shape.num_dir * shape.seq_len * shape.batch_size * shape.hidden_size * shape.num_gates * sizeof(float);
     kd.internalBufferSizes.push_back(temp_buffer_size);
-    auto context_h_scratchpad_size = shape.num_dir * shape.hidden_size * sizeof(float);
-    kd.internalBufferSizes.push_back(context_h_scratchpad_size);
 
     auto& gemm_part = kd.kernels[0];
     gemm_part.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
@@ -100,7 +98,6 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
     loop_part.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     loop_part.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
     loop_part.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
-    loop_part.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
 
     // Calc gws, lws
     {
