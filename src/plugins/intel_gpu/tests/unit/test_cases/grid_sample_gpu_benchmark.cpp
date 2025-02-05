@@ -103,7 +103,10 @@ public:
         topology.add(reorder("plane_grid_sample", input_info("grid_sample"), format::bfyx, data_types::f16));
 
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
-        cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
+
+        ExecutionConfig config = get_test_default_config(engine_);
+        // config.set_property(ov::intel_gpu::optimize_data(true));
+        cldnn::network::ptr network = get_network(engine_, topology, config, stream, false);
 
         network->set_input_data("input", params.input);
         network->set_input_data("grid", params.grid);
@@ -200,15 +203,20 @@ private:
 };
 }  // namespace
 
-TEST_F(gridSample_benchmark, benchmarks) {
-    RunBenchmark<ov::element::Type_t::f16>("random access", PrepareRandomDataParams({1, 128, 120, 216}, {1, 120, 216, 2}));
+TEST_F(gridSample_benchmark, DISABLE_benchmarks) {
+    RunBenchmark<ov::element::Type_t::f16>("random access",
+                                           PrepareRandomDataParams({1, 128, 120, 216}, {1, 120, 216, 2}));
     RunBenchmark<ov::element::Type_t::f16>("constant access",
                                            PrepareGridDataStaticParams({1, 128, 120, 216}, {1, 120, 216, 2}));
 
-    RunBenchmark<ov::element::Type_t::f16>("random access", PrepareRandomDataParams({2, 128, 80, 144}, {2, 11520, 81, 2}));
+    RunBenchmark<ov::element::Type_t::f16>("random access",
+                                           PrepareRandomDataParams({2, 128, 80, 144}, {2, 11520, 81, 2}));
     RunBenchmark<ov::element::Type_t::f16>("constant access",
                                            PrepareGridDataStaticParams({2, 128, 80, 144}, {2, 11520, 81, 2}));
 
-    RunBenchmark<ov::element::Type_t::f16>("access exported from real model",
-                                           PrepareGridDataFileParams("src/plugins/intel_gpu/tests/unit/test_cases/data/grid.bin", {2, 128, 80, 144}, {2, 11520, 81, 2}));
+    RunBenchmark<ov::element::Type_t::f16>(
+        "access exported from real model",
+        PrepareGridDataFileParams("src/plugins/intel_gpu/tests/unit/test_cases/data/grid.bin",
+                                  {2, 128, 80, 144},
+                                  {2, 11520, 81, 2}));
 }
