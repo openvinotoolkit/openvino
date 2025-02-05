@@ -20,12 +20,12 @@ using GroupNormalizationFusionSubgraphTestValues =
                float,               // epsilon
                bool>;               // whether it's a positive test that should run reference model or a negative test
 
-template <element::Type_t T_elem>
+template <element::Type_t T_elem_t>
 class GroupNormalizationFusionTransformationTestsF
-    : public ov::test::GroupNormalizationFusionTestBase<T_elem>,
+    : public ov::test::GroupNormalizationFusionTestBase<T_elem_t>,
       public testing::TestWithParam<GroupNormalizationFusionSubgraphTestValues> {
 public:
-    static constexpr element::Type T_elem_t = T_elem;
+    static constexpr element::Type T_elem = T_elem_t;
     static std::string getTestCaseName(const testing::TestParamInfo<GroupNormalizationFusionSubgraphTestValues>& obj) {
         const auto& params = obj.param;
 
@@ -170,7 +170,7 @@ protected:
     }
 
     std::shared_ptr<ov::Model> create_ref_model() {
-        auto input = std::make_shared<ov::op::v0::Parameter>(T_elem_t, this->dataShape);
+        auto input = std::make_shared<ov::op::v0::Parameter>(T_elem, this->dataShape);
 
         auto group_norm_beta_corr_vals = this->groupNormBetaVals;
         if (this->instanceNormBetaPresent)
@@ -179,8 +179,7 @@ protected:
                     this->groupNormGammaVals[i] *
                         this->instanceNormBetaVals[i / (this->numChannels / this->numGroups)] +
                     this->groupNormBetaVals[i];
-        auto group_norm_beta_1d =
-            op::v0::Constant::create(T_elem_t, Shape{this->numChannels}, group_norm_beta_corr_vals);
+        auto group_norm_beta_1d = op::v0::Constant::create(T_elem, Shape{this->numChannels}, group_norm_beta_corr_vals);
 
         auto group_norm_gamma_corr_vals = this->groupNormGammaVals;
         if (this->instanceNormGammaPresent)
@@ -188,7 +187,7 @@ protected:
                 group_norm_gamma_corr_vals[i] = this->groupNormGammaVals[i] *
                                                 this->instanceNormGammaVals[i / (this->numChannels / this->numGroups)];
         auto group_norm_gamma_1d =
-            op::v0::Constant::create(T_elem_t, Shape{this->numChannels}, group_norm_gamma_corr_vals);
+            op::v0::Constant::create(T_elem, Shape{this->numChannels}, group_norm_gamma_corr_vals);
 
         auto group_norm = std::make_shared<ov::op::v12::GroupNormalization>(input,
                                                                             group_norm_gamma_1d,
