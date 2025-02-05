@@ -57,6 +57,26 @@ void istft(const float* in_data,
               {0, 2, 1, 3},
               stft_transp_out_shape);
 
+    // Setting function for the result postprocessing
+    const auto norm_window_div = [sqrt_frame_size](float a, float b) {
+        if (b != 0.f)
+            return (a * sqrt_frame_size) / b;
+        else
+            return 0.f;
+    };
+    const auto window_div = [](float a, float b) {
+        if (b != 0.f)
+            return a / b;
+        else
+            return 0.f;
+    };
+    std::function<float(float, float)> postprocess_func;
+    if (normalized) {
+        postprocess_func = norm_window_div;
+    } else {
+        postprocess_func = window_div;
+    }
+
     const auto fft_out_shape_size = shape_size(fft_out_shape);
     const auto in_batch_single_step = num_frames * fft_out_shape_size;
     const int64_t margin = center ? (frame_size / 2) : 0;
@@ -94,25 +114,6 @@ void istft(const float* in_data,
                            pad_window.begin(),
                            window_sum.begin() + out_frame_start,
                            func::add<float>);
-        }
-
-        const auto norm_window_div = [sqrt_frame_size](float a, float b) {
-            if (b != 0.f)
-                return (a * sqrt_frame_size) / b;
-            else
-                return 0.f;
-        };
-        const auto window_div = [](float a, float b) {
-            if (b != 0.f)
-                return a / b;
-            else
-                return 0.f;
-        };
-        std::function<float(float, float)> postprocess_func;
-        if (normalized) {
-            postprocess_func = norm_window_div;
-        } else {
-            postprocess_func = window_div;
         }
 
         std::transform(result, result + signal_length, window_sum.begin(), result, postprocess_func);
