@@ -232,7 +232,10 @@ private:
             network.set_input_data("input", input_mem);
             network.set_output_memory(reorder_rep.reorder->id, dst_mem);
             auto outputs = network.execute();
-            network.reset_execution(true);
+            for (const auto& output : outputs) {
+                output.second.get_event()->wait();
+            }
+
             OPENVINO_ASSERT(outputs.size() == 1);
         } else {
             copy_to_dst_mem(dst_mem, get_intermediate_data());
