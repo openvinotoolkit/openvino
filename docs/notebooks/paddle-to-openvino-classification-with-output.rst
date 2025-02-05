@@ -6,7 +6,7 @@ This notebook shows how to convert a MobileNetV3 model from
 on the `ImageNet <https://www.image-net.org>`__ dataset, to OpenVINO IR.
 It also shows how to perform classification inference on a sample image,
 using `OpenVINO
-Runtime <https://docs.openvino.ai/2025/openvino-workflow/running-inference.html>`__
+Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and compares the results of the
 `PaddlePaddle <https://github.com/PaddlePaddle/Paddle>`__ model with the
 IR model.
@@ -62,48 +62,34 @@ Imports
     # Install openvino package
     %pip install -q "openvino>=2023.1.0"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddleclas 2.6.0 requires easydict, which is not installed.
-    paddleclas 2.6.0 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
-    paddleclas 2.6.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import time
     import tarfile
     from pathlib import Path
-
+    
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     from paddleclas import PaddleClas
     from PIL import Image
-
+    
     # Fetch `notebook_utils` module
     import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-
-    open("notebook_utils.py", "w").write(r.text)
-
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
+    
     from notebook_utils import download_file, device_widget
-
-
-.. parsed-literal::
-
-    2024-12-10 02:42:23 INFO: Loading faiss with AVX512 support.
-    2024-12-10 02:42:23 INFO: Successfully loaded faiss with AVX512 support.
-
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("paddle-to-openvino-classification.ipynb")
 
 Settings
 ~~~~~~~~
@@ -126,43 +112,38 @@ PaddleHub. This may take a while.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    img = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_close.png",
-        directory="data",
-    )
-
+    img = Path("data/coco_close.png")
+    
+    if not img.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_close.png",
+            directory="data",
+        )
+    
     IMAGE_FILENAME = img.as_posix()
-
+    
     MODEL_NAME = "MobileNetV3_large_x1_0"
     MODEL_DIR = Path("model")
     if not MODEL_DIR.exists():
         MODEL_DIR.mkdir()
-    MODEL_URL = "https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/inference/{}_infer.tar".format(MODEL_NAME)
-    download_file(MODEL_URL, directory=MODEL_DIR)
-    file = tarfile.open(MODEL_DIR / "{}_infer.tar".format(MODEL_NAME))
-    res = file.extractall(MODEL_DIR)
-    if not res:
-        print(f'Model Extracted to "./{MODEL_DIR}".')
-    else:
-        print("Error Extracting the model. Please check the network.")
-
-
-
-.. parsed-literal::
-
-    coco_close.png:   0%|          | 0.00/133k [00:00<?, ?B/s]
-
+    
+    if not (MODEL_DIR / "{}_infer".format(MODEL_NAME)).exists():
+        MODEL_URL = "https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/inference/{}_infer.tar".format(MODEL_NAME)
+        download_file(MODEL_URL, directory=MODEL_DIR)
+        file = tarfile.open(MODEL_DIR / "{}_infer.tar".format(MODEL_NAME))
+        res = file.extractall(MODEL_DIR)
+        if not res:
+            print(f'Model Extracted to "./{MODEL_DIR}".')
+        else:
+            print("Error Extracting the model. Please check the network.")
 
 
 .. parsed-literal::
 
-    MobileNetV3_large_x1_0_infer.tar:   0%|          | 0.00/19.5M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
+    'data/coco_close.png' already exists.
+    'model/MobileNetV3_large_x1_0_infer.tar' already exists.
     Model Extracted to "./model".
-
+    
 
 Show Inference on PaddlePaddle Model
 ------------------------------------
@@ -186,13 +167,13 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/12/10 02:42:46] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/11/14 13:49:26] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
     Rottweiler, 0.01435
     flat-coated retriever, 0.01144
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_7_1.png
@@ -229,8 +210,8 @@ the same method.
 .. code:: ipython3
 
     preprocess_ops = classifier.predictor.preprocess_ops
-
-
+    
+    
     def process_image(image):
         for op in preprocess_ops:
             image = op(image)
@@ -252,19 +233,19 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-12-10 02:42:46 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
-
+    [2024-11-14 13:49:27,391] [ WARNING] image.py:705 - Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers). Got range [-2.117904..2.640001].
+    
 
 .. parsed-literal::
 
     Processed image shape: (3, 224, 224)
-
+    
 
 
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fe3805ac910>
+    <matplotlib.image.AxesImage at 0x7f7061360c90>
 
 
 
@@ -299,7 +280,7 @@ accept path to PaddlePaddle model and returns OpenVINO Model class
 instance which represents this model. Obtained model is ready to use and
 loading on device using ``ov.compile_model`` or can be saved on disk
 using ``ov.save_model`` function. See the `Model Conversion
-Guide <https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html>`__
+Guide <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 for more information about the Model Conversion API.
 
 .. code:: ipython3
@@ -322,7 +303,7 @@ select device from dropdown list for running inference using OpenVINO
 
     core = ov.Core()
     device = device_widget()
-
+    
     device
 
 
@@ -350,23 +331,23 @@ Notebook <openvino-api-with-output.html>`__ for more information.
     core = ov.Core()
     model = core.read_model(model_xml)
     compiled_model = core.compile_model(model=model, device_name=device.value)
-
+    
     # Get model output
     output_layer = compiled_model.output(0)
-
+    
     # Read, show, and preprocess input image
     # See the "Show Inference on PaddlePaddle Model" section for source of process_image
     image = Image.open(IMAGE_FILENAME)
     plt.imshow(image)
     input_image = process_image(np.array(image))[None,]
-
+    
     # Do inference
     ov_result = compiled_model([input_image])[output_layer][0]
-
+    
     # find the top three values
     top_indices = np.argsort(ov_result)[-3:][::-1]
     top_scores = ov_result[top_indices]
-
+    
     # Convert the inference results to class names, using the same labels as the PaddlePaddle classifier
     for index, softmax_probability in zip(top_indices, top_scores):
         print(f"{class_id_map[index]}, {softmax_probability:.5f}")
@@ -377,7 +358,7 @@ Notebook <openvino-api-with-output.html>`__ for more information.
     Labrador retriever, 0.74909
     German short-haired pointer, 0.02368
     Great Dane, 0.01873
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_22_1.png
@@ -392,24 +373,24 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html>`__.
+tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
 
     num_images = 50
-
+    
     image = Image.open(fp=IMAGE_FILENAME)
 
 .. code:: ipython3
 
     import openvino.properties as props
-
-
+    
+    
     # Show device information
     core = ov.Core()
     devices = core.available_devices
-
+    
     for device_name in devices:
         device_full_name = core.get_property(device_name, props.device.full_name)
         print(f"{device_name}: {device_full_name}")
@@ -417,8 +398,8 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
-
+    CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz
+    
 
 .. code:: ipython3
 
@@ -439,15 +420,15 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0071 seconds per image, FPS: 141.67
-
+    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.05
+    
     PaddlePaddle result:
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
     Rottweiler, 0.01435
     flat-coated retriever, 0.01144
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_26_1.png
@@ -478,18 +459,18 @@ select device from dropdown list for running inference using OpenVINO
     # Show inference speed on OpenVINO IR model
     compiled_model = core.compile_model(model=model, device_name=device.value)
     output_layer = compiled_model.output(0)
-
-
+    
+    
     start = time.perf_counter()
     input_image = process_image(np.array(image))[None,]
     for _ in range(num_images):
         ie_result = compiled_model([input_image])[output_layer][0]
         top_indices = np.argsort(ie_result)[-5:][::-1]
         top_softmax = ie_result[top_indices]
-
+    
     end = time.perf_counter()
     time_ir = end - start
-
+    
     print(f"OpenVINO IR model in OpenVINO Runtime ({device.value}): {time_ir/num_images:.4f} " f"seconds per image, FPS: {num_images/time_ir:.2f}")
     print()
     print("OpenVINO result:")
@@ -500,15 +481,15 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0027 seconds per image, FPS: 376.00
-
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 359.33
+    
     OpenVINO result:
     Labrador retriever, 0.74909
     German short-haired pointer, 0.02368
     Great Dane, 0.01873
     Rottweiler, 0.01448
     flat-coated retriever, 0.01153
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_29_1.png
@@ -521,4 +502,4 @@ References
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle
-   support <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-paddle.html>`__
+   support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__
