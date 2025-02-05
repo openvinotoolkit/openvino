@@ -18,7 +18,7 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 || input_shapes.size() == 3);
 
-    // validate data input
+    // validate shape of data input
     const auto& data_shape = input_shapes[0];
     const auto is_data_shape_rank_static = data_shape.rank().is_static();
     if (is_data_shape_rank_static) {
@@ -69,11 +69,10 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
     auto& output_shape = output_shapes[0];
     if (num_segments) {
         output_shape[0] = TDim((*num_segments)[0]);
-    } else if (segment_ids &&
-               op->inputs().size() ==
-                   2) {  // if num_segments is an input but not provided, the first dimension should still be dynamic
+    } else if (segment_ids && !num_segments_available) { 
         output_shape[0] = TDim(segment_ids.back() + 1);
     } else {
+     // if num_segments input is provided but the value is unknown, the first dimension should be dynamic
         output_shape[0] = Dimension::dynamic();
     }
     return output_shapes;
