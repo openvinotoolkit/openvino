@@ -6,9 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 /// \brief An operation which computes the maximum values along segments of a tensor.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SegmentMax : public ov::op::Op {
@@ -42,9 +40,7 @@ public:
     const op::FillMode get_fill_mode() const;
 
 private:
-    op::FillMode m_fill_mode;
+    op::FillMode m_fill_mode{};
 };
 
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16
