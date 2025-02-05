@@ -50,7 +50,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.2.24" "openvino>=2024.0.0" "nncf>=2.9.0" tqdm
+    %pip install -q "ultralytics==8.3.59" "openvino>=2024.0.0" "nncf>=2.9.0" tqdm
 
 Import required utility functions. The lower cell will download the
 notebook_utils Python module from GitHub.
@@ -62,13 +62,19 @@ notebook_utils Python module from GitHub.
     # Fetch `notebook_utils` module
     import requests
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
 
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import download_file, device_widget
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("yolov8-obb.ipynb")
 
 Get PyTorch model
 ~~~~~~~~~~~~~~~~~
@@ -125,7 +131,8 @@ instance.
     OUT_DIR = Path("./datasets")
     CFG_PATH = OUT_DIR / "dota8.yaml"
 
-    download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
+    if not CFG_PATH.exists():
+        download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
 
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = CFG_PATH
@@ -170,6 +177,7 @@ instance.
 .. parsed-literal::
 
     val: New cache created: /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train.cache
+
 
 
 
@@ -379,10 +387,11 @@ Let’s load ``skip magic`` extension to skip quantization if
 .. code:: ipython3
 
     # Fetch skip_kernel_extension module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
 
     %load_ext skip_kernel_extension
 
