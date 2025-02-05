@@ -66,7 +66,7 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
 set(XETLA_HEADER "cm_xetla.h")
 if(WIN32)
     add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory_if_different "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
         COMMAND "${CMAKE_CXX_COMPILER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}" -I ${XETLA_INCLUDE_DIR} -D _WIN32 -EP > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
         COMMAND "${CMAKE_COMMAND}" -E rm "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
         COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
@@ -75,7 +75,7 @@ if(WIN32)
     )
 else()
     add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels"
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory_if_different "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/" "${CODEGEN_CACHE_DIR}/cm_kernels"
         COMMAND "${CMAKE_CXX_COMPILER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}" -I ${XETLA_INCLUDE_DIR} -E -P > "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}"
         COMMAND "${CMAKE_COMMAND}" -E rm "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
         COMMAND "${CMAKE_COMMAND}" -E rename "${CODEGEN_CACHE_DIR}/${XETLA_HEADER}" "${CODEGEN_CACHE_DIR}/cm_kernels/include/batch_headers/${XETLA_HEADER}"
