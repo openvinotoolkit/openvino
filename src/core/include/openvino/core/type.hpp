@@ -77,19 +77,20 @@ private:
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
-namespace ov::frontend {
+namespace frontend {
 class ConversionExtension;
 namespace onnx {
 class ConversionExtension;
 }  // namespace onnx
-}  // namespace ov::frontend
+}  // namespace frontend
 
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {
 #if defined(__ANDROID__) || defined(ANDROID)
     return true;
 #else
-    return std::is_same_v<T, ov::frontend::onnx::ConversionExtension>;
+    return std::is_same_v<T, ov::frontend::onnx::ConversionExtension> ||
+           std::is_same_v<T, ov::frontend::ConversionExtension>;
 #endif
 }
 
@@ -124,7 +125,7 @@ template <typename In>
 struct AsTypePtr<std::shared_ptr<In>> {
     template <typename Type>
     static std::shared_ptr<Type> call(const std::shared_ptr<In>& value) {
-        return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+        return is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
     }
 };
 }  // namespace util
@@ -133,7 +134,7 @@ struct AsTypePtr<std::shared_ptr<In>> {
 /// Type, nullptr otherwise
 template <typename T, typename U>
 auto as_type_ptr(const U& value) -> decltype(::ov::util::AsTypePtr<U>::template call<T>(value)) {
-    if constexpr (use_ov_dynamic_cast<Type>())
+    if constexpr (use_ov_dynamic_cast<T>())
         return ::ov::util::AsTypePtr<U>::template call<T>(value);
     else
         return std::dynamic_pointer_cast<T>(value);
