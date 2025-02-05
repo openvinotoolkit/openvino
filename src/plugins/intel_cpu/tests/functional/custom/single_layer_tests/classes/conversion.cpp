@@ -151,8 +151,16 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     const auto& funcInputs = function->inputs();
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::Tensor tensor =
-            ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        ov::Tensor tensor;
+        if (outPrc == ov::element::nf4) {
+            tensor = ov::test::utils::create_and_fill_tensor_real_distribution(funcInput.get_element_type(),
+                                                                               targetInputStaticShapes[i],
+                                                                               -1.f,
+                                                                               1.f,
+                                                                               1);
+        } else {
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        }
         if (special_value != ov::test::SpecialValue::none) {
             if (inPrc == ov::element::f32) {
                 modify_value<float>(tensor, special_value);
@@ -174,6 +182,35 @@ void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 void ConvertCPULayerTest::validate_out_prc() const {
     if (outPrc == ov::element::boolean)
         FAIL() << "ConvertCPULayerTest supports only non boolean output prc";
+}
+
+void ConvertCPULayerTest::validate() {
+    if (outPrc == ov::element::nf4) {
+        // Use custom bit-exact validation, because common tests infra doesn't support 4bits tensors comparision
+        auto div_up = [&](auto a, auto b) {
+            assert(b);
+            return (a + b - 1) / b;
+        };
+
+        auto actualOutputs = get_plugin_outputs();
+        auto expectedOutputs = calculate_refs();
+        ASSERT_EQ(expectedOutputs.size(), actualOutputs.size());
+        ASSERT_EQ(expectedOutputs.size(), 1);
+        ASSERT_EQ(expectedOutputs[0].get_shape(), actualOutputs[0].get_shape());
+
+        auto expected_data = reinterpret_cast<const uint8_t*>(expectedOutputs[0].data());
+        auto actual_data = reinterpret_cast<const uint8_t*>(actualOutputs[0].data());
+        size_t shape_size_cnt = div_up(shape_size(expectedOutputs[0].get_shape()), 2);
+        for (size_t i = 0; i < shape_size_cnt; ++i) {
+            uint8_t expected_value = expected_data[i];
+            uint8_t actual_value = actual_data[i];
+            ASSERT_EQ(expected_value, actual_value);
+        }
+
+        return;
+    }
+
+    SubgraphBaseTest::validate();
 }
 
 void ConvertToBooleanCPULayerTest::validate_out_prc() const {

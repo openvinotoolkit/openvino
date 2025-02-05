@@ -893,6 +893,48 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
+#define INTEL_CPU_CVT_TO_4BIT_LIST                                              \
+    INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
+
+struct ConvertTo4BitContext {
+    ov::element::Type_t outType;
+    const void* srcPtr;
+    void* dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template <typename T>
+struct ConvertTo4BitPrecision;
+
+template <typename src_t, typename dst_t>
+struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
+    void operator()(ConvertTo4BitContext& ctx) {
+        auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
+            uint8_t shift = high_half ? 4 : 0;
+            return dst | (uint8_t) (val << shift);
+        };
+
+        auto src = static_cast<const src_t*>(ctx.srcPtr);
+        auto dst = static_cast<uint8_t*>(ctx.dstPtr);
+        // each byte must be fully processed within same thread
+        auto work_amount = div_up(ctx.size, 2);
+        if (ctx.outType == ov::element::nf4) {
+            parallel_for(work_amount, [&](size_t ib) {
+                for (int i = 0; i < 2; i++) {
+                    int idx = ib * 2 + i;
+                    uint8_t val = idx % 2 == 0 ? 0 : dst[idx / 2];
+                    val = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx])), idx % 2);
+                    dst[idx / 2] = val;
+                }
+            });
+        } else {
+            OPENVINO_THROW("cpu_convert doesn't support output data type: ", ctx.outType, ". Not implemented.");
+        }
+        ctx.converted = true;
+    }
+};
+
 #define INTEL_CPU_CVT_FROM_BYTE_FP_LIST \
     INTEL_CPU_CVT(f8e8m0, f32), INTEL_CPU_CVT(f8e8m0, bf16), INTEL_CPU_CVT(f8e8m0, f16)
 
@@ -1017,6 +1059,12 @@ void cpu_convert(const void* srcPtr,
         if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
         }
+    } else if (dstPrc.bitwidth() == 4u) {
+        ConvertTo4BitContext ctx{dstPrc, srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertTo4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
+        if (!ctx.converted) {
+            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+        }
     } else if (srcPrc == ov::element::f8e8m0) {
         ConvertFromByteFPContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu,
@@ -1063,6 +1111,7 @@ bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
     return ctx.isSupported;
 }
 
