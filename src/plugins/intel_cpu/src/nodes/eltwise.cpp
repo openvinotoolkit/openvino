@@ -746,7 +746,7 @@ public:
         return _batchDimIdx;
     }
 
-    static bool IsSupportedOp(const Node* node,
+    static bool isSupportedOp(const Node* node,
                               const float alpha,
                               const float beta,
                               const float gamma,
@@ -754,10 +754,6 @@ public:
         const auto algorithm = node->getAlgorithm();
         if (one_of(algorithm,
                    Algorithm::EltwiseLog,
-                   Algorithm::EltwiseBitwiseAnd,
-                   Algorithm::EltwiseBitwiseNot,
-                   Algorithm::EltwiseBitwiseOr,
-                   Algorithm::EltwiseBitwiseXor,
                    Algorithm::EltwiseBitwiseLeftShift,
                    Algorithm::EltwiseBitwiseRightShift)) {
             return false;
@@ -771,7 +767,11 @@ public:
                    Algorithm::EltwisePowerDynamic,
                    Algorithm::EltwiseSoftRelu,
                    Algorithm::EltwiseHsigmoid,
-                   Algorithm::EltwiseErf)) {
+                   Algorithm::EltwiseErf,
+                   Algorithm::EltwiseBitwiseAnd,
+                   Algorithm::EltwiseBitwiseNot,
+                   Algorithm::EltwiseBitwiseOr,
+                   Algorithm::EltwiseBitwiseXor)) {
             return false;
         }
 
@@ -1438,7 +1438,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
     // if dim rank is greater than the maximum possible, we should use the reference execution
-    bool canUseOptimizedImpl = EltwiseJitExecutor::IsSupportedOp(this, getAlpha(), getBeta(), getGamma()) &&
+    bool canUseOptimizedImpl = EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma()) &&
                                isISASupportedByJIT && (getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK);
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
@@ -2338,7 +2338,7 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
         return false;
     }
     const auto& input_precisions = parentNode->getOriginalInputPrecisions();
-    if (!EltwiseJitExecutor::IsSupportedOp(this, getAlpha(), getBeta(), getGamma(), input_precisions)) {
+    if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma(), input_precisions)) {
         return false;
     }
 #else
@@ -2386,12 +2386,12 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
         return false;
 
-    if (!EltwiseJitExecutor::IsSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
+    if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
         return false;
     }
     const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
     if ((eltwise == nullptr) ||
-        (!EltwiseJitExecutor::IsSupportedOp(eltwise, eltwise->getAlpha(), eltwise->getBeta(), eltwise->getGamma()))) {
+        (!EltwiseJitExecutor::isSupportedOp(eltwise, eltwise->getAlpha(), eltwise->getBeta(), eltwise->getGamma()))) {
         return false;
     }
 #elif defined(OPENVINO_ARCH_X86_64)
