@@ -223,8 +223,8 @@ inline bool file_exists(const std::string& path) {
 }
 
 std::string get_file_ext(const std::string& path);
-std::string get_directory(const std::string& path);
-std::string path_join(const std::vector<std::string>& paths);
+ov::util::Path get_directory(const ov::util::Path& path);
+std::string path_join(const std::vector<ov::util::Path>& paths);
 
 void iterate_files(const std::string& path,
                    const std::function<void(const std::string& file, bool is_dir)>& func,
@@ -236,26 +236,10 @@ void convert_path_win_style(std::string& path);
 std::string get_ov_lib_path();
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::wstring path_join_w(const std::vector<ov::util::Path>& paths);
+#endif
 
-using FilePath = std::wstring;
-
-inline std::string from_file_path(const FilePath& path) {
-    return wstring_to_string(path);
-}
-
-inline FilePath to_file_path(const std::string& path) {
-    return string_to_wstring(path);
-}
-
-std::wstring get_directory(const std::wstring& path);
-std::wstring path_join_w(const std::vector<std::wstring>& paths);
-
-#else
-
-using FilePath = std::string;
-
-inline std::string from_file_path(const FilePath& path) {
-    return path;
+using FilePath = ov::util::Path::string_type;
 }
 
 inline FilePath to_file_path(const std::string& path) {

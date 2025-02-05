@@ -91,112 +91,34 @@ std::string ov::util::get_file_ext(const std::string& s) {
     return rc;
 }
 
-std::string ov::util::get_directory(const std::string& s) {
-    // Linux-style separator
-    auto pos = s.find_last_of('/');
-    if (pos != std::string::npos) {
-        return s.substr(0, pos ? pos : 1);
-    }
-    // Windows-style separator
-    pos = s.find_last_of('\\');
-    if (pos != std::string::npos) {
-        return s.substr(0, pos);
-    } else if (s.empty()) {
-        return {};
+ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
+    if (const auto& parent_path = path.parent_path(); parent_path.empty() && !path.empty()) {
+        return {"."};
     } else {
-        return {'.'};
+        return parent_path;
     }
+    return path.parent_path();
+}
+
+std::string ov::util::path_join(const std::vector<ov::util::Path>& paths) {
+    return std::accumulate(paths.cbegin(),
+                           paths.cend(),
+                           ov::util::Path{},
+                           [](const ov::util::Path& a, const ov::util::Path& b) {
+                               return b.empty() ? a : a / b;
+                           })
+        .string();
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring ov::util::get_directory(const std::wstring& s) {
-    auto pos = s.find_last_of(ov::util::FileTraits<wchar_t>::file_separator);
-    if (pos != std::wstring::npos) {
-        return s.substr(0, pos);
-    } else if (s.empty()) {
-        return {};
-    } else {
-        return {L'.'};
-    }
-}
-#endif
-
-namespace {
-
-std::string join_paths(const std::string& s1, const std::string& s2) {
-    std::string rc;
-    if (s2.size() > 0) {
-        if (s2[0] == '/') {
-            rc = s2;
-        } else if (s1.size() > 0) {
-            rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-#ifndef _WIN32
-                rc += '/';
-#else
-                rc += '\\';
-#endif
-            }
-            rc += s2;
-        } else {
-            rc = s2;
-        }
-    } else {
-        rc = s1;
-    }
-    return rc;
-}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
-    std::wstring rc;
-    if (s2.size() > 0) {
-        if (s2[0] == '/') {
-            rc = s2;
-        } else if (s1.size() > 0) {
-            rc = s1;
-            if (rc[rc.size() - 1] != '/') {
-#    ifndef _WIN32
-                rc += '/';
-#    else
-                rc += '\\';
-#    endif
-            }
-            rc += s2;
-        } else {
-            rc = s2;
-        }
-    } else {
-        rc = s1;
-    }
-    return rc;
-}
-#endif
-}  // namespace
-
-std::string ov::util::path_join(const std::vector<std::string>& paths) {
-    std::string result;
-    if (paths.empty()) {
-        return result;
-    }
-    result = paths[0];
-    for (size_t i = 1; i < paths.size(); i++) {
-        result = join_paths(result, paths[i]);
-    }
-    return result;
-}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring ov::util::path_join_w(const std::vector<std::wstring>& paths) {
-    std::wstring result;
-    if (paths.empty()) {
-        return result;
-    }
-    result = paths[0];
-    for (size_t i = 1; i < paths.size(); i++) {
-        result = join_paths(result, paths[i]);
-    }
-    return result;
+std::wstring ov::util::path_join_w(const std::vector<ov::util::Path>& paths) {
+    return std::accumulate(paths.cbegin(),
+                           paths.cend(),
+                           ov::util::Path{},
+                           [](const ov::util::Path& a, const ov::util::Path& b) {
+                               return b.empty() ? a : a / b;
+                           })
+        .wstring();
 }
 #endif
 
