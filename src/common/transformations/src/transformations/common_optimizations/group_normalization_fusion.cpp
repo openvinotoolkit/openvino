@@ -27,15 +27,17 @@ bool pre_mvn_shape_vals_correct(const std::shared_ptr<ov::op::v0::Constant>& pre
     bool res = true;
     std::vector<T> pre_mvn_shape_vals = pre_mvn_shape_const->get_vector<T>();
     if (input_ps[0].is_dynamic()) {
-        if (pre_mvn_shape_vals[0] != 0)
+        if (static_cast<long long>(pre_mvn_shape_vals[0]) != 0ll)
             res = false;
     } else {
-        if ((pre_mvn_shape_vals[0] != 0) && (pre_mvn_shape_vals[0] != input_ps[0].get_max_length()))
+        if ((static_cast<long long>(pre_mvn_shape_vals[0]) != 0ll) &&
+            (static_cast<long long>(pre_mvn_shape_vals[0]) != static_cast<long long>(input_ps[0].get_max_length())))
             res = false;
     }
-    if ((pre_mvn_shape_vals[1] != 0) && (pre_mvn_shape_vals[1] != num_groups))
+    if ((static_cast<long long>(pre_mvn_shape_vals[1]) != 0ll) &&
+        (static_cast<long long>(pre_mvn_shape_vals[1]) != static_cast<long long>(num_groups)))
         res = false;
-    if (pre_mvn_shape_vals[2] != -1)
+    if (static_cast<long long>(pre_mvn_shape_vals[2]) != -1ll)
         res = false;
     return res;
 }
@@ -44,7 +46,7 @@ template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 bool mvn_reduction_axes_correct(const std::shared_ptr<ov::op::v0::Constant>& mvn_reduction_axes_const) {
     bool res = true;
     std::vector<T> mvn_reduce_axes = mvn_reduction_axes_const->get_vector<T>();
-    if ((mvn_reduce_axes[0] != 2) && (mvn_reduce_axes[0] != -1))
+    if ((static_cast<long long>(mvn_reduce_axes[0]) != 2ll) && (static_cast<long long>(mvn_reduce_axes[0]) != -1ll))
         return false;
     return res;
 }
@@ -101,8 +103,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         const auto& pre_mvn_reshape_out_ps = pattern_map.at(pre_mvn_reshape_m).get_partial_shape();
 
-        const auto& num_channels = input_ps[1].get_max_length();
-        const auto& num_groups = pre_mvn_reshape_out_ps[1].get_max_length();
+        const size_t num_channels = static_cast<size_t>(input_ps[1].get_max_length());
+        const size_t num_groups = static_cast<size_t>(pre_mvn_reshape_out_ps[1].get_max_length());
 
         // we expect to reshape input in a way that would merge all spatial dimensions
         // but leave batch and channel dimensions untouched
@@ -206,7 +208,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         if (ov::shape_size(group_norm_beta.get_shape()) != num_channels)
             return false;
 
-        auto expected_param_shape = ov::PartialShape({num_channels});
+        auto expected_param_shape = ov::PartialShape({static_cast<ov::Dimension>(num_channels)});
 
         std::shared_ptr<ov::Node> group_norm_gamma_1d_m = std::make_shared<ov::op::v0::Squeeze>(group_norm_gamma);
         const auto& group_norm_gamma_1d_out_ps = group_norm_gamma_1d_m->get_output_partial_shape(0);
@@ -222,7 +224,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         auto gather_axis_const_m = op::v0::Constant::create(element::i64, Shape{1}, {0});
         auto gather_indices_vals = std::vector<int64_t>();
-        for (auto i = 0; i < num_groups; i++)
+        for (auto i = 0ull; i < num_groups; i++)
             gather_indices_vals.insert(gather_indices_vals.end(), channels_to_groups_ratio, i);
         auto gather_indices_const_m =
             op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
