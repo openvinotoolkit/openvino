@@ -140,7 +140,7 @@ bool RandomUniform::needPrepareParams() const {
 
 void RandomUniform::prepareParams() {
     m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
+    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<>());
 
     if (m_algo == PHILOX) {
         m_skip_count = m_output_elements_count * SKIP_CONST;

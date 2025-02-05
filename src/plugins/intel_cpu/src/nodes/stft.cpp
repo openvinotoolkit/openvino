@@ -142,7 +142,7 @@ void STFT::execute(const dnnl::stream& strm) {
                        signal_slice.end(),
                        pad_window.begin(),
                        signal_slice.begin(),
-                       std::multiplies<float>());
+                       std::multiplies<>());
 
         const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
         auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0});

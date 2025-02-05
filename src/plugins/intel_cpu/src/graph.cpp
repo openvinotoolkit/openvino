@@ -1082,10 +1082,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         bool isScalarOutput = false;
         if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
             const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
-            isScalarOutput = !actualDims.empty() && std::accumulate(actualDims.begin(),
-                                                                    actualDims.end(),
-                                                                    static_cast<size_t>(1),
-                                                                    std::multiplies<size_t>()) == 1;
+            isScalarOutput =
+                !actualDims.empty() &&
+                std::accumulate(actualDims.begin(), actualDims.end(), static_cast<size_t>(1), std::multiplies<>()) == 1;
         }
 
         auto outDims = intr_blob.getStaticDims();

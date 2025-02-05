@@ -135,7 +135,7 @@ void GridSample::createPrimitive() {
         jcp.dynamicBatch = false;
         jcp.dynamicChannel = false;
         jcp.srcBatchStepB =
-            std::accumulate(srcDataDims.begin() + 1, srcDataDims.end(), dataTypeSize, std::multiplies<Dim>());
+            std::accumulate(srcDataDims.begin() + 1, srcDataDims.end(), dataTypeSize, std::multiplies<>());
     } else {
         jcp.dynamicBatch = srcDataDims[0] == Shape::UNDEFINED_DIM;
         jcp.batchNum = jcp.dynamicBatch ? 1lu : srcDataDims[0];
@@ -229,7 +229,7 @@ void GridSample::prepareParams() {
         p.dstStartB = dstStart * dataTypeSize;
 
         p.srcBatchStepB =
-            std::accumulate(srcDataShape.begin() + 1, srcDataShape.end(), dataTypeSize, std::multiplies<Dim>());
+            std::accumulate(srcDataShape.begin() + 1, srcDataShape.end(), dataTypeSize, std::multiplies<>());
         p.gridBatchStepB = (dstShape[2] * dstShape[3] - p.workAmount) * 2 * gridTypeSize;
         p.dstBatchStepB = (dstShape[1] * dstShape[2] * dstShape[3] - p.workAmount) * dataTypeSize;
 

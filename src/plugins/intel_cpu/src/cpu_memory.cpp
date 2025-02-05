@@ -637,7 +637,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
     VectorDims stride_dims = dims;
     stride_dims[dim] = splited_dim_vec[0];
     size_t stride =
-        std::accumulate(stride_dims.begin(), stride_dims.end(), static_cast<size_t>(1), std::multiplies<size_t>()) *
+        std::accumulate(stride_dims.begin(), stride_dims.end(), static_cast<size_t>(1), std::multiplies<>()) *
         prec.size();
 
     // create new shape for target memory
