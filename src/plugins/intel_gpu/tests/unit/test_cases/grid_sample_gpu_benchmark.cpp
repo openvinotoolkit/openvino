@@ -203,7 +203,7 @@ private:
 };
 }  // namespace
 
-TEST_F(gridSample_benchmark, DISABLE_benchmarks) {
+TEST_F(gridSample_benchmark, DISABLED_benchmarks) {
     RunBenchmark<ov::element::Type_t::f16>("random access",
                                            PrepareRandomDataParams({1, 128, 120, 216}, {1, 120, 216, 2}));
     RunBenchmark<ov::element::Type_t::f16>("constant access",
