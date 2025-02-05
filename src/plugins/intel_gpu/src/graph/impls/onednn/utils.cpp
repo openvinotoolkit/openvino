@@ -564,8 +564,6 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
         logic_block_sizes[i] = std::make_pair(order[pos], inner_blks[i]);
     }
 
-    size_t bytes = desc.get_size();
-
     format_traits traits;
     traits.batch_num = batch_num;
     traits.feature_num = feature_num;
@@ -576,7 +574,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
     traits.logic_block_sizes = logic_block_sizes;
-    traits.query_size = bytes;
+    traits.desc_size = desc.get_size();
     traits.str = "custom";
 
     return traits;

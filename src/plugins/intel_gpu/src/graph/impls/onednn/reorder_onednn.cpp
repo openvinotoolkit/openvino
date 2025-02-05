@@ -43,14 +43,6 @@ protected:
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
-        // When scratchpad is available, it is used;
-        // for example, internal reorder is used.
-        if (_scratchpad_md.get_size() != 0) {
-            // onednn primitive can have only 1 scratchpad memory.
-            auto scratchpad = instance.get_intermediates_memories()[0];
-            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
-        }
-
         return args;
     }
 

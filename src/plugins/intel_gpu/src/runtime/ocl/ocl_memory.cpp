@@ -457,7 +457,6 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
-    // actual_bytes_count = actual_bytes_count * 2;
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
         _buffer.allocateHost(actual_bytes_count);
