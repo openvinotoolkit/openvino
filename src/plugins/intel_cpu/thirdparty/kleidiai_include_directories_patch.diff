@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7759cfa..b75a184 100644
+index 97ce7eb..8e2d0ca 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -226,7 +226,7 @@ if((CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL
+@@ -241,7 +241,7 @@ else()
  endif()
  
  target_include_directories(kleidiai
@@ -11,18 +11,4 @@ index 7759cfa..b75a184 100644
  )
  
  target_compile_options(kleidiai
-diff --git a/kai/kai_common.h b/kai/kai_common.h
-index 26ff525..b92e0ca 100644
---- a/kai/kai_common.h
-+++ b/kai/kai_common.h
-@@ -95,6 +95,10 @@ inline static float kai_cast_f32_f16(uint16_t f16) {
-     memcpy(&f32, &f16, sizeof(uint16_t));
-     return (float)f32;
- }
-+#else
-+inline static float kai_cast_f32_f16(uint16_t f16) {
-+    return (float)f16;
-+}
- #endif
  
- /// Converts a scalar bf16 value to f32
