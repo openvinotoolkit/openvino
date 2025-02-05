@@ -132,6 +132,7 @@ class GroupNormalizationFusionSubgraphTestsF
       public ov::test::SubgraphBaseTest,
       public testing::WithParamInterface<GroupNormalizationFusionTransformationsTestValues> {
 public:
+    static constexpr element::Type T_elem_t = T_elem;
     static std::string getTestCaseName(
         const testing::TestParamInfo<GroupNormalizationFusionTransformationsTestValues>& obj) {
         const auto& params = obj.param;
@@ -194,32 +195,32 @@ protected:
         SubgraphBaseTest::TearDown();
     }
 
-    virtual void read_test_parameters() {
+    void read_test_parameters() override {
         const auto& params = GetParam();
 
-        dataShape = std::get<0>(params);
-        if (!dataShape.rank().is_static())
+        this->dataShape = std::get<0>(params);
+        if (!this->dataShape.rank().is_static())
             throw std::runtime_error("Rank of input tensor has to be static!");
-        if (dataShape.rank().get_max_length() < 2)
+        if (this->dataShape.rank().get_max_length() < 2)
             throw std::runtime_error("Expected at least two dimensions in input tensor!");
-        if (!dataShape[1].is_static())
+        if (!this->dataShape[1].is_static())
             throw std::runtime_error("Channel dimension in input tensor has to be static!");
 
-        numChannels = static_cast<size_t>(dataShape[1].get_max_length());
-        instanceNormGammaShape = std::get<1>(params);
-        instanceNormBetaShape = std::get<2>(params);
-        groupNormGammaShape = std::get<3>(params);
-        groupNormBetaShape = std::get<4>(params);
-        numGroups = std::get<5>(params);
-        epsilon = std::get<6>(params);
+        this->numChannels = static_cast<size_t>(this->dataShape[1].get_max_length());
+        this->instanceNormGammaShape = std::get<1>(params);
+        this->instanceNormBetaShape = std::get<2>(params);
+        this->groupNormGammaShape = std::get<3>(params);
+        this->groupNormBetaShape = std::get<4>(params);
+        this->numGroups = std::get<5>(params);
+        this->epsilon = std::get<6>(params);
         positiveTest = std::get<7>(params);
         targetDeviceName = std::get<8>(params);
         targetConfiguration = std::get<9>(params);
         refDevice = std::get<10>(params);
         refConfiguration = std::get<11>(params);
 
-        instanceNormGammaPresent = (instanceNormGammaShape != Shape{});
-        instanceNormBetaPresent = (instanceNormBetaShape != Shape{});
+        this->instanceNormGammaPresent = (this->instanceNormGammaShape != Shape{});
+        this->instanceNormBetaPresent = (this->instanceNormBetaShape != Shape{});
 
         inType = T_elem_t;
         outType = T_elem_t;
@@ -227,19 +228,23 @@ protected:
         configuration = targetConfiguration;
 
         if (positiveTest) {
-            if ((instanceNormGammaShape != Shape{}) && (shape_size(instanceNormGammaShape) != numGroups))
+            if ((this->instanceNormGammaShape != Shape{}) &&
+                (shape_size(this->instanceNormGammaShape) != this->numGroups))
                 throw std::runtime_error("Shape of instance norm gamma has to either be empty or contain "
                                          "exactly <numGroups> elements");
-            if ((instanceNormBetaShape != Shape{}) && (shape_size(instanceNormBetaShape) != numGroups))
+            if ((this->instanceNormBetaShape != Shape{}) &&
+                (shape_size(this->instanceNormBetaShape) != this->numGroups))
                 throw std::runtime_error("Shape of instance norm beta has to either be empty shape or contain "
                                          "exactly <numGroups> elements");
-            if (shape_size(groupNormGammaShape) != numChannels)
+            if (shape_size(this->groupNormGammaShape) != this->numChannels)
                 throw std::runtime_error("Shape of group norm gamma has to contain exactly <numChannels> elements");
-            if (shape_size(groupNormBetaShape) != numChannels)
+            if (shape_size(this->groupNormBetaShape) != this->numChannels)
                 throw std::runtime_error("Shape of group norm beta has to contain exactly <numChannels> elements");
 
-            instanceNormGammaPresent = instanceNormGammaPresent && (shape_size(instanceNormGammaShape) == numGroups);
-            instanceNormBetaPresent = instanceNormBetaPresent && (shape_size(instanceNormBetaShape) == numGroups);
+            this->instanceNormGammaPresent =
+                this->instanceNormGammaPresent && (shape_size(this->instanceNormGammaShape) == this->numGroups);
+            this->instanceNormBetaPresent =
+                this->instanceNormBetaPresent && (shape_size(this->instanceNormBetaShape) == this->numGroups);
         }
     }
 
@@ -305,7 +310,7 @@ protected:
 
     void init_thresholds() override {
         if (!targetStaticShapes.empty()) {
-            size_t problem_size = shape_size(dataShape.get_shape());
+            size_t problem_size = shape_size(this->dataShape.get_shape());
 
             abs_threshold = pow(problem_size, 0.5) * test::utils::get_eps_by_ov_type(outType);
             rel_threshold = abs_threshold;
@@ -399,8 +404,8 @@ public:
             std::string errorMessage;
             try {
                 read_test_parameters();
-                generate_weights_init_values();
-                functionRefs = create_model();
+                this->generate_weights_init_values();
+                functionRefs = this->create_model();
                 function = functionRefs->clone();
                 pass::Manager m;
                 m.register_pass<ov::pass::GroupNormalizationFusion>();
@@ -415,7 +420,7 @@ public:
                     if (!function->is_dynamic()) {
                         configure_device();
                         configure_ref_device();
-                        auto input_shapes = static_partial_shapes_to_test_representation({dataShape});
+                        auto input_shapes = static_partial_shapes_to_test_representation({this->dataShape});
                         init_input_shapes(input_shapes);
                         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty())
                             << "Target Static Shape is empty!!!";
