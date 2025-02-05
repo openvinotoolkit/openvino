@@ -330,7 +330,10 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic::create_eltwise_emitter(con
         EltwiseEmitter,
         ctx,
         data.algo,
-        OV_CASE(Algorithm::EltwiseAdd, ov::intel_cpu::riscv64::jit_add_emitter));
+        OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+        OV_CASE(Algorithm::EltwiseDivide, jit_div_emitter),
+        OV_CASE(Algorithm::EltwiseMultiply, jit_mul_emitter),
+        OV_CASE(Algorithm::EltwiseSubtract, jit_sub_emitter));
 
     if (!ctx.emitter) {
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
@@ -409,7 +412,10 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               SupportedPrecisions,
               precisions,
               algo,
-              OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter));
+              OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+              OV_CASE(Algorithm::EltwiseDivide, jit_div_emitter),
+              OV_CASE(Algorithm::EltwiseMultiply, jit_mul_emitter),
+              OV_CASE(Algorithm::EltwiseSubtract, jit_sub_emitter));
 
     if (precisions.empty()) {
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");

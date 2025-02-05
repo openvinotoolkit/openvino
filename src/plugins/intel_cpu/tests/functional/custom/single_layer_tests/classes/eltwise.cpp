@@ -274,18 +274,14 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-    if (eltwise_type == utils::EltwiseTypes::ADD) {
-        return "jit";
-    }
-#if defined(OV_CPU_WITH_SHL)
-    if ((eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
         (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
         (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
-        return "shl";
+        return "jit";
     } else {
         return "ref";
     }
-#endif
 #endif
 
     return CPUTestsBase::getPrimitiveType();
