@@ -99,11 +99,17 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     import notebook_utils as utils
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("action-recognition-webcam.ipynb")
 
 The models
 ----------
@@ -178,10 +184,12 @@ also provides the text file embedded into this notebook.
 .. code:: ipython3
 
     # Download the text from the openvino_notebooks storage
-    vocab_file_path = utils.download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/kinetics.txt",
-        directory="data",
-    )
+    
+    if not (Path("data") / "kinetics.txt").exists():
+        vocab_file_path = utils.download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/kinetics.txt",
+            directory="data",
+        )
     
     with vocab_file_path.open(mode="r") as f:
         labels = [line.strip() for line in f]
@@ -676,18 +684,27 @@ multi-camera systems).
     USE_WEBCAM = False
     
     cam_id = 0
-    video_file = "https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4"
+    video_url = "https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4"
+    video_file = Path("ISS%20Video%20Resource_LifeOnStation_720p.mp4")
+    
+    if not USE_WEBCAM and video_file.exists():
+        utils.download_file(video_url, filename=video_file.name)
     
     source = cam_id if USE_WEBCAM else video_file
     additional_options = {"skip_first_frames": 600, "flip": False} if not USE_WEBCAM else {"flip": True}
     run_action_recognition(source=source, use_popup=False, **additional_options)
 
 
+.. parsed-literal::
 
-.. image:: action-recognition-webcam-with-output_files/action-recognition-webcam-with-output_22_0.png
+    Cannot open  ISS%20Video%20Resource_LifeOnStation_720p.mp4
 
 
 .. parsed-literal::
 
-    Source ended
+    [ WARN:0@4.819] global cap.cpp:175 open VIDEOIO(CV_IMAGES): raised OpenCV exception:
+    
+    OpenCV(4.11.0) /io/opencv/modules/videoio/src/cap_images.cpp:237: error: (-5:Bad argument) CAP_IMAGES: error, expected '0?[1-9][du]' pattern, got: ISS%20Video%20Resource_LifeOnStation_720p.mp4 in function 'icvExtractPattern'
+    
+    
 
