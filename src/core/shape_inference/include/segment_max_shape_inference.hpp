@@ -72,7 +72,7 @@ std::vector<TRShape> shape_infer(const SegmentMax* op,
     } else if (segment_ids &&
                op->inputs().size() ==
                    2) {  // if num_segments is an input but not provided, the first dimension should still be dynamic
-        output_shape[0] = TDim(segment_ids.back() + 1);
+        output_shape[0] = TDim(segment_ids->back() + 1);
     } else {
         output_shape[0] = Dimension::dynamic();
     }
