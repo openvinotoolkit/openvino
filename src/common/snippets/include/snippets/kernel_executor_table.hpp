@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/util/pp.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include <typeinfo>
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)
@@ -146,7 +147,8 @@ public:
 
     /*** Returns lambda function that contains current state of the table, and restores this state when called  */
     std::function<void()> get_state_reset() {
-        return [this]() { reset_state(get_state()); };
+        auto current_state = get_state();
+        return [OV_CAPTURE_CPY_AND_THIS]() { reset_state(current_state); };
     }
 
     virtual ~KernelExecutorTable() = default;
