@@ -273,8 +273,7 @@ void SubgraphBaseTest::configure_model() {
     {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (inType != ov::element::Type_t::dynamic && inType != ov::element::undefined) {
+            if (inType != ov::element::Type_t::dynamic) {
                 p.input(i).tensor().set_element_type(inType);
             }
         }
@@ -284,12 +283,11 @@ void SubgraphBaseTest::configure_model() {
     {
         auto results = function->get_results();
         for (size_t i = 0; i < results.size(); i++) {
-            if (outType != ov::element::Type_t::dynamic && outType != ov::element::undefined) {
+            if (outType != ov::element::Type_t::dynamic) {
                 p.output(i).tensor().set_element_type(outType);
             }
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     function = p.build();
 }
 
@@ -379,10 +377,7 @@ void SubgraphBaseTest::update_ref_model() {
     }
     const auto& outputs = functionRefs->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (outType != ElementType::dynamic && outType != element::undefined &&
-            outType != outputs[i].get_element_type()) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (outType != ElementType::dynamic && outType != outputs[i].get_element_type()) {
             p.output(i).tensor().set_element_type(outType);
         }
     }

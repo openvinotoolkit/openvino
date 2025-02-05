@@ -380,9 +380,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Add conversion from FP data types to infer precision if it's specified
         infer_precision = config.get_property(ov::hint::inference_precision);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (infer_precision != ov::element::dynamic && infer_precision != ov::element::undefined) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (infer_precision != ov::element::dynamic) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
 

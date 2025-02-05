@@ -50,11 +50,7 @@ void Gemm::validate_and_infer_types() {
                                   m_order_a,
                                   m_order_b,
                                   m_order_c);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto output_type = (m_output_type.is_dynamic() || m_output_type == ov::element::undefined)
-                           ? get_input_element_type(0)
-                           : m_output_type;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto output_type = ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
 }
 

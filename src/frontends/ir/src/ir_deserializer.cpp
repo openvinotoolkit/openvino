@@ -834,9 +834,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " has incorrect input with index ",
                            i,
                            "!");
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
-            (inputs[i].get_element_type().is_dynamic() || ov::element::undefined == inputs[i].get_element_type()))
+        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) && (inputs[i].get_element_type().is_dynamic()))
             OPENVINO_THROW(params.type,
                            " layer ",
                            params.name,
@@ -845,7 +843,6 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " has undefined element type for input with index ",
                            i,
                            "!");
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     const std::string& type_name = translate_type_name(params.type);

@@ -167,10 +167,7 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(Node* const n
         for (size_t i = 0; i < num_inputs; i++) {
             const auto& origin_type = type_relaxed->get_origin_input_type(i);
             origin_input_types.push_back(origin_type);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if ((origin_type == element::dynamic || origin_type == element::undefined) &&
-                has_original_input_precision(node->input(i))) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if ((origin_type == element::dynamic) && has_original_input_precision(node->input(i))) {
                 type_relaxed->set_origin_input_type(get_original_input_precision(node->input(i)), i);
             }
         }

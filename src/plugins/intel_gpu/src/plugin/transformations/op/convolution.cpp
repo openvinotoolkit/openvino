@@ -66,10 +66,6 @@ void Convolution::validate_and_infer_types() {
     element::Type result_et;
     if (m_output_type == ov::element::dynamic) {
         result_et = m_output_type;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (m_output_type == ov::element::undefined) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        result_et = element::dynamic;
     } else if (data_batch_et.compatible(filters_et)) {
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(result_et, data_batch_et, filters_et),

@@ -698,11 +698,9 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             if (t == node.get_element_type()) {
                 return std::make_tuple(node, false);
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
             OPENVINO_ASSERT(
-                t.is_static() && t != element::undefined,
+                t.is_static(),
                 "Can't convert to dynamic/unknown element type, consider using of InputTensorInfo::set_element_type");
-            OPENVINO_SUPPRESS_DEPRECATED_END
             auto convert = std::make_shared<op::v0::Convert>(node, t);
             return std::make_tuple(Output<Node>(convert), true);
         },

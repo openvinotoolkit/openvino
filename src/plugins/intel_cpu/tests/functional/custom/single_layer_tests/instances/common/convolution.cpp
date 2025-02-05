@@ -13,19 +13,18 @@ namespace test {
 namespace Convolution {
 OPENVINO_SUPPRESS_DEPRECATED_START
 /* ============= Convolution (Gemm 1D) ============= */
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Conv_1D_GEMM_FP32,
-    ConvolutionLayerCPUTest,
-    ::testing::Combine(::testing::Combine(convParams_ExplicitPadding_GEMM_1D(),
-                                          ::testing::Values(ElementType::f32),
-                                          ::testing::Values(ElementType::dynamic, ElementType::undefined),
-                                          ::testing::Values(ElementType::dynamic, ElementType::undefined),
-                                          ::testing::ValuesIn(inShapesGemm1D()),
-                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                       ::testing::ValuesIn(filterCPUInfo(CPUParams_GEMM_1D())),
-                       ::testing::ValuesIn(fusingParamsSetWithEmpty()),
-                       ::testing::Values(empty_plugin_config)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32,
+                         ConvolutionLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(convParams_ExplicitPadding_GEMM_1D(),
+                                                               ::testing::Values(ElementType::f32),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inShapesGemm1D()),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(filterCPUInfo(CPUParams_GEMM_1D())),
+                                            ::testing::ValuesIn(fusingParamsSetWithEmpty()),
+                                            ::testing::Values(empty_plugin_config)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
 
 std::vector<InputShape> inputShapesPlain2Blocked3d = {
         {{}, {{ 1, 1, 7, 7, 7 }}},
@@ -63,19 +62,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    Conv_2D_GEMM_FP32_dilated_empty_fusing,
-    ConvolutionLayerCPUTest,
-    ::testing::Combine(::testing::Combine(convParams_ExplicitPadding_GEMM_2D_dilated(),
-                                          ::testing::Values(ElementType::f32),
-                                          ::testing::Values(ElementType::undefined, element::dynamic),
-                                          ::testing::Values(ElementType::undefined, element::dynamic),
-                                          ::testing::ValuesIn(inShapesGemm2D()),
-                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                       ::testing::ValuesIn(filterCPUInfo(CPUParams_GEMM_2D())),
-                       ::testing::Values(emptyFusingSpec),
-                       ::testing::Values(empty_plugin_config)),
-    ConvolutionLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(Conv_2D_GEMM_FP32_dilated_empty_fusing,
+                         ConvolutionLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(convParams_ExplicitPadding_GEMM_2D_dilated(),
+                                                               ::testing::Values(ElementType::f32),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inShapesGemm2D()),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(filterCPUInfo(CPUParams_GEMM_2D())),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(empty_plugin_config)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
 OPENVINO_SUPPRESS_DEPRECATED_END
 
 /* ============= Convolution (2D) ============= */

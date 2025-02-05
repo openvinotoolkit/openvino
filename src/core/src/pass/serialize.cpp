@@ -730,9 +730,6 @@ std::string get_opset_name(const ov::Node* n) {
 
 std::string get_precision_name(const ov::element::Type& elem_type) {
     switch (elem_type) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    case ::ov::element::Type_t::undefined:
-        OPENVINO_SUPPRESS_DEPRECATED_END
     case ::ov::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ov::element::Type_t::f16:

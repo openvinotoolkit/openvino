@@ -80,9 +80,6 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
         return memory::data_type::f8_e5m2;
     case ov::element::f4e2m1:
         return memory::data_type::f4_e2m1;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    case ov::element::undefined:
-    OPENVINO_SUPPRESS_DEPRECATED_END
     case ov::element::dynamic:
         return memory::data_type::undef;
     default: {

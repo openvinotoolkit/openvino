@@ -162,9 +162,6 @@ public:
         case Type_t::f8e8m0:
             fill_data<Type_t::f8e8m0>(value);
             break;
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        case Type_t::undefined:
-            OPENVINO_SUPPRESS_DEPRECATED_END
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
@@ -752,9 +749,6 @@ private:
         case Type_t::f8e8m0:
             write_buffer<Type_t::f8e8m0>(source);
             break;
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        case Type_t::undefined:
-            OPENVINO_SUPPRESS_DEPRECATED_END
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }

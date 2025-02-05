@@ -334,9 +334,7 @@ bool Convolution::canBeExecutedInInt8() const {
 }
 
 ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (sumPrc != ov::element::dynamic && sumPrc != ov::element::undefined) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (sumPrc != ov::element::dynamic) {
         return sumPrc;
     }
 

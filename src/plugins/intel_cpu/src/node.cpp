@@ -1994,10 +1994,8 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
     NodeConfig config;
     for (size_t i = 0; i < inPortConfigs.size(); i++) {
         auto shape = inPortConfigs[i].shape.getRank() == 0 ? getInputShapeAtPort(i) : inPortConfigs[i].shape;
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        auto prc = (inPortConfigs[i].prc == ov::element::dynamic || inPortConfigs[i].prc == ov::element::undefined)
-                       ? getOriginalInputPrecisionAtPort(i)
-                       : inPortConfigs[i].prc;
+        auto prc =
+            (inPortConfigs[i].prc == ov::element::dynamic) ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
         if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs)) {
             return;
         }
@@ -2005,10 +2003,8 @@ void Node::addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfi
 
     for (size_t i = 0; i < outPortConfigs.size(); i++) {
         auto dims = outPortConfigs[i].shape.getRank() == 0 ? getOutputShapeAtPort(i) : outPortConfigs[i].shape;
-        auto prc = (outPortConfigs[i].prc == ov::element::dynamic || outPortConfigs[i].prc == ov::element::undefined)
-                       ? getOriginalOutputPrecisionAtPort(i)
-                       : outPortConfigs[i].prc;
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        auto prc = (outPortConfigs[i].prc == ov::element::dynamic) ? getOriginalOutputPrecisionAtPort(i)
+                                                                   : outPortConfigs[i].prc;
         if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs)) {
             return;
         }

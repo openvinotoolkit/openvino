@@ -1831,9 +1831,7 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::undefined)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)

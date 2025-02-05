@@ -59,9 +59,7 @@ bool KVCache::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void KVCache::validate_and_infer_types() {
     auto output_type = m_output_type;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (m_output_type.is_dynamic() || m_output_type == ov::element::undefined) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (m_output_type == ov::element::dynamic) {
         output_type = get_input_element_type(0);
     }
 

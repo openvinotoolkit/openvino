@@ -85,9 +85,7 @@ void Tensor::update_strides() const {
 }
 
 void* Tensor::data(const element::Type& element_type) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (element_type.is_static() && element_type != element::undefined) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (element_type.is_static()) {
         OPENVINO_ASSERT(element_type == get_element_type(),
                         "Tensor data with element type ",
                         get_element_type(),

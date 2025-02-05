@@ -408,10 +408,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             map.insert({ov::element::bf16, ov::element::f32});
         }
         // TODO: Remove 'hasHardwareSupport' when all nodes are able to handle f16 properly.
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (!one_of(config.inferencePrecision, element::f16, element::dynamic, element::undefined) ||
-            !hasHardwareSupport(element::f16)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!one_of(config.inferencePrecision, element::f16, element::dynamic) || !hasHardwareSupport(element::f16)) {
             map.insert({ov::element::f16, ov::element::f32});
         }
         return map;
@@ -624,18 +621,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 //    snippets pipeline as well, where MVN is decomposed to simple ops, these simple ops will not
                 //    tokenized into subgraph again.
                 // CVS-134277 to fully enable GN as snippets to disable this GroupNormalizationDecomposition entirly.
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                if (node->is_dynamic() ||
-                    !one_of(config.inferencePrecision, element::f32, element::dynamic, element::undefined) ||
+                if (node->is_dynamic() || !one_of(config.inferencePrecision, element::f32, element::dynamic) ||
                     config.snippetsMode == Config::SnippetsMode::Disable)
                     return false;
                 if (config.snippetsMode != Config::SnippetsMode::IgnoreCallback) {
                     const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);
-                    if (!group_norm || !implication((config.inferencePrecision == element::dynamic ||
-                                                     config.inferencePrecision == element::undefined),
+                    if (!group_norm || !implication((config.inferencePrecision == element::dynamic),
                                                     group_norm->get_element_type() == element::f32))
                         return false;
-                    OPENVINO_SUPPRESS_DEPRECATED_END
                     const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
                     const auto shape = group_norm->get_input_partial_shape(0).to_shape();
                     size_t snippets_work_amount = shape[0] * num_groups;
@@ -995,10 +988,7 @@ void Transformations::MainSnippets(void) {
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid situations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool mha_token_enable_transpose_on_output =
-        one_of(config.inferencePrecision, element::f32, element::dynamic, element::undefined);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool mha_token_enable_transpose_on_output = one_of(config.inferencePrecision, element::f32, element::dynamic);
     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
@@ -1054,18 +1044,13 @@ void Transformations::MainSnippets(void) {
                         ov::op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto is_infer_prc_supported_by_MHA =
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-         one_of(config.inferencePrecision, ov::element::f32, element::dynamic, element::undefined)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && one_of(config.inferencePrecision,
-                                                                                    ov::element::bf16,
-                                                                                    ov::element::f32,
-                                                                                    element::dynamic,
-                                                                                    element::undefined)) ||
+         one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
+        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+         one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
          one_of(config.inferencePrecision, ov::element::f16));
-    OPENVINO_SUPPRESS_DEPRECATED_END
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_MHA;
 #else
     const bool isMHASupported = false;
@@ -1084,10 +1069,8 @@ void Transformations::MainSnippets(void) {
         }
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
-        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
-                              one_of(config.inferencePrecision, element::f32, element::dynamic, element::undefined));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+                              one_of(config.inferencePrecision, element::f32, element::dynamic));
         const auto is_fp16 =
             (in_type0 == ov::element::f16 || in_type1 == ov::element::f16) ||
             (in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::f16);
@@ -1138,16 +1121,16 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
                 ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
                 ov::is_type<ov::op::v1::Equal>(n) || ov::is_type<ov::op::v0::FakeQuantize>(n) ||
-                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) || 
-                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) || 
-                ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) || 
-                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::LessEqual>(n) || 
-                ov::is_type<ov::op::v1::Maximum>(n) || ov::is_type<ov::op::v1::Minimum>(n) || 
-                ov::is_type<ov::op::v4::Mish>(n) || ov::is_type<ov::op::v1::Mod>(n) || 
-                ov::is_type<ov::op::v1::Multiply>(n) || ov::is_type<ov::op::v0::PRelu>(n) || 
-                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v5::Round>(n) || 
-                ov::is_type<ov::op::v0::Sigmoid>(n) || ov::is_type<ov::op::v0::Sqrt>(n) || 
-                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) || 
+                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
+                ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
+                ov::is_type<ov::op::v1::Greater>(n) || ov::is_type<ov::op::v1::GreaterEqual>(n) ||
+                ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::LessEqual>(n) ||
+                ov::is_type<ov::op::v1::Maximum>(n) || ov::is_type<ov::op::v1::Minimum>(n) ||
+                ov::is_type<ov::op::v4::Mish>(n) || ov::is_type<ov::op::v1::Mod>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) || ov::is_type<ov::op::v0::PRelu>(n) ||
+                ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v5::Round>(n) ||
+                ov::is_type<ov::op::v0::Sigmoid>(n) || ov::is_type<ov::op::v0::Sqrt>(n) ||
+                ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,

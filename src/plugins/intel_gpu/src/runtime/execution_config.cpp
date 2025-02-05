@@ -19,10 +19,7 @@ class InferencePrecisionValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         auto precision = v.as<ov::element::Type>();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return precision == ov::element::f16 || precision == ov::element::f32 || precision == ov::element::dynamic ||
-               precision == ov::element::undefined;
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        return precision == ov::element::f16 || precision == ov::element::f32 || precision == ov::element::dynamic;
     }
 };
 
@@ -265,11 +262,8 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
             set_property(ov::hint::enable_cpu_pinning(true));
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!is_set_by_user(ov::hint::kv_cache_precision) ||
-        get_property(ov::hint::kv_cache_precision) == ov::element::dynamic ||
-        (get_property(ov::hint::kv_cache_precision) == ov::element::undefined)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        get_property(ov::hint::kv_cache_precision) == ov::element::dynamic) {
         if (info.supports_immad) {  // MFDNN-11755
             set_property(ov::hint::kv_cache_precision(get_property(ov::hint::inference_precision)));
         } else {

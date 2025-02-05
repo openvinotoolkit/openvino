@@ -55,24 +55,18 @@ public:
           m_ptr{ptr} {
         OPENVINO_ASSERT(shape_size(shape) == 0 || m_ptr != nullptr);
         OPENVINO_ASSERT(m_element_type.is_static());
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        OPENVINO_ASSERT(m_element_type != element::undefined);
-        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     void* data(const element::Type& element_type) const override {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (element_type != element::undefined && element_type.is_static() &&
-            (element_type.bitwidth() != get_element_type().bitwidth() ||
-             element_type.is_real() != get_element_type().is_real() ||
-             (element_type == element::string && get_element_type() != element::string) ||
-             (element_type != element::string && get_element_type() == element::string))) {
+        if (element_type.is_static() && (element_type.bitwidth() != get_element_type().bitwidth() ||
+                                         element_type.is_real() != get_element_type().is_real() ||
+                                         (element_type == element::string && get_element_type() != element::string) ||
+                                         (element_type != element::string && get_element_type() == element::string))) {
             OPENVINO_THROW("Tensor data with element type ",
                            get_element_type(),
                            ", is not representable as pointer to ",
                            element_type);
         }
-        OPENVINO_SUPPRESS_DEPRECATED_END
         return m_ptr;
     }
 

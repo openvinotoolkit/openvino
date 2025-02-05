@@ -24,9 +24,7 @@ void TypeRelaxedBase::remember_input_data_types(Node& node, element::TypeVector&
     // Reset input data types to m_output_data_type.
     for (size_t i = 0; i < node.get_input_size(); ++i) {
         auto origin_input_type = get_origin_input_type(i);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (origin_input_type.is_static() && origin_input_type != element::undefined) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (origin_input_type.is_static()) {
             ov::descriptor::set_tensor_type(node.get_input_tensor(i),
                                             origin_input_type,
                                             node.get_input_partial_shape(i));
@@ -52,9 +50,7 @@ void TypeRelaxedBase::restore_input_data_types(Node& node, const element::TypeVe
     // Override (some) output types
     for (size_t i = 0; i < node.get_output_size(); ++i) {
         auto overridden_output_type = get_overridden_output_type(i);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (overridden_output_type.is_static() && overridden_output_type != element::undefined) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (overridden_output_type.is_static()) {
             node.set_output_type(i, overridden_output_type, node.get_output_partial_shape(i));
         }
     }
@@ -140,10 +136,8 @@ std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> convert_input_type
         auto& input = inputs[i];
         const auto& fake_type = input.get_element_type();
         const auto& original_type = types[i];
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (original_type == fake_type || original_type == element::dynamic || original_type == element::undefined)
+        if (original_type == fake_type || original_type == element::dynamic)
             continue;  // this input type wasn't changed
-        OPENVINO_SUPPRESS_DEPRECATED_END
         if (parameter == nullptr || convert == nullptr) {
             parameter = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape());
             convert = std::make_shared<ov::op::v0::Convert>(parameter, element::dynamic);

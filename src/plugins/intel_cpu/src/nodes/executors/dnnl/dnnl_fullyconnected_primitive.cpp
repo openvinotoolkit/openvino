@@ -172,13 +172,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         !((one_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
         return false;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(),
-                         ov::element::u8,
-                         ov::element::u4,
-                         ov::element::dynamic,
-                         ov::element::undefined)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::dynamic)) {
         return false;
     }
 

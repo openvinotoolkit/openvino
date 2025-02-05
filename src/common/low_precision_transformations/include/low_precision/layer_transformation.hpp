@@ -48,11 +48,9 @@ public:
             hasZeroPoint(hasZeroPoint) {}
 
     bool empty() const noexcept {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        assert(((precision == element::dynamic || precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
-               ((precision != element::dynamic && precision != element::undefined) && (max != 0.f)));
-        return (precision == element::dynamic || precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        assert(((precision == element::dynamic) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint)) ||
+               ((precision != element::dynamic) && (max != 0.f)));
+        return (precision == element::dynamic) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
     }
 
     static bool isSupported(const element::Type& precision) {
