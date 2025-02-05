@@ -12,7 +12,6 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Eltwise {
-OPENVINO_SUPPRESS_DEPRECATED_START
 const auto params_4D =
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
                                           ::testing::ValuesIn(eltwiseOpTypesBinInp()),
