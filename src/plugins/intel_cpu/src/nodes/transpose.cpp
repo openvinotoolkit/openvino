@@ -148,7 +148,7 @@ void Transpose::prepareParams() {
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
-            OPENVINO_THROW("Reorder primitive descriptor was not found for Transpose node ", getName(), ".");
+            THROW_CPU_NODE_ERR("reorder primitive descriptor was not found.");
         }
         prim = result;
 
@@ -191,7 +191,7 @@ void Transpose::prepareParams() {
     auto result = cache->getOrCreate(transposeParams.permuteParams, builder);
 
     if (!result.first) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 
     execPtr = result.first;
@@ -205,13 +205,13 @@ void Transpose::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
     if (!dstMemPtr) {
-        OPENVINO_THROW("Destination memory is null.");
+        THROW_CPU_NODE_ERR("Destination memory is null.");
     }
     if (!srcMemPtr) {
-        OPENVINO_THROW("Input memory is null.");
+        THROW_CPU_NODE_ERR("Input memory is null.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor was not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor was not set.");
     }
 
     if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
@@ -258,7 +258,7 @@ void Transpose::execute(const dnnl::stream& strm) {
 
         execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
-        OPENVINO_THROW("Could not execute Transpose node. Primitive was not created.");
+        THROW_CPU_NODE_ERR("Primitive was not created.");
     }
 }
 

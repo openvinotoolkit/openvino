@@ -38,9 +38,7 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
     if (bucketsize == nullptr) {
-        OPENVINO_THROW("Operation with name '",
-                       op->get_friendly_name(),
-                       "' is not an instance of Bucketize from opset3.");
+        THROW_CPU_NODE_ERR("is not an instance of Bucketize from opset3.");
     }
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
@@ -191,16 +189,16 @@ void Bucketize::prepareParams() {
     auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
     auto dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("has destination memory undefined.");
     }
     if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined()) {
-        OPENVINO_THROW("Input tensor is undefined.");
+        THROW_CPU_NODE_ERR("has input tensor undefined.");
     }
     if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined()) {
-        OPENVINO_THROW("Input bins is undefined.");
+        THROW_CPU_NODE_ERR("has input bins undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("has preferable primitive descriptors unset.");
     }
 
     // update with_bins/num_values/num_bin_values

@@ -192,7 +192,7 @@ void ReverseSequence::execute(const dnnl::stream& strm) {
 
     const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
     if (!one_of(precision, ov::element::f32, ov::element::i32)) {
-        OPENVINO_THROW("ReverseSequence layer does not support ", precision, " precision");
+        THROW_CPU_NODE_ERR("does not support ", precision, " precision");
     }
 
     if (precision == ov::element::f32) {

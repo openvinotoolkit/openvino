@@ -485,7 +485,7 @@ void TensorIterator::getSupportedDescriptors() {
                                                -1,
                                                1});
         } else {
-            OPENVINO_THROW("Incorrect type of the output description.");
+            THROW_CPU_NODE_ERR("Incorrect type of the output description.");
         }
     }
 

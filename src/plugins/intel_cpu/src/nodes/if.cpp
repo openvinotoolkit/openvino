@@ -92,10 +92,7 @@ void If::getSupportedDescriptors() {
         if (auto inNode = subGraphThen.getInputNodeByIndex(ifOp->get_then_body()->get_parameter_index(param))) {
             inputMemThen.push_back(getToMemories(inNode.get(), 0));
         } else {
-            OPENVINO_THROW("Then body of node If with name ",
-                           getName(),
-                           " does not have input with name: ",
-                           param->get_friendly_name());
+            THROW_CPU_NODE_ERR("Then body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
@@ -103,10 +100,7 @@ void If::getSupportedDescriptors() {
         if (auto inNode = subGraphElse.getInputNodeByIndex(ifOp->get_else_body()->get_parameter_index(param))) {
             inputMemElse.push_back(getToMemories(inNode.get(), 0));
         } else {
-            OPENVINO_THROW("Else body of node If with name ",
-                           getName(),
-                           " does not have input with name: ",
-                           param->get_friendly_name());
+            THROW_CPU_NODE_ERR("Else body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
@@ -115,10 +109,7 @@ void If::getSupportedDescriptors() {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
-            OPENVINO_THROW("Then body of node If with name ",
-                           getName(),
-                           " does not have output with name: ",
-                           out->get_friendly_name());
+            THROW_CPU_NODE_ERR("Then body of node does not have output with name: ", out->get_friendly_name());
         }
     }
 
@@ -127,10 +118,7 @@ void If::getSupportedDescriptors() {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
-            OPENVINO_THROW("Else body of node If with name ",
-                           getName(),
-                           " does not have output with name: ",
-                           out->get_friendly_name());
+            THROW_CPU_NODE_ERR("Else body of node does not have output with name: ", out->get_friendly_name());
         }
     }
 

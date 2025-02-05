@@ -212,7 +212,7 @@ void Lrn::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
     if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());

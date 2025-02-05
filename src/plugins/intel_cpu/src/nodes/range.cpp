@@ -109,11 +109,10 @@ void Range::execute(const dnnl::stream& strm) {
         retcode = rangeKernel<int32_t>();
         break;
     default:
-        OPENVINO_THROW("Incorrect output precision. Only FP32 and I32 are supported!");
+        THROW_CPU_NODE_ERR("Incorrect output precision. Only FP32 and I32 are supported!");
     }
     if (retcode == PARAMETER_MISMATCH) {
-        std::string errorMsg = "Range indexes exceeds data tensor dimension";
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR("Range indexes exceeds data tensor dimension");
     }
 }
 

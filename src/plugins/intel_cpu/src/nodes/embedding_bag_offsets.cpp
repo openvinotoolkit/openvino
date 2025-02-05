@@ -54,11 +54,11 @@ EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, cons
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
-        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
+        THROW_CPU_NODE_ERR("has indices data with invalid rank.");
     }
 
     if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul) {
-        OPENVINO_THROW("'", _layerName, "' layer's offsets data has invalid rank.");
+        THROW_CPU_NODE_ERR("offsets data has invalid rank.");
     }
 }
 
@@ -67,7 +67,6 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions = {ov::element::f32,
                                                                     ov::element::i8,
                                                                     ov::element::u8,
@@ -79,7 +78,7 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
     }
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
@@ -87,7 +86,7 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
                                                                                ov::element::u8,
                                                                                ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     }
 
@@ -125,10 +124,10 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
                                     int& weightsIdx,
                                     bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _offsetsLen) {
-        OPENVINO_THROW("Invalid embedding bag index.");
+        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
     if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
-        OPENVINO_THROW("Offset value exceeds indices size.");
+        THROW_CPU_NODE_ERR("Offset value exceeds indices size.");
     }
 
     indices = nullptr;

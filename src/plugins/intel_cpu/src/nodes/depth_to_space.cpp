@@ -205,7 +205,7 @@ void DepthToSpace::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
-        OPENVINO_THROW("DepthToSpaceExecutor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("DepthToSpaceExecutor was not found.");
     }
 
     execPtr = result.first;

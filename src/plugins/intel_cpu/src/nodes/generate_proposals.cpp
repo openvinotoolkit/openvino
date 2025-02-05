@@ -349,7 +349,7 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
 void GenerateProposals::execute(const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            OPENVINO_THROW("Incorrect number of input or output edges!");
+            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -364,7 +364,7 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
             deltas_dims_size *= deltaDims[i];
         }
         if (anchor_dims_size != deltas_dims_size) {
-            OPENVINO_THROW("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
+            THROW_CPU_NODE_ERR("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
         }
 
         size_t score_dims_size = 1;
@@ -373,7 +373,7 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
             score_dims_size *= scoreDims[i];
         }
         if (deltas_dims_size != (4 * score_dims_size)) {
-            OPENVINO_THROW("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
+            THROW_CPU_NODE_ERR("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
         }
 
         size_t im_info_dims_size = 1;
@@ -504,8 +504,7 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
         memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
