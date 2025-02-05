@@ -91,7 +91,6 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
-OPENVINO_SUPPRESS_DEPRECATED_START
 const std::vector<ReshapeTransformationTestValues> testValues = {
     // U8: no subtract 3D -> 4D: channels are not affected
     {{1, 384, 1024},
@@ -616,7 +615,6 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
       ov::element::f32,
       {}}},
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          ReshapeTransformation,

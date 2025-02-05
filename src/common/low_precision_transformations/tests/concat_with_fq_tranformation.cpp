@@ -116,7 +116,6 @@ public:
         if (!testValues.actual.dequantization2.multiply.empty()) {
             testValues.actual.dequantization2.multiply.outPrecision = precision;
         }
-        OPENVINO_SUPPRESS_DEPRECATED_START
         actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
                                                                         shape,
                                                                         testValues.actual.fakeQuantize1,
@@ -130,7 +129,6 @@ public:
                                                                         {},
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);
-        OPENVINO_SUPPRESS_DEPRECATED_END                                                                        
         auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
             {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
