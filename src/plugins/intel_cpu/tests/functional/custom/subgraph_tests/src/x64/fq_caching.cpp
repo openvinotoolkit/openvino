@@ -171,13 +171,13 @@ protected:
             auto ranges = rangesVec[i];
 
             auto il = ov::op::v0::Constant::create(ngInPrec, ranges[0], extendData(rangesBounds[0],
-                std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<size_t>())));
+                std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<>())));
             auto ih = ov::op::v0::Constant::create(ngInPrec, ranges[1], extendData(rangesBounds[1],
-                std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<size_t>())));
+                std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<>())));
             auto ol = ov::op::v0::Constant::create(ngInPrec, ranges[2], extendData(rangesBounds[2],
-                std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<size_t>())));
+                std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<>())));
             auto oh = ov::op::v0::Constant::create(ngInPrec, ranges[3], extendData(rangesBounds[3],
-                std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
+                std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<>())));
 
             auto fqNode = std::make_shared<ov::op::v0::FakeQuantize>(paramVect[i], il, ih, ol, oh, levels);
             fqNode->get_rt_info() = getCPUInfo();

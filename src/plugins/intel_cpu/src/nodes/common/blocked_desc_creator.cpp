@@ -17,7 +17,7 @@ public:
                                                   const Shape& srcShape) const override {
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
+        return {precision, srcShape, srcShape.getDims(), order};
     }
     [[nodiscard]] size_t getMinimalRank() const override {
         return 0lu;
@@ -41,7 +41,7 @@ public:
             moveElementBack(blkDims, channelsPos);
         }
 
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return {precision, srcShape, blkDims, order};
     }
     [[nodiscard]] size_t getMinimalRank() const override {
         return 3lu;
@@ -67,7 +67,7 @@ public:
         }
         blkDims.push_back(_blockSize);
 
-        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return {precision, srcShape, blkDims, order};
     }
     [[nodiscard]] size_t getMinimalRank() const override {
         return 3lu;

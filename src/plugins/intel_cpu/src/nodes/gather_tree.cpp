@@ -142,7 +142,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
       batchSize{stepIdxDims[1]},
       beamWidth{stepIdxDims[2]},
       bbSize{batchSize * beamWidth},
-      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<size_t>())} {
+      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<>())} {
     if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {

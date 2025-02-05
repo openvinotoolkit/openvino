@@ -42,7 +42,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
         dst_dims[0] = mb;
     }
 
-    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
+    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<>());
 
     auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;

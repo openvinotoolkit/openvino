@@ -539,10 +539,10 @@ public:
 };
 
 class stack_frame {
+public:
     stack_frame(const stack_frame&) = delete;
     stack_frame& operator=(const stack_frame&) = delete;
 
-public:
     stack_frame(jit_kernel& kernel, size_t size, uint32_t alignment = 1);
     stack_frame(stack_frame&& rhs) noexcept;
     ~stack_frame();
@@ -561,10 +561,10 @@ ov::element::Type type2precision();
 dnnl::impl::cpu::x64::cpu_isa_t get_current_isa();
 
 class consts_table {
+public:
     consts_table(const consts_table&) = delete;
     consts_table& operator=(const consts_table&) = delete;
 
-public:
     consts_table() = default;
     const void* store(const void* data, size_t size);
 

@@ -2521,7 +2521,7 @@ void TopK::topk_ref_process(const float* src_data,
         if (sort_index) {
             for (int i2 = 0; i2 < top_k - 1; i2++) {
                 for (int i3 = top_k - 1; i3 > i2; i3--) {
-                    if (std::greater<int>()(max_indexes[i3 - 1], max_indexes[i3])) {
+                    if (std::greater<>()(max_indexes[i3 - 1], max_indexes[i3])) {
                         swap_func(i3, i3 - 1);
                     }
                 }

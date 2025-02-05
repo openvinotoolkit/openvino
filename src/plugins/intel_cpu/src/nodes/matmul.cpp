@@ -263,7 +263,7 @@ dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr& outMemDesc)
     biasDims[chIdx] = outDims[chIdx];
     const auto bdt = DnnlExtensionUtils::ElementTypeToDataType(getOriginalInputPrecisionAtPort(2));
 
-    return dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any);
+    return {DnnlExtensionUtils::convertToDnnlDims(biasDims), bdt, memory::format_tag::any};
 }
 
 void MatMul::getSupportedDescriptors() {

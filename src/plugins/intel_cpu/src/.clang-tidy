@@ -51,6 +51,8 @@ Checks: >
   -google-readability-casting,
   -google-readability-todo,
   -readability-braces-around-statements,
+  -modernize-avoid-c-arrays,
+  -modernize-loop-convert,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
@@ -58,7 +60,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,
   -readability-function-cognitive-complexity,
-  -modernize-loop-convert,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes

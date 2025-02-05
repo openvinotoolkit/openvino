@@ -23,7 +23,7 @@ using namespace dnnl;
 using namespace ov::element;
 
 static Dim batchDim(const VectorDims& dims) {
-    return std::accumulate(dims.begin(), dims.end() - 1, 1, std::multiplies<Dim>());
+    return std::accumulate(dims.begin(), dims.end() - 1, 1, std::multiplies<>());
 }
 
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,

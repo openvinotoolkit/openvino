@@ -69,7 +69,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
     if (std::accumulate(secondInputDims.begin(),
                         secondInputDims.end(),
                         static_cast<size_t>(1),
-                        std::multiplies<size_t>()) == 1) {
+                        std::multiplies<>()) == 1) {
         return true;
     }
 

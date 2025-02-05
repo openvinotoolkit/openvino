@@ -639,8 +639,8 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
 
     bool useFFT = canUseFFT(signalSize);
 
-    size_t totalWorkSize = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>()) /
-                           iterationRange[axis];
+    size_t totalWorkSize =
+        std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<>()) / iterationRange[axis];
     bool parallelizeOuterAxes = totalWorkSize > signalSize;
 
     if (parallelizeOuterAxes) {
@@ -754,8 +754,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
 
     float* output = outputPtr;
     std::vector<float> tmp;
-    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<size_t>());
-    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<size_t>());
+    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
+    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
     if (inputShapeSize > outputShapeSize) {
         tmp.resize(inputShapeSize);
         output = &tmp[0];

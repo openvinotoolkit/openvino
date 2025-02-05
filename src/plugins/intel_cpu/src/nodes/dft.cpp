@@ -209,9 +209,9 @@ void copyDataToOutputWithSignalSize(const float* input,
                                     const std::vector<size_t>& outputShape,
                                     const std::vector<size_t>& outputStrides) {
     auto totalInput =
-        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     auto totalOutput =
-        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
@@ -236,7 +236,7 @@ void copyDataToOutputWithSignalSize(const float* input,
     const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
                                              inputShape.end(),
                                              static_cast<size_t>(1),
-                                             std::multiplies<size_t>());
+                                             std::multiplies<>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
     do {
@@ -285,7 +285,7 @@ void DFT::execute(const dnnl::stream& strm) {
         copyDataToOutputWithSignalSize(src, inputShape, inputStrides, dst, outputShape, outputStrides);
     } else {
         auto totalElements =
-            std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+            std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<>());
         cpu_memcpy(dst, src, totalElements * sizeof(float));
     }
 
