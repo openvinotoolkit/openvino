@@ -364,11 +364,9 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
     return folder + ov::util::FileTraits<C>::file_separator + file;
 }
 
-#if defined(_MSC_VER) || defined(GCC_VER_LESS_THAN_12_3) || defined(CLANG_VER_LESS_THAN_17)
 inline ov::util::Path make_path(const wchar_t* file) {
     return {std::wstring(file)};
 }
-#endif
 
 }  // namespace util
 }  // namespace ov
