@@ -79,8 +79,9 @@ bool DnnlMatMulPrimitive::Key::operator==(const Key& rhs) const {
 
 template <typename dimsType>
 static dimsType normalizeToRank(const dimsType& vec, size_t rank) {
-    if (vec.size() == rank || vec.empty())
+    if (vec.size() == rank || vec.empty()) {
         return vec;
+    }
 
     dimsType result;
     result.reserve(rank);
@@ -238,8 +239,9 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         return contains(implPriorities, implType);
     });
 
-    if (found)
+    if (found) {
         return std::move(prim_desc);
+    }
 
     return std::move(first_desc);
 }
@@ -278,8 +280,9 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
                                                       const ov::element::Type weightsType) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return false;
+    }
 #endif
 
     return (one_of(inputType, f32, bf16, f16) && one_of(weightsType, u8, i8, u4, i4));
@@ -301,8 +304,9 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
     const auto postOpData =
         createPrimitiveAttrs(mmAttrs, postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
-    if (!cacheWeights)
+    if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    }
 
     if (srcDesc->getShape().isDynamic()) {
         const auto& inShape = srcDesc->getShape();

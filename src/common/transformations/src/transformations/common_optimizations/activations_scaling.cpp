@@ -10,7 +10,6 @@
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -209,92 +208,6 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "EliminateScalarMul");
-    this->register_matcher(m, callback);
-}
-
-ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation() {
-    MATCHER_SCOPE(MulConcatTransformation);
-
-    auto concat_m = wrap_type<ov::op::v0::Concat>();
-
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        OPENVINO_ASSERT(pattern_map.count(concat_m), "Not found any Concat layer");
-
-        auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
-
-        if (transformation_callback(concat)) {
-            return false;
-        }
-
-        // check if all inputs are Multiply with scalar operand
-        ov::Output<ov::Node> last_dep_const = {};
-        ov::element::Type last_dep_const_type = ov::element::undefined;
-        for (auto& input : concat->inputs()) {
-            auto dep_node = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_source_output().get_node_shared_ptr());
-            if (!dep_node) {
-                return false;
-            }
-            auto dep_const0 =
-                ov::as_type_ptr<ov::op::v0::Constant>(dep_node->input(0).get_source_output().get_node_shared_ptr());
-            auto dep_const1 =
-                ov::as_type_ptr<ov::op::v0::Constant>(dep_node->input(1).get_source_output().get_node_shared_ptr());
-            if (!dep_const0 && !dep_const1) {
-                return false;
-            }
-            last_dep_const =
-                dep_const0 ? dep_node->input(0).get_source_output() : dep_node->input(1).get_source_output();
-            if (!is_scalar_node(last_dep_const))
-                return false;
-            if (last_dep_const_type != ov::element::undefined &&
-                last_dep_const_type != last_dep_const.get_element_type())
-                return false;
-            last_dep_const_type = last_dep_const.get_element_type();
-        }
-
-        auto target_inputs = concat->get_output_target_inputs(0);
-
-        for (auto& input : concat->inputs()) {
-            auto dep_node = input.get_source_output().get_node_shared_ptr();
-            auto dep_input0 = dep_node->input(0).get_source_output().get_node();
-            size_t const_index = ov::is_type<ov::op::v0::Constant>(dep_input0) ? 0 : 1;
-            size_t activation_index = ov::is_type<ov::op::v0::Constant>(dep_input0) ? 1 : 0;
-
-            auto dep_type = dep_node->get_output_element_type(0);
-            auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
-                std::vector<element::Type>{dep_type, dep_type},
-                std::vector<element::Type>{dep_type},
-                ov::op::TemporaryReplaceOutputType(dep_node->input(activation_index).get_source_output(), dep_type)
-                    .get(),
-                ov::op::TemporaryReplaceOutputType(
-                    ov::op::util::eltwise_fold<ov::op::v1::Divide>(dep_node->input(const_index).get_source_output(),
-                                                                   last_dep_const),
-                    dep_type)
-                    .get());
-            new_mul->set_friendly_name(dep_node->get_friendly_name() + "_c");
-            ov::copy_runtime_info(dep_node, new_mul);
-
-            input.replace_source_output(new_mul);
-        }
-
-        auto concat_type = concat->get_output_element_type(0);
-        auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
-            std::vector<element::Type>{concat_type, concat_type},
-            std::vector<element::Type>{concat_type},
-            ov::op::TemporaryReplaceOutputType(concat->output(0), concat_type).get(),
-            ov::op::TemporaryReplaceOutputType(last_dep_const, concat_type).get());
-        new_mul->set_friendly_name(concat->get_friendly_name() + "_c");
-        ov::copy_runtime_info(concat, new_mul);
-
-        for (auto& in : target_inputs) {
-            in.replace_source_output(new_mul);
-        }
-
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, "MulConcatTransformation");
     this->register_matcher(m, callback);
 }
 

@@ -386,7 +386,7 @@ static void attn_acc_value_block(float* out,
     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
 
-        return (uint8_t)((val >> shift) & 0x000F);
+        return static_cast<uint8_t>((val >> shift) & 0x000F);
     };
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
@@ -1376,8 +1376,9 @@ struct MHAHelper {
 
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
             _alibi_lookup.resize<float>({kv_len * 2});
-            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++)
+            for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++) {
                 _alibi_lookup.ptr<float>()[i] = -static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+            }
         }
 
         if (init_rotation_coefficient_scratch) {
@@ -1656,9 +1657,11 @@ struct MHAHelper {
             }
         }
         // convert to dst
-        for (size_t pq = 0; pq < q_len; pq++)
-            for (size_t h = hq_beg; h < hq_end; h++)
+        for (size_t pq = 0; pq < q_len; pq++) {
+            for (size_t h = hq_beg; h < hq_end; h++) {
                 cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _SV), _output.ptr<float>(ithr, pq, h), _SV);
+            }
+        }
     }
 
     // compute one token, loop along batch, head dimensions and kv_len, it's special for very long kv_len with small
@@ -1696,8 +1699,9 @@ struct MHAHelper {
             // small batch and all batch size is same(like SDPA case)
             auto kv_len = past_lens.ptr<int32_t>()[0];
             for (size_t b = 1; b < B; b++) {
-                if (past_lens.ptr<int32_t>()[b] != kv_len)
+                if (past_lens.ptr<int32_t>()[b] != kv_len) {
                     prefer_static_loop = false;
+                }
             }
         } else {
             // for bigger batch skip the test to save the cost
@@ -1982,8 +1986,9 @@ struct MHA {
             const auto kv_block = item.kv_block_id;
             auto block_number =
                 block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
-            if (block_number < 0)
+            if (block_number < 0) {
                 return;
+            }
 
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
@@ -2142,8 +2147,9 @@ struct MHA {
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes) {
         _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
-        if (output_score)
+        if (output_score) {
             _helper.init_score_buffers(past_lens, subsequence_begins);
+        }
 
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
@@ -2218,25 +2224,30 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         block_indices_begins.reset(inputs[ID_BLOCK_INDICES_BEGINS]);  // [B_seq+1]
         scale = *inputs[ID_SCALE]->getDataAs<float>();
         sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
-        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
+        if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims()) {
             alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
+        }
         max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
 
         size_t inputs_size = inputs.size();
         if (inputs_size > ID_ROTATED_BLOCK_INDICES) {
             OPENVINO_ASSERT(inputs_size >= ID_ROTATION_TRIG_LUT);
-            if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims())
+            if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
                 rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
-            if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims())
+            }
+            if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims()) {
                 rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks,  block_size (32) || 1]
-            if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims())
+            }
+            if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims()) {
                 rotation_trig_lut.reset(
                     inputs[ID_ROTATION_TRIG_LUT]);  // [max_context_len * embedding_size], row-major layout
+            }
         }
 
         output_emb.reset(outputs[0]);
-        if (outputs.size() == 2)
+        if (outputs.size() == 2) {
             output_score.reset(outputs[1]);
+        }
 
         auto B_token = q.size(0);
         auto Hk = k_cache.size(1);
@@ -2285,8 +2296,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         subsequence_begins.assert_dims({B_seq + 1});
         block_indices.assert_dims({0}, true);
         block_indices_begins.assert_dims({B_seq + 1});
-        if (scale == 0.0f)
+        if (scale == 0.0f) {
             scale = 1.0f / sqrt(S);
+        }
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});
         }
