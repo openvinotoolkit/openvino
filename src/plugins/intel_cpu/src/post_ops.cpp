@@ -151,17 +151,17 @@ Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type type) {
     OPENVINO_THROW("Unsupported algorithm");
 }
 
-PostOps getPostOps(std::vector<NodePtr> fused) {
+PostOps getPostOps(const std::vector<NodePtr>& fused) {
     PostOps ops;
 
-    auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise> eltwise) {
+    auto makeActivationPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
         return std::make_shared<ActivationPostOp>(convertToActivationPostOpt(eltwise->getAlgorithm()),
                                                   eltwise->getAlpha(),
                                                   eltwise->getBeta(),
                                                   eltwise->getGamma());
     };
 
-    auto makeScaleShiftPostOp = [](const std::shared_ptr<node::Eltwise> eltwise) {
+    auto makeScaleShiftPostOp = [](const std::shared_ptr<node::Eltwise>& eltwise) {
         return std::make_shared<ScaleShiftPostOp>(convertToScaleShiftOpt(eltwise->getAlgorithm()),
                                                   eltwise->getScales(),
                                                   eltwise->getShifts());

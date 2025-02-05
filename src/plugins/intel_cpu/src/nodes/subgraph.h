@@ -34,8 +34,8 @@ public:
     bool created() const override;
 
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 protected:
     IShapeInfer::Result shapeInfer() const override;
@@ -61,10 +61,12 @@ private:
 
     // Holds ISA version used is codeGeneration target
 #if defined(OPENVINO_ARCH_ARM64)
-    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
+#    define _ov_dnnl_cpu_isa dnnl::impl::cpu::aarch64::cpu_isa_t
 #else
-    dnnl::impl::cpu::x64::cpu_isa_t host_isa;
+#    define _ov_dnnl_cpu_isa dnnl::impl::cpu::x64::cpu_isa_t
 #endif
+
+    _ov_dnnl_cpu_isa host_isa;
 
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
 

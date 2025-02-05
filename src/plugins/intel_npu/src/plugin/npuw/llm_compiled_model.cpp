@@ -15,6 +15,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "serialization.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace opp = ov::pass::pattern;
 class TransposeValueTensors : public ov::pass::MatcherPass {
@@ -302,8 +303,8 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const auto all_devices = plugin->get_core()->get_available_devices();
-    if (std::find(all_devices.begin(), all_devices.end(), "NPU") == all_devices.end()) {
+    const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+    if (all_devices.empty()) {
         return std::nullopt;
     }
 
@@ -457,6 +458,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    LOG_DEBUG("   ...also convert BF16 to FP16");
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");

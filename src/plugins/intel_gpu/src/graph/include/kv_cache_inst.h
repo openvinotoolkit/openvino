@@ -63,7 +63,6 @@ public:
     }
 
     static int64_t get_scale_zp_sequence_axis() {
-        // The order of scales and zero points is fixed, so use constant axis
         const auto scale_zp_concat_axis = 2;
         return scale_zp_concat_axis;
     }

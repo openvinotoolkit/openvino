@@ -630,13 +630,15 @@ Let's discuss the target-independent stage first.
 
 The `Preparation` consists of low-level target-independent transformations needed to prepare the `IR` for code generation. 
 There are currently two such transformations:
-1. `AssignRegisters` assigns abstract registers to `Expressions` based on their data dependencies. 
-The easiest way to think about the assignment logic is that a register is assigned to every `PortConnector` to ensure appropriate data propagation. 
-However, every `Expression` needs to know the assigned registers, so they are stored is the `PortDescriptors` (and could be obtained via `get_reg()`). 
-Consequently, all the ports connected to the same `PortConnector` will have the same register in their `PortDescriptors`. 
-`AssignRegisters` also supports register re-utilization, so if all `ExpressionPorts` connected to this `PortConnector` are evaluated, then the corresponding register may be reused by other `PortConnector`. 
-In other words, when all the `Expressions` that required input data in a certain register are evaluated, the register may be reused to hold another `Expression's` output. 
-`AssignRegisters` also supports two types of registers: general-purpose and vector ones. 
+1. `InitRegisters` assigns registers to `Expressions` based on their data dependencies. 
+This register assignment is organized in three steps implemented as separate passes: `InitLiveRanges`, `AssignRegisters` and `InsertRegSpills`.
+    * `InitLiveRanges` assigns an abstract register to every `PortConnector` and determines their live intervals based on data dependencies.
+Note that the assigned registers are stored in `PortDescriptors` and could be obtained via `get_reg()`.
+Similarly, the `get_live_regs()` method returns live registers for the given expression.
+    * `AssignRegisters` uses the information collected by `InitLiveRanges` to map abstract register to the physical ones.
+Physical registers that have non-overlapping live intervals will be reused.
+    * Finally, `InsertRegSpills` inserts `RegSpillBegin` and `RegSpillEnd` operations to spill (and restore) some registers to the stack and update live registers for affected expressions.
+For example, this is needed to reduce ABI call overheads if we need to call a binary inside a loop.
 Different types of registers are managed and assigned independently, and a particular register type required by an `Expression` is provided by the `ov::snippets::Generator` (or a derived generator for target-specific `Ops`).  
 2. `InsertSpecificIterations` injects initialization section before a loop body and tail-processing section after a loop body if needed. 
 Note that every loop has two parameters that specify how its body is evaluated: `work_amount` and `increment` The `work_amount` indicates how much of the data needs to be processed, it often equals to the dimension's size the loop is working on. 
@@ -647,7 +649,7 @@ So if a loop's `work_amount` is not evenly divisible by its `increment`, it mean
 4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
 This information will be used during code emission to eliminate redundant instructions.
 
-Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage. 
+Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage.
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 

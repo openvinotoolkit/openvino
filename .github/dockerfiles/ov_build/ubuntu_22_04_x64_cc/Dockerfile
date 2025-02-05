@@ -13,8 +13,10 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install software-properties-common && \
+    apt-get install software-properties-common wget && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    add-apt-repository --yes --no-update "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" && \
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
@@ -36,7 +38,11 @@ RUN apt-get update && \
         # For Java API
         default-jdk \
         # Compiler \
-        clang \
+        clang-15 \
+        # Static analyzer
+        clang-tidy-18 \
+        # clang-tidy uses clang-format as a dependency
+        clang-format-15 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -47,8 +53,8 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Set clang as a default compiler
-RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
+RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-15 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-15 100
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"

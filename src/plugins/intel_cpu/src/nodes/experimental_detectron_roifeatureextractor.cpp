@@ -5,6 +5,7 @@
 #include "experimental_detectron_roifeatureextractor.h"
 
 #include <algorithm>
+#include <cmath>
 #include <openvino/opsets/opset6.hpp>
 #include <string>
 #include <vector>
@@ -165,9 +166,11 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
         // We use roi_bin_grid to sample the grid and mimic integral
-        int roi_bin_grid_h =
-            (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_height / pooled_height));  // e.g., = 2
-        int roi_bin_grid_w = (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_width / pooled_width));
+        int roi_bin_grid_h = (sampling_ratio > 0)
+                                 ? sampling_ratio
+                                 : static_cast<int>(std::ceil(roi_height / pooled_height));  // e.g., = 2
+        int roi_bin_grid_w =
+            (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(std::ceil(roi_width / pooled_width));
 
         // We do average (integral) pooling inside a bin
         const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
@@ -283,7 +286,7 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
 }
 
 ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const std::shared_ptr<ov::Node>& op,
-                                                                                   const GraphContext::CPtr context)
+                                                                                   const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -301,20 +304,22 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
 }
 
 void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute(const dnnl::stream& strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];

@@ -59,23 +59,35 @@ Prerequisites
 
     import platform
     import requests
+    from pathlib import Path
     
     
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
-    %pip install -q -U "openvino>=2024.5" "openvino-tokenizers>=2024.5" "openvino-genai>=2024.5"
-    %pip install -q Pillow "diffusers>=0.30.3" "gradio>=4.19" "typing_extensions>=4.9"
+    
+    %pip install -q -U --pre --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly "openvino>=2024.5" "openvino-tokenizers>=2024.5" "openvino-genai>=2024.5"
+    %pip install -q -U "transformers>=4.45" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q Pillow "diffusers>=0.30.3" "gradio>=4.19" "typing_extensions>=4.9" "tqdm"
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("text-to-image-genai.ipynb")
 
 Convert model using Optimum-CLI tool
 ------------------------------------
@@ -153,38 +165,45 @@ select device from dropdown list for running inference using OpenVINO
 
 And now just provide ``model_dir`` and the chosen inference device to
 ``openvino_genai.Text2ImagePipeline`` and call ``generate`` method for
-inference. ``openvino_genai.Generator`` class wraps ``std::mt19937``
-pseudo-random generator. It can be used for results reproducibility.
-That’s it:)
+inference. For results reproducibility we will use
+``ov_genai.TorchGenerator``, pseudo-random numbers generator, which
+behavior aligned with PyTorch Generator. That’s it:)
 
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-    import openvino as ov
     from PIL import Image
-    import torch
+    from tqdm.notebook import tqdm
+    import sys
     
+    num_inference_steps = 20
     
-    class Generator(ov_genai.Generator):
-        def __init__(self, seed):
-            ov_genai.Generator.__init__(self)
-            self.generator = torch.Generator(device="cpu").manual_seed(seed)
+    random_generator = ov_genai.TorchGenerator(42)
     
-        def next(self):
-            return torch.randn(1, generator=self.generator, dtype=torch.float32).item()
-    
-        def randn_tensor(self, shape: ov.Shape):
-            torch_tensor = torch.randn(list(shape), generator=self.generator, dtype=torch.float32)
-            return ov.Tensor(torch_tensor.numpy())
-    
-    
-    random_generator = Generator(42)  # openvino_genai.CppStdGenerator can be used to have same images as C++ sample
     pipe = ov_genai.Text2ImagePipeline(model_dir, device.value)
-    prompt = "anime, masterpiece, high quality, a green snowman with a happy smiling face in the snows"
+    prompt = "cyberpunk cityscape like Tokyo New York with tall buildings at dusk golden hour cinematic lighting"
     
-    image_tensor = pipe.generate(prompt, width=512, height=512, num_inference_steps=20, num_images_per_prompt=1, generator=random_generator)
+    pbar = tqdm(total=num_inference_steps)
+    
+    
+    def callback(step, num_steps, latent):
+        pbar.update(1)
+        sys.stdout.flush()
+        return False
+    
+    
+    image_tensor = pipe.generate(prompt, width=512, height=512, num_inference_steps=20, num_images_per_prompt=1, generator=random_generator, callback=callback)
+    
+    pbar.close()
     
     image = Image.fromarray(image_tensor.data[0])
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/20 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -220,11 +239,12 @@ from command line:
 
 .. code:: ipython3
 
-    r = requests.get(
-        url="https://civitai.com/api/download/models/72591",
-    )
-    with open("soulcard.safetensors", "wb") as file:
-        file.write(r.content)
+    if not Path("soulcard.safetensors").exists():
+        r = requests.get(
+            url="https://civitai.com/api/download/models/72591",
+        )
+        with open("soulcard.safetensors", "wb") as file:
+            file.write(r.content)
 
 .. code:: ipython3
 
@@ -244,8 +264,18 @@ from command line:
     
     pipe = ov_genai.Text2ImagePipeline(model_dir, device.value, adapters=adapter_config)
     
-    image_tensor = pipe.generate(prompt, generator=Generator(42), width=512, height=512, num_inference_steps=20)
+    pbar = tqdm(total=num_inference_steps)
+    
+    image_tensor = pipe.generate(prompt, generator=ov_genai.TorchGenerator(42), width=512, height=512, num_inference_steps=20, callback=callback)
     image = Image.fromarray(image_tensor.data[0])
+    pbar.close()
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/20 [00:00<?, ?it/s]
+
 
 .. code:: ipython3
 
@@ -269,10 +299,17 @@ Interactive demo
 
 .. code:: ipython3
 
+    if not Path("gradio_helper.py").exists():
+        r = requests.get("https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/text-to-image-genai/gradio_helper.py")
+        with open("gradio_helper.py", "w") as f:
+            f.write(r.text)
+
+.. code:: ipython3
+
     from gradio_helper import make_demo
     
     
-    demo = make_demo(pipe, Generator, adapter_config)
+    demo = make_demo(pipe, ov_genai.TorchGenerator, adapter_config)
     
     try:
         demo.launch(debug=True)

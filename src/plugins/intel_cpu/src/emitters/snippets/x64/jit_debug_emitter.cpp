@@ -64,13 +64,15 @@ void jit_debug_emitter::emit_code(const std::vector<size_t>& in_idxs,
                                   const std::vector<size_t>& out_idxs,
                                   const std::vector<size_t>& pool_vec_idxs,
                                   const std::vector<size_t>& pool_gpr_idxs) const {
-    if (m_decorator_emit_loc == EmissionLocation::preamble || m_decorator_emit_loc == EmissionLocation::both)
+    if (m_decorator_emit_loc == EmissionLocation::preamble || m_decorator_emit_loc == EmissionLocation::both) {
         m_decorator_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+    }
 
     m_target_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    if (m_decorator_emit_loc == EmissionLocation::postamble || m_decorator_emit_loc == EmissionLocation::both)
+    if (m_decorator_emit_loc == EmissionLocation::postamble || m_decorator_emit_loc == EmissionLocation::both) {
         m_decorator_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+    }
 }
 
 }  // namespace intel_cpu

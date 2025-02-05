@@ -1,9 +1,9 @@
 # NPU Single Image Test Tool
 
-This page demostrates how to use NPU Single Image Test Tool for end-to-end accuracy validation on a single image or input file with OpenVINO™ Intermediate Representation (IR) of an AI model or a model in ONNX format. 
+This page demostrates how to use NPU Single Image Test Tool for end-to-end accuracy validation on a single image or input file with OpenVINO™ Intermediate Representation (IR) of an AI model or a model in ONNX format.
 
 
-## Description 
+## Description
 
 Single Image Test Tool is a C++ application that enables you to pass OpenVINO IR or ONNX model or pre-compiled blob and a single image or any other compatible file with the model inputs and get 2 sets of files with CPU outputs and NPU outputs that can be compared later or straight after the inference if `-run_test` option is passed.
 
@@ -16,14 +16,14 @@ Using Single Image Test is not a basic approach to end-to-end validation or coll
 
 ### Within NPU Plugin build
 
-See [How to build](https://github.com/openvinotoolkit/openvino/wiki#how-to-build). If `ENABLE_INTEL_NPU=ON` is provided and `OpenCV` project is linked to the current cmake project, no additional steps are required for Single Image Test. It will be built unconditionally with every NPU Plugin build. It can be found in `bin` folder.  
+See [How to build](https://github.com/openvinotoolkit/openvino/wiki#how-to-build). If `ENABLE_INTEL_NPU=ON` is provided and `OpenCV` project is linked to the current cmake project, no additional steps are required for Single Image Test. It will be built unconditionally with every NPU Plugin build. It can be found in `bin` folder.
 
 If you need to configure a release package layout and have Single Image Test in it, use `cmake --install <dir> --component npu_internal` from your `build` folder. After installation single-image-test executable can be found in `<install_dir>/tools/single-image-test` folder.
 
 ### Standalone build
 
-#### Prerequisites 
-* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2024/get-started/install-openvino.html)
+#### Prerequisites
+* [OpenVINO™ Runtime release package](https://docs.openvino.ai/2025/get-started/install-openvino.html)
 * [OpenCV: Open Source Computer Vision Library release package](https://opencv.org/get-started/)
 
 #### Build instructions
@@ -37,10 +37,10 @@ If you need to configure a release package layout and have Single Image Test in 
     cmake --build . --config Release
     cmake --install . --prefix <sit_install_dir>
     ```
-    > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)  
-    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2024/get-started/install-openvino.html) for details.  
-    > Note 3: depending on OpenCV installation method, there might not be a need to specify OpenCV_DIR.  
-    > Note 4: depending on OpenCV version, cmake configs might be located somewhere else. You need to specify a directory that contains `OpenCVConfig.cmake` file  
+    > Note 1: command line instruction might differ on different platforms (e.g. Windows cmd)
+    > Note 2: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, specifying OpenVINO_DIR and calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
+    > Note 3: depending on OpenCV installation method, there might not be a need to specify OpenCV_DIR.
+    > Note 4: depending on OpenCV version, cmake configs might be located somewhere else. You need to specify a directory that contains `OpenCVConfig.cmake` file
     > Note 5: `<sit_install_dir>` can be any directory on your filesystem that you want to use for installation including `<openvino_install_dir>` if you wish to extend OpenVINO package
 1. Verify the installation
     ```sh
@@ -48,14 +48,14 @@ If you need to configure a release package layout and have Single Image Test in 
     source <opencv_install_dir>setup_vars_opencv4.sh
     <sit_install_dir>/tools/single-image-test/single-image-test -help
     ```
-    > Note 1: command line might differ depending on your platform  
-    > Note 2: depending on OpenCV installation method, there might not be a need to call setupvars.  
-    > Note 3: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2024/get-started/install-openvino.html) for details.
+    > Note 1: command line might differ depending on your platform
+    > Note 2: depending on OpenCV installation method, there might not be a need to call setupvars.
+    > Note 3: this example is based on OpenVINO Archive distribution. If you have chosen another installation method, calling setupvars might not be needed. Refer [documentation](https://docs.openvino.ai/2025/get-started/install-openvino.html) for details.
 
     Successful build will show the information about Single Image Test Tool CLI options
 
 
-## How to run 
+## How to run
 
 Running the application with the `-help` option yields the following usage message:
 ```
@@ -172,7 +172,7 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
     Parameters:
         Network file:                             mobilenet-v2.xml
         Input file(s):                            validation-set/224x224/watch.bmp
-        Output compiled network file:             
+        Output compiled network file:
         Color format:                             RGB
         Input precision:                          FP16
         Output precision:                         FP16
@@ -181,14 +181,14 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Model input layout:                       NCHW
         Model output layout:                      NC
         Img as binary:                            0
-        Bin input file precision:                 
+        Bin input file precision:
         Device:                                   CPU
-        Config file:                              
+        Config file:
         Run test:                                 0
         Performance counters:                     0
-        Mean_values [channel1,channel2,channel3]  
-        Scale_values [channel1,channel2,channel3] 
-        Log level:                        
+        Mean_values [channel1,channel2,channel3]
+        Scale_values [channel1,channel2,channel3]
+        Log level:
 
     Run single image test
     Load network mobilenet-v2.xml
@@ -247,7 +247,7 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
     Parameters:
         Network file:                             mobilenet-v2.blob
         Input file(s):                            validation-set/224x224/watch.bmp
-        Output compiled network file:             
+        Output compiled network file:
         Color format:                             RGB
         Input precision:                          FP16
         Output precision:                         FP16
@@ -256,13 +256,13 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Model input layout:                       NCHW
         Model output layout:                      NC
         Img as binary:                            0
-        Bin input file precision:                 
+        Bin input file precision:
         Device:                                   NPU
         Config file:                              mobilenet-v2.conf
         Run test:                                 1
         Performance counters:                     0
-        Mean_values [channel1,channel2,channel3]  
-        Scale_values [channel1,channel2,channel3] 
+        Mean_values [channel1,channel2,channel3]
+        Scale_values [channel1,channel2,channel3]
         Mode:             classification
         Top K:            1
         Tolerance:        0.6

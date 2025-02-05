@@ -36,7 +36,7 @@ struct CPUStreamsExecutor::Impl {
                 : custom::task_scheduler_observer(arena),
                   _mask{std::move(mask)},
                   _ncpus(ncpus),
-                  _cpu_ids(cpu_ids) {}
+                  _cpu_ids(std::move(cpu_ids)) {}
             void on_scheduler_entry(bool) override {
                 pin_thread_to_vacant_core(tbb::this_task_arena::current_thread_index(),
                                           _threadBindingStep,
@@ -92,14 +92,6 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (_impl->_config.get_name().find("StreamsExecutor") == std::string::npos) {
-                try {
-                    set_cpu_used(_cpu_ids, NOT_USED);
-                } catch (const ov::Exception&) {
-                    // Destructor should not throw - catch needed for static analysis.
-                    // CPU::CPU() won't throw here as cpu_info() is called from Stream constructor.
-                }
-            }
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
@@ -345,6 +337,7 @@ struct CPUStreamsExecutor::Impl {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
+        auto processor_ids = _config.get_stream_processor_ids();
         if (streams_num != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min<std::size_t>(streams_num, numaNodes.size()),
@@ -353,6 +346,10 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = std::move(numaNodes);
         }
         for (auto streamId = 0; streamId < streams_num; ++streamId) {
+            if (_config.get_cpu_reservation()) {
+                std::lock_guard<std::mutex> lock(_cpu_ids_mutex);
+                _cpu_ids_all.insert(_cpu_ids_all.end(), processor_ids[streamId].begin(), processor_ids[streamId].end());
+            }
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config.get_name() + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
@@ -457,6 +454,8 @@ struct CPUStreamsExecutor::Impl {
     CustomThreadLocal _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
     bool _isExit = false;
+    std::vector<int> _cpu_ids_all;
+    std::mutex _cpu_ids_mutex;
 };
 
 int CPUStreamsExecutor::get_stream_id() {
@@ -492,9 +491,25 @@ std::vector<int> CPUStreamsExecutor::get_rank() {
     return stream->_rank;
 }
 
+void CPUStreamsExecutor::cpu_reset() {
+    if (!_impl->_cpu_ids_all.empty()) {
+        set_cpu_used(_impl->_cpu_ids_all, NOT_USED);
+        {
+            std::lock_guard<std::mutex> lock(_impl->_cpu_ids_mutex);
+            _impl->_cpu_ids_all.clear();
+        }
+    }
+}
+
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
+    try {
+        cpu_reset();
+    } catch (const ov::Exception&) {
+        // Destructor should not throw - catch needed for static analysis.
+        OPENVINO_THROW("Reset CPU state error.");
+    }
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
         _impl->_isStopped = true;
