@@ -12,8 +12,7 @@ GET STARTED
    :hidden:
 
    Install OpenVINO <get-started/install-openvino>
-   Additional Hardware Setup <get-started/configurations>
-   Troubleshooting <get-started/troubleshooting-install-config>
+   Learn OpenVINO <get-started/learn-openvino>
    System Requirements <./about-openvino/release-notes-openvino/system-requirements>
 
 
@@ -30,7 +29,7 @@ GET STARTED
 
 
 For a quick reference, check out
-`the Quick Start Guide [pdf] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+`the Quick Start Guide [pdf] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
 
 .. _quick-start-example:
@@ -69,7 +68,7 @@ Learn the basics of working with models and inference in OpenVINO. Begin with �
 Interactive Tutorials - Jupyter Notebooks
 -----------------------------------------
 
-Start with :doc:`interactive Python <learn-openvino/interactive-tutorials-python>` that show the basics of model inference, the OpenVINO API, how to convert models to OpenVINO format, and more.
+Start with :doc:`interactive Python <get-started/learn-openvino/interactive-tutorials-python>` that show the basics of model inference, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
 * `Hello Image Classification <notebooks/hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
 * `OpenVINO Runtime API Tutorial <notebooks/openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
@@ -81,7 +80,7 @@ Start with :doc:`interactive Python <learn-openvino/interactive-tutorials-python
 OpenVINO Code Samples
 ---------------------
 
-View :doc:`sample code <learn-openvino/openvino-samples>` for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the :doc:`Get Started with C++ Samples <learn-openvino/openvino-samples/get-started-demos>` to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
+View :doc:`sample code <get-started/learn-openvino/openvino-samples>` for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the :doc:`Get Started with C++ Samples <get-started/learn-openvino/openvino-samples/get-started-demos>` to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
 
 .. _integrate-openvino:
 
@@ -122,7 +121,7 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
 * :doc:`Automatic Batching <openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` performs on-the-fly grouping of inference requests to maximize utilization of the target hardware’s memory and processing cores.
 * :doc:`Performance Hints <openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` automatically adjust runtime parameters to prioritize for low latency or high throughput
 * :doc:`Dynamic Shapes <openvino-workflow/running-inference/dynamic-shapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
-* :doc:`Benchmark Tool <learn-openvino/openvino-samples/benchmark-tool>` characterizes model performance in various hardware and pipeline configurations
+* :doc:`Benchmark Tool <get-started/learn-openvino/openvino-samples/benchmark-tool>` characterizes model performance in various hardware and pipeline configurations
 
 .. _additional-about-openvino/additional-resources:
 

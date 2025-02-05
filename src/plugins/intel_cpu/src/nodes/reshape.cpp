@@ -38,22 +38,23 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     }
 
     if (isDynamicNode()) {
-        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
+        auto checkSecondInput = [this](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
-                OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
+                THROW_CPU_NODE_ERR("has non static second input");
             }
         };
 
         if (ov::as_type_ptr<const ov::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
         } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
-            if (op->get_input_size() == 1)
-                OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
+            if (op->get_input_size() == 1) {
+                THROW_CPU_NODE_ERR("has inputs num equal 1");
+            }
             checkSecondInput(op, "Squeeze");
         } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
-            OPENVINO_THROW("Unsupported operation type via reshape node");
+            THROW_CPU_NODE_ERR("Unsupported operation type via reshape node");
         }
     }
 }
@@ -79,15 +80,18 @@ bool Reshape::needShapeInfer() const {
 }
 
 void Reshape::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
-        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
-    if (getChildEdges().empty())
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+    if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
+        THROW_CPU_NODE_ERR("Incorrect number of input edges");
+    }
+    if (getChildEdges().empty()) {
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
+    }
 }
 
 void Reshape::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outPrec = getOriginalOutputPrecisionAtPort(0);
@@ -95,14 +99,16 @@ void Reshape::initSupportedPrimitiveDescriptors() {
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required
-    if (inPrec != outPrec)
+    if (inPrec != outPrec) {
         inPrec = outPrec;
+    }
 
     bool canBeInPlace = true;
 
     // CVS-81059 : disable inPlace in following case since it won't be satisfied by framework
-    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant())
+    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant()) {
         canBeInPlace = false;
+    }
 
     NodeConfig config;
     config.inConfs.resize(getParentEdges().size());

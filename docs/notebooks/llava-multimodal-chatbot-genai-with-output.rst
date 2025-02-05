@@ -136,6 +136,11 @@ Install required dependencies
             )
             with local_path.open("w") as f:
                 f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llava-multimodal-chatbot-genai.ipynb")
 
 Convert and Optimize Model
 --------------------------
@@ -461,9 +466,15 @@ one of the most critical aspects of a smooth experience.
         print(subword, end="", flush=True)
     
     
-    image_file = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_file = Path("cat.png")
     
-    image, image_tensor = load_image(image_file)
+    if not image_file.exists():
+        image, image_tensor = load_image(image_url)
+        image.save(image_file)
+    else:
+        image, image_tensor = load_image(image_file)
+    
     text_message = "What is unusual on this image?"
     
     prompt = text_message

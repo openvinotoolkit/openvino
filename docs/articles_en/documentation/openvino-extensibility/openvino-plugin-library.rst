@@ -94,6 +94,6 @@ Detailed Guides
 API References
 ##############
 
-*  `OpenVINO Plugin API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__api.html>`__
-*  `OpenVINO Transformation API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ie__transformation__api.html>`__
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__dev__api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2025/api/c_cpp_api/group__ie__transformation__api.html>`__
 

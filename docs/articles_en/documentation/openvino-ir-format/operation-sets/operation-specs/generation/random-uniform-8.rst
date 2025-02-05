@@ -15,15 +15,15 @@ RandomUniform
 **Detailed description**:
 
 *RandomUniform* operation generates random numbers from a uniform distribution in the range ``[minval, maxval)``.
-The generation algorithm is based on an underlying random integer generator that uses either Philox or Mersnne-Twister algorithm. 
+The generation algorithm is based on an underlying random integer generator that uses either Philox or Mersnne-Twister algorithm.
 Both algorithms are counter-based pseudo-random generators, which produce uint32 values. A single algorithm invocation returns
 four result random values, depending on the given initial values. For Philox, these values are *key* and *counter*, for Mersenne-Twister it is a single *state* value. *Key* and *counter* are initialized
-with *global_seed* and *op_seed* attributes respectively, while the *state* is only initialized using *global_seed*. 
+with *global_seed* and *op_seed* attributes respectively, while the *state* is only initialized using *global_seed*.
 
-Algorithm selection allows to align the output of OpenVINO's Random Uniform op with the ones available in Tensorflow and PyTorch. 
+Algorithm selection allows to align the output of OpenVINO's Random Uniform op with the ones available in Tensorflow and PyTorch.
 The *alignment* attribute selects which framework the output should be aligned to. Tensorflow uses the Philox algorithm and PyTorch uses the Mersenne-Twister algorithm.
 For Tensorflow, this function is equivalent to the function tf.raw_ops.RandomUniform(shape, dtype, global_seed, op_seed) when dtype represents a real number, and tf.raw_ops.RandomUniformInt(shape, min\_val, max\_val, dtype, global\_seed, op\_seed) for integer types. Internally, both of these functions are executed by tf.random.uniform(shape, min\_val, max\_val, dtype, global\_seed, op\_seed), where for floating-point dtype the output goes through additional conversion to reside within a given range.
-For PyTorch, this function is equivalent to the function torch.Tensor(shape, dtype).uniform\_(min\_val, max\_val) when dtype represents a real number, and torch.Tensor(shape, dtype).random\_(min\_val, max\_val) for integer types. Internally, both of these functions are executed by torch.rand(shape, dtype) with default generator and layout. The seed of these functions is provided by calling torch.manual\_seed(global\_seed). op\_seed value is ignored. 
+For PyTorch, this function is equivalent to the function torch.Tensor(shape, dtype).uniform\_(min\_val, max\_val) when dtype represents a real number, and torch.Tensor(shape, dtype).random\_(min\_val, max\_val) for integer types. Internally, both of these functions are executed by torch.rand(shape, dtype) with default generator and layout. The seed of these functions is provided by calling torch.manual\_seed(global\_seed). op\_seed value is ignored.
 By default, the output is aligned with Tensorflow (Philox algorithm). This behavior is backwards-compatibile.
 
 If both seed values are equal to zero, RandomUniform generates a non-deterministic sequence.
@@ -257,7 +257,7 @@ Whenever all state values are 'used', a new state array is generated recursively
    twisted_state = (((current_state & 0x80000000) | (next_state & 0x7fffffff)) >> 1) ^ (next_state & 1 ? 0x9908b0df : 0)
    state[i] = next_m_state ^ twisted_state
 
-where m is a constant. 
+where m is a constant.
 
 For parity with PyTorch, the value of the constants is set as follows:
 
@@ -328,6 +328,7 @@ In other words:
    output = output % (max - min) + min
 
 Example 1. RandomUniform output with initial_seed = 150, output_type = f32, alignment = PYTORCH:
+
 .. code-block:: xml
    :force:
 
