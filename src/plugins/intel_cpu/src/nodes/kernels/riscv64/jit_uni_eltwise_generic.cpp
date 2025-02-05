@@ -60,8 +60,7 @@ void jit_uni_eltwise_generic::generate() {
         auto init_ptrs_with_offsets = [&](Reg reg, const std::vector<size_t>& offsets) {
             for (int j = 0; j < offset_count; j++) {
                 if (jep_.dims[j] != 1 && offsets[j] != 0) {
-                    // what's about 64bit?
-                    li(reg_tmp_0, static_cast<int>(offsets[j]));
+                    lqw(reg_tmp_0, static_cast<int>(offsets[j]));
                     ld(reg_tmp_1, reg_indexes, static_cast<int>(j * sizeof(size_t)));
                     mul(reg_tmp_0, reg_tmp_0, reg_tmp_1);
                     add(reg, reg, reg_tmp_0);
@@ -77,7 +76,7 @@ void jit_uni_eltwise_generic::generate() {
         ld(dst_gpr(), reg_const_params, GET_OFF(dst_ptr));
         init_ptrs_with_offsets(dst_gpr(), jep.dst_offsets);
 
-        li(reg_work_amount, static_cast<int>(jep.work_amount));
+        lqw(reg_work_amount, static_cast<int>(jep.work_amount));
     }
 
     // TODO: Support any LMUL values
@@ -155,7 +154,7 @@ void jit_uni_eltwise_generic::generate() {
                 }
             }
 
-            li(reg_loop_step, min_src_size);
+            lqw(reg_loop_step, min_src_size);
             L(inner_loop_begin);
             {
                 // to get correct `reg_vlen` in loop - in tail loop `rg_vlen` might be updated
@@ -179,12 +178,12 @@ void jit_uni_eltwise_generic::generate() {
             const auto reg_tmp = reg_loop_step;
             for (size_t i = 0; i < jep.inputs_number; i++) {
                 if (jep.src_size[i] == jep.dst_size) {
-                    li(reg_tmp, jep.src_prc[i].size() * min_src_size);
+                    lqw(reg_tmp, jep.src_prc[i].size() * min_src_size);
                     add(src_gpr(i), src_gpr(i), reg_tmp);
                 }
             }
 
-            li(reg_loop_step, min_src_size);
+            lqw(reg_loop_step, min_src_size);
             sub(reg_work_amount, reg_work_amount, reg_loop_step);
             j_(loop_begin);
         }
