@@ -11,6 +11,7 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
@@ -169,7 +170,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
 #else
-    OPENVINO_THROW("CPU plugin: Subgraphs code-generator is not supported on non-x64 platforms");
+    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -223,7 +224,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     }
 #endif
 
-    enum LayoutType { Planar, ChannelsFirst, Blocked };
+    enum LayoutType : uint8_t { Planar, ChannelsFirst, Blocked };
     auto initDesc = [&](LayoutType lt) -> NodeDesc {
         auto createMemoryDesc =
             [lt](const Shape& shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
@@ -281,7 +282,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                     ? context->getConfig().inferencePrecision
                     : originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0) {
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
             }
 
             const auto equalPrecisions =
@@ -301,7 +302,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto precision = getOriginalOutputPrecisionAtPort(i);
             if (supportedPrecisions.count(precision) == 0) {
-                OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
             }
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
@@ -540,6 +541,13 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
+                                    ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                    ov::snippets::lowered::pass::InsertPerfCountVerbose,
+                                    getName());
+#endif  // SNIPPETS_DEBUG_CAPS
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                     ov::snippets::lowered::pass::InitLoops,
