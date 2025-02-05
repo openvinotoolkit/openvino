@@ -19,8 +19,8 @@ from transformers import (
     VivitImageProcessor, XCLIPVisionModel
 )
 
-from models_hub_common.constants import hf_hub_cache_dir
-from models_hub_common.utils import cleanup_dir, get_models_list, retry, no_clean_cache_dir
+from models_hub_common.constants import hf_hub_cache_dir, no_clean_cache_dir
+from models_hub_common.utils import cleanup_dir, get_models_list, retry
 from torch_utils import TestTorchConvertModel
 
 
