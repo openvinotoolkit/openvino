@@ -22,7 +22,7 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     auto m_rank_norm = ov::pass::pattern::optional<ov::snippets::op::RankNormalization>(m_param);
     auto m_copy_b = ov::pass::pattern::wrap_type<BrgemmCopyB>({m_param});
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EliminateBrgemmCopyB")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& copy_b_out = pattern_map.at(m_copy_b);
