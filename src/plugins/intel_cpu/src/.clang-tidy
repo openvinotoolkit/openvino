@@ -58,7 +58,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,
   -readability-function-cognitive-complexity,
-  -modernize-concat-nested-namespaces,
   -modernize-loop-convert,
 # Treat warnings as errors
 WarningsAsErrors: '*'
