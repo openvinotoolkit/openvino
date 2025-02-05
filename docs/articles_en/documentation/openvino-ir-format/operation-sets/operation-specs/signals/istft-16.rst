@@ -21,18 +21,18 @@ of shape ``[fft_results, frames, 2]`` or ``[batch, fft_results, frames, 2]``, wh
   * ``2`` is the last dimension for complex value represented by floating-point values pair (real and imaginary part accordingly)
 
 The output is a restored real-valued signal in a discrete time domain. The shape of the output is 1D ``[signal_length]`` or 2D ``[batch, signal_length]``.
-If the ``signal_length`` is not provided as an input value, it is calculated accoring to the following rules:
+If the ``signal_length`` is not provided as an input value, it is calculated according to the following rules:
 
   * ``signal_length = (frames - 1) * frame_step`` for ``center == true`` 
   * ``signal_length = (frames - 1) * frame_step + frame_size`` for ``center == false`` 
 
-If the ``window_length`` can not be bigger than than ``frame_size``, but if smaller the window values will be padded with zeros on the left and rigt side. The size of the left padding is calculated as ``(frame_size - window_length) // 2``, then right padding size is filled to match the ``frame_size``.  
+If the ``window_length`` can not be larger than ``frame_size``, but if smaller the window values will be padded with zeros on the left and right side. The size of the left padding is calculated as ``(frame_size - window_length) // 2``, then right padding size is filled to match the ``frame_size``.  
 
 **Attributes**:
 
 * *center*
 
-  * **Description**: Flag that indicates wheather padding has been applied to the original signal or not. It affects output shape, if the ``signal_length`` input is not provided.
+  * **Description**: Flag that indicates whether padding has been applied to the original signal. It affects output shape, if the ``signal_length`` input is not provided.
   * **Range of values**:
 
     * ``false`` - padding has not been applied, default signal length is calculated as ``(frames - 1) * frame_step + frame_size``
@@ -42,7 +42,7 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 
 * *normalized*
 
-  * **Description**: Flag that indicates wheather the input has been normalized or not. It is needed to correctly restore the signal and denormalize the output. Output of the STFT is divided by the ``sqrt(frame_size)``, when normalized.
+  * **Description**: Flag that indicates wheather the input has been normalized. It is needed to correctly restore the signal and denormalize the output. Output of the STFT is divided by ``sqrt(frame_size)``, when normalized.
   * **Range of values**:
 
     * ``false`` - input has not been normalized
@@ -55,10 +55,10 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 
 * **1**: ``data`` - Tensor of type *T*, the ISTFT data input (compatible with a result of STFT operation). **Required.**
   * The data input shape can be 3D ``[fft_results, frames, 2]`` or 4D ``[batch, fft_results, frames, 2]``.
-* **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. If the ``window_length`` is smaller than ``frame_size``, window will be padded with zeros on the left and rigt side. **Required.**
+* **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. If the ``window_length`` is smaller than ``frame_size``, window will be padded with zeros on the left and rigt sides. **Required.**
 * **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
 * **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing the distance (number of samples) between successive frames. **Required.**
-* **5**: ``signal_length`` - Scalar or single element 1D tensor of type *T_INT* describing the desired length of the output signal, if not provided it's calculated accordingly to the rules described in the. **Optional.**
+* **5**: ``signal_length`` - Scalar or single element 1D tensor of type *T_INT* describing the desired length of the output signal, if not provided it's calculated accordingly to the rules presented in the detailed description above. **Optional.**
 
 
 **Outputs**
