@@ -75,8 +75,7 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
 }
 
 void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
-    //TODO: Enable CheckPluginRelatedResultsImpl as soon as kleidiai implType is configured crrectly
-    //CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
+    CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
     CheckFusingResults(function, nodeType);
 }
 

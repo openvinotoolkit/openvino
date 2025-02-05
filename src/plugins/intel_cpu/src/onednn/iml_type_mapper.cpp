@@ -154,6 +154,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve512);
     CASE(shl);
     CASE(gemm_shl);
+    CASE(kleidiai);
+    CASE(gemm_kleidiai);
 
 #undef CASE
     return "unknown";
