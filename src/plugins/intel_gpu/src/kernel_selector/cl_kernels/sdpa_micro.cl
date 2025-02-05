@@ -210,6 +210,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
     V += (VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET) / VAL_ELEMENTS_PER_BYTE;
     A += DST_OFF(b1, b0, 0, 0, 0);
+#if WITH_ATTN_MASK
+    msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
+#endif
 
 #if KEY_SCALES
     K_scales += KEY_COMP_OFF(b1, b0_kv, 0, 0);
