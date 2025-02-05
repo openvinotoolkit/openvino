@@ -81,8 +81,9 @@ DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 void DFT::getSupportedDescriptors() {}
 
 void DFT::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
@@ -103,8 +104,9 @@ void DFT::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConfigurators(
         {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
-    if (inputShapes.size() > SIGNAL_SIZE_INDEX)
+    if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
+    }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
@@ -207,8 +209,10 @@ void copyDataToOutputWithSignalSize(const float* input,
                                     float* output,
                                     const std::vector<size_t>& outputShape,
                                     const std::vector<size_t>& outputStrides) {
-    auto totalInput = std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
-    auto totalOutput = std::accumulate(outputShape.begin(), outputShape.end(), size_t(1), std::multiplies<size_t>());
+    auto totalInput =
+        std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto totalOutput =
+        std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
     std::fill_n(output, totalOutput, 0.f);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
@@ -232,7 +236,7 @@ void copyDataToOutputWithSignalSize(const float* input,
     const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
     const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
                                              inputShape.end(),
-                                             size_t(1),
+                                             static_cast<size_t>(1),
                                              std::multiplies<size_t>());
     const size_t blockSizeBytes = blockSize * sizeof(float);
     std::vector<size_t> iterationCounter(iterationRange.size(), 0);
@@ -282,7 +286,7 @@ void DFT::execute(const dnnl::stream& strm) {
         copyDataToOutputWithSignalSize(src, inputShape, inputStrides, dst, outputShape, outputStrides);
     } else {
         auto totalElements =
-            std::accumulate(inputShape.begin(), inputShape.end(), size_t(1), std::multiplies<size_t>());
+            std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         cpu_memcpy(dst, src, totalElements * sizeof(float));
     }
 
@@ -593,8 +597,9 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
             OPENVINO_THROW("Can't create jit DFT kernel");
         }
 
-        if (dftKernel)
+        if (dftKernel) {
             dftKernel->create_ker();
+        }
     }
 
     if (hasFFT && fftKernel == nullptr) {
@@ -608,8 +613,9 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
             OPENVINO_THROW("Can't create jit FFT kernel");
         }
 
-        if (fftKernel)
+        if (fftKernel) {
             fftKernel->create_ker();
+        }
     }
 #endif
 }
