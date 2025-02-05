@@ -42,7 +42,6 @@ const auto params_4D_Snippets =
                        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
                        ::testing::Values(emptyFusingSpec),
                        ::testing::Values(true));
-OPENVINO_SUPPRESS_DEPRECATED_END
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_Snippets, EltwiseLayerCPUTest, params_4D_Snippets, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec =

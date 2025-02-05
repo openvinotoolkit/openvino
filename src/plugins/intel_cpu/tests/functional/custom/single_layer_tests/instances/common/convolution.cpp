@@ -74,7 +74,6 @@ INSTANTIATE_TEST_SUITE_P(Conv_2D_GEMM_FP32_dilated_empty_fusing,
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 /* ============= Convolution (2D) ============= */
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32_empty_fusing, ConvolutionLayerCPUTest,

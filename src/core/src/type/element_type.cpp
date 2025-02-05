@@ -46,15 +46,6 @@ struct TypeInfo {
     }
 };
 
-constexpr TypeInfo type_info(size_t bitwidth,
-                             bool is_real,
-                             bool is_signed,
-                             bool is_quantized,
-                             const char* cname,
-                             const char* type_name) {
-    return {bitwidth, is_real, is_signed, is_quantized, cname, type_name, nullptr, 0};
-}
-
 template <class Array>
 constexpr TypeInfo type_info(size_t bitwidth,
                              bool is_real,
