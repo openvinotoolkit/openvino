@@ -532,6 +532,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::Identity>
     return std::make_shared<ov::Model>(results, params, "Identity");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SegmentMax> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 9});
+    const auto segment_ids = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {4, 4});
+    const auto num_segments = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {5});
+    const auto SegmentMaxNode = std::make_shared<ov::op::v16::SegmentMax>(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(SegmentMaxNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "SegmentMaxGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
