@@ -68,16 +68,16 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
 
     // Calc gws, lws
     {
-        uint32_t matrix_m_ih = shape.seq_len;
-        uint32_t matrix_n_ih = shape.hidden_size * shape.num_gates;
+        size_t matrix_m_ih = shape.seq_len;
+        size_t matrix_n_ih = shape.hidden_size * shape.num_gates;
 
-        uint32_t wg_m_ih = 40;
-        uint32_t wg_n_ih = 256;
+        size_t wg_m_ih = 40;
+        size_t wg_n_ih = 256;
 
-        uint32_t sg_m_ih = 24;
-        uint32_t sg_n_ih = 32;
+        size_t sg_m_ih = 24;
+        size_t sg_n_ih = 32;
 
-        uint32_t local_kslicing_ih = 1;
+        size_t local_kslicing_ih = 1;
         size_t subgroup_range_m = (wg_m_ih + sg_m_ih - 1) / sg_m_ih;
         size_t subgroup_range_n = (wg_n_ih + sg_n_ih - 1) / sg_n_ih;
 
@@ -104,14 +104,14 @@ KernelsData LSTMSeqKernel_CM::GetKernelsData(const Params& params) const {
 
     // Calc gws, lws
     {
-        uint32_t wg_m_hh = 1;
-        uint32_t wg_n_hh = shape.hidden_size * shape.num_gates;
+        size_t wg_m_hh = 1;
+        size_t wg_n_hh = shape.hidden_size * shape.num_gates;
 
-        uint32_t sg_m_hh = 1;
-        uint32_t sg_n_hh = 16;
+        size_t sg_m_hh = 1;
+        size_t sg_n_hh = 16;
 
-        uint32_t matrix_m_hh = 1;
-        uint32_t matrix_n_hh = shape.hidden_size * shape.num_gates;
+        size_t matrix_m_hh = 1;
+        size_t matrix_n_hh = shape.hidden_size * shape.num_gates;
 
         size_t group_range_m = (matrix_m_hh + wg_m_hh - 1) / wg_m_hh;
         size_t group_range_n = (matrix_n_hh + wg_n_hh - 1) / wg_n_hh;
