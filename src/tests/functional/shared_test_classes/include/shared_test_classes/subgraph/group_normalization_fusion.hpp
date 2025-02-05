@@ -50,10 +50,10 @@ std::vector<std::tuple<T_old_vals..., T_added_vals...>> expand_vals(std::vector<
     return res;
 }
 
-template <element::Type_t T_elem>
+template <element::Type_t T_elem_t>
 class GroupNormalizationFusionTestBase {
 public:
-    static constexpr element::Type T_elem_t = T_elem;
+    static constexpr element::Type T_elem = T_elem_t;
     typedef typename ov::element_type_traits<T_elem_t>::value_type T_store_t;
 
 protected:
@@ -86,7 +86,7 @@ protected:
     }
 
     std::shared_ptr<ov::Model> create_model() {
-        auto input = std::make_shared<op::v0::Parameter>(T_elem_t, dataShape);
+        auto input = std::make_shared<op::v0::Parameter>(T_elem, dataShape);
         auto pre_mvn_shape_const =
             op::v0::Constant::create<long long>(element::i64, Shape{3}, {0, static_cast<long long>(numGroups), -1});
         auto pre_mvn_reshape = std::make_shared<ov::op::v1::Reshape>(input, pre_mvn_shape_const, true);
@@ -98,14 +98,14 @@ protected:
         std::shared_ptr<Node> opt_instance_norm_gamma_multiply = mvn;
         if (instanceNormGammaPresent) {
             auto instance_norm_gamma_const =
-                op::v0::Constant::create(T_elem_t, instanceNormGammaShape, instanceNormGammaVals);
+                op::v0::Constant::create(T_elem, instanceNormGammaShape, instanceNormGammaVals);
             opt_instance_norm_gamma_multiply = std::make_shared<op::v1::Multiply>(mvn, instance_norm_gamma_const);
         }
 
         std::shared_ptr<ov::Node> opt_instance_norm_beta_add = opt_instance_norm_gamma_multiply;
         if (instanceNormBetaPresent) {
             auto instance_norm_beta_const =
-                op::v0::Constant::create(T_elem_t, instanceNormBetaShape, instanceNormBetaVals);
+                op::v0::Constant::create(T_elem, instanceNormBetaShape, instanceNormBetaVals);
             opt_instance_norm_beta_add =
                 std::make_shared<ov::op::v1::Add>(opt_instance_norm_gamma_multiply, instance_norm_beta_const);
         }
@@ -115,24 +115,24 @@ protected:
         auto post_instance_norm_reshape =
             std::make_shared<op::v1::Reshape>(opt_instance_norm_beta_add, post_instance_norm_shape, true);
 
-        auto group_norm_gamma_const = op::v0::Constant::create(T_elem_t, groupNormGammaShape, groupNormGammaVals);
+        auto group_norm_gamma_const = op::v0::Constant::create(T_elem, groupNormGammaShape, groupNormGammaVals);
         auto group_norm_gamma_multiply =
             std::make_shared<op::v1::Multiply>(post_instance_norm_reshape, group_norm_gamma_const);
 
-        auto group_norm_beta_const = op::v0::Constant::create(T_elem_t, groupNormBetaShape, groupNormBetaVals);
+        auto group_norm_beta_const = op::v0::Constant::create(T_elem, groupNormBetaShape, groupNormBetaVals);
         auto group_norm_beta_add = std::make_shared<op::v1::Add>(group_norm_gamma_multiply, group_norm_beta_const);
 
         return std::make_shared<Model>(NodeVector{group_norm_beta_add}, ParameterVector{input});
     }
 };
 
-template <element::Type_t T_elem>
+template <element::Type_t T_elem_t>
 class GroupNormalizationFusionSubgraphTestsF
-    : public GroupNormalizationFusionTestBase<T_elem>,
+    : public GroupNormalizationFusionTestBase<T_elem_t>,
       public ov::test::SubgraphBaseTest,
       public testing::WithParamInterface<GroupNormalizationFusionTransformationsTestValues> {
 public:
-    static constexpr element::Type T_elem_t = T_elem;
+    static constexpr element::Type T_elem = T_elem_t;
     static std::string getTestCaseName(
         const testing::TestParamInfo<GroupNormalizationFusionTransformationsTestValues>& obj) {
         const auto& params = obj.param;
@@ -222,8 +222,8 @@ protected:
         this->instanceNormGammaPresent = (this->instanceNormGammaShape != Shape{});
         this->instanceNormBetaPresent = (this->instanceNormBetaShape != Shape{});
 
-        inType = T_elem_t;
-        outType = T_elem_t;
+        inType = T_elem;
+        outType = T_elem;
         targetDevice = targetDeviceName;
         configuration = targetConfiguration;
 
@@ -250,13 +250,13 @@ protected:
 
     void configure_device() {
         if (targetConfiguration.count(ov::hint::inference_precision.name()) <= 0) {
-            targetConfiguration.insert({ov::hint::inference_precision.name(), T_elem_t});
+            targetConfiguration.insert({ov::hint::inference_precision.name(), T_elem});
         }
     }
 
     void configure_ref_device() {
         if (refConfiguration.count(ov::hint::inference_precision.name()) <= 0) {
-            refConfiguration.insert({ov::hint::inference_precision.name(), T_elem_t});
+            refConfiguration.insert({ov::hint::inference_precision.name(), T_elem});
         }
     }
 
