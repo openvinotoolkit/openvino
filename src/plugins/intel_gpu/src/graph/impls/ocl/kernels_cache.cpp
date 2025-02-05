@@ -225,8 +225,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
     }
 
-    std::ofstream source_b("source_b.cl");
-    std::ofstream source_a("source_a.cl");
     // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
     // of the precompiled binaries or get_undef_jit calls
@@ -274,15 +272,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 }
             };
 
-            for (auto& s : b.source)
-                source_b << s << "\n";
-
             if (b.language == kernel_language::OCLC_V2)
                 process_batch_includes(b);
-
-            for (auto& s : b.source)
-                source_a << s << "\n";
-
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
