@@ -74,6 +74,8 @@ bool pass::BuildBrgemm::run(snippets::lowered::LinearIR& linear_ir,
                                         gemm_in0_desc->get_layout(),
                                         gemm_in1_desc->get_layout(),
                                         gemm_out_desc->get_layout());
+        loop_manager->get_loop_info(loop_ids.front())->set_work_amount(1);
+
         // Replace GemmCPU node with BrgemmCPU
         auto live_regs = expr->get_live_regs();
         snippets::lowered::PortDescriptorUtils::set_port_descriptor(brgemm_node->input(0), in0_subtensor, gemm_in0_desc->get_layout());
