@@ -52,6 +52,10 @@ public:
         return m_type;
     }
 
+    size_t get_iter_count() const {
+        return m_iter_count;
+    }
+
     size_t get_offset_scratch() const;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -66,6 +70,8 @@ private:
     void validate_inputs() const;
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
+
+    size_t m_iter_count;
 };
 }  // namespace intel_cpu
 }  // namespace ov

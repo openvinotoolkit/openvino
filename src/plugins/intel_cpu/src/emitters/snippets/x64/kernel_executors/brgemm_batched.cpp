@@ -19,10 +19,12 @@ namespace intel_cpu {
 
 BrgemmBatchedKernelConfig::BrgemmBatchedKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
+                                       size_t iter_count,
                                        bool is_with_comp,
                                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
     : BrgemmBaseKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
+      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)),
+      m_iter_count(iter_count) {
     m_hash = compute_hash();
 }
 
@@ -103,11 +105,11 @@ void BrgemmBatchedKernelExecutor::execute(const BrgemmBatchedKernelExecutor* exe
 
     // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0
     const auto is_with_comp = config.get_beta() == 0 && config.is_with_comp();
-    execute_brgemm(kernel->brgemm_kernel, 1, args->A, args->B, args->C, args->scratch, is_with_comp);
+    execute_brgemm(kernel->brgemm_kernel, config.get_iter_count(), args->A, args->B, args->C, args->scratch, is_with_comp);
 }
 
 void BrgemmBatchedKernelExecutor::execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
-                                                 int bs,
+                                                 size_t bs,
                                                  const void* pin0,
                                                  const void* pin1,
                                                  void* dst,

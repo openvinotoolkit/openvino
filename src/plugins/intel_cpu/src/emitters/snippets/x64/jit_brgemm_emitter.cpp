@@ -37,6 +37,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
 
         BrgemmBatchedKernelConfig kernel_config(brg0Prc,
                                                 brg1Prc,
+                                                gemm_node->get_iter_count(),
                                                 with_compensations(brgemm_type),
                                                 brgemm_utils::get_primitive_isa(brg0Prc, false));
         m_kernel_executor =

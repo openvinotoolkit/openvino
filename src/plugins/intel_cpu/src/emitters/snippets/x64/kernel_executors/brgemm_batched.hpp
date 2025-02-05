@@ -13,6 +13,7 @@ struct BrgemmBatchedKernelConfig : public BrgemmBaseKernelConfig {
 public:
     BrgemmBatchedKernelConfig(const element::Type& in0_dtype,
                        const element::Type& in1_dtype,
+                       size_t iter_count,
                        bool is_with_comp,
                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmBatchedKernelConfig() = delete;
@@ -23,6 +24,10 @@ public:
 
     bool is_with_comp() const {
         return m_static_params->is_with_comp;
+    }
+
+    size_t get_iter_count() const {
+        return m_iter_count;
     }
 
 private:
@@ -50,6 +55,7 @@ private:
     }
 
     std::shared_ptr<StaticParams> m_static_params{nullptr};
+    size_t m_iter_count{1};
 };
 
 // The `update_kernel` method verifies that a compiled kernel is not nullptr.
@@ -70,8 +76,8 @@ public:
     };
     BrgemmBatchedKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmBatchedKernelConfig config);
 
-    /** Function that will be called in runtime to execute the kernel */
-    static void execute(const BrgemmBatchedKernelExecutor* executor, call_args* args);
+    /** Function that will be called in runtime to execute the  */
+    static void execute(const BrgemmBatchedKernelExecutor* execkernelutor, call_args* args);
 
 protected:
     std::shared_ptr<BrgemmBatchedCompiledKernel> compile_kernel(const BrgemmBatchedKernelConfig& c) const override;
@@ -81,7 +87,7 @@ protected:
                        BrgemmBatchedKernelConfig& config) const override;
 
     static void execute_brgemm(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
-                               int bs,
+                               size_t bs,
                                const void* src,
                                const void* wei,
                                void* dst,
