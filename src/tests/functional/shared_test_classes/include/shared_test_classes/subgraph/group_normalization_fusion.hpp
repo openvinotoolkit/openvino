@@ -325,7 +325,7 @@ protected:
         refInferRequest.infer();
     }
 
-    std::vector<ov::Tensor> calculate_refs() {
+    std::vector<ov::Tensor> calculate_refs() override {
         if (is_report_stages) {
             std::cout << "[ REFERENCE   ] `GroupNormalizationFusionSubgraphTestsF::calculate_refs()` is started"
                       << std::endl;
@@ -378,7 +378,7 @@ protected:
     }
 
 public:
-    void run() {
+    void run() override {
         is_reported = true;
         bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
