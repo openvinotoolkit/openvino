@@ -76,7 +76,7 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 *Example 3D input, 1D output signal, center=false, default signal_length:*
 
 .. code-block:: xml
-   :force
+   :force:
 
     <layer ... type="ISTFT" ... >
         <data center="false" ... />
@@ -101,7 +101,7 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 *Example 4D input, 2D output signal, center=false, default signal_length:*
 
 .. code-block:: xml
-   :force
+   :force:
 
     <layer ... type="ISTFT" ... >
         <data center="false" ... />
@@ -129,7 +129,7 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 *Example 3D input, 1D output signal, center=true, default signal_length:*
 
 .. code-block:: xml
-   :force
+   :force:
 
     <layer ... type="ISTFT" ... >
         <data center="true" ... />
@@ -154,7 +154,7 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 *Example 4D input, 2D output signal, center=true, default signal_length:*
 
 .. code-block:: xml
-   :force
+   :force:
 
     <layer ... type="ISTFT" ... >
         <data center="true" ... />
@@ -182,7 +182,7 @@ If the ``window_length`` can not be bigger than than ``frame_size``, but if smal
 *Example 3D input, 1D output signal, center=false, signal_length input provided:*
 
 .. code-block:: xml
-   :force
+   :force:
 
     <layer ... type="ISTFT" ... >
         <data center="false" ... />
