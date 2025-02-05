@@ -565,7 +565,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
                     auto batch_size = input[0];
                     auto input_size = input[2];
-                    auto num_dir = output[2];
+                    auto num_dir = output[1];
                     auto hidden_size = output[3];
 
                     if (hidden_size != 128 || batch_size != 1 || num_dir != 2 || (input_size != 64 && input_size != 256)) {
