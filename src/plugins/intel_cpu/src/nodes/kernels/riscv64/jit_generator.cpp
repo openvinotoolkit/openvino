@@ -45,6 +45,16 @@ void jit_generator::postamble() {
     ret();
 }
 
+void jit_generator::lqw(const Reg& rd, size_t value) {
+    const uint32_t uppper_32bits = static_cast<uint32_t>(value >> 32);
+    uint32_t lower_32bits = static_cast<uint32_t>(value & 0xFFFFFFFF);
+    if (uppper_32bits != 0) {
+        li(rd, static_cast<int>(uppper_32bits));
+        slli(rd, rd, 32);
+    }
+    li(rd, static_cast<int>(lower_32bits));
+}
+
 Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) const {
     if (lmul == 0.125f) return LMUL::mf8;
     if (lmul == 0.25f) return LMUL::mf4;
