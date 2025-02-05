@@ -315,7 +315,6 @@ std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const 
     return file_names;
 }
 
-
 }  // namespace
 
 NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
