@@ -54,7 +54,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "torchvision" "timm>=0.9.2" "transformers>=4.45" "Pillow" "gradio>=4.19" "tqdm" "sentencepiece" "peft" "huggingface-hub>=0.24.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision" "timm>=0.9.2" "transformers>=4.45" "Pillow" "gradio>=4.40" "tqdm" "sentencepiece" "peft" "huggingface-hub>=0.24.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.14.0"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "openvino>=2024.5" "openvino-tokenizers>=2024.5" "openvino-genai>=2024.5"
@@ -63,21 +63,26 @@ Prerequisites
 
     import requests
     from pathlib import Path
-
+    
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w").write(r.text)
-
-
+    
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks//minicpm-v-multimodal-chatbot//gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("minicpm-v-multimodal-chatbot.ipynb")
 
 Convert model to OpenVINO Intermediate Representation
 -----------------------------------------------------
@@ -170,7 +175,7 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
 .. raw:: html
 
@@ -183,8 +188,8 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
     import openvino as ov
     import shutil
     import gc
-
-
+    
+    
     def compress_lm_weights(model_dir):
         compression_configuration = {"mode": nncf.CompressWeightsMode.INT4_SYM, "group_size": 64, "ratio": 1.0, "all_layers": True}
         ov_model_path = model_dir / "openvino_language_model.xml"
@@ -199,11 +204,11 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
         ov_model_path.with_suffix(".bin").unlink()
         shutil.move(ov_int4_model_path, ov_model_path)
         shutil.move(ov_int4_model_path.with_suffix(".bin"), ov_model_path.with_suffix(".bin"))
-
-
+    
+    
     model_id = "openbmb/MiniCPM-V-2_6"
     model_dir = Path(model_id.split("/")[-1] + "-ov")
-
+    
     if not model_dir.exists():
         optimum_cli(model_id, model_dir, additional_args={"trust-remote-code": "", "weight-format": "fp16", "task": "image-text-to-text"})
         compress_lm_weights(model_dir)
@@ -212,7 +217,7 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
+    
 
 Prepare model inference pipeline
 --------------------------------
@@ -251,9 +256,9 @@ Select device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(default="AUTO", exclude=["NPU"])
-
+    
     device
 
 
@@ -268,7 +273,7 @@ Select device
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-
+    
     ov_model = ov_genai.VLMPipeline(model_dir, device=device.value)
 
 Run OpenVINO model inference
@@ -298,14 +303,14 @@ one of the most critical aspects of a smooth experience.
     from PIL import Image
     from io import BytesIO
     import numpy as np
-
+    
     image_path = "cat.png"
-
-
+    
+    
     config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
-
-
+    
+    
     def load_image(image_file):
         if isinstance(image_file, str) and (image_file.startswith("http") or image_file.startswith("https")):
             response = requests.get(image_file)
@@ -314,20 +319,20 @@ one of the most critical aspects of a smooth experience.
             image = Image.open(image_file).convert("RGB")
         image_data = np.array(image.getdata()).reshape(1, image.size[1], image.size[0], 3).astype(np.byte)
         return image, ov.Tensor(image_data)
-
-
+    
+    
     def streamer(subword: str) -> bool:
         """
-
+    
         Args:
             subword: sub-word of the generated text.
-
+    
         Returns: Return flag corresponds whether generation should be stopped.
-
+    
         """
         print(subword, end="", flush=True)
-
-
+    
+    
     if not Path(image_path).exists():
         url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
         image = Image.open(requests.get(url, stream=True).raw)
@@ -336,9 +341,9 @@ one of the most critical aspects of a smooth experience.
 .. code:: ipython3
 
     image, image_tensor = load_image(image_path)
-
+    
     question = "What is unusual on this image?"
-
+    
     print(f"Question:\n{question}")
     image
 
@@ -347,7 +352,7 @@ one of the most critical aspects of a smooth experience.
 
     Question:
     What is unusual on this image?
-
+    
 
 
 
@@ -373,9 +378,9 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
+    
     demo = make_demo(ov_model)
-
+    
     try:
         demo.launch(debug=True, height=600)
     except Exception:

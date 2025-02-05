@@ -97,6 +97,17 @@ Prerequisites
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("stable-diffusion-v3-torch-fx.ipynb")
 
 Build PyTorch pipeline
 ----------------------
@@ -166,18 +177,9 @@ Run FP Inference
     num_inference_steps = 28
     with torch.no_grad():
         image = pipe(
-            prompt=prompt,
-            negative_prompt="",
-            num_inference_steps=num_inference_steps,
-            generator=generator,
-            guidance_scale=5,
+            prompt=prompt, negative_prompt="", num_inference_steps=num_inference_steps, generator=generator, guidance_scale=5, height=512, width=512
         ).images[0]
-    image.resize(
-        (
-            512,
-            512,
-        )
-    )
+    image
 
 .. code:: ipython3
 
@@ -211,11 +213,11 @@ The pipeline consists of four important parts:
     text_encoder_kwargs = {}
     text_encoder_kwargs["output_hidden_states"] = True
     
-    vae_encoder_input = torch.ones((1, 3, 128, 128))
-    vae_decoder_input = torch.ones((1, 16, 128, 128))
+    vae_encoder_input = torch.ones((1, 3, 64, 64))
+    vae_decoder_input = torch.ones((1, 16, 64, 64))
     
     unet_kwargs = {}
-    unet_kwargs["hidden_states"] = torch.ones((2, 16, 128, 128))
+    unet_kwargs["hidden_states"] = torch.ones((2, 16, 64, 64))
     unet_kwargs["timestep"] = torch.from_numpy(np.array([1, 2], dtype=np.float32))
     unet_kwargs["encoder_hidden_states"] = torch.ones((2, 154, 4096))
     unet_kwargs["pooled_projections"] = torch.ones((2, 2048))
@@ -290,12 +292,6 @@ Let’s load ``skip magic`` extension to skip quantization if
 .. code:: ipython3
 
     # Fetch `skip_kernel_extension` module
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -350,7 +346,8 @@ Collect Calibration Dataset
         ).shuffle(seed=42)
     
         transformer_config = dict(pipe.transformer.config)
-        del transformer_config["model"]
+        if "model" in transformer_config:
+            del transformer_config["model"]
         wrapped_unet = UNetWrapper(pipe.transformer.model, transformer_config)
         pipe.transformer = wrapped_unet
         # Run inference for data collection
@@ -360,7 +357,7 @@ Collect Calibration Dataset
             if len(prompt) > pipe.tokenizer.model_max_length:
                 continue
             # Run the pipeline
-            pipe(prompt, num_inference_steps=num_inference_steps)
+            pipe(prompt, num_inference_steps=num_inference_steps, height=512, width=512)
             calibration_data.extend(wrapped_unet.captured_args)
             wrapped_unet.captured_args = []
             pbar.update(len(calibration_data) - pbar.n)
@@ -374,7 +371,7 @@ Collect Calibration Dataset
     
     if to_quantize:
         pipe = init_pipeline(models_dict, configs_dict)
-        calibration_dataset_size = 300
+        calibration_dataset_size = 200
         unet_calibration_data = collect_calibration_data(
             pipe, calibration_dataset_size=calibration_dataset_size, num_inference_steps=28
         )
@@ -504,8 +501,8 @@ Run inference with single step to compile the model.
     
     # Warmup the model for initial compile
     with torch.no_grad():
-        image = opt_pipe(
-            prompt=prompt, negative_prompt="", num_inference_steps=1, generator=generator
+        opt_pipe(
+            prompt=prompt, negative_prompt="", num_inference_steps=1, generator=generator, height=512, width=512
         ).images[0]
 
 Visualize Results
@@ -526,6 +523,8 @@ Visualize Results
         num_inference_steps=28,
         guidance_scale=5,
         generator=generator,
+        height=512,
+        width=512
     ).images[0]
     
     visualize_results(image, opt_image)

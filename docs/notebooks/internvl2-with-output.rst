@@ -58,12 +58,12 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-
+    
     %pip install -q "transformers>4.36" "torch>=2.1" "torchvision" "einops" "timm" "Pillow" "gradio>=4.36"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.14.0" "datasets"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "openvino>=2024.5" "openvino-tokenizers>=2024.5" "openvino-genai>=2024.5"
-
+    
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
 
@@ -71,18 +71,23 @@ Prerequisites
 
     from pathlib import Path
     import requests
-
+    
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/internvl2/gradio_helper.py")
         open("gradio_helper.py", "w", encoding="utf-8").write(r.text)
-
+    
     if not Path("notebook_utils.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
         open("notebook_utils.py", "w", encoding="utf-8").write(r.text)
-
+    
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("internvl2.ipynb")
 
 Select model
 ------------
@@ -97,21 +102,21 @@ using widget bellow:
 .. code:: ipython3
 
     model_ids = ["OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B", "OpenGVLab/InternVL2-8B"]
-
-
+    
+    
     def model_selector(default=model_ids[0]):
         import ipywidgets as widgets
-
+    
         model_checkpoint = widgets.Dropdown(
             options=model_ids,
             default=default,
             description="Model:",
         )
         return model_checkpoint
-
-
+    
+    
     model_id = model_selector()
-
+    
     model_id
 
 
@@ -133,7 +138,7 @@ using widget bellow:
 .. parsed-literal::
 
     Selected OpenGVLab/InternVL2-1B
-
+    
 
 Convert and Optimize model
 --------------------------
@@ -240,7 +245,7 @@ improves generation quality of compressed models, but requires
 additional time for tuning weights on a calibration dataset.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
 .. raw:: html
 
@@ -249,7 +254,7 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-
+    
     if not model_dir.exists():
         optimum_cli(
             model_id.value, model_dir, additional_args={"trust-remote-code": "", "weight-format": "int4", "dataset": "contextual", "awq": "", "num-samples": "32"}
@@ -295,18 +300,18 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
       x = x.view(n, int(h * scale_factor), int(w * scale_factor),
     /home/ea/.cache/huggingface/modules/transformers_modules/OpenGVLab/InternVL2-1B/a84c71e158b16180df4fd1c5fe963fdf54b2cd43/modeling_internvl_chat.py:174: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       int(c / (scale_factor * scale_factor)))
-
+    
 
 .. parsed-literal::
 
     FlashAttention2 is not installed.
-
+    
 
 .. parsed-literal::
 
     Generating test split: 100%|██████████| 506/506 [00:00<00:00, 22956.39 examples/s]
     Collecting calibration dataset: 100%|██████████| 32/32 [04:18<00:00,  8.08s/it]
-
+    
 
 .. parsed-literal::
 
@@ -319,7 +324,7 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
     ├────────────────┼─────────────────────────────┼────────────────────────���───────────────┤
     │              4 │ 72% (168 / 169)             │ 100% (168 / 168)                       │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying AWQ [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m [38;2;0;104;181m24/24[0m • [38;2;0;104;181m0:01:54[0m • [38;2;0;104;181m0:00:00[0m54[0m • [38;2;0;104;181m0:00:06[0m;2;97;53;69m━[0m[38;2;123;51;77m━[0m[38;2;153;48;86m━[0m[38;2;183;44;94m━[0m[38;2;209;42;102m━[0m[38;2;230;39;108m━[0m[38;2;244;38;112m━[0m[38;2;249;38;114m━[0m[38;2;244;38;112m━[0m[38;2;230;39;108m━[0m[38;2;209;42;102m━[0m[38;2;183;44;94m━[0m[38;2;153;48;86m━[0m[38;2;123;51;77m━[0m[38;2;97;53;69m━[0m[38;2;76;56;63m━[0m[38;2;62;57;59m━[0m[38;2;58;58;58m━[0m[38;2;62;57;59m━[0m[38;2;76;56;63m━[0m[38;2;97;53;69m━[0m[38;2;123;51;77m━[0m[38;2;153;48;86m━[0m[38;2;183;44;94m━[0m[38;2;209;42;102m━[0m[38;2;230;39;108m━[0m[38;2;244;38;112m━[0m[38;2;249;38;114m━[0m[38;2;244;38;112m━[0m[38;2;230;39;108m━[0m[38;2;209;42;102m━[0m[38;2;183;44;94m━[0m[38;2;153;48;86m━[0m[38;2;123;51;77m━[0m[38;2;97;53;69m━[0m[38;2;76;56;63m━[0m[38;2;62;57;59m━[0m[38;2;58;58;58m━[0m[38;2;62;57;59m━[0m[38;2;76;56;63m━[0m[38;2;97;53;69m━[0m[38;2;123;51;77m━[0m[38;2;153;48;86m━[0m   • [38;2;0;104;181m0:00:00[0m
+    [2KApplying AWQ [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m [38;2;0;104;181m24/24[0m • [38;2;0;104;181m0:01:54[0m • [38;2;0;104;181m0:00:00[0m54[0m • [38;2;0;104;181m0:00:06[0m;2;97;53;69m━[0m[38;2;123;51;77m━[0m[38;2;153;48;86m━[0m[38;2;183;44;94m━[0m[38;2;209;42;102m━[0m[38;2;230;39;108m━[0m[38;2;244;38;112m━[0m[38;2;249;38;114m━[0m[38;2;244;38;112m━[0m[38;2;230;39;108m━[0m[38;2;209;42;102m━[0m[38;2;183;44;94m━[0m[38;2;153;48;86m━[0m[38;2;123;51;77m━[0m[38;2;97;53;69m━[0m[38;2;76;56;63m━[0m[38;2;62;57;59m━[0m[38;2;58;58;58m━[0m[38;2;62;57;59m━[0m[38;2;76;56;63m━[0m[38;2;97;53;69m━[0m[38;2;123;51;77m━[0m[38;2;153;48;86m━[0m[38;2;183;44;94m━[0m[38;2;209;42;102m━[0m[38;2;230;39;108m━[0m[38;2;244;38;112m━[0m[38;2;249;38;114m━[0m[38;2;244;38;112m━[0m[38;2;230;39;108m━[0m[38;2;209;42;102m━[0m[38;2;183;44;94m━[0m[38;2;153;48;86m━[0m[38;2;123;51;77m━[0m[38;2;97;53;69m━[0m[38;2;76;56;63m━[0m[38;2;62;57;59m━[0m[38;2;58;58;58m━[0m[38;2;62;57;59m━[0m[38;2;76;56;63m━[0m[38;2;97;53;69m━[0m[38;2;123;51;77m━[0m[38;2;153;48;86m━[0m   • [38;2;0;104;181m0:00:00[0m  
     [2KApplying Weight Compression [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [35m100%[0m • [38;2;0;104;181m0:00:17[0m • [38;2;0;104;181m0:00:00[0m;0;104;181m0:00:01[0m181m0:00:01[0m
     [?25hINFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
@@ -340,7 +345,7 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
 .. parsed-literal::
 
     Attempt to save config using standard API has failed with 'architectures'. There may be an issue with model config, please check its correctness before usage.
-
+    
 
 Select inference device
 -----------------------
@@ -350,9 +355,9 @@ Select inference device
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
-    device = device_widget(default="AUTO", exclude=["NPU"])
-
+    
+    device = device_widget(default="CPU", exclude=["NPU", "AUTO"])
+    
     device
 
 
@@ -395,7 +400,7 @@ we should provide path to model directory and inference device.
 .. code:: ipython3
 
     import openvino_genai as ov_genai
-
+    
     ov_model = ov_genai.VLMPipeline(model_dir, device=device.value)
 
 Run model inference
@@ -426,11 +431,11 @@ one of the most critical aspects of a smooth experience.
     from io import BytesIO
     import numpy as np
     import openvino as ov
-
+    
     config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
-
-
+    
+    
     def load_image(image_file):
         if isinstance(image_file, str) and (image_file.startswith("http") or image_file.startswith("https")):
             response = requests.get(image_file)
@@ -439,32 +444,32 @@ one of the most critical aspects of a smooth experience.
             image = Image.open(image_file).convert("RGB")
         image_data = np.array(image.getdata()).reshape(1, image.size[1], image.size[0], 3).astype(np.byte)
         return image, ov.Tensor(image_data)
-
-
+    
+    
     EXAMPLE_IMAGE = Path("examples_image1.jpg")
     EXAMPLE_IMAGE_URL = "https://huggingface.co/OpenGVLab/InternVL2-2B/resolve/main/examples/image1.jpg"
-
+    
     if not EXAMPLE_IMAGE.exists():
         img_data = requests.get(EXAMPLE_IMAGE_URL).content
         with EXAMPLE_IMAGE.open("wb") as handler:
             handler.write(img_data)
-
-
+    
+    
     def streamer(subword: str) -> bool:
         """
-
+    
         Args:
             subword: sub-word of the generated text.
-
+    
         Returns: Return flag corresponds whether generation should be stopped.
-
+    
         """
         print(subword, end="", flush=True)
-
-
+    
+    
     question = "Please describe the image shortly"
-
-
+    
+    
     image, image_tensor = load_image(EXAMPLE_IMAGE)
     display(image)
     print(f"User: {question}\n")
@@ -479,10 +484,10 @@ one of the most critical aspects of a smooth experience.
 .. parsed-literal::
 
     User: Please describe the image shortly
-
+    
     Assistant:
     .
-
+    
     The image shows a red panda, a type of mammal known for its distinctive red fur and white markings. The animal is resting on a wooden structure, possibly a platform or a platform-like object, with its head turned slightly towards the camera. The background is a natural setting, with trees and foliage visible, suggesting that the red panda is in a forested or wooded area. The red panda's eyes are large and expressive, and its ears are perked up, indicating that it is alert
 
 Interactive demo
@@ -493,7 +498,7 @@ Interactive demo
 .. code:: ipython3
 
     from gradio_helper import make_demo
-
+    
     demo = make_demo(ov_model)
     try:
         demo.launch(debug=True, height=600)
