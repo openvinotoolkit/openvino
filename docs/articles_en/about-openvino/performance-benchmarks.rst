@@ -132,21 +132,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/downloads/benchmarking_OV_platform_list.pdf
+      .. button-link:: ../_static/download/benchmarking_OV_platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/downloads/benchmarking_OV_system_info_detailed.xlsx
+      .. button-link:: ../_static/download/benchmarking_OV_system_info_detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/downloads/benchmarking_OV_performance-data.xlsx
+      .. button-link:: ../_static/download/benchmarking_OV_performance-data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -160,7 +160,7 @@ For a listing of all platforms and configurations used for testing, refer to the
 **Disclaimers**
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.6, as of December 18, 2024.
+  2025.0 as of January 28, 2025.
 
 * OpenVINO Model Server performance results are based on release
   2024.5, as of November 20, 2024.
