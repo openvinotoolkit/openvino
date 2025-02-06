@@ -258,24 +258,10 @@ bool is_layer_name_matched(const std::string& layer_name, const std::string& pat
     return std::regex_match(upper_layer_name, re);
 }
 
-bool is_layer_for_dumping(const ExecutionConfig& config, const std::string& layer_name, bool is_output = false, bool is_input = false) {
-    bool dump_out = config.get_dump_tensors() == ov::intel_gpu::DumpTensors::all || config.get_dump_tensors() == ov::intel_gpu::DumpTensors::out;
-    bool dump_in = config.get_dump_tensors() == ov::intel_gpu::DumpTensors::all || config.get_dump_tensors() == ov::intel_gpu::DumpTensors::in;
-    // Dump result layer
-    if (is_output == true && dump_out && (layer_name.find("constant:") == std::string::npos))
+bool is_layer_for_dumping(const ExecutionConfig& config, const std::string& layer_name) {
+    const auto& dump_layers = config.get_dump_layer_names();
+    if (dump_layers.empty())
         return true;
-
-    // Dump all layers
-    if (config.get_dump_layer_names().empty() && !dump_out && !dump_in)
-        return true;
-
-    // Dump input layers
-    size_t pos = layer_name.find(':');
-    auto type = layer_name.substr(0, pos);
-    if (is_input == true && type == "parameter" && dump_in)
-        return true;
-
-    auto dump_layers = config.get_dump_layer_names();
 
     auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
         return is_layer_name_matched(layer_name, dl);
@@ -334,7 +320,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                 auto dump_file = get_matched_from_filelist(files, "_dst0__");
                 OPENVINO_ASSERT((files.size() == 1 || dump_file.length() != 0), "Unexpected binary dump for input layer");
 
-                OPENVINO_ASSERT(files.size() == m_inst.outputs_memory_count(), "Mis-match dump file count");
+                OPENVINO_ASSERT(files.size() == m_inst.outputs_memory_count(), "Mismatch dump file count");
 
                 for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
                     auto dump_file = files[0];
@@ -346,10 +332,10 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     GPU_DEBUG_COUT << " Load binary dump : " << dump_file << " for " << layer_name << std::endl;
 
                     std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
-                    OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
+                    OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_LOAD_DUMP_RAW_BINARY : " + dump_file);
 
                     auto output_mem = m_inst.output_memory_ptr(i);
-                    OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                    OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_LOAD_DUMP_RAW_BINARY : " + layer_name
                                     + "\n Expected size : " + to_string(output_mem->size()) + ", Binary : " + to_string(bin.size()));
 
                     output_mem->copy_from(m_stream, static_cast<void *>(&bin[0]), true);
@@ -376,11 +362,11 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
 
                     std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
-                    OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
+                    OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_LOAD_DUMP_RAW_BINARY : " + dump_file);
 
                     auto input_mem = m_inst.dep_memory_ptr(i);
                     if (input_mem->size() != bin.size()) {
-                        std::cout << "WARNING: memory size mis-match for OV_GPU_LoadDumpRawBinary : " + layer_name
+                        std::cout << "WARNING: memory size mis-match for OV_LOAD_DUMP_RAW_BINARY : " + layer_name
                                     << "  " << input_mem->size() << " / " << bin.size() << std::endl;
                         bin.resize(input_mem->size());
                     }
@@ -397,7 +383,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
 
         if (is_target_iteration(m_iter, config.get_dump_iterations()) &&
             config.get_dump_tensors() != ov::intel_gpu::DumpTensors::out && is_layer_for_dumping(config, layer_name)) {
-            std::string debug_str_for_bin_load = " Command for loading : OV_GPU_LoadDumpRawBinary=\"" + layer_name + ":";
+            std::string debug_str_for_bin_load = " Command for loading : OV_LOAD_DUMP_RAW_BINARY=\"" + layer_name + ":";
             for (size_t i = 0; i < m_inst.dependencies().size(); i++) {
                 std::string name = get_file_prefix() + "_src" + std::to_string(i);
                 auto input_mem = m_inst.dep_memory_ptr(i);
@@ -423,7 +409,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     log_memory_to_file(input_mem,
                                        input_layout,
                                        m_stream,
-                                       name,
+                                       filename,
                                        dump_raw);
                 }
             }
@@ -445,8 +431,9 @@ NodeDebugHelper::~NodeDebugHelper() {
         const std::string layer_name = m_inst.id();
 
         if (is_target_iteration(m_iter, config.get_dump_iterations()) &&
-            is_layer_for_dumping(config, layer_name, m_inst.is_output(), m_inst.is_input())) {
-            std::string debug_str_for_bin_load = " Command for loading : OV_GPU_LoadDumpRawBinary=\""
+            config.get_dump_tensors() != ov::intel_gpu::DumpTensors::in &&
+            is_layer_for_dumping(config, layer_name)) {
+            std::string debug_str_for_bin_load = " Command for loading : OV_LOAD_DUMP_RAW_BINARY=\""
                                                     + layer_name + ":";
             for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
                 std::string name = get_file_prefix() + "_dst" + std::to_string(i);
@@ -473,7 +460,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     log_memory_to_file(output_mem,
                                        m_inst.get_output_layout(i),
                                        m_stream,
-                                       name,
+                                       filename,
                                        dump_raw);
                 }
             }
