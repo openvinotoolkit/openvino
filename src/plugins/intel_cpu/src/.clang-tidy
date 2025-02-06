@@ -52,6 +52,7 @@ Checks: >
   -google-readability-todo,
   -readability-braces-around-statements,
   -modernize-avoid-c-arrays,
+  -modernize-concat-nested-namespaces,
   -modernize-loop-convert,
   -modernize-use-constraints,
   -modernize-use-std-numbers,
