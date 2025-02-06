@@ -43,6 +43,7 @@ public:
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     bool canBeExecutedInInt8() const override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
 protected:

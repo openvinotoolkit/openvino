@@ -43,7 +43,7 @@ The table below shows which distribution type can be used for what target operat
    * - Distribution type
      - Operating systems
    * - Debian packages
-     - Ubuntu 18.04, 20.04, 22.04, 24.04 (64-bit)
+     - 20.04, 22.04, 24.04 (64-bit)
    * - RPM packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images

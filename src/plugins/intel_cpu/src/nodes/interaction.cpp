@@ -362,6 +362,10 @@ void Interaction::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
+bool Interaction::neverExecute() const {
+    return false;
+}
+
 bool Interaction::isExecutable() const {
     return true;
 }

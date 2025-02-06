@@ -2238,6 +2238,10 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool Reduce::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
+}
+
 bool Reduce::isExecutable() const {
     return !isOutputTensorAtPortEmpty(0);
 }

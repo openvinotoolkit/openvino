@@ -315,6 +315,10 @@ void MatrixNms::prepareParams() {
     }
 }
 
+bool MatrixNms::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
+}
+
 bool MatrixNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }

@@ -17,6 +17,11 @@ public:
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
 
+    bool neverExecute() const override {
+        const auto& spd = getSelectedPrimitiveDescriptor();
+        return spd->hasZeroInputDims() || spd->hasZeroOutputDims();
+    }
+
     // output shape can potentially be empty
     bool isExecutable() const override {
         return !hasEmptyInputTensors() && !hasEmptyOutputTensors();

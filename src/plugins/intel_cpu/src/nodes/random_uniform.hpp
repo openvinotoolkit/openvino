@@ -41,6 +41,7 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    [[nodiscard]] bool neverExecute() const override;
     [[nodiscard]] bool isExecutable() const override;
 
     void createPrimitive() override;
