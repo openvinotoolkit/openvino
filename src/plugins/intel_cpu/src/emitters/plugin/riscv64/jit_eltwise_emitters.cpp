@@ -97,6 +97,34 @@ std::set<std::vector<element::Type>> jit_mul_emitter::get_supported_precisions(c
     return {{element::f32, element::f32}};
 }
 
+/// ReLU ///
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {}
+
+size_t jit_relu_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_relu_emitter::aux_vecs_count() const {
+    return 1;
+}
+
+void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src = VReg(in_vec_idxs[0]);
+    VReg dst = VReg(out_vec_idxs[0]);
+    VReg zeros = VReg(aux_vec_idxs[0]);
+
+    h->vmv_v_i(zeros, 0);
+    h->vfmax_vv(dst, src, zeros);
+}
+
+std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// SUB ///
 jit_sub_emitter::jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {}
