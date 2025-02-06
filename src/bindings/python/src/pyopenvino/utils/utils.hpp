@@ -36,31 +36,71 @@ class MemoryBuffer : public std::streambuf {
 public:
     MemoryBuffer(char* data, std::size_t size) {
         setg(data, data, data + size);
+        setp(data, data + size);
+    }
+
+    std::size_t written_size() const {
+        return pptr() - pbase();
     }
 
 protected:
-    pos_type seekoff(off_type off,
-                     std::ios_base::seekdir dir,
-                     std::ios_base::openmode which = std::ios_base::in) override {
-        switch (dir) {
-        case std::ios_base::beg:
-            setg(eback(), eback() + off, egptr());
-            break;
-        case std::ios_base::end:
-            setg(eback(), egptr() + off, egptr());
-            break;
-        case std::ios_base::cur:
-            setg(eback(), gptr() + off, egptr());
-            break;
-        default:
-            return pos_type(off_type(-1));
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        if (which == std::ios_base::in) {
+            switch (dir) {
+            case std::ios_base::beg:
+                setg(eback(), eback() + off, egptr());
+                break;
+            case std::ios_base::end:
+                setg(eback(), egptr() + off, egptr());
+                break;
+            case std::ios_base::cur:
+                setg(eback(), gptr() + off, egptr());
+                break;
+            default:
+                return pos_type(off_type(-1));
+            }
+            return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
+        } else if (which == std::ios_base::out) {
+            switch (dir) {
+            case std::ios_base::beg:
+                setp(pbase(), pbase() + off);
+                break;
+            case std::ios_base::end:
+                setp(pbase(), epptr() + off);
+                break;
+            case std::ios_base::cur:
+                setp(pbase(), pptr() + off);
+                break;
+            default:
+                return pos_type(off_type(-1));
+            }
+            return (pptr() < pbase() || pptr() > epptr()) ? pos_type(off_type(-1)) : pos_type(pptr() - pbase());
         }
-        return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
+        return pos_type(off_type(-1));
     }
 
     pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
         return seekoff(pos, std::ios_base::beg, which);
     }
+
+    int_type underflow() override {
+        if (gptr() < egptr()) {
+            return traits_type::to_int_type(*gptr());
+        }
+        return traits_type::eof();
+    }
+
+    int_type overflow(int_type ch) override {
+        if (ch != traits_type::eof()) {
+            if (pptr() < epptr()) {
+                *pptr() = ch;
+                pbump(1);
+                return ch;
+            }
+        }
+        return traits_type::eof();
+    }
+
 };
 
     enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
