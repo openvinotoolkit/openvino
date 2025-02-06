@@ -28,8 +28,12 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+bool Reorder::neverExecute() const {
+    return isOptimized || Node::neverExecute();
+}
+
 bool Reorder::isExecutable() const {
-    return Node::isExecutable() && !isOptimized;
+    return !isOptimized && Node::isExecutable();
 }
 
 Reorder::Reorder(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)

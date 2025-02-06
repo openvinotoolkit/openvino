@@ -66,7 +66,9 @@ public:
 
     void execute(const dnnl::stream& strm) override final;             // NOLINT
     void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
-    bool isExecutable() const override final;                          // NOLINT
+
+    bool isExecutable() const override final;  // NOLINT
+    bool neverExecute() const override final;  // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -149,6 +151,7 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+    bool neverExecute() const override final;  // NOLINT
     bool isExecutable() const override final;  // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);
@@ -211,6 +214,8 @@ public:
     void initOptimalPrimitiveDescriptor() override;
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
+
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
 
     void createPrimitive() override;
 

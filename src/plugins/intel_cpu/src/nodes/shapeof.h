@@ -28,11 +28,17 @@ public:
     bool needPrepareParams() const override {
         return false;
     };
+
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
 
-    bool isExecutable() const override;
+    bool neverExecute() const override {
+        return false;
+    };
+    bool isExecutable() const override {
+        return true;
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 };

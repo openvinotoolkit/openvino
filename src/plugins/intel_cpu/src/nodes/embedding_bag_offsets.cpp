@@ -161,6 +161,10 @@ void EmbeddingBagOffset::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
+bool EmbeddingBagOffset::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool EmbeddingBagOffset::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
