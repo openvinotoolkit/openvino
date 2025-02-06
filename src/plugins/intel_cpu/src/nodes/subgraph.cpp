@@ -543,7 +543,8 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (std::getenv("OV_SNIPPETS_DUMP_BRGEMM_PARAMS") != nullptr) {
+    const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
+    if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
         SNIPPETS_REGISTER_PASS_RELATIVE(Place::After,
                                         ov::intel_cpu::pass::BrgemmCPUBlocking,
                                         ov::snippets::lowered::pass::InsertPerfCountVerbose,
