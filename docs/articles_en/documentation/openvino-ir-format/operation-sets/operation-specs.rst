@@ -118,7 +118,7 @@ Operation Specifications
    IsNaN-10 <operation-specs/comparison/isnan-10>
    LRN-1 <operation-specs/normalization/lrn-1>
    LSTMCell-1 <operation-specs/sequence/lstm-cell-1>
-   LSTMSequence-1 <operation-specs/sequence/lstm-sequence-1>
+   LSTMSequence-5 <operation-specs/sequence/lstm-sequence-5>
    LessEqual-1 <operation-specs/comparison/lessequal-1>
    Less-1 <operation-specs/comparison/less-1>
    Log-1 <operation-specs/arithmetic/log-1>
