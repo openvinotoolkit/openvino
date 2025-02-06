@@ -24,22 +24,29 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                           input_subscripts.size() == input_shapes.size(),
                           "Equation must contain a number of subscripts equal to a number of Einsum inputs.");
 
+    const auto output_labels = Einsum::extract_labels(output_subscript);
+    const auto has_out_ellipsis = std::any_of(output_labels.begin(), output_labels.end(), [](std::string label) {
+        return label == "...";
+    });
     // create a dictionary with dimension sizes (or ranges in case of dynamic shapes) for each label
     // and check their compatibility in case of repeating labels
     std::unordered_map<std::string, TRShape> label_to_shape;
-
     for (size_t input_idx = 0; input_idx < input_shapes.size(); ++input_idx) {
         const auto& pshape = input_shapes[input_idx];
         const auto labels = Einsum::extract_labels(input_subscripts[input_idx]);
+        const auto has_ellipsis = std::any_of(labels.begin(), labels.end(), [](std::string label) {
+            return label == "...";
+        });
 
         if (pshape.rank().is_static()) {
             size_t input_rank = pshape.size();
             // check that a rank is greater or equal to a number of labels
             // these numbers are always equal if there is no ellipsis in the subscript
-            NODE_VALIDATION_CHECK(op,
-                                  input_rank >= labels.size(),
-                                  "Input rank must be greater or equal to a number of labels in the "
-                                  "corresponding input subscript.");
+            NODE_VALIDATION_CHECK(
+                op,
+                (input_rank >= (labels.size() - 1) && has_ellipsis) || (input_rank == labels.size() && !has_ellipsis),
+                "Input rank must be greater or equal to a number of labels in the "
+                "corresponding input subscript.");
 
             for (size_t label_ind = 0, dim_ind = 0; label_ind < labels.size() && dim_ind < input_rank; ++label_ind) {
                 auto const& label = labels[label_ind];
@@ -64,21 +71,21 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                         label_to_shape[label] = TRShape{pshape[dim_ind]};
                     } else {
                         NODE_VALIDATION_CHECK(op,
-                                              label_to_shape[label].compatible(TRShape{pshape[label_ind]}),
+                                              TRShape::broadcast_merge_into(label_to_shape[label],
+                                                                            TRShape{pshape[dim_ind]},
+                                                                            op::AutoBroadcastType::NUMPY),
                                               "Different input dimensions indicated by the same labels for Einsum "
                                               "must be compatible.");
-                        OPENVINO_ASSERT(TRShape::merge_into(label_to_shape[label], TRShape{pshape[dim_ind]}));
                     }
                     ++dim_ind;
                 }
             }
         } else {
+            if (has_ellipsis && has_out_ellipsis) {
+                // Shape has dynamic rank and ellipsis
+                return {pshape};
+            }
             for (auto const& label : labels) {
-                NODE_VALIDATION_CHECK(op,
-                                      label != "...",
-                                      "The subscript corresponding to a dynamic rank input must "
-                                      "not contain ellipsis.");
-
                 if (label_to_shape.find(label) == label_to_shape.end()) {
                     label_to_shape[label] = ov::PartialShape{Dimension::dynamic()};
                 }
@@ -87,11 +94,14 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
     }
 
     // compute the output shape
-    const auto output_labels = Einsum::extract_labels(output_subscript);
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
     for (auto const& output_label : output_labels) {
+        if (output_label == "..." && label_to_shape.find(output_label) == label_to_shape.end()) {
+            // Output labels may contain ellipsis that does not cover any dimensions.
+            continue;
+        }
         NODE_VALIDATION_CHECK(op,
                               label_to_shape.find(output_label) != label_to_shape.end(),
                               "Label in output subscript of Einsum equation must enter at least "
