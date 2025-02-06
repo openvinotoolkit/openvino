@@ -60,17 +60,14 @@ SinkReshape::SinkReshape() {
             if (in_ps.size() - out_ps.size() != 1)
                 return false;
             size_t mismatch_count = 0;
-            if (in_ps.size() > out_ps.size()) {
-                for (size_t i = 0; i < out_ps.size(); ++i) {
-                    if (i + mismatch_count >= in_ps.size())
-                        return false;
-                    if (out_ps[i] != in_ps[i + mismatch_count]) {
-                        mismatch_count++;
-                    }
+            for (size_t i = 0; i < out_ps.size(); ++i) {
+                if (i + mismatch_count >= in_ps.size())
+                    return false;
+                if (out_ps[i] != in_ps[i + mismatch_count]) {
+                    mismatch_count++;
                 }
-                return mismatch_count == 1;
             }
-            return true;
+            return mismatch_count == 1;
         };
         const auto reshape = ov::as_type_ptr<v1::Reshape>(output.get_node_shared_ptr());
         return is_suitable_reshape(reshape) && is_suitable_parent(reshape->get_input_node_shared_ptr(0));
@@ -119,6 +116,8 @@ SinkReshape::SinkReshape() {
 
         // allow tranposes which rotate feature dim to back to be taken as inner-most axis
         auto check_transpose_order = [](std::vector<uint16_t>& order) -> bool {
+            if (order.size() <= 2)
+                return false;
             if ((int32_t)order[order.size() - 2] != order.size() - 1)
                 return false;
             if ((int32_t)order[0] != 0)
