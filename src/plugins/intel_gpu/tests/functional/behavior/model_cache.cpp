@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <cstdio>
 
 #include "base/ov_behavior_test_utils.hpp"
@@ -15,6 +18,13 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#ifndef WIN32
+#    include <unistd.h>
+#endif
+
+#ifdef WIN32
+#    define stat _stat
+#endif
 
 namespace {
 typedef std::tuple<bool, bool, ov::element::Type, ov::element::Type> testParams;
@@ -100,14 +110,44 @@ void CheckWeightlessCacheAccuracy::run() {
         ofstr.close();
     }
 
-    auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
+    auto get_cache_path = [&]() {
+        std::string path;
+        if (use_compile_model_api) {
+            auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+            EXPECT_EQ(blobs.size(), 1);
+            path = blobs[0];
+        } else {
+            path = cache_path;
+        }
+        return path;
+    };
+
+    auto get_mod_time = [&](const std::string& path) {
+        struct stat result;
+        if (stat(path.c_str(), &result) == 0) {
+            return result.st_mtime;
+        }
+        return static_cast<__time_t>(0);
+    };
+
+    auto first_cache_path = get_cache_path();
+    auto first_mod_time = get_mod_time(first_cache_path);
+    ASSERT_NE(first_mod_time, static_cast<__time_t>(0));
+
     ov::CompiledModel imported_model;
     if (use_compile_model_api) {
         imported_model = core->compile_model(xml_path, ov::test::utils::DEVICE_GPU, config);
     } else {
+        auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
         imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config_with_weights_path);
+        ifstr.close();
     }
-    ifstr.close();
+
+    auto second_cache_path = get_cache_path();
+    auto second_mod_time = get_mod_time(second_cache_path);
+
+    // Something went wrong if a new cache is created during the second run.
+    ASSERT_EQ(first_mod_time, second_mod_time);
 
     auto orig_req = compiled_model.create_infer_request();
     auto new_req = imported_model.create_infer_request();
