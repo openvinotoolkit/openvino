@@ -8,7 +8,8 @@
 #include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
@@ -46,4 +47,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

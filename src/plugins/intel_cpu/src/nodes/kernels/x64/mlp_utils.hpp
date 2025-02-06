@@ -9,7 +9,10 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 void llm_mlp_transpose_epi32_16x16(void* dst, void* src, int stride);
 void llm_mlp_quantize_bf16_i8(ov::bfloat16* psrc,
@@ -41,4 +44,4 @@ void llm_mlp_dequantize_i32_f32(int Batch,
                                 float* p_wsum_per_oc,
                                 float* p_wscale_per_oc,
                                 bool asym);
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH}  // namespace Cpu}  // namespace Extensions}  // namespace ov

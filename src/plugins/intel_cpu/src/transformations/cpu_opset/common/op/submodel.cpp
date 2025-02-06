@@ -6,7 +6,8 @@
 
 #include <memory>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 SubModel::SubModel(const std::shared_ptr<ov::Model>& body) : SubGraphOp() {
     SubGraphOp::set_function(body);
@@ -58,4 +59,5 @@ bool SubModel::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

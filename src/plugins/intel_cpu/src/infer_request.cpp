@@ -20,7 +20,8 @@
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 SyncInferRequest::SyncInferRequest(CompiledModelHolder compiled_model)
     : ov::ISyncInferRequest(compiled_model.compiled_model()),
       m_compiled_model(std::move(compiled_model)) {
@@ -643,4 +644,5 @@ void SyncInferRequest::sub_streams_infer() {
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

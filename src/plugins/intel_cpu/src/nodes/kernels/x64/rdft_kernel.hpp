@@ -9,7 +9,8 @@
 #    include "dnnl_types.h"
 #endif
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 enum dft_type {
     real_to_complex,
@@ -107,4 +108,4 @@ private:
 };
 
 #endif
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

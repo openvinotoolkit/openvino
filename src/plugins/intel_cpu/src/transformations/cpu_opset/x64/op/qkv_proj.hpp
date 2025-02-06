@@ -7,7 +7,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class QKVProjectionNode : public ov::op::Op {
 public:
@@ -40,4 +41,5 @@ private:
     Config m_config;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

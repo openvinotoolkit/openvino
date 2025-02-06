@@ -15,7 +15,8 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 // @todo executor is not complete and covers only 1x1 fallback case for fullyconnected node
 class DnnlConvolutionPrimitive {
@@ -89,4 +90,5 @@ private:
 
 using DnnlConvExecutorPtr = std::shared_ptr<DnnlConvolutionPrimitive>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -7,7 +7,9 @@
 #include "openvino/op/string_tensor_pack.hpp"
 #include "openvino/reference/string_tensor_pack.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
@@ -94,4 +96,4 @@ void StringTensorPack::execute(const dnnl::stream& strm) {
               OV_CASE(ov::element::i32, int32_t),
               OV_CASE(ov::element::i64, int64_t))
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

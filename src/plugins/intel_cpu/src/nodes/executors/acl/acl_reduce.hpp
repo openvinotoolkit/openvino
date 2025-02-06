@@ -10,7 +10,8 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class AclReduceExecutor : public ReduceExecutor {
 public:
@@ -101,4 +102,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

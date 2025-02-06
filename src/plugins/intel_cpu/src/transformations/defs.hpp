@@ -4,7 +4,8 @@
 
 #pragma once
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 #define CPU_REGISTER_PASS_COMMON(MANAGER, PASS, ...) MANAGER.register_pass<PASS>(__VA_ARGS__);
 
@@ -74,4 +75,5 @@ namespace ov::intel_cpu {
 
 #endif  // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

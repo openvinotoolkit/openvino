@@ -24,7 +24,9 @@
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
@@ -1128,4 +1130,6 @@ std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDe
     return executor;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

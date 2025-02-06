@@ -7,7 +7,9 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov::intel_cpu::pass {
+namespace ov {
+namespace intel_cpu {
+namespace pass {
 
 /**
  * @interface AdjustBrgemmCopyBLoopPorts
@@ -30,4 +32,6 @@ private:
     std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr> m_affected_loops;
 };
 
-}  // namespace ov::intel_cpu::pass
+}  // namespace pass
+}  // namespace intel_cpu
+}  // namespace ov

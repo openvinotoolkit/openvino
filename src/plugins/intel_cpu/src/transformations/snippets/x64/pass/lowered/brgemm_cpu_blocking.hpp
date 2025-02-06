@@ -7,7 +7,9 @@
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
-namespace ov::intel_cpu::pass {
+namespace ov {
+namespace intel_cpu {
+namespace pass {
 
 /**
  * @interface BrgemmCPUBlocking
@@ -54,4 +56,6 @@ private:
     size_t get_default_n_blk(size_t n) const override;
 };
 
-}  // namespace ov::intel_cpu::pass
+}  // namespace pass
+}  // namespace intel_cpu
+}  // namespace ov

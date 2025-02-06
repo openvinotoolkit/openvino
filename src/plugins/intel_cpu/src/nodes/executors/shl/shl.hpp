@@ -11,7 +11,8 @@
 
 #include <memory>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 template <typename T>
 struct ShlStructureTraits {};
@@ -294,4 +295,5 @@ struct ShlClipParams : public ShlParams<csinn_clip_params*> {
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

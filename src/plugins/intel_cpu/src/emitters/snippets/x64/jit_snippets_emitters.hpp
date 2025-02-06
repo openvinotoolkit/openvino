@@ -6,7 +6,8 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class jit_nop_emitter : public jit_emitter {
 public:
@@ -84,4 +85,5 @@ private:
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

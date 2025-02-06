@@ -11,7 +11,8 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 namespace {
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorContext::CPtr context) {
     DEBUG_LOG("ShlFCExecutor: prepack weights");
@@ -154,4 +155,5 @@ void ShlFCExecutor::execute(const MemoryArgs& memory) {
     });
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

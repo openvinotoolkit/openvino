@@ -10,7 +10,8 @@
 
 enum { MAX_INPUT_INTERPOLATE = 8 };
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 enum InterpolateLayoutType { planar, block, by_channel };
 
@@ -177,4 +178,4 @@ public:
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;
 using InterpolateExecutorBuilderCPtr = std::shared_ptr<const InterpolateExecutorBuilder>;
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

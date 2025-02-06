@@ -8,7 +8,8 @@
 #include "arm_compute/runtime/Tensor.h"
 #include "nodes/executors/interpolate.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ACLInterpolateExecutor : public InterpolateExecutor {
 public:
@@ -51,4 +52,4 @@ private:
                                          const std::vector<MemoryDescPtr>& srcDescs,
                                          const std::vector<MemoryDescPtr>& dstDescs);
 };
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

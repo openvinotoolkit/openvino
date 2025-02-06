@@ -10,7 +10,9 @@
 #include "openvino/core/parallel.hpp"
 #include "proposal.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto base_size = conf.base_size_;
@@ -205,4 +207,6 @@ bool Proposal::created() const {
     return getType() == Type::Proposal;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

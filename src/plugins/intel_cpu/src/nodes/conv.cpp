@@ -40,7 +40,9 @@
 
 using namespace dnnl;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct ConvKey {
@@ -1823,4 +1825,6 @@ VectorDims Convolution::outputStaticShape() const {
     return outputShape.getStaticDims();
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

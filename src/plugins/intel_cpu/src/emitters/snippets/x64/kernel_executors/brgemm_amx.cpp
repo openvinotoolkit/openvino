@@ -18,7 +18,8 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                                              const element::Type& in1_dtype,
@@ -313,4 +314,5 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
 #undef EQ
 #undef HASH
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

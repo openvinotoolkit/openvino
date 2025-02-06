@@ -16,7 +16,8 @@
 #include "graph.h"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 /**
  * @brief      Generate streams information table according to processors type table.
  * @param[in]  input_streams is the targeted number of streams set by user via ov::num_streams or the default value.
@@ -113,4 +114,5 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
  */
 void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

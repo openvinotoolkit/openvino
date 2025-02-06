@@ -7,7 +7,9 @@
 #include "ngram.hpp"
 #include "utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 Result NgramShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -23,4 +25,4 @@ ShapeInferPtr NgramShapeInferFactory::makeShapeInfer() const {
     }
     return std::make_shared<NgramShapeInfer>(ngram->get_k());
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

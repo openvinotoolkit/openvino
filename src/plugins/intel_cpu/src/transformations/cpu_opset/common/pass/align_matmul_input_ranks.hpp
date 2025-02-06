@@ -14,7 +14,8 @@
  *     requires inputs to have equal ranks
  */
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class AlignMatMulInputRanks : public ov::pass::MatcherPass {
 public:
@@ -22,4 +23,5 @@ public:
     AlignMatMulInputRanks();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -14,7 +14,8 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
@@ -768,4 +769,5 @@ std::string DnnlBlockedMemoryDesc::serializeFormat() const {
     return BlockedMemoryDesc::serializeFormat();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

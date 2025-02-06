@@ -14,7 +14,8 @@
 
 namespace ov {
 
-namespace intel_cpu::brgemm_utils {
+namespace intel_cpu {
+namespace brgemm_utils {
 
 enum class BRGEMM_TYPE {
     STAND_ALONE,  // No extra requirements, used for f32|f32
@@ -78,7 +79,7 @@ inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);
 }  // namespace repacking
-}  // namespace intel_cpu::brgemm_utils
+}  // namespace brgemm_utils}  // namespace intel_cpu
 
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE>

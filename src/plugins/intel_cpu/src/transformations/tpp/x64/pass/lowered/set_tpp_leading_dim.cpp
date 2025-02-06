@@ -11,7 +11,10 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/x64/op/modifiers.hpp"
 
-namespace ov::intel_cpu::tpp::pass {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace pass {
 namespace {
 using ExpressionPort = snippets::lowered::ExpressionPort;
 using LoopPort = snippets::lowered::LoopPort;
@@ -150,4 +153,7 @@ bool SetTPPLeadingDim::run(snippets::lowered::LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace ov::intel_cpu::tpp::pass
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

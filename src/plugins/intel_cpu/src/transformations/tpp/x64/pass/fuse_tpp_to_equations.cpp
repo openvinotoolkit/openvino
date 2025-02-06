@@ -9,7 +9,10 @@
 #include "transformations/tpp/x64/op/eltwise.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 
-namespace ov::intel_cpu::tpp::pass {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace pass {
 using snippets::lowered::ExpressionPort;
 using snippets::lowered::ExpressionPtr;
 using NodePtr = std::shared_ptr<Node>;
@@ -109,4 +112,7 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return modified;
 }
 
-}  // namespace ov::intel_cpu::tpp::pass
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

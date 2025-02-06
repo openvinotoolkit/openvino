@@ -8,7 +8,9 @@
 
 #include "kernels/x64/grid_sample.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 class GridSample : public Node {
 public:
@@ -70,4 +72,6 @@ private:
     std::shared_ptr<kernel::GridSampleKernelBase> jitKernel;
 };
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -9,7 +9,8 @@
 #include "nodes/common/permute_kernel.h"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct TransposeParams {
     PermuteParams permuteParams;
@@ -44,4 +45,5 @@ public:
 using TransposeExecutorBuilderPtr = std::shared_ptr<TransposeExecutorBuilder>;
 using TransposeExecutorBuilderCPtr = std::shared_ptr<const TransposeExecutorBuilder>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

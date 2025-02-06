@@ -12,7 +12,8 @@
 
 using namespace ov::snippets::op;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface PerfCountRdtscBegin
@@ -61,6 +62,7 @@ public:
     uint64_t iteration = 0ul;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // SNIPPETS_DEBUG_CAPS

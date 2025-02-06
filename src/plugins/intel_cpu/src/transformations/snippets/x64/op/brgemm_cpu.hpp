@@ -9,7 +9,8 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface BrgemmCPU
@@ -86,4 +87,4 @@ private:
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 };
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

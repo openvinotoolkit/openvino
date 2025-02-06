@@ -14,7 +14,9 @@
 #include "nodes/reorder.h"
 #include "utils/cpu_utils.hpp"
 
-namespace ov::intel_cpu::utils {
+namespace ov {
+namespace intel_cpu {
+namespace utils {
 
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
@@ -89,4 +91,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     return ptr;
 }
 
-}  // namespace ov::intel_cpu::utils
+}  // namespace utils
+}  // namespace intel_cpu
+}  // namespace ov

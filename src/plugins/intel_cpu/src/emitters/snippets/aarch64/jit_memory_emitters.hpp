@@ -7,7 +7,9 @@
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/plugin/aarch64/jit_load_store_emitters.hpp"
 
-namespace ov::intel_cpu::aarch64 {
+namespace ov {
+namespace intel_cpu {
+namespace aarch64 {
 
 class jit_memory_emitter : public jit_emitter {
 public:
@@ -82,4 +84,6 @@ private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
-}  // namespace ov::intel_cpu::aarch64
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

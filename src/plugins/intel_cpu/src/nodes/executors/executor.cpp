@@ -6,7 +6,8 @@
 
 #include <string>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 std::string ExecutorTypeToString(const ExecutorType type) {
 #define CASE(_type)           \
@@ -45,4 +46,5 @@ ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
     return ExecutorType::Undefined;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

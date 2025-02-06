@@ -6,7 +6,8 @@
 
 #include "jit_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
@@ -154,4 +155,5 @@ private:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

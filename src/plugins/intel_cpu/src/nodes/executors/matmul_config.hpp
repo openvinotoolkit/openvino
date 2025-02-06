@@ -6,7 +6,8 @@
 
 #include "executor_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct MatMulAttrs {
     bool transposeA;
@@ -14,4 +15,4 @@ struct MatMulAttrs {
 };
 
 using MatMulConfig = executor::Config<MatMulAttrs>;
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

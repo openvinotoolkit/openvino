@@ -6,7 +6,8 @@
 
 #include "nodes/executors/subgraph.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class SubgraphExecutor : public SubgraphBaseExecutor {
 public:
@@ -90,4 +91,5 @@ public:
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

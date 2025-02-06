@@ -10,7 +10,9 @@
 
 #pragma once
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 using Result = IShapeInfer::Result;
 class NgramShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -34,4 +36,4 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

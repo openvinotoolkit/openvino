@@ -13,7 +13,9 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 
-namespace ov::Extensions::Cpu {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
 
 // this file will contain features that do not require multiple instantiation
 
@@ -106,4 +108,6 @@ public:
 
 #endif
 
-}  // namespace ov::Extensions::Cpu
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

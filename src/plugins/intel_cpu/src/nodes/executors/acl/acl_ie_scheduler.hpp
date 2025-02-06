@@ -10,7 +10,8 @@
 
 #include "support/Mutex.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace arm_compute;
 
@@ -29,4 +30,4 @@ protected:
 private:
     void schedule_custom(ICPPKernel* kernel, const Hints& hints, const Window& window, ITensorPack& tensors);
 };
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

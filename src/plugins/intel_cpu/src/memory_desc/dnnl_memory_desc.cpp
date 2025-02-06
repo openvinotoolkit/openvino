@@ -10,7 +10,8 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) : DnnlMemoryDesc(desc.get()) {}
 
@@ -135,4 +136,5 @@ size_t DnnlMemoryDesc::getOffsetPadding() const {
     return DnnlExtensionUtils::convertToDim(wrap.offset0());
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

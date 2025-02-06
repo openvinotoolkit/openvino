@@ -8,7 +8,8 @@
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 #include "jit_binary_call_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class jit_brgemm_emitter : public jit_binary_call_emitter {
 public:
@@ -45,4 +46,5 @@ private:
     bool m_is_with_amx{false};
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

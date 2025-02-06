@@ -7,7 +7,8 @@
 #include <string>
 #include <utility>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 void codec_xor(char* dst_str, const char* src_str, size_t len);
 
@@ -33,4 +34,5 @@ union CacheDecrypt {
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

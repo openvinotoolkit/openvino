@@ -10,7 +10,8 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /* ================== jit_reg_spill_begin_emitters ====================== */
 
@@ -82,4 +83,5 @@ void jit_reg_spill_end_emitter::emit_impl(const std::vector<size_t>& in, const s
     m_abi_reg_spiller->postamble();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

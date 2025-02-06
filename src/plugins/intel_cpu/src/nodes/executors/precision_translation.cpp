@@ -11,7 +11,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "precision_matcher.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
                                 const TypeMapping& mapping,
@@ -37,4 +38,5 @@ InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
     OPENVINO_THROW("Failed to create a type configuration for the provided memory descriptors");
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

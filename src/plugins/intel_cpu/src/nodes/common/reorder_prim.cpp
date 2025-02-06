@@ -14,7 +14,8 @@
 #include "dnnl_types.h"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct ReorderKey {
     dnnl::memory::desc src;
@@ -62,4 +63,5 @@ dnnl::reorder getReorderPrim(const MultiCachePtr& cache,
     return builder(key);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -6,7 +6,8 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /* ================== jit_reg_spill_begin_emitters ====================== */
 class EmitABIRegSpills;
@@ -66,4 +67,5 @@ protected:
 
 /* ============================================================== */
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

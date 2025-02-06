@@ -8,7 +8,8 @@
 #include "acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ACLLowpFullyConnectedExecutor : public ACLCommonExecutor {
 public:
@@ -46,4 +47,5 @@ private:
 
 using ACLLowpFullyConnectedExecutorPtr = std::shared_ptr<ACLLowpFullyConnectedExecutor>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

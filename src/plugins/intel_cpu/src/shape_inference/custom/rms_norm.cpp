@@ -4,7 +4,9 @@
 
 #include "rms_norm.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 class RMSNormShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -25,4 +27,6 @@ ShapeInferPtr RMSNormShapeInferFactory::makeShapeInfer() const {
     return std::make_shared<RMSNormShapeInfer>();
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

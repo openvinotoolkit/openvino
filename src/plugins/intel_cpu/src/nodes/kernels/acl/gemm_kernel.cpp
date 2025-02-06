@@ -4,7 +4,8 @@
 #include "gemm_kernel.hpp"
 #define THROW_ERROR(...) OPENVINO_THROW("ACL gemm executor Init Failure '", __VA_ARGS__)
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 GemmKernel::GemmKernel(size_t M, size_t N, size_t K, bool b_transposed, ov::element::Type inType)
     : M(M),
       N(N),
@@ -98,4 +99,4 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
 
     return status;
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

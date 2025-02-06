@@ -8,7 +8,10 @@
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-namespace ov::intel_cpu::kernel::random_uniform {
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
+namespace random_uniform {
 
 struct PhiloxGeneratorCompileParams {
     element::Type out_data_type = element::f32;
@@ -180,6 +183,9 @@ private:
     static constexpr uint32_t MT_CONST_2 = 0xEFC60000;
 };
 
-}  // namespace ov::intel_cpu::kernel::random_uniform
+}  // namespace random_uniform
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // OPENVINO_ARCH_X86_64

@@ -20,7 +20,8 @@
 #    include <cstdlib>
 #endif
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 template <typename T>
 inline void assert_dt(ov::element::Type dt) {
@@ -575,4 +576,5 @@ inline std::ostream& operator<<(std::ostream& os, const PlainTensor& dt) {
     return os;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

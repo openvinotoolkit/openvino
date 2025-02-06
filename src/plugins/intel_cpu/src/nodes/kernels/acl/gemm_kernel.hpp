@@ -10,7 +10,8 @@
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 class GemmKernel {
 public:
     GemmKernel(size_t M, size_t N, size_t K, bool b_transposed = false, ov::element::Type inType = ov::element::f32);
@@ -43,4 +44,5 @@ private:
     arm_compute::GEMMInfo aclGemmInfo;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

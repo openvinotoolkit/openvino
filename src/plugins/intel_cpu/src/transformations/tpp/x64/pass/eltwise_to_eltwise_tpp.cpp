@@ -13,7 +13,10 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/x64/op/factory.hpp"
 
-namespace ov::intel_cpu::tpp::pass {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace pass {
 
 EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     MATCHER_SCOPE(EltwiseToEltwiseTPP);
@@ -51,4 +54,4 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(supported_eltwise, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace ov::intel_cpu::tpp::pass
+}  // namespace pass}  // namespace tpp}  // namespace intel_cpu}  // namespace ov

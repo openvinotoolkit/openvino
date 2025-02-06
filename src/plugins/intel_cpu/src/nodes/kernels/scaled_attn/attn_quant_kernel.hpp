@@ -15,7 +15,10 @@
 #    include "arm_sve.h"
 #endif
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
@@ -161,4 +164,7 @@ void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, flo
 }
 #endif
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

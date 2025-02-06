@@ -24,7 +24,9 @@
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
@@ -548,4 +550,6 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
     }
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

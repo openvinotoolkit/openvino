@@ -6,7 +6,9 @@
 
 #include "utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 /**
  * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C]
@@ -37,4 +39,6 @@ ShapeInferPtr AdaptivePoolingShapeInferFactory::makeShapeInfer() const {
     return std::make_shared<AdaptivePoolingShapeInfer>(outputs_count);
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

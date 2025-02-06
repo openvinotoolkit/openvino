@@ -4,7 +4,8 @@
 
 #include "utils.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 std::string jit_emitter_pretty_name(const std::string& pretty_func) {
 #define SAFE_SYMBOL_FINDING(idx, find)        \
@@ -40,4 +41,5 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func) {
     return end > begin ? pretty_func.substr(begin, end - begin) : pretty_func;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

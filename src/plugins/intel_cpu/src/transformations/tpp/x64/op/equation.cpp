@@ -4,7 +4,10 @@
 
 #include "equation.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 EquationTPP::EquationTPP(const OutputVector& arguments, std::vector<OpDescTPP> op_descs)
     : modifier::TensorProcessingPrimitive(),
@@ -49,4 +52,7 @@ void EquationTPP::validate_and_infer_types() {
     set_output_type(0, etype, shape);
 }
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

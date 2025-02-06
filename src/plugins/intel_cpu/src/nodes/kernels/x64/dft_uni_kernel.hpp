@@ -7,7 +7,8 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_args_dft {
     const float* src;
@@ -136,4 +137,5 @@ private:
     void move_data(const Xbyak::Xmm& x, const Xbyak::Address& addr, int count);
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

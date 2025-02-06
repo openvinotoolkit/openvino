@@ -21,7 +21,8 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 static bool checkPostOps(const PostOps& postOps) {
     if (postOps.empty()) {
@@ -127,4 +128,5 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors& aclMe
     return neFC;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

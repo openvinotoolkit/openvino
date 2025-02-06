@@ -8,7 +8,9 @@
 #include "openvino/reference/string_tensor_unpack.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
@@ -74,4 +76,4 @@ void StringTensorUnpack::execute(const dnnl::stream& strm) {
                                         getDstDataAtPortAs<uint8_t>(2),
                                         stringCount);
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

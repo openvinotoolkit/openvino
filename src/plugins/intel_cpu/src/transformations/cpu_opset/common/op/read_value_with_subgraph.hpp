@@ -9,7 +9,8 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ReadValueWithSubgraph : public ov::op::util::SubGraphOp, public ov::op::util::VariableExtension {
 public:
@@ -33,4 +34,5 @@ public:
     void validate_and_infer_types() override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

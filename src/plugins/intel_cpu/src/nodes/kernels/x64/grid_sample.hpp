@@ -8,7 +8,8 @@
 
 #include "jit_kernel_base.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 enum class GridSampleInterpolationMode { BILINEAR, BICUBIC, NEAREST };
 enum class GridSamplePaddingMode { ZEROS, BORDER, REFLECTION };
@@ -194,4 +195,4 @@ private:
 #endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace kernel
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

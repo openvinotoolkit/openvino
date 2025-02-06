@@ -11,7 +11,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/op_types.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 constexpr const char* InputMemoryFormatsAttr = "InputMemoryFormats";
 constexpr const char* OutputMemoryFormatsAttr = "OutputMemoryFormats";
@@ -77,4 +78,5 @@ public:
 
 std::string getOutputMemoryFormats(const std::shared_ptr<ov::Node>& node);
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

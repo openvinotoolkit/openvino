@@ -13,9 +13,12 @@
 #include "openvino/cc/selective_build.h"
 #include "openvino/itt.hpp"
 
-namespace ov::intel_cpu::itt::domains {
+namespace ov {
+namespace intel_cpu {
+namespace itt {
+namespace domains {
 OV_ITT_DOMAIN(CPUSpecificTransform);
-}  // namespace ov::intel_cpu::itt::domains
+}  // namespace domains}  // namespace itt}  // namespace intel_cpu}  // namespace ov
 
 OV_CC_DOMAINS(internal_op);
 

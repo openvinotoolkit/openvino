@@ -17,7 +17,8 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 
 #define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 static size_t getVlen() {
     return mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
@@ -329,4 +330,5 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, pout, wsp);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

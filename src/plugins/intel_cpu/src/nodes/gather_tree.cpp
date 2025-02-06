@@ -12,7 +12,9 @@
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool GatherTree::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -204,4 +206,6 @@ bool GatherTree::created() const {
     return getType() == Type::GatherTree;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

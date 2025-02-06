@@ -7,7 +7,10 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 class NodeFactory {
 public:
     static std::shared_ptr<ov::Node> create(const std::shared_ptr<ov::Node>& n);
@@ -23,4 +26,4 @@ private:
     static std::unordered_map<ov::DiscreteTypeInfo, tpp_builder> m_direct_mapping;
     static std::vector<TPPCustomBuilder> m_custom_mapping;
 };
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op}  // namespace tpp}  // namespace intel_cpu}  // namespace ov

@@ -7,7 +7,8 @@
 #include <openvino/core/node.hpp>
 #include <openvino/op/op.hpp>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 /**
  * The operation flattens embedding tensor of token vectors and traverse it by a sliding window of size times the
  * original embedding sizes. Inputs:
@@ -33,4 +34,4 @@ public:
 private:
     size_t m_k;
 };
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

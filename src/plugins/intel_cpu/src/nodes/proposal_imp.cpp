@@ -15,7 +15,10 @@
 #endif
 #include "openvino/core/parallel.hpp"
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 static void enumerate_proposals_cpu(const float* bottom4d,
                                     const float* d_anchor4d,
@@ -439,4 +442,7 @@ void proposal_exec(const float* input0,
     }
 }
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

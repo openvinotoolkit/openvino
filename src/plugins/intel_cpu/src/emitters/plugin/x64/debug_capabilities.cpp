@@ -9,7 +9,8 @@
 #    include <iostream>
 #    include <sstream>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
@@ -217,6 +218,7 @@ void RegPrinter::print_reg(jit_generator& h, REG_T reg, const char* name) {
     postamble(h);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // CPU_DEBUG_CAPS

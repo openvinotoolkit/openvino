@@ -7,7 +7,8 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 /**
  * @brief  Computes the length in bytes for the packed matrix B buffer(SGEMM).
  *
@@ -104,4 +105,4 @@ void mlas_sgemm_compute(const char* transa,
                         const int64_t ldc,
                         const float* bias = nullptr,
                         size_t thread_num = 0);
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

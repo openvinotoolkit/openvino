@@ -13,7 +13,8 @@
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/cpu_utils.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
     if (!memory.count(ARG_DST_DEQ_SCALE)) {
@@ -66,4 +67,5 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(cons
     return DQScales;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

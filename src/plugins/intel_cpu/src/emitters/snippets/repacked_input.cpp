@@ -4,7 +4,8 @@
 
 #include "repacked_input.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 RepackedInput::RepackedInput(std::shared_ptr<const RepackedInputKernel> kernel,
                              CpuBlockedMemoryDescPtr desc,
@@ -29,4 +30,4 @@ const VectorDims& RepackedInput::in_offsets() const {
 const VectorDims& RepackedInput::out_offsets() const {
     return m_out_offsets;
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

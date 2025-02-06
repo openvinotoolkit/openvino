@@ -6,7 +6,8 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov::pass {
+namespace ov {
+namespace pass {
 
 // This pass inserts explicit Convert on Extension operation outputs for hard-coded list of precisions.
 // Supported cases: I64/U64 -> I32.
@@ -17,4 +18,5 @@ public:
     InsertConvertAfterExtension(bool convert_output_precision = true);
 };
 
-}  // namespace ov::pass
+}  // namespace pass
+}  // namespace ov

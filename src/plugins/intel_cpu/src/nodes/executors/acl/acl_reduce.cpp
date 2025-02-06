@@ -4,7 +4,8 @@
 
 #include "acl_reduce.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace arm_compute;
 
@@ -136,4 +137,5 @@ void AclReduceExecutor::exec(const std::vector<MemoryCPtr>& src,
     dstTensor.allocator()->free();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

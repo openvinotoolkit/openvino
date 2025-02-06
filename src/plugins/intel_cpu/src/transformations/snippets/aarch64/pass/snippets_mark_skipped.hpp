@@ -6,7 +6,8 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface SnippetsMarkSkipped
@@ -39,4 +40,5 @@ enum class NodeFusingType : int64_t {
     FusedWithMisc
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

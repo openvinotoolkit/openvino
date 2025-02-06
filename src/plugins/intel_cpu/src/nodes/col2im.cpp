@@ -7,7 +7,9 @@
 #include "openvino/op/col2im.hpp"
 #include "openvino/reference/col2im.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
@@ -105,4 +107,4 @@ void Col2Im::execute(const dnnl::stream& strm) {
               OV_CASE2(ov::element::i8, ov::element::i32, int8_t, int32_t),
               OV_CASE2(ov::element::u8, ov::element::i32, uint8_t, int32_t))
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

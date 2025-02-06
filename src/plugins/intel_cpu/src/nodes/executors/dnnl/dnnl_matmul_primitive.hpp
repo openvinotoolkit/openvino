@@ -13,7 +13,8 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class DnnlMatMulPrimitive {
     struct Key {
@@ -82,4 +83,5 @@ private:
 
 using DnnlMatMulPrimitivePtr = std::shared_ptr<DnnlMatMulPrimitive>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

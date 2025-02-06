@@ -7,7 +7,9 @@
 #include "openvino/opsets/opset1.hpp"
 #include "utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 /**
  * Implements Prior Box Clustered shape inference algorithm. The output shape is [2,  4 * height * width *
@@ -33,4 +35,4 @@ ShapeInferPtr PriorBoxShapeInferFactory::makeShapeInfer() const {
     auto number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
     return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

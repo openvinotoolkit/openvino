@@ -9,7 +9,8 @@
 #include "arm_compute/core/Helpers.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace arm_compute;
 
@@ -73,4 +74,5 @@ void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload>&
     });
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

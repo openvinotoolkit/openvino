@@ -4,7 +4,8 @@
 
 #include "transpose_list.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 const std::vector<TransposeExecutorDesc>& getTransposeExecutorsList() {
     static const std::vector<TransposeExecutorDesc> descs = {
@@ -46,4 +47,5 @@ TransposeExecutorPtr TransposeExecutorFactory::makeExecutor(const TransposeParam
     OPENVINO_THROW("Supported executor is not found");
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

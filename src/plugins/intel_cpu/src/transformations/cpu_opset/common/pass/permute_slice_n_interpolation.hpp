@@ -9,7 +9,8 @@
 // SS(NHWC)->Transpose(fake)->Interpolate(NHWC as NCHW)
 // NHWC->Interpolate(NHWC as NCHW)-NCHW->Transpose(fake)->SS
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class PermuteSliceAndInterpolation : public ov::pass::MatcherPass {
 public:
@@ -17,4 +18,5 @@ public:
     PermuteSliceAndInterpolation();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

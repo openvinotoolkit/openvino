@@ -34,7 +34,9 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct MVNKey {
@@ -2975,4 +2977,6 @@ bool MVN::created() const {
     return getType() == Type::MVN;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

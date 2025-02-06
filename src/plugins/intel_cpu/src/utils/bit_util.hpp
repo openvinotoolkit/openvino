@@ -6,7 +6,9 @@
 
 #include <cstdint>
 
-namespace ov::util::bit {
+namespace ov {
+namespace util {
+namespace bit {
 
 /**
  * @brief Make empty bit mask, non of bit is set.
@@ -33,4 +35,6 @@ constexpr uint64_t mask(T bit_pos, Args... other_bits) {
     return mask(other_bits...) | (static_cast<uint64_t>(1) << bit_pos);
 }
 
-}  // namespace ov::util::bit
+}  // namespace bit
+}  // namespace util
+}  // namespace ov

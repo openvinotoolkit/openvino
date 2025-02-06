@@ -17,7 +17,9 @@ using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
@@ -573,4 +575,6 @@ void Input::initSupportedPdFromMemDesc() {
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

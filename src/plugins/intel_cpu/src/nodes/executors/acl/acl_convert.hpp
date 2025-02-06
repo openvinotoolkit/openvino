@@ -8,7 +8,8 @@
 #include "nodes/executors/convert.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ACLConvertExecutor : public ConvertExecutor {
 public:
@@ -40,4 +41,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -6,7 +6,8 @@
 
 #include <utility>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 namespace aarch64 {
 
 using namespace Xbyak_aarch64;
@@ -846,4 +847,5 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
     return precisions;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

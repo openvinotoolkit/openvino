@@ -21,7 +21,9 @@
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
@@ -285,4 +287,6 @@ inline void AdaptivePooling::setBinBorders(size_t* startPtr,
     *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

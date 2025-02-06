@@ -10,7 +10,9 @@
 #include <type_traits>
 #include <vector>
 
-namespace ov::intel_cpu::hash {
+namespace ov {
+namespace intel_cpu {
+namespace hash {
 
 // The following code is derived from Boost C++ library
 // Copyright 2005-2014 Daniel James.
@@ -53,4 +55,6 @@ private:
     size_t m_seed;
 };
 
-}  // namespace ov::intel_cpu::hash
+}  // namespace hash
+}  // namespace intel_cpu
+}  // namespace ov

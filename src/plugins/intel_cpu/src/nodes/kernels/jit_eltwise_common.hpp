@@ -11,7 +11,8 @@
 #include "nodes/executors/eltwise.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 #define MAX_ELTWISE_INPUTS   7
 #define MAX_ELTWISE_DIM_RANK 12
@@ -80,4 +81,5 @@ private:
     static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

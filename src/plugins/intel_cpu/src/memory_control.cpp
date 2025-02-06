@@ -10,7 +10,8 @@
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 namespace {
 
@@ -432,4 +433,5 @@ void NetworkMemoryControl::releaseMemory() {
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

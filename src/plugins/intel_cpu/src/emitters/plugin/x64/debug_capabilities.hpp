@@ -8,7 +8,8 @@
 
 #    include "cpu/x64/jit_generator.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 // Usage
 // 1. Include this headfile where JIT kennels of CPU plugin are implemented for Register printing
@@ -88,6 +89,7 @@ private:
     static constexpr size_t reg_cnt = 16;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // CPU_DEBUG_CAPS

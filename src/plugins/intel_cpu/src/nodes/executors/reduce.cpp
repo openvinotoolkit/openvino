@@ -6,8 +6,10 @@
 
 #include <utility>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 ReduceExecutor::ReduceExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

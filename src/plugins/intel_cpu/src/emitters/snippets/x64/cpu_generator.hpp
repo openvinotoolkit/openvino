@@ -15,7 +15,8 @@
 #    include "emitters/snippets/utils/debug_caps_config.hpp"
 #endif
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class CompiledSnippetCPU : public snippets::CompiledSnippet {
     const std::unique_ptr<const dnnl::impl::cpu::x64::jit_generator> h_compiled;
@@ -61,4 +62,5 @@ protected:
     bool uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& emitter) const override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -9,7 +9,10 @@
 #include <openvino/core/type/element_type.hpp>
 #include <vector>
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 void attn_softmax(void* a,
                   void* a_dst,
@@ -24,4 +27,7 @@ void attn_softmax(void* a,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision);
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

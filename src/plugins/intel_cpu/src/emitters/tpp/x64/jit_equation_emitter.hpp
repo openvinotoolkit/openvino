@@ -6,7 +6,8 @@
 
 #include "jit_tpp_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class EquationTppEmitter : public TppEmitter {
 public:
@@ -30,4 +31,5 @@ protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

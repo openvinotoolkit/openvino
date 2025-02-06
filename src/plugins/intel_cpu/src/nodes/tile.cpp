@@ -9,7 +9,9 @@
 #include "openvino/op/tile.hpp"
 #include "utils/ngraph_utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -224,4 +226,6 @@ bool Tile::created() const {
     return getType() == Type::Tile;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

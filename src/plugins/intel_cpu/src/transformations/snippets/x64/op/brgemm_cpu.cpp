@@ -10,7 +10,8 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 using namespace brgemm_utils;
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A,
@@ -185,4 +186,4 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("type", m_type);
     return true;
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

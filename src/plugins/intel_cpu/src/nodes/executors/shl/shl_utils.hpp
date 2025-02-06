@@ -7,7 +7,8 @@
 #include "csinn/csinn_runtime.h"
 #include "memory_desc/cpu_memory_desc.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
 * @brief Return Shl DataType that corresponds to the given precision
@@ -57,4 +58,5 @@ inline csinn_layout_enum getShlDataLayoutByMemoryDesc(const MemoryDescPtr& desc,
     return CSINN_LAYOUT_NULL;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

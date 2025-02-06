@@ -6,7 +6,8 @@
 
 #include "acl_utils.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace arm_compute;
 
@@ -250,4 +251,5 @@ void AclPoolingExecutor::exec(const std::vector<MemoryCPtr>& src,
         indTensor.allocator()->free();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

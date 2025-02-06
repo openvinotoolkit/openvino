@@ -14,7 +14,8 @@
 using namespace ov::intel_cpu::brgemm_utils::repacking;
 using namespace ov::snippets::lowered;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 RepackedWeightsBufferExpression::RepackedWeightsBufferExpression(
     const std::shared_ptr<ov::Node>& n,
@@ -94,4 +95,5 @@ void CompensationsBufferExpression::init_allocation_size(
     m_allocation_size = compute_repacked_n_dim(n_blk, precision);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

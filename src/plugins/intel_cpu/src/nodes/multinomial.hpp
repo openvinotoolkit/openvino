@@ -10,7 +10,9 @@
 #include "node.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 class Multinomial : public Node {
 public:
@@ -73,4 +75,6 @@ private:
     void execute_convert_type();
 };
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

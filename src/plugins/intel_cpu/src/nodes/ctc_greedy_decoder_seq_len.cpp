@@ -10,7 +10,9 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                   std::string& errorMessage) noexcept {
@@ -186,4 +188,6 @@ bool CTCGreedyDecoderSeqLen::needPrepareParams() const {
     return false;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

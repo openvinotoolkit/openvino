@@ -6,7 +6,8 @@
 
 #include <snippets/shape_inference/shape_inference.hpp>
 
-namespace ov::snippets {
+namespace ov {
+namespace snippets {
 
 /**
  * \brief Shape infer factory that can create shape-infer instances for cpu-specific operations
@@ -24,4 +25,5 @@ protected:
                                                             const std::shared_ptr<ov::Node>& op) const override;
 };
 
-}  // namespace ov::snippets
+}  // namespace snippets
+}  // namespace ov

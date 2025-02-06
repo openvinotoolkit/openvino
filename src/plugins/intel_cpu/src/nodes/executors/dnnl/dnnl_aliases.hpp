@@ -7,8 +7,10 @@
 #include <dnnl.hpp>
 #include <unordered_map>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using dnnl_primitive_args = std::unordered_map<int, dnnl::memory>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

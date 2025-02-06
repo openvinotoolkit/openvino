@@ -19,7 +19,9 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct Indexer4d {
@@ -475,4 +477,6 @@ bool ExperimentalDetectronGenerateProposalsSingleImage::needPrepareParams() cons
     return false;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

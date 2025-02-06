@@ -6,7 +6,8 @@
 
 #include "nodes/executors/transpose.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class JitTransposeExecutor : public TransposeExecutor {
 public:
@@ -35,4 +36,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

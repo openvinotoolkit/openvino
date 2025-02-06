@@ -17,7 +17,9 @@
 
 using namespace dnnl::impl;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
     using namespace dnnl::impl;
@@ -333,4 +335,6 @@ bool DepthToSpace::created() const {
     return getType() == Type::DepthToSpace;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

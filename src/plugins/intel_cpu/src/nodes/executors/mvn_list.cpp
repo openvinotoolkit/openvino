@@ -4,7 +4,8 @@
 
 #include "mvn_list.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 const std::vector<MVNExecutorDesc>& getMVNExecutorsList() {
     static std::vector<MVNExecutorDesc> descs = {
@@ -13,4 +14,5 @@ const std::vector<MVNExecutorDesc>& getMVNExecutorsList() {
     return descs;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

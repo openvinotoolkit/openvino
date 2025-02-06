@@ -7,7 +7,8 @@
 #include "jit_bf16_emitters.hpp"
 #include "jit_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class jit_convert_emitter : public jit_emitter {
 public:
@@ -81,4 +82,5 @@ private:
     size_t aux_vecs_count() const override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

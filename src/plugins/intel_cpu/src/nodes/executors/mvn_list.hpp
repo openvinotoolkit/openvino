@@ -13,7 +13,8 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct MVNExecutorDesc {
     ExecutorType executorType;
@@ -79,4 +80,5 @@ private:
 using MVNExecutorFactoryPtr = std::shared_ptr<MVNExecutorFactory>;
 using MVNExecutorFactoryCPtr = std::shared_ptr<const MVNExecutorFactory>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

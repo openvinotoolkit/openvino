@@ -10,7 +10,9 @@
 
 using namespace Xbyak_aarch64;
 
-namespace ov::intel_cpu::aarch64 {
+namespace ov {
+namespace intel_cpu {
+namespace aarch64 {
 
 using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
@@ -123,4 +125,6 @@ void jit_store_memory_emitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-}  // namespace ov::intel_cpu::aarch64
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

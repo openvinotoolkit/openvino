@@ -7,7 +7,8 @@
 
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::FakeQuantize>& fq_node,
                                           float threshold = 0.0001f) {
@@ -103,4 +104,5 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
     return outScale;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

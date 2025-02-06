@@ -10,7 +10,9 @@
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -83,4 +85,6 @@ ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
     return make_shape_inference(m_op);
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

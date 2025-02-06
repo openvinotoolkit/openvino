@@ -8,7 +8,10 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov::intel_cpu::kernel::random_uniform {
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
+namespace random_uniform {
 
 #define GET_PHILOX_OFFSET(field) offsetof(PhiloxGeneratorCallArgs, field)
 
@@ -1410,4 +1413,7 @@ template class MersenneTwisterGenerator<x64::sse41>;
 #undef GET_MERSENNE_OFFSET
 #undef GET_PHILOX_OFFSET
 
-}  // namespace ov::intel_cpu::kernel::random_uniform
+}  // namespace random_uniform
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov

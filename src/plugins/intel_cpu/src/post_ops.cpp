@@ -8,7 +8,8 @@
 #include "nodes/eltwise.h"
 #include "nodes/fake_quantize.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 EltwiseKind getEltwiseKind(const Algorithm alg) {
     switch (alg) {
@@ -193,4 +194,5 @@ PostOps getPostOps(const std::vector<NodePtr>& fused) {
     return ops;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

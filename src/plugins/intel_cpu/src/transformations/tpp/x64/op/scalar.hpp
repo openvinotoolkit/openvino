@@ -8,7 +8,10 @@
 #include "modifiers.hpp"
 #include "snippets/op/reduce.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 // Note that the tpp::op::Scalar is not derived from the TensorProcessingPrimitive modifier. We don't need it because
 // the Scalar is not a MemoryAccess operation, since it doesn't need to read from the external
 // memory, and hence it is not really a TPP.
@@ -23,4 +26,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

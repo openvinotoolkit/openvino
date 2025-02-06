@@ -8,7 +8,8 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "jit_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class jit_dnnl_emitter : public jit_emitter {
 public:
@@ -62,4 +63,5 @@ public:
 private:
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

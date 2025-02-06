@@ -17,7 +17,9 @@
 
 using namespace dnnl;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -244,4 +246,6 @@ bool Roll::created() const {
 
 constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

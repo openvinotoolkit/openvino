@@ -8,7 +8,8 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 /// \brief Scaled dot product attention from PyTorch, fused with Concat
 ///
 /// \ingroup ov_ops_cpp_api
@@ -74,4 +75,5 @@ private:
     Config m_config;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -17,7 +17,8 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 void serializeToCout(const Graph& graph);
 void serializeToXML(const Graph& graph, const std::string& path);
@@ -431,4 +432,4 @@ void average_counters(const Graph& graph) {
 }
 
 #endif
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

@@ -16,7 +16,8 @@ enum {
     INF_NEG_MASK = 0xFF800000
 };
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 namespace {
 ov::element::Type get_arithmetic_binary_exec_precision(const std::shared_ptr<ov::Node>& n) {
@@ -2831,4 +2832,5 @@ void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

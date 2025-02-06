@@ -4,8 +4,10 @@
 
 #include "multi_cache.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 std::atomic_size_t MultiCache::_typeIdCounter{0};
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

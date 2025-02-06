@@ -14,7 +14,8 @@
 #include "dnnl_extension_utils.h"
 #include "utils/bfloat16.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 // IEB file format routine
 static const unsigned char IEB_MAGIC[4] = {'I', 'E', 'B', '0'};
@@ -303,4 +304,5 @@ void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     dump_file.close();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

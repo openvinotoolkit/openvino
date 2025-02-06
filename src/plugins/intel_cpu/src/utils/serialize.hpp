@@ -11,7 +11,8 @@
 #include "openvino/util/mmap_object.hpp"
 #include "utils/codec_xor.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ModelSerializer {
 public:
@@ -55,4 +56,5 @@ protected:
     std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

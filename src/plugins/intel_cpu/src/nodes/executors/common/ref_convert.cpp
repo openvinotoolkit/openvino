@@ -6,7 +6,8 @@
 
 #include "nodes/common/cpu_convert.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 bool CommonConvertExecutor::isSupported(ov::element::Type srcPrc, ov::element::Type dstPrc) {
     return is_supported_convert(srcPrc, dstPrc);
@@ -32,4 +33,5 @@ void CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
                 commonConvertParams.size);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

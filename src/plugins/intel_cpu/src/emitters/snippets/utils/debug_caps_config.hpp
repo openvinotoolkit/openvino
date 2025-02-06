@@ -8,7 +8,8 @@
 #    include <cstdlib>
 #    include <string>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class SnippetsDebugCapsConfig {
 public:
@@ -22,6 +23,7 @@ private:
     void readProperties();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // SNIPPETS_DEBUG_CAPS

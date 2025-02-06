@@ -15,7 +15,10 @@
 #    include "arm_sve.h"
 #endif
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 #if defined(HAVE_AVX512F)
 inline void transpose_m512i_16x16(__m512i& r0,
@@ -726,4 +729,7 @@ inline void transpose_16xK_kernel(TDST* dst, TSRC* src, size_t K, size_t dst_str
 
 #endif
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

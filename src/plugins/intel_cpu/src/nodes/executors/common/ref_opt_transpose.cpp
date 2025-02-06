@@ -6,7 +6,8 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 namespace {
 
 struct TransposeContext {
@@ -123,4 +124,5 @@ bool RefOptimizedTransposeExecutor::init(const TransposeParams& transposeParams,
     return true;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

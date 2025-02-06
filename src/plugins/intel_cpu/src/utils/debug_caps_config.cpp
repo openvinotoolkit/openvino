@@ -7,7 +7,8 @@
 
 #    include <string>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
@@ -80,6 +81,7 @@ void DebugCapsConfig::readProperties() {
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // CPU_DEBUG_CAPS

@@ -20,7 +20,9 @@
 #include "openvino/op/generate_proposals.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct Indexer4d {
@@ -518,4 +520,6 @@ bool GenerateProposals::needPrepareParams() const {
     return false;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

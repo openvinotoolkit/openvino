@@ -11,7 +11,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   const ov::intel_cpu::PlainTensor& v_src,
@@ -32,4 +35,7 @@ void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float
 
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp);
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

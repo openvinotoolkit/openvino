@@ -6,7 +6,8 @@
 
 #include "emitters/utils.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
@@ -227,4 +228,5 @@ cpu_isa_t EmitABIRegSpills::get_isa() {
     OV_CPU_JIT_EMITTER_THROW("unsupported isa");
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

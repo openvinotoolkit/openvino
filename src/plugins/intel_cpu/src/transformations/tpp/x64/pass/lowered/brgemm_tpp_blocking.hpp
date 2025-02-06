@@ -7,7 +7,10 @@
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
 
-namespace ov::intel_cpu::tpp::pass {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace pass {
 /**
  * @interface BrgemmTPPBlocking
  * @brief Covers BrgemmTPP with blocking loops
@@ -45,4 +48,7 @@ private:
         size_t block_size) const override;
 };
 
-}  // namespace ov::intel_cpu::tpp::pass
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

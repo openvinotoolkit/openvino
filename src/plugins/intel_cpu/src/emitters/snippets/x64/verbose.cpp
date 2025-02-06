@@ -19,7 +19,8 @@
 #        include <cxxabi.h>
 #    endif
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 template <typename T>
 std::string join(const T& v, const std::string& sep = ", ") {
@@ -173,6 +174,7 @@ void jit_emitter_info_t::init(const jit_emitter* emitter) {
     is_initialized_ = true;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif

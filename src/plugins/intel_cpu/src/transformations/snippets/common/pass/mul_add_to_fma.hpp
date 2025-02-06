@@ -6,7 +6,9 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov::intel_cpu::pass {
+namespace ov {
+namespace intel_cpu {
+namespace pass {
 
 /**
  * @interface MulAddToFMA
@@ -19,4 +21,6 @@ public:
     MulAddToFMA();
 };
 
-}  // namespace ov::intel_cpu::pass
+}  // namespace pass
+}  // namespace intel_cpu
+}  // namespace ov

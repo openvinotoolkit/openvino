@@ -8,7 +8,8 @@
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "snippets/op/perf_count.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class jit_perf_count_chrono_start_emitter : public jit_emitter {
 public:
@@ -38,6 +39,7 @@ private:
     std::shared_ptr<snippets::op::PerfCountEnd> m_end_node = nullptr;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // SNIPPETS_DEBUG_CAPS

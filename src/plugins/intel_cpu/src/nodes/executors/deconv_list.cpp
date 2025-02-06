@@ -4,7 +4,8 @@
 
 #include "deconv_list.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 const std::vector<DeconvExecutorDesc>& getDeconvExecutorsList() {
     static std::vector<DeconvExecutorDesc> descs = {
@@ -13,4 +14,5 @@ const std::vector<DeconvExecutorDesc>& getDeconvExecutorsList() {
     return descs;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

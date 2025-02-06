@@ -6,7 +6,9 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov::intel_cpu::kernel {
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
 
 #define GET_OFF(field) offsetof(GridSamplesKernelExecArgs, field)
 
@@ -2127,4 +2129,6 @@ template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
 template class GridSampleKernel<x64::sse41>;
 
-}  // namespace ov::intel_cpu::kernel
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov

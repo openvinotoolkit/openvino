@@ -7,7 +7,8 @@
 
 #include "jit_tpp_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface DebugTppEmitter
@@ -75,4 +76,5 @@ private:
     snippets::lowered::ExpressionPtr m_source_expr{nullptr};
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

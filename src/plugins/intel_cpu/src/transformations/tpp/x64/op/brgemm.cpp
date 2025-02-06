@@ -9,7 +9,10 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 BrgemmTPP::BrgemmTPP(const Output<Node>& A,
                      const Output<Node>& B,
@@ -62,4 +65,7 @@ bool BrgemmTPP::visit_attributes(AttributeVisitor& visitor) {
     return Brgemm::visit_attributes(visitor);
 }
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

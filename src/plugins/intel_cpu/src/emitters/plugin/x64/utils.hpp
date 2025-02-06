@@ -7,7 +7,8 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "snippets/emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 std::set<size_t> get_callee_saved_reg_idxs();
 /**
@@ -59,4 +60,5 @@ private:
     bool rsp_status = true;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

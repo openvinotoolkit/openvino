@@ -8,7 +8,8 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                          dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -83,4 +84,5 @@ void jit_horizon_emitter::perform_op(const Vmm& vmm1, const Vmm& vmm2, const Vmm
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

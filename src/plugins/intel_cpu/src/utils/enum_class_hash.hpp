@@ -6,7 +6,8 @@
 
 #include <memory>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * Workaround for c++11 defect, where hashing support
@@ -19,4 +20,5 @@ struct EnumClassHash {
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -20,7 +20,8 @@
 
 using namespace ov::Extensions::Cpu::XARCH;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 VariableStateBase::VariableStateBase(const std::string& name, MemoryDescPtr external_desc)
     : IVariableState{name},
@@ -369,4 +370,4 @@ MemoryPtr VariableStateKVcache::hidden_state_mem() const {
 void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

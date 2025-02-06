@@ -15,7 +15,10 @@
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 using AutoBroadcastSpec = ov::op::AutoBroadcastSpec;
 using AutoBroadcastType = ov::op::AutoBroadcastType;
 
@@ -128,4 +131,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

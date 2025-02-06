@@ -13,7 +13,8 @@
 #include "snippets/op/reorder.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     MATCHER_SCOPE(EliminateBrgemmCopyB);
@@ -57,4 +58,4 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

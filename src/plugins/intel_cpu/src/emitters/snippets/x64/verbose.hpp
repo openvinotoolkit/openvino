@@ -8,7 +8,8 @@
 
 #    include <sstream>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 class jit_emitter;
 struct jit_emitter_info_t {
     jit_emitter_info_t() = default;
@@ -31,6 +32,7 @@ private:
 
 std::string get_emitter_type_name(const jit_emitter* emitter);
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif

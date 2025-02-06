@@ -7,7 +7,9 @@
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "jit_kernel_base.hpp"
 
-namespace ov::intel_cpu::kernel {
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
 
 struct jit_rms_compile_params {
     ov::element::Type src_prc;
@@ -93,4 +95,6 @@ private:
     const std::vector<size_t> pool_aux_vmm_idxs = {7};
 };
 
-}  // namespace ov::intel_cpu::kernel
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov

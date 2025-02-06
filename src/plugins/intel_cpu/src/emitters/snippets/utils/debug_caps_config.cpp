@@ -5,7 +5,8 @@
 
 #    include "debug_caps_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 void SnippetsDebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
@@ -20,6 +21,7 @@ void SnippetsDebugCapsConfig::readProperties() {
     enable_segfault_detector = readEnv("OV_CPU_SNIPPETS_SEGFAULT_DETECTOR") ? true : false;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // SNIPPETS_DEBUG_CAPS

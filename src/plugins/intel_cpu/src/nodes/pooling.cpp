@@ -32,7 +32,9 @@
 
 using namespace dnnl;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct PoolingKey {
@@ -773,4 +775,6 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
     attr.set_post_ops(ops);
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

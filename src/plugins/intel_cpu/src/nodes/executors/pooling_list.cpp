@@ -4,7 +4,8 @@
 
 #include "pooling_list.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 const std::vector<PoolingExecutorDesc>& getPoolingExecutorsList() {
     static std::vector<PoolingExecutorDesc> descs = {
@@ -13,4 +14,5 @@ const std::vector<PoolingExecutorDesc>& getPoolingExecutorsList() {
     return descs;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

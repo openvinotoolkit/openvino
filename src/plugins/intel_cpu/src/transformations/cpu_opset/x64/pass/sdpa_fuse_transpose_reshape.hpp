@@ -6,11 +6,13 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 class SDPAFuseTransposeReshape : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("SDPAFuseTransposeReshape");
     SDPAFuseTransposeReshape();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

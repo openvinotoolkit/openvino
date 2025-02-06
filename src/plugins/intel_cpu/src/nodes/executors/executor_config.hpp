@@ -7,7 +7,9 @@
 #include "memory_arguments.hpp"
 #include "post_ops.hpp"
 
-namespace ov::intel_cpu::executor {
+namespace ov {
+namespace intel_cpu {
+namespace executor {
 
 template <typename Attrs>
 struct Config {
@@ -16,4 +18,6 @@ struct Config {
     PostOps postOps;
 };
 
-}  // namespace ov::intel_cpu::executor
+}  // namespace executor
+}  // namespace intel_cpu
+}  // namespace ov

@@ -16,7 +16,8 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 VectorDims acl_fc_executor::makeDummyInputDims(const Shape& inShape, const Shape& wShape) {
     const auto& weightDims = wShape.getStaticDims();
@@ -363,4 +364,5 @@ ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const A
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

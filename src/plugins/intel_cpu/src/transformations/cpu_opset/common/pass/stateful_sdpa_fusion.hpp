@@ -6,7 +6,8 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 class StatefulSDPAFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StatefulSDPAFusion");
@@ -20,4 +21,5 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

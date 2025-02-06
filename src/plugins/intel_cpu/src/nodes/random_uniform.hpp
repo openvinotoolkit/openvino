@@ -10,7 +10,9 @@
 
 #include "kernels/x64/random_uniform.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 class RandomUniform : public Node {
 public:
@@ -155,4 +157,6 @@ private:
     void computeStl(void* out, size_t work_amount);
 };
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

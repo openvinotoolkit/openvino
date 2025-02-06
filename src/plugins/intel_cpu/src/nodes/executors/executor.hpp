@@ -15,7 +15,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 #if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
 #    define OV_CPU_INSTANCE_MLAS_ARM64(...) {__VA_ARGS__},
@@ -175,4 +176,5 @@ public:
 };
 using ExecutorPtr = std::shared_ptr<Executor>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -11,7 +11,8 @@
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #endif  // OPENVINO_ARCH_X86_64
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 enum class NMSBoxEncodeType { CORNER, CENTER };
 
@@ -145,4 +146,5 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

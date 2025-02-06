@@ -6,7 +6,8 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 /**
  * @brief Base class for binary call emitters. Its main function is to allocate 2 auxiliary registers needed for binary
  * call emission: one is any gpr to store callable address, the second one is a callee-saved reg to organize rsp
@@ -68,4 +69,5 @@ private:
     mutable bool m_regs_initialized = false;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

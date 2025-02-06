@@ -11,7 +11,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                  const ov::intel_cpu::PlainTensor& v_input,
@@ -33,4 +36,7 @@ void attn_memcpy2d_kernel(void* src,
                           size_t width,
                           size_t height);
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

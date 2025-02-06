@@ -17,7 +17,8 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct EltwiseExecutorDesc {
     ExecutorType executorType;
@@ -83,4 +84,5 @@ private:
 using EltwiseExecutorFactoryPtr = std::shared_ptr<EltwiseExecutorFactory>;
 using EltwiseExecutorFactoryCPtr = std::shared_ptr<const EltwiseExecutorFactory>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

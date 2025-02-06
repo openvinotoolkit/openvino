@@ -9,7 +9,8 @@
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @class BrgemmExternalRepackingAdjuster
@@ -44,4 +45,5 @@ private:
     std::unordered_map<size_t, RepackExecutorPtr> m_executors;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

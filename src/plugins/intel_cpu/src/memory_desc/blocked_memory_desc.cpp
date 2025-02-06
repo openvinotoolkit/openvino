@@ -8,7 +8,8 @@
 
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /* c++11 requires to have a definition in cpp file */
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::FULL_MASK;
@@ -79,4 +80,5 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     return result.str();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

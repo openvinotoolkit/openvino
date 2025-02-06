@@ -13,7 +13,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/precision_support.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 template <size_t bypassId>
 struct use {
@@ -119,4 +120,5 @@ InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
                                 const TypeMapping& mapping,
                                 const MappingNotation& notation);
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

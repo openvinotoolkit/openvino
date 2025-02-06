@@ -7,7 +7,8 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @brief Defines how many records can be stored in the CPU runtime parameters cache per CPU runtime parameter type per
@@ -67,4 +68,5 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

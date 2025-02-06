@@ -5,7 +5,8 @@
 #include "dnnl_executor.h"
 using namespace dnnl;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 DnnlExecutor::DnnlExecutor(const dnnl::primitive_desc& pd) {
     execPrim = dnnl::primitive(pd);
@@ -81,4 +82,5 @@ impl_desc_type DnnlExecutor::getImplementationType() const {
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

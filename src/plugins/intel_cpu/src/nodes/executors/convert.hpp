@@ -8,7 +8,8 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct ConvertParams {
     ov::element::Type srcPrc;
@@ -45,4 +46,5 @@ public:
 using ConvertExecutorBuilderPtr = std::shared_ptr<ConvertExecutorBuilder>;
 using ConvertExecutorBuilderCPtr = std::shared_ptr<const ConvertExecutorBuilder>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

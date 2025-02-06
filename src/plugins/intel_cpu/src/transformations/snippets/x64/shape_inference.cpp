@@ -20,7 +20,8 @@
 #    include "transformations/tpp/x64/op/scalar.hpp"
 #endif
 
-namespace ov::snippets {
+namespace ov {
+namespace snippets {
 using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 
 ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
@@ -75,4 +76,5 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED
 
-}  // namespace ov::snippets
+}  // namespace snippets
+}  // namespace ov

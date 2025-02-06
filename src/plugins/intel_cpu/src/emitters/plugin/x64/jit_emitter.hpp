@@ -17,7 +17,8 @@
 #    include "emitters/snippets/x64/verbose.hpp"
 #endif
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 enum emitter_in_out_map {
     vec_to_vec,
@@ -184,4 +185,5 @@ private:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

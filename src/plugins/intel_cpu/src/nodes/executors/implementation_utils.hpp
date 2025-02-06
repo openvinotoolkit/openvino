@@ -11,7 +11,8 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 template <typename Config, int idx>
 ov::element::Type memoryDescType(const Config& config) {
@@ -88,4 +89,5 @@ size_t postOpsNumbers(const Config& config) {
     return config.postOps.size();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

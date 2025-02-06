@@ -16,7 +16,8 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 static bool checkPostOps(const PostOps& postOps) {
     if (postOps.empty()) {
@@ -145,4 +146,5 @@ std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTens
     return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

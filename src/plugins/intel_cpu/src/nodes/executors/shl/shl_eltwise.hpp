@@ -8,7 +8,8 @@
 #include "nodes/executors/eltwise.hpp"
 #include <functional>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ShlEltwiseExecutor : public EltwiseExecutor {
 public:
@@ -47,4 +48,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

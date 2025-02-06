@@ -22,7 +22,9 @@
 #include "openvino/op/concat.hpp"
 using namespace dnnl;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 constexpr size_t channelAxis = 1lu;
 }
@@ -762,4 +764,6 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

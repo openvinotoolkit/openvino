@@ -32,7 +32,10 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #endif
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -2512,4 +2515,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     return executor;
 }
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

@@ -50,7 +50,8 @@
  *
  */
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 class ConvertConv1DBase : public ov::pass::MatcherPass {
 protected:
     OPENVINO_MATCHER_PASS_RTTI("ConvertConv1DBase");
@@ -69,4 +70,4 @@ public:
     OPENVINO_RTTI("ConvertGroupConv1D", "0", ConvertConv1DBase);
     ConvertGroupConv1D();
 };
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

@@ -6,7 +6,10 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov::intel_cpu::tpp::pass {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace pass {
 
 /**
  * @interface ScalarToScalarTPP
@@ -19,4 +22,7 @@ public:
     ScalarToScalarTPP();
 };
 
-}  // namespace ov::intel_cpu::tpp::pass
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

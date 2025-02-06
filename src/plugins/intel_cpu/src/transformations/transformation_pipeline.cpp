@@ -182,7 +182,8 @@
 #endif
 #include "openvino/core/validation_util.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
@@ -1313,4 +1314,5 @@ void Transformations::Snippets() {
     PostSnippets();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

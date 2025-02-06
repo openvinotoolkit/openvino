@@ -10,7 +10,8 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class CPURuntimeConfig : public ov::snippets::RuntimeConfig {
 public:
@@ -59,4 +60,5 @@ protected:
     ov::intel_cpu::MultiCacheWeakPtr compiled_kernel_cache;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

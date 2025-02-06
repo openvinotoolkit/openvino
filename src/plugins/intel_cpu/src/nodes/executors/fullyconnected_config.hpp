@@ -9,7 +9,8 @@
 #include "cpu_memory.h"
 #include "executor_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 // @todo require explicit initialization of all the attributes?
 struct FCAttrs {
@@ -24,4 +25,4 @@ struct FCAttrs {
 };
 
 using FCConfig = executor::Config<FCAttrs>;
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

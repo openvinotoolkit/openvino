@@ -35,7 +35,9 @@
 
 using namespace dnnl;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 using DefaultDeconvDescs =
     std::pair<dnnl::convolution_backward_data::primitive_desc, dnnl::convolution_forward::primitive_desc>;
@@ -1302,4 +1304,6 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::ncsp);
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

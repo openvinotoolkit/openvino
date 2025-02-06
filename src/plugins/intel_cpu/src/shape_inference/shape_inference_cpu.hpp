@@ -10,7 +10,8 @@
 #include "openvino/core/node.hpp"
 #include "shape_inference_status.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 /**
  * This is CPU plugin specific shape inference interface.
  *
@@ -106,4 +107,4 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

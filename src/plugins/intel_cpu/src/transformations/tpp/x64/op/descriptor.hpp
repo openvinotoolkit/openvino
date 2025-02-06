@@ -6,7 +6,10 @@
 #include "libxsmm_typedefs.h"
 #include "openvino/core/except.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 class OpDescTPP {
 public:
@@ -51,4 +54,7 @@ private:
     const libxsmm_bitfield m_flags{0};
 };
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

@@ -13,7 +13,8 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
 using namespace Xbyak;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 size_t jit_emitter::get_max_vecs_count() const {
     return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
@@ -258,4 +259,5 @@ void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
     emitter_postamble();
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

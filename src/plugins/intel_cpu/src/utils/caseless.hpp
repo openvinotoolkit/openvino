@@ -17,7 +17,8 @@
 #include <set>
 #include <unordered_map>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @brief Provides caseless comparison for STL algorithms
@@ -71,4 +72,5 @@ public:
 template <class Key, class Value>
 using caseless_unordered_map = std::unordered_map<Key, Value, CaselessHash<Key>, CaselessEq<Key>>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

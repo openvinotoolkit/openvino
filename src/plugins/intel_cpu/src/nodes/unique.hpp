@@ -6,7 +6,9 @@
 
 #include <node.h>
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 class Unique : public Node {
 public:
@@ -59,4 +61,6 @@ private:
     static constexpr size_t OCCURRENCES_NUM = 3;
 };
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

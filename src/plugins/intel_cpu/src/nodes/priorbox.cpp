@@ -14,7 +14,9 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
@@ -311,4 +313,6 @@ bool PriorBox::created() const {
     return getType() == Type::PriorBox;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

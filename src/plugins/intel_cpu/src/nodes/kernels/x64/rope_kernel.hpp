@@ -10,7 +10,9 @@
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #endif
 
-namespace ov::intel_cpu::kernel {
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
 
 struct jit_rotary_compile_params {
     ov::element::Type src_prc;
@@ -78,4 +80,6 @@ private:
 
 #endif
 
-}  // namespace ov::intel_cpu::kernel
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov

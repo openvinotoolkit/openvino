@@ -9,7 +9,9 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "snippets/generator.hpp"
 
-namespace ov::intel_cpu::pass {
+namespace ov {
+namespace intel_cpu {
+namespace pass {
 
 class EnforcePrecision : public ov::pass::ModelPass {
 public:
@@ -32,4 +34,6 @@ private:
         get_supported_precisions;
 };
 
-}  // namespace ov::intel_cpu::pass
+}  // namespace pass
+}  // namespace intel_cpu
+}  // namespace ov

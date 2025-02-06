@@ -6,7 +6,8 @@
 
 #include "snippets/op/load.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @interface LoadConvertSaturation
@@ -76,4 +77,5 @@ protected:
     ov::element::Type m_destination_type;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

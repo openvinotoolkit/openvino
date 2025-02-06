@@ -8,7 +8,8 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "unordered_map"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using MemoryDescArgs = std::unordered_map<int, MemoryDescPtr>;
 using MemoryArgs = std::unordered_map<int, MemoryPtr>;
@@ -30,4 +31,5 @@ using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 // zero points provided at execution time
 #define ARG_ATTR_ZERO_POINTS 8192
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

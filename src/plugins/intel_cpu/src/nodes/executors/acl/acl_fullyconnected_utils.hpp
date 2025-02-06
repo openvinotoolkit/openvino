@@ -6,7 +6,8 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "ov_optional.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct ACLFCAttrs {
     ov::element::Type inputPrecision;
@@ -80,4 +81,4 @@ private:
 };
 
 }  // namespace acl_fc_executor
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

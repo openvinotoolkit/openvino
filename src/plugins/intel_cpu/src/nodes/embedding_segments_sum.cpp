@@ -10,7 +10,9 @@
 
 #include "openvino/opsets/opset3.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                 std::string& errorMessage) noexcept {
@@ -178,4 +180,6 @@ bool EmbeddingSegmentsSum::created() const {
     return getType() == Type::EmbeddingSegmentsSum;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

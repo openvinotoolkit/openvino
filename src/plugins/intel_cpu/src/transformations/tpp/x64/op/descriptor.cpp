@@ -4,7 +4,10 @@
 
 #include "descriptor.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 std::ostream& operator<<(std::ostream& os, const OpDescTPP& od) {
     switch (od.m_arity) {
@@ -64,4 +67,4 @@ std::ostream& operator<<(std::ostream& os, const OpDescTPP& od) {
     }
     return os;
 }
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op}  // namespace tpp}  // namespace intel_cpu}  // namespace ov

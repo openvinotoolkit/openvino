@@ -13,7 +13,9 @@
 #include "openvino/opsets/opset1.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
@@ -153,4 +155,6 @@ bool GatherElements::created() const {
     return getType() == Type::GatherElements;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

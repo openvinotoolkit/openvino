@@ -9,7 +9,9 @@
 #include "utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -179,4 +181,6 @@ ShapeInferPtr ReshapeShapeInferFactory::makeShapeInfer() const {
     }
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

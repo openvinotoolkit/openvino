@@ -19,7 +19,8 @@ using namespace ov::snippets::utils;
 
 namespace ov {
 
-namespace intel_cpu::brgemm_utils {
+namespace intel_cpu {
+namespace brgemm_utils {
 
 cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
     auto isa = isa_undef;
@@ -140,7 +141,7 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
     return nullptr;
 }
 }  // namespace repacking
-}  // namespace intel_cpu::brgemm_utils
+}  // namespace brgemm_utils}  // namespace intel_cpu
 
 template <>
 EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>::get() {

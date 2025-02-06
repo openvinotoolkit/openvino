@@ -6,7 +6,8 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "snippets/lowered/expression.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 class ScalarTppEmitter : public jit_emitter {
 public:
     ScalarTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
@@ -23,4 +24,5 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

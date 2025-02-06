@@ -37,7 +37,9 @@ using namespace Xbyak;
 #    define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 #endif
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 namespace {
 
 struct NormalizeKey {
@@ -1592,4 +1594,6 @@ bool NormalizeL2::created() const {
     return getType() == Type::NormalizeL2;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -6,7 +6,8 @@
 
 #include "executor_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * @todo only attributes necessary for 1x1 convlution as fullyconnected fallback
@@ -18,4 +19,5 @@ struct ConvAttrs {
 
 using ConvConfig = executor::Config<ConvAttrs>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -10,7 +10,8 @@
 #include "snippets/generator.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
@@ -188,4 +189,5 @@ protected:
     std::function<void()> m_reset_exec_table_state;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

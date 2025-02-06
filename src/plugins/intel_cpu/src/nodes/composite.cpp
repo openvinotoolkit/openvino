@@ -10,7 +10,9 @@
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool Composite::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -117,4 +119,6 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     }
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

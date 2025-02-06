@@ -28,7 +28,9 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
@@ -994,4 +996,6 @@ bool ROIPooling::created() const {
     return getType() == Type::ROIPooling;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

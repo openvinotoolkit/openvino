@@ -6,7 +6,8 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class MishDecomposition : public ov::pass::MatcherPass {
 public:
@@ -14,4 +15,5 @@ public:
     MishDecomposition();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -4,7 +4,8 @@
 
 #include "jit_eltwise_common.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 static void set_intersection(const std::set<std::vector<element::Type>>& precisions1,
                              const std::set<std::vector<element::Type>>& precisions2,
@@ -85,4 +86,5 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
     return exec_prc;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

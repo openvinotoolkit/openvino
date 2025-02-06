@@ -12,7 +12,8 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
                                        cpu_isa_t isa,
@@ -250,4 +251,5 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

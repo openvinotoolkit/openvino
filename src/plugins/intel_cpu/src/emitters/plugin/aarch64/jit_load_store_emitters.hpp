@@ -7,7 +7,9 @@
 #include "cpu/aarch64/jit_generator.hpp"
 #include "jit_emitter.hpp"
 
-namespace ov::intel_cpu::aarch64 {
+namespace ov {
+namespace intel_cpu {
+namespace aarch64 {
 
 // Arithmetic modes for data type conversion in store_emitter
 enum class arithmetic_mode { saturation, truncation };
@@ -79,4 +81,6 @@ private:
     ov::element::Type prc_;
 };
 
-}  // namespace ov::intel_cpu::aarch64
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

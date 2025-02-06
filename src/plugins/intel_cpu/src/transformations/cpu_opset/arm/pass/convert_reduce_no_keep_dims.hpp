@@ -40,7 +40,8 @@
  *
  */
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ConvertReduceNoKeepDimsBase : public ov::pass::MatcherPass {
 public:
@@ -65,4 +66,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

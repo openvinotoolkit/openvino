@@ -8,7 +8,10 @@
 #include "modifiers.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 class EquationTPP : public modifier::TensorProcessingPrimitive, public ov::op::Op {
 public:
@@ -25,4 +28,7 @@ private:
     std::vector<OpDescTPP> m_op_descs;
 };
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

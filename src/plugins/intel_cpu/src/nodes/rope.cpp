@@ -17,7 +17,9 @@
 
 using namespace ov::intel_cpu::kernel;
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -473,4 +475,6 @@ bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

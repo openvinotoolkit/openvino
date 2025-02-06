@@ -19,7 +19,8 @@
 #include "transformations/tpp/x64/op/modifiers.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 using namespace snippets::lowered;
 
@@ -164,4 +165,4 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

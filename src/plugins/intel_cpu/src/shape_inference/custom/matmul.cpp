@@ -8,7 +8,9 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                            const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
@@ -78,4 +80,4 @@ ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
         OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
     }
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

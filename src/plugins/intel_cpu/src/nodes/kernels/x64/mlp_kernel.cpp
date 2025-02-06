@@ -15,7 +15,8 @@ using namespace dnnl::impl::cpu::x64;
 using TileConfig = ov::Extensions::Cpu::TileConfig;
 using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 void MKernel::generate_2x2() {
     auto reg_A_addr = abi_param2;
@@ -668,4 +669,5 @@ void ReduceAdd2bh::generate() {
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

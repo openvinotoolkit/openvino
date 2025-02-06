@@ -6,7 +6,8 @@
 
 #include "jit_tpp_emitter.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class BinaryEltwiseTppEmitter : public TppEmitter {
 public:
@@ -112,4 +113,5 @@ private:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

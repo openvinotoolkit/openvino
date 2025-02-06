@@ -7,7 +7,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class InteractionNode : public ov::op::Op {
 public:
@@ -42,4 +43,5 @@ private:
     std::vector<float> m_fq_scales;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

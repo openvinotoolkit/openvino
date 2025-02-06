@@ -9,7 +9,8 @@
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 GraphContext::GraphContext(Config config,
                            WeightsSharing::Ptr w_cache,
@@ -45,4 +46,5 @@ const dnnl::engine& GraphContext::getEngine() {
     return eng;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

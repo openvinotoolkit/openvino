@@ -71,7 +71,8 @@
  *                 v           v          v
  */
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class ConvertFqRnnToQuantizedRnn : public ov::pass::MatcherPass {
 public:
@@ -79,4 +80,5 @@ public:
     ConvertFqRnnToQuantizedRnn();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

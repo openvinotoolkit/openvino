@@ -13,7 +13,8 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct InterpolateExecutorDesc {
     ExecutorType executorType;
@@ -79,4 +80,5 @@ private:
 using InterpolateExecutorFactoryPtr = std::shared_ptr<InterpolateExecutorFactory>;
 using InterpolateExecutorFactoryCPtr = std::shared_ptr<const InterpolateExecutorFactory>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

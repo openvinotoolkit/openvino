@@ -10,7 +10,8 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct EltwiseData {
     Algorithm algo;
@@ -115,4 +116,5 @@ public:
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;
 using EltwiseExecutorBuilderCPtr = std::shared_ptr<const EltwiseExecutorBuilder>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

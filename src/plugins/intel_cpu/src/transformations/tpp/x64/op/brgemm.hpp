@@ -7,7 +7,10 @@
 #include "modifiers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 /**
  * @interface BrgemmTPP
@@ -54,4 +57,7 @@ private:
     float m_beta = 0.f;
 };
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

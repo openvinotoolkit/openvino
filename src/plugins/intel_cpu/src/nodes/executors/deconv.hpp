@@ -13,7 +13,8 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/coordinate_diff.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct DeconvAttrs {
     std::vector<ptrdiff_t> kernel;
@@ -63,4 +64,5 @@ public:
 using DeconvExecutorBuilderPtr = std::shared_ptr<DeconvExecutorBuilder>;
 using DeconvExecutorBuilderCPtr = std::shared_ptr<const DeconvExecutorBuilder>;
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

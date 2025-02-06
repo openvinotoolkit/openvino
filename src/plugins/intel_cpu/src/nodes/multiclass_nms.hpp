@@ -6,7 +6,9 @@
 
 #include "node.h"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
@@ -122,4 +124,6 @@ private:
                              const bool shared);
 };
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

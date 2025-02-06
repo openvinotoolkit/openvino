@@ -6,7 +6,8 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class QKVProjFusion : public ov::pass::MatcherPass {
 public:
@@ -20,4 +21,5 @@ public:
     QKVProjFusion2();
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

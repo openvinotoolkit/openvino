@@ -8,7 +8,9 @@
 
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov::intel_cpu::kernel {
+namespace ov {
+namespace intel_cpu {
+namespace kernel {
 
 #define GET_OFF(field) offsetof(jit_rotary_call_args, field)
 
@@ -227,4 +229,6 @@ void jit_rotary_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
 template struct jit_rotary_kernel<cpu_isa_t::avx512_core>;
 template struct jit_rotary_kernel<cpu_isa_t::avx2>;
 
-}  // namespace ov::intel_cpu::kernel
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov

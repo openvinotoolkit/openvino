@@ -14,7 +14,9 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
@@ -159,4 +161,6 @@ bool PriorBoxClustered::created() const {
     return getType() == Type::PriorBoxClustered;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

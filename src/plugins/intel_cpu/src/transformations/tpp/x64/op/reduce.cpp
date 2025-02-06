@@ -4,7 +4,10 @@
 
 #include "reduce.hpp"
 
-namespace ov::intel_cpu::tpp::op {
+namespace ov {
+namespace intel_cpu {
+namespace tpp {
+namespace op {
 
 ReduceMax::ReduceMax(const Output<Node>& arg, size_t axis)
     : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_MAX),
@@ -38,4 +41,7 @@ bool ReduceSum::visit_attributes(AttributeVisitor& visitor) {
     return UnaryEltwiseTPP::visit_attributes(visitor);
 }
 
-}  // namespace ov::intel_cpu::tpp::op
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

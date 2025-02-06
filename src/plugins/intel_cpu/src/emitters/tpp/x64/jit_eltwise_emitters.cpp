@@ -6,7 +6,8 @@
 
 #include "transformations/tpp/x64/op/eltwise.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
@@ -116,4 +117,5 @@ ReduceTppEmitter::ReduceTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     // m_shape.ldo = 1;
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

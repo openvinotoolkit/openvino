@@ -6,7 +6,8 @@
 
 #include "shape_inference_cpu.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 /**
  * Specific shape inference implementation designed to cover cases where there are no actual output shape calculation
@@ -33,4 +34,5 @@ public:
     }
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

@@ -10,7 +10,8 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
     OPENVINO_ASSERT(m_memptr != nullptr);
@@ -105,4 +106,5 @@ std::shared_ptr<ITensor> make_tensor(MemoryPtr mem) {
     return std::make_shared<Tensor>(std::move(mem));
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

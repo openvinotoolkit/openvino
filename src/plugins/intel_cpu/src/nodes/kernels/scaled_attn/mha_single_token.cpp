@@ -26,7 +26,10 @@
 #    include <arm_neon.h>
 #endif
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 using namespace ov;
 
@@ -1556,4 +1559,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
     }
 }
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

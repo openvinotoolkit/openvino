@@ -11,7 +11,9 @@
 #include "openvino/op/embeddingbag_offsets.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                               std::string& errorMessage) noexcept {
@@ -182,4 +184,6 @@ bool EmbeddingBagOffset::created() const {
     return getType() == Type::EmbeddingBagOffsets;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

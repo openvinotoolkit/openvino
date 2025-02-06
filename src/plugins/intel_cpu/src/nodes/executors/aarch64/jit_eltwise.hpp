@@ -8,7 +8,10 @@
 #include "node.h"
 #include "nodes/executors/eltwise.hpp"
 
-namespace ov::intel_cpu::executors::aarch64 {
+namespace ov {
+namespace intel_cpu {
+namespace executors {
+namespace aarch64 {
 
 class JitEltwiseExecutor : public EltwiseExecutor {
 public:
@@ -38,4 +41,7 @@ private:
     std::function<void()> exec_func;
 };
 
-}  // namespace ov::intel_cpu::executors::aarch64
+}  // namespace aarch64
+}  // namespace executors
+}  // namespace intel_cpu
+}  // namespace ov

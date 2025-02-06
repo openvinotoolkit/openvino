@@ -123,7 +123,8 @@ public:
     void generate() override {}
 };
 
-namespace intel_cpu::aarch64 {
+namespace intel_cpu {
+namespace aarch64 {
 
 CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h)
     : h_compiled(std::move(h)) {
@@ -311,6 +312,7 @@ bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitt
     return false;
 }
 
-}  // namespace intel_cpu::aarch64
+}  // namespace aarch64
+}  // namespace intel_cpu
 
 }  // namespace ov

@@ -21,7 +21,10 @@
 #    include "arm_neon.h"
 #endif
 
-namespace ov::Extensions::Cpu::XARCH {
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 #if defined(HAVE_AVX2)
 inline void exp_ps_avx2(__m256& src) {
@@ -1282,4 +1285,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
 }
 #endif
 
-}  // namespace ov::Extensions::Cpu::XARCH
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

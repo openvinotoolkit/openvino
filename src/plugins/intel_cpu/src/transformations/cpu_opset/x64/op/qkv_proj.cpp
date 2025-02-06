@@ -6,7 +6,8 @@
 
 #include "transformations/itt.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 void QKVProjectionNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(QKVProjection_validate_and_infer_types);
@@ -37,4 +38,4 @@ std::shared_ptr<Node> QKVProjectionNode::clone_with_new_inputs(const ov::OutputV
     check_new_args_count(this, new_args);
     return std::make_shared<QKVProjectionNode>(new_args, m_config);
 }
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu}  // namespace ov

@@ -12,7 +12,8 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 jit_perf_count_rdtsc_start_emitter::jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                                                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
@@ -85,6 +86,7 @@ void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t>& in_i
     h->pop(h->rax);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
 
 #endif  // SNIPPETS_DEBUG_CAPS

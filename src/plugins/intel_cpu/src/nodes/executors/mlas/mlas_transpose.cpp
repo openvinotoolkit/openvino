@@ -8,7 +8,8 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 template <typename T>
 struct has_mlas_transpose : std::false_type {};
@@ -365,4 +366,5 @@ TransposeExecutorPtr MlasTransposeExecutorBuilder::makeExecutor(const ExecutorCo
     return std::make_shared<MlasTransposeExecutor>(context);
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

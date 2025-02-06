@@ -28,7 +28,9 @@ using namespace dnnl::impl::utils;
 #    define GET_OFF(field) offsetof(jit_args_logistic, field)
 #endif
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
@@ -464,4 +466,6 @@ bool RegionYolo::created() const {
     return getType() == Type::RegionYolo;
 }
 
-}  // namespace ov::intel_cpu::node
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

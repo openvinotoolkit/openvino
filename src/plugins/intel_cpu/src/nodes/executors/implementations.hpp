@@ -9,7 +9,8 @@
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 // @todo move to separate header file
 template <typename... T>
@@ -27,4 +28,5 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations();
 
 // ...
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov

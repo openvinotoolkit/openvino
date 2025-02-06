@@ -7,7 +7,9 @@
 #include "color_convert.hpp"
 #include "utils.hpp"
 
-namespace ov::intel_cpu::node {
+namespace ov {
+namespace intel_cpu {
+namespace node {
 
 /**
  * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
@@ -35,4 +37,4 @@ ShapeInferPtr ColorConvertShapeInferFactory::makeShapeInfer() const {
     bool isSinglePlain = m_op->get_input_size() == 1;
     return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
 }
-}  // namespace ov::intel_cpu::node
+}  // namespace node}  // namespace intel_cpu}  // namespace ov

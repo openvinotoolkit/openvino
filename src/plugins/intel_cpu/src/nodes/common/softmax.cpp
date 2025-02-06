@@ -24,7 +24,8 @@ using namespace dnnl::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 struct jit_args_softmax {
     const void* src;
@@ -343,4 +344,5 @@ void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, 
     }
 }
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
