@@ -8,10 +8,10 @@
 
 namespace kernel_selector {
 
-class GridSampleKernelOptBilinear : public GridSampleKernelBase {
+class GridSampleKernelOpt_BilinearZeros : public GridSampleKernelBase {
 public:
     using TBase = GridSampleKernelBase;
-    GridSampleKernelOptBilinear() : GridSampleKernelBase("grid_sample_opt_bilinear") {}
+    GridSampleKernelOpt_BilinearZeros() : GridSampleKernelBase("grid_sample_opt_bilinear_zeros") {}
 
 protected:
     ParamsKey GetSupportedKey() const override;
