@@ -371,20 +371,23 @@ void jit_uni_eltwise_generic::compute_eltwise_op() {
         in_idxs.push_back(src_vec(i).getIdx());
     }
 
-    std::vector<size_t> aux_idxs;
-    //for (size_t i = 0; i < eltwise_emitter->aux_vecs_count(); i++) {
-    //    aux_idxs.push_back(aux_vmm(i).getIdx());
-    //}
-
     std::vector<size_t> out_idxs;
     out_idxs.push_back(dst_vec().getIdx());
 
-    std::vector<size_t> gpr_idxs;
-    //for (size_t i = 0; i < eltwise_emitter->aux_gprs_count(); i++) {
-    //    gpr_idxs.push_back(aux_gpr(i).getIdx());
-    //}
+    const auto max_aux_gpr_available = get_max_aux_gpr_count();
+    const auto max_aux_vec_available = get_max_aux_vec_count();
 
-    eltwise_emitter->emit_code(in_idxs, out_idxs, aux_idxs, gpr_idxs);
+    std::vector<size_t> aux_vec_idxs;
+        for (size_t i = 0; i < std::min(eltwise_emitter->aux_vecs_count(), max_aux_vec_available); i++) {
+        aux_vec_idxs.push_back(aux_vec(i).getIdx());
+    }
+
+    std::vector<size_t> aux_gpr_idxs;
+    for (size_t i = 0; i < std::min(eltwise_emitter->aux_gprs_count(), max_aux_gpr_available); i++) {
+        aux_gpr_idxs.push_back(aux_gpr(i).getIdx());
+    }
+
+    eltwise_emitter->emit_code(in_idxs, out_idxs, aux_vec_idxs, aux_gpr_idxs);
 }
 
 void jit_uni_eltwise_generic::apply_post_ops() {
@@ -400,17 +403,20 @@ void jit_uni_eltwise_generic::apply_post_ops() {
         std::vector<size_t> out_idxs;
         out_idxs.push_back(dst_vec().getIdx());
 
-        std::vector<size_t> aux_vmm_idxs;
-        //for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++) {
-        //    aux_vmm_idxs.push_back(aux_vmm(j).getIdx());
-        //}
+        const auto max_aux_gpr_available = get_max_aux_gpr_count();
+        const auto max_aux_vec_available = get_max_aux_vec_count();
 
+        std::vector<size_t> aux_vec_idxs;
+        for (size_t i = 0; i < std::min(eltwise_emitter->aux_vecs_count(), max_aux_vec_available); i++) {
+            aux_vec_idxs.push_back(aux_vec(i).getIdx());
+        }
+  
         std::vector<size_t> aux_gpr_idxs;
-        //for (size_t j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_gprs_count(); j++) {
-        //    aux_gpr_idxs.push_back(aux_gpr(j).getIdx());
-        //}
+        for (size_t i = 0; i < std::min(eltwise_emitter->aux_gprs_count(), max_aux_gpr_available); i++) {
+            aux_gpr_idxs.push_back(aux_gpr(i).getIdx());
+        }
 
-        post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_vmm_idxs, aux_gpr_idxs);
+        post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_vec_idxs, aux_gpr_idxs);
 
         eltwise_post_op_idx++;
     }

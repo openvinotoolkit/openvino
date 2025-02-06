@@ -38,14 +38,14 @@ private:
     // x7    | temp   | reg_offsets / reg_loop_step
     // x8    | saved  | reg_bvlen
     // x9    | saved  | dst_gpr
-    // x10   | abi    | reg_const_params
-    // x11   | abi    | reg_indexes
-    // x12   | abi    |
-    // x13   | abi    |
-    // x14   | abi    |
-    // x15   | abi    |
-    // x16   | abi    |
-    // x17   | abi    |
+    // x10   | abi    | reg_const_params / emitter_aux_gpr
+    // x11   | abi    | reg_indexes / emitter_aux_gpr
+    // x12   | abi    | emitter_aux_gpr
+    // x13   | abi    | emitter_aux_gpr
+    // x14   | abi    | emitter_aux_gpr
+    // x15   | abi    | emitter_aux_gpr
+    // x16   | abi    | emitter_aux_gpr
+    // x17   | abi    | emitter_aux_gpr
     // x18   | saved  | src_gpr
     // x19   | saved  | src_gpr
     // x20   | saved  | src_gpr
@@ -69,13 +69,27 @@ private:
     inline Xbyak_riscv::Reg src_gpr(const int idx) const {
         // x18-24
         OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src reg " + std::to_string(idx) + " is not supported");
-        return Xbyak_riscv::Reg(18 + idx);
+        const auto start = 18;
+        return Xbyak_riscv::Reg(start + idx);
     }
 
     inline Xbyak_riscv::Reg src_aux_gpr(const int idx) const {
-        // saved registers: x25-x31
+        // saved registers: x[18 + input_number]-x[18 + input_number + MAX_ELTWISE_INPUTS], in max case x25-x31
         OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src aux reg " + std::to_string(idx) + " is not supported");
-        return Xbyak_riscv::Reg(25 + idx);
+        const auto start = static_cast<size_t>(src_gpr(0).getIdx()) + jep_.inputs_number;
+        return Xbyak_riscv::Reg(start + idx);
+    }
+
+    inline Xbyak_riscv::Reg aux_gpr(const int idx) const {
+        // saved and temp registers: x[18 + 2 * input_number]-x[31] and then abi x10-x17
+        const auto saved_start = src_aux_gpr(0).getIdx() + jep_.inputs_number;
+        if (saved_start + idx < gpr_count)
+            return Xbyak_riscv::Reg(saved_start + idx);
+        const auto abi_start = Xbyak_riscv::a0.getIdx();
+        const auto new_idx = idx - (gpr_count - saved_start);
+        if (abi_start + new_idx < static_cast<size_t>(src_gpr(0).getIdx()))
+            return Xbyak_riscv::Reg(abi_start + new_idx);
+        OPENVINO_THROW("Cannot allocate aux register for emitter!");
     }
 
     inline Xbyak_riscv::VReg mask_vec() const {
@@ -90,21 +104,34 @@ private:
     }
 
     inline Xbyak_riscv::VReg src_vec(const int idx) const {
+        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src aux reg " + std::to_string(idx) + " is not supported");
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
         // v0 and v[lmul] - mask and dst registers
         const auto vec_idx = (idx + 2) * (lmul_v == 0 ? 1 : lmul_v);
-        OPENVINO_ASSERT(vec_idx >= 0 && static_cast<size_t>(vec_idx) < vec_count,
+        OPENVINO_ASSERT(static_cast<size_t>(vec_idx) < (vec_count - lmul_v + 1),
                         "src vector reg " + std::to_string(vec_idx) + " is not supported");
         return Xbyak_riscv::VReg(vec_idx);
     }
 
-    // last vec register
-    inline Xbyak_riscv::VReg aux_vec() {
+    inline Xbyak_riscv::VReg aux_vec(const int idx = 0) {
+        const auto vstart = src_vec(0).getIdx() + jep_.inputs_number;
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
-        const auto vec_idx = 32 - (lmul_v == 0 ? 1 : lmul_v);
-        OPENVINO_ASSERT(vec_idx >= 0 && static_cast<size_t>(vec_idx) < vec_count,
-                        "src vector reg " + std::to_string(vec_idx) + " is not supported");
+        const auto vec_idx = (vstart + idx) * (lmul_v == 0 ? 1 : lmul_v);
+        OPENVINO_ASSERT(static_cast<size_t>(vec_idx) < (vec_count - lmul_v + 1),
+                        "aux vector reg " + std::to_string(vec_idx) + " is not supported");
         return Xbyak_riscv::VReg(vec_idx);
+    }
+
+    inline size_t get_max_aux_gpr_count() const {
+        const auto st_count = gpr_count - (static_cast<size_t>(src_aux_gpr(0).getIdx()) + jep_.inputs_number + 1);
+        return st_count + num_abi_param_regs;
+    }
+
+    inline size_t get_max_aux_vec_count() const {
+        auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
+        if (lmul_v == 0) lmul_v = 1;
+        const auto single_vec_count = vec_count - (src_vec(0).getIdx() + jep_.inputs_number + 1) * lmul_v;
+        return static_cast<size_t>(single_vec_count / lmul_v);
     }
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec);
