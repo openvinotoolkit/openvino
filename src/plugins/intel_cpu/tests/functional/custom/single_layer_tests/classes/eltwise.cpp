@@ -270,18 +270,20 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     } else {
         return "acl";
     }
-#elif defined(OV_CPU_WITH_SHL)
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
         (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
         (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
         (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
-        return "shl";
+        return "jit";
     } else {
         return "ref";
     }
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {

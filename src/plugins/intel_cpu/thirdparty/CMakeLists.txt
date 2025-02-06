@@ -169,4 +169,11 @@ if(ENABLE_SHL_FOR_CPU)
     ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
 endif()
 
+if(RISCV64)
+    set(XBYAK_RISCV_V ON)
+    add_subdirectory(xbyak_riscv)
+    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
+    ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
+endif()
+
 ov_add_onednn()
