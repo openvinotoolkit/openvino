@@ -29,6 +29,10 @@ namespace {
 constexpr size_t channelAxis = 1lu;
 }
 
+bool Concat::neverExecute() const {
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
+}
+
 bool Concat::isExecutable() const {
     return !isInPlace() && !hasEmptyOutputTensors();
 }
@@ -63,7 +67,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
-        OPENVINO_THROW("Concat node with name '", getName(), "' has invalid value of axis parameter: ", axis);
+        THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
 }
@@ -83,7 +87,7 @@ void Concat::getSupportedDescriptors() {
             }
         }
         if (incorrectDims || firstParentDims.size() == 0) {
-            OPENVINO_THROW("Incorrect input dimensions for concat node ", getName());
+            THROW_CPU_NODE_ERR("has incorrect input dimensions");
         }
     }
 
@@ -240,7 +244,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size())) {
-            OPENVINO_THROW("Cannot find index of output node");
+            THROW_CPU_NODE_ERR("Cannot find index of output node");
         }
         const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
@@ -260,7 +264,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size())) {
-            OPENVINO_THROW("Cannot find index of output node");
+            THROW_CPU_NODE_ERR("Cannot find index of output node");
         }
         const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
@@ -353,11 +357,11 @@ void Concat::prepareParams() {
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        OPENVINO_THROW("Destination memory is undefined.");
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
     }
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     const auto& outputStrides = dstMemDesc->getStrides();
@@ -404,7 +408,7 @@ void Concat::prepareParams() {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr || !srcMemPtr->isDefined()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            OPENVINO_THROW("Source memory from ", parent->getName(), " is undefined for node ", getName(), ".");
+            THROW_CPU_NODE_ERR("Source memory from ", parent->getName(), " is undefined.");
         }
 
         if (canExecRef) {
@@ -469,7 +473,7 @@ size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
 void Concat::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
 
     if (!isInPlace()) {
@@ -715,7 +719,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();

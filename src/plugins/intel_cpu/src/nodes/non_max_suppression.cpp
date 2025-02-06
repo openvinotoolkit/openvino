@@ -54,7 +54,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
       m_is_soft_suppressed_by_iou(false) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (one_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -966,6 +966,10 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name,
     if (shape.getDims()[1] != 3) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", dim2str(shape.getDims()[1]));
     }
+}
+
+bool NonMaxSuppression::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
 }
 
 bool NonMaxSuppression::isExecutable() const {
