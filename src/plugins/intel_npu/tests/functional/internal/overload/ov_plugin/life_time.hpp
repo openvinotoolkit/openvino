@@ -218,19 +218,25 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, ExportImportWithSkipBlobCompatibilityC
         OV_ASSERT_NO_THROW(compiled_model.export_model(stream));
     }
     auto disable_version_check_var = std::getenv("NPU_DISABLE_VERSION_CHECK");
+    bool dev_build = 1;
 
 #ifndef NPU_PLUGIN_DEVELOPER_BUILD
+    dev_build = 0;
 #    define NPU_PLUGIN_DEVELOPER_BUILD
-    putenv("NPU_DISABLE_VERSION_CHECK=1");
+#endif
+    char env[] = "NPU_DISABLE_VERSION_CHECK=1";
+    putenv(env);
 
     OV_ASSERT_NO_THROW(auto compiled_model = core.import_model(stream, target_device, configuration));
 
     // restore env var and flag
-    std::string temp{"NPU_DISABLE_VERSION_CHECK="};
-    temp.append(disable_version_check_var);
-    putenv(temp.c_str());
-#    undef NPU_PLUGIN_DEVELOPER_BUILD
-#endif
+    char temp[50] = "NPU_DISABLE_VERSION_CHECK";
+    strncat(temp, disable_version_check_var, 2);
+    putenv(temp);
+
+    if (!dev_build) {
+#undef NPU_PLUGIN_DEVELOPER_BUILD
+    }
 }
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
