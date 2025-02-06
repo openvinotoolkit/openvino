@@ -21,7 +21,7 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
 
     auto snippets_scalar = ov::pass::pattern::wrap_type<ov::snippets::op::Scalar>();
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::ScalarToScalarTPP")
         const auto node = ov::as_type_ptr<ov::snippets::op::Scalar>(m.get_match_root());
         OPENVINO_ASSERT(node, "Failed to obtain a valid Scalar Op in ScalarToScalarTPP");
