@@ -52,4 +52,6 @@ public:
 private:
     std::shared_ptr<snippets::op::Subgraph> m_subgraph = nullptr;
 };
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

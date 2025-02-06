@@ -81,4 +81,5 @@ private:
 };
 
 }  // namespace acl_fc_executor
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

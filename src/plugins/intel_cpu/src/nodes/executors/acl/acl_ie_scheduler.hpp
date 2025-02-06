@@ -30,4 +30,5 @@ protected:
 private:
     void schedule_custom(ICPPKernel* kernel, const Hints& hints, const Window& window, ITensorPack& tensors);
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

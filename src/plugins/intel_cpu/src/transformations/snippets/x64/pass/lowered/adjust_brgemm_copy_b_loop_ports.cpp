@@ -112,4 +112,5 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     return modified;
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

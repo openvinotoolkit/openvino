@@ -37,4 +37,6 @@ ShapeInferPtr ColorConvertShapeInferFactory::makeShapeInfer() const {
     bool isSinglePlain = m_op->get_input_size() == 1;
     return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

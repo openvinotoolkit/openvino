@@ -90,4 +90,5 @@ void mlas_sgemm_compute(const char* transa,
     auto _transb = *transb == 'N' ? CblasNoTrans : CblasTrans;
     MlasGemmBatch(_transa, _transb, M, N, K, &sgemmParam, 1, &threadPool);
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

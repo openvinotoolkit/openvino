@@ -26,4 +26,7 @@ private:
     static std::unordered_map<ov::DiscreteTypeInfo, tpp_builder> m_direct_mapping;
     static std::vector<TPPCustomBuilder> m_custom_mapping;
 };
-}  // namespace op}  // namespace tpp}  // namespace intel_cpu}  // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

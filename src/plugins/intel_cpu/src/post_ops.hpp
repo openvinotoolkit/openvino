@@ -190,4 +190,5 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
 
 PostOps getPostOps(const std::vector<NodePtr>& fused);
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

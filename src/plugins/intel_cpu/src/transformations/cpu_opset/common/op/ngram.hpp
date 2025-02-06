@@ -34,4 +34,5 @@ public:
 private:
     size_t m_k;
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

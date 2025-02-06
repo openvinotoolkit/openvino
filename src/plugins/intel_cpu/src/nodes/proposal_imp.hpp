@@ -48,4 +48,6 @@ void proposal_exec(const float* input0,
                    proposal_conf& conf);
 
 }  // namespace XARCH
-}  // namespace Cpu}  // namespace Extensions}  // namespace ov
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

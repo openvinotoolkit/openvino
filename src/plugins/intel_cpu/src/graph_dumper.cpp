@@ -432,4 +432,5 @@ void average_counters(const Graph& graph) {
 }
 
 #endif
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

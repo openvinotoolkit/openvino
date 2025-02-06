@@ -22,4 +22,6 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

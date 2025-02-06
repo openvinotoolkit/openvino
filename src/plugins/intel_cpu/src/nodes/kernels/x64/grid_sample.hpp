@@ -195,4 +195,5 @@ private:
 #endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace kernel
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

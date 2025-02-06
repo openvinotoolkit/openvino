@@ -109,4 +109,5 @@ private:
 
 template <typename Attrs>
 using ExecutorImplementationPtr = std::shared_ptr<ExecutorImplementation<Attrs>>;
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -135,4 +135,5 @@ ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

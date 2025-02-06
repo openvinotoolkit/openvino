@@ -141,7 +141,8 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
     return nullptr;
 }
 }  // namespace repacking
-}  // namespace brgemm_utils}  // namespace intel_cpu
+}  // namespace brgemm_utils
+}  // namespace intel_cpu
 
 template <>
 EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>::get() {

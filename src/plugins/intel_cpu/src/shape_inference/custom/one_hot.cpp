@@ -44,4 +44,6 @@ ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     }
     return std::make_shared<OneHotShapeInfer>(axis);
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

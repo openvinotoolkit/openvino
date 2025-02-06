@@ -476,4 +476,7 @@ inline float16_t hsum(float16x8_t vec) {
     return vget_lane_f16(sum3, 0);
 }
 #endif
-}  // namespace XARCH}  // namespace Cpu}  // namespace Extensions}  // namespace ov
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

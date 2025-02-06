@@ -107,4 +107,5 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

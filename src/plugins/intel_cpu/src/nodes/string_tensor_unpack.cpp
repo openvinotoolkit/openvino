@@ -76,4 +76,6 @@ void StringTensorUnpack::execute(const dnnl::stream& strm) {
                                         getDstDataAtPortAs<uint8_t>(2),
                                         stringCount);
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

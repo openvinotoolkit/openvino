@@ -18,7 +18,10 @@ namespace intel_cpu {
 namespace itt {
 namespace domains {
 OV_ITT_DOMAIN(CPUSpecificTransform);
-}  // namespace domains}  // namespace itt}  // namespace intel_cpu}  // namespace ov
+}  // namespace domains
+}  // namespace itt
+}  // namespace intel_cpu
+}  // namespace ov
 
 OV_CC_DOMAINS(internal_op);
 

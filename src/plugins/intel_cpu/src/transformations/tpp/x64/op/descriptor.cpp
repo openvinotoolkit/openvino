@@ -67,4 +67,7 @@ std::ostream& operator<<(std::ostream& os, const OpDescTPP& od) {
     }
     return os;
 }
-}  // namespace op}  // namespace tpp}  // namespace intel_cpu}  // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

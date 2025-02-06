@@ -87,4 +87,5 @@ private:
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

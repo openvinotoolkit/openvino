@@ -81,4 +81,5 @@ private:
     BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

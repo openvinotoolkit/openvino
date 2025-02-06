@@ -30,4 +30,5 @@ const VectorDims& RepackedInput::in_offsets() const {
 const VectorDims& RepackedInput::out_offsets() const {
     return m_out_offsets;
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

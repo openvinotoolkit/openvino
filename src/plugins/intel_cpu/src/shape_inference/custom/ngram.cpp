@@ -25,4 +25,6 @@ ShapeInferPtr NgramShapeInferFactory::makeShapeInfer() const {
     }
     return std::make_shared<NgramShapeInfer>(ngram->get_k());
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

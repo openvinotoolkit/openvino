@@ -25,4 +25,5 @@ struct FCAttrs {
 };
 
 using FCConfig = executor::Config<FCAttrs>;
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

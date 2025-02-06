@@ -19,4 +19,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
                                const bool needShiftSignedToUnsigned = false);
-}  // namespace utils}  // namespace intel_cpu}  // namespace ov
+}  // namespace utils
+}  // namespace intel_cpu
+}  // namespace ov

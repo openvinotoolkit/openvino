@@ -70,4 +70,5 @@ public:
     OPENVINO_RTTI("ConvertGroupConv1D", "0", ConvertConv1DBase);
     ConvertGroupConv1D();
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

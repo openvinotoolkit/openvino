@@ -38,4 +38,5 @@ std::shared_ptr<Node> QKVProjectionNode::clone_with_new_inputs(const ov::OutputV
     check_new_args_count(this, new_args);
     return std::make_shared<QKVProjectionNode>(new_args, m_config);
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

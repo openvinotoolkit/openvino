@@ -144,4 +144,5 @@ Shape MemoryDescUtils::makeDummyShape(const Shape& shape, const VectorDims& dumm
     }
     return Shape(dummyDims);
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

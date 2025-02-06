@@ -33,4 +33,6 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
 
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

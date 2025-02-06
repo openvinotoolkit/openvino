@@ -56,4 +56,7 @@ ov::snippets::lowered::SpecificIterationHandlers BrgemmTPPBlocking::get_k_loop_h
     handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>();
     return handlers;
 }
-}  // namespace pass}  // namespace tpp}  // namespace intel_cpu}  // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

@@ -105,4 +105,5 @@ void mlas_sgemm_compute(const char* transa,
                         const int64_t ldc,
                         const float* bias = nullptr,
                         size_t thread_num = 0);
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

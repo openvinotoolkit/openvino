@@ -96,4 +96,6 @@ void StringTensorPack::execute(const dnnl::stream& strm) {
               OV_CASE(ov::element::i32, int32_t),
               OV_CASE(ov::element::i64, int64_t))
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -35,4 +35,6 @@ ShapeInferPtr PriorBoxShapeInferFactory::makeShapeInfer() const {
     auto number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
     return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

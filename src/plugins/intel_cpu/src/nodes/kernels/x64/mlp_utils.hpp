@@ -44,4 +44,7 @@ void llm_mlp_dequantize_i32_f32(int Batch,
                                 float* p_wsum_per_oc,
                                 float* p_wscale_per_oc,
                                 bool asym);
-}  // namespace XARCH}  // namespace Cpu}  // namespace Extensions}  // namespace ov
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

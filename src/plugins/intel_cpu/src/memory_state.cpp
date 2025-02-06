@@ -370,4 +370,5 @@ MemoryPtr VariableStateKVcache::hidden_state_mem() const {
 void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

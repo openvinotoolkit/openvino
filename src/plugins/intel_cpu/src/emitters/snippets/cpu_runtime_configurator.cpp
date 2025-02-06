@@ -93,4 +93,5 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         }
     }
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

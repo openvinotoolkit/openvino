@@ -107,4 +107,6 @@ void Col2Im::execute(const dnnl::stream& strm) {
               OV_CASE2(ov::element::i8, ov::element::i32, int8_t, int32_t),
               OV_CASE2(ov::element::u8, ov::element::i32, uint8_t, int32_t))
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

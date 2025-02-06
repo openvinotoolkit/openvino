@@ -522,4 +522,5 @@ void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
         dstTensors[i].allocator()->free();
     }
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

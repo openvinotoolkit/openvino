@@ -620,4 +620,6 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 #endif
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

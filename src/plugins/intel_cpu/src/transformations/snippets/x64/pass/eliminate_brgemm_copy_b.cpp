@@ -58,4 +58,5 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

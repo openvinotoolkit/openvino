@@ -54,4 +54,7 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(supported_eltwise, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace pass}  // namespace tpp}  // namespace intel_cpu}  // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

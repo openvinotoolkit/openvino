@@ -136,4 +136,6 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     }
     return true;
 }
-}  // namespace pass}  // namespace intel_cpu}  // namespace ov
+}  // namespace pass
+}  // namespace intel_cpu
+}  // namespace ov

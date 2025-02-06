@@ -178,4 +178,5 @@ public:
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;
 using InterpolateExecutorBuilderCPtr = std::shared_ptr<const InterpolateExecutorBuilder>;
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

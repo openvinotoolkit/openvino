@@ -99,4 +99,5 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
 
     return status;
 }
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

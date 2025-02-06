@@ -123,4 +123,6 @@ void SearchSorted::execute(const dnnl::stream& strm) {
 
 #undef CASE
 }
-}  // namespace node}  // namespace intel_cpu}  // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

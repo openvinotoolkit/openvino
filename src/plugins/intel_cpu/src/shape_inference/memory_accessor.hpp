@@ -38,4 +38,5 @@ private:
     const container_type& m_ptrs;  //!< Pointer to cpu memory pointers with op data.
     const std::vector<int64_t>& m_ranks;
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

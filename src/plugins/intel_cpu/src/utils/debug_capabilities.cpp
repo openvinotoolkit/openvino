@@ -26,7 +26,8 @@ namespace dnnl {
 namespace impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
 std::ostream& operator<<(std::ostream& ss, alg_kind_t alg);
-}  // namespace impl}  // namespace dnnl
+}  // namespace impl
+}  // namespace dnnl
 
 namespace ov {
 namespace intel_cpu {

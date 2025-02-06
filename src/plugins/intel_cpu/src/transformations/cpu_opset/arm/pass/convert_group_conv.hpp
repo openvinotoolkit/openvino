@@ -64,4 +64,5 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGroupConvolution");
     ConvertGroupConvolution();
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

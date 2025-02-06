@@ -51,4 +51,5 @@ public:
     std::vector<int> _use_count;
     std::mutex _flagMutex;
 };
-}  // namespace intel_cpu}  // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
