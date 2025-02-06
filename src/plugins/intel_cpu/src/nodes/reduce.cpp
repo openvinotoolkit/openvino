@@ -2237,6 +2237,10 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool Reduce::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
+}
+
 bool Reduce::isExecutable() const {
     return !isOutputTensorAtPortEmpty(0);
 }
@@ -3707,11 +3711,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);

@@ -199,11 +199,11 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -735,6 +735,10 @@ const std::vector<impl_desc_type>& MatMul::getDefaultImplPriority() {
     };
 
     return priorities;
+}
+
+bool MatMul::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
 }
 
 bool MatMul::isExecutable() const {

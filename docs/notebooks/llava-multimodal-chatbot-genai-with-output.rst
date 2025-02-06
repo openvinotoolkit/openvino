@@ -119,15 +119,15 @@ Install required dependencies
 
     from pathlib import Path
     import requests
-
+    
     %pip install -q "torch>=2.3.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"  --index-url https://download.pytorch.org/whl/cpu
     %pip install -q  "nncf>=2.14.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
     %pip install -q -U  "openvino-tokenizers>=2024.5.0" "openvino>=2024.5.0" "openvino-genai>=2024.5.0"|
-
-
+    
+    
     utility_files = ["notebook_utils.py", "cmd_helper.py"]
-
+    
     for utility in utility_files:
         local_path = Path(utility)
         if not local_path.exists():
@@ -136,6 +136,11 @@ Install required dependencies
             )
             with local_path.open("w") as f:
                 f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llava-multimodal-chatbot-genai.ipynb")
 
 Convert and Optimize Model
 --------------------------
@@ -188,10 +193,10 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-
+    
     model_id = "llava-hf/llava-1.5-7b-hf"
     model_path = Path(model_id.split("/")[-1]) / "FP16"
-
+    
     if not model_path.exists():
         optimum_cli(model_id, model_path, additional_args={"weight-format": "fp16"})
 
@@ -234,19 +239,19 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     compression_mode = widgets.Dropdown(
         options=["INT4", "INT8"],
         value="INT4",
         description="Compression mode:",
         disabled=False,
     )
-
+    
     compression_mode
 
 
@@ -264,10 +269,10 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
     import nncf
     import openvino as ov
     import gc
-
+    
     core = ov.Core()
-
-
+    
+    
     def compress_model_weights(precision):
         int4_compression_config = {
             "mode": nncf.CompressWeightsMode.INT4_ASYM,
@@ -275,9 +280,9 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
             "ratio": 1,
         }
         int8_compression_config = {"mode": nncf.CompressWeightsMode.INT8_ASYM}
-
+    
         compressed_model_path = model_path.parent / precision
-
+    
         if not compressed_model_path.exists():
             ov_model = core.read_model(model_path / "openvino_language_model.xml")
             compression_config = int4_compression_config if precision == "INT4" else int8_compression_config
@@ -290,8 +295,8 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
                 if file_name.name in ["openvino_language_model.xml", "openvino_language_model.bin"]:
                     continue
                 shutil.copy(file_name, compressed_model_path)
-
-
+    
+    
     compress_model_weights(compression_mode.value)
 
 
@@ -341,9 +346,9 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(exclude=["NPU"])
-
+    
     device
 
 
@@ -364,18 +369,18 @@ Select model variant
 
     model_base_path = model_path.parent
     available_models = []
-
+    
     for precision in ["INT4", "INT8", "FP16"]:
         if (model_base_path / precision).exists():
             available_models.append(precision)
-
+    
     model_variant = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Compression mode:",
         disabled=False,
     )
-
+    
     model_variant
 
 
@@ -434,11 +439,11 @@ one of the most critical aspects of a smooth experience.
     from PIL import Image
     from io import BytesIO
     import numpy as np
-
+    
     config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
-
-
+    
+    
     def load_image(image_file):
         if image_file.startswith("http") or image_file.startswith("https"):
             response = requests.get(image_file)
@@ -447,25 +452,31 @@ one of the most critical aspects of a smooth experience.
             image = Image.open(image_file).convert("RGB")
         image_data = np.array(image.getdata()).reshape(1, image.size[1], image.size[0], 3).astype(np.byte)
         return image, ov.Tensor(image_data)
-
-
+    
+    
     def streamer(subword: str) -> bool:
         """
-
+    
         Args:
             subword: sub-word of the generated text.
-
+    
         Returns: Return flag corresponds whether generation should be stopped.
-
+    
         """
         print(subword, end="", flush=True)
-
-
-    image_file = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
-
-    image, image_tensor = load_image(image_file)
+    
+    
+    image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_file = Path("cat.png")
+    
+    if not image_file.exists():
+        image, image_tensor = load_image(image_url)
+        image.save(image_file)
+    else:
+        image, image_tensor = load_image(image_file)
+    
     text_message = "What is unusual on this image?"
-
+    
     prompt = text_message
 
 Test model inference
@@ -490,7 +501,7 @@ Test model inference
     Question:
     What is unusual on this image?
     Answer:
-
+    
     The unusual aspect of this image is that a cat is lying inside a cardboard box. Cats are known for their curiosity and love for small, enclosed spaces. However, it is not a common sight to see a cat comfortably resting inside a cardboard box.
 
 Interactive demo
@@ -503,11 +514,11 @@ Interactive demo
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-multimodal-chatbot/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo_llava
-
+    
     demo = make_demo_llava(ov_model)
-
+    
     try:
         demo.launch(debug=False)
     except Exception:

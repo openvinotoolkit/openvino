@@ -8,7 +8,7 @@
 namespace ov {
 namespace intel_cpu {
 
-using EdgeCluster = std::unordered_set<EdgePtr>;
+using EdgeCluster = std::vector<EdgePtr>;
 using EdgeClusters = std::vector<EdgeCluster>;
 
 struct MemoryRegion {
@@ -39,10 +39,10 @@ public:
 
     using RegionHandlerPtr = std::shared_ptr<RegionHandler>;
     using MemorySolution = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
+    using Ptr = std::shared_ptr<MemoryControl>;
+    using CPtr = std::shared_ptr<const MemoryControl>;
 
 public:
-    static EdgeClusters findEdgeClusters(const std::vector<EdgePtr>& graphEdges);
-
     void insert(const MemoryRegions& regions, const std::vector<size_t>& syncInds);
 
     MemorySolution solve();
@@ -67,7 +67,6 @@ private:
 
 private:
     std::string m_id;
-    std::vector<size_t> m_syncInds;
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
 };
@@ -75,7 +74,7 @@ private:
 class NetworkMemoryControl {
 public:
     NetworkMemoryControl() = default;
-    MemoryControl& createMemoryControlUnit(std::string id);
+    MemoryControl::Ptr createMemoryControlUnit(std::string id);
 
     void allocateMemory();
     void releaseMemory();
@@ -83,10 +82,12 @@ public:
     std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
 
 private:
-    using value_type = std::unique_ptr<MemoryControl>;
+    const std::vector<MemoryControl::Ptr>& controlUnits() const {
+        return m_controlUnits;
+    }
 
 private:
-    std::vector<value_type> m_controlUnits;
+    std::vector<MemoryControl::Ptr> m_controlUnits;
 };
 
 }  // namespace intel_cpu

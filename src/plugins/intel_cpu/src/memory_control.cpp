@@ -4,12 +4,14 @@
 
 #include "memory_control.hpp"
 
+#include <cstddef>
+#include <memory>
 #include <ov_optional.hpp>
 #include <queue>
 #include <utility>
 
-#include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 namespace ov {
@@ -598,54 +600,9 @@ MemoryStatistics MemoryControl::dumpStatistics() const {
 }
 #endif  // CPU_DEBUG_CAPS
 
-EdgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
-    typedef std::unordered_map<EdgePtr, size_t> edge_cluster_idx_map_t;
-
-    EdgeClusters edge_clusters;
-    edge_cluster_idx_map_t edge_cluster_indices;
-
-    for (auto& edge : graphEdges) {
-        auto edge_it = edge_cluster_indices.find(edge);
-        if (edge_it != edge_cluster_indices.end()) {
-            continue;  // edge is visited
-        }
-
-        size_t cluster_idx = edge_clusters.size();
-        EdgePtr last_shared_edge = nullptr;
-
-        // find cluster index
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge;
-             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            auto shared_edge_it = edge_cluster_indices.find(shared_edge);
-            if (shared_edge_it != edge_cluster_indices.end()) {
-                cluster_idx = shared_edge_it->second;
-                last_shared_edge = shared_edge;
-                break;
-            }
-        }
-
-        // add shared edges to cluster
-        edge_cluster_indices.emplace(edge, cluster_idx);
-
-        if (cluster_idx == edge_clusters.size()) {
-            edge_clusters.emplace_back(EdgeCluster{edge});
-        } else {
-            edge_clusters[cluster_idx].emplace(edge);
-        }
-
-        for (auto shared_edge = edge->getSharedEdge(std::nothrow); shared_edge != last_shared_edge;
-             shared_edge = shared_edge->getSharedEdge(std::nothrow)) {
-            edge_cluster_indices.emplace(shared_edge, cluster_idx);
-            edge_clusters[cluster_idx].emplace(shared_edge);
-        }
-    }
-
-    return edge_clusters;
-}
-
-MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::string id) {
-    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(std::move(id))));
-    return *(m_controlUnits.back());
+MemoryControl::Ptr NetworkMemoryControl::createMemoryControlUnit(std::string id) {
+    m_controlUnits.emplace_back(std::shared_ptr<MemoryControl>(new MemoryControl(std::move(id))));
+    return m_controlUnits.back();
 }
 
 void NetworkMemoryControl::allocateMemory() {

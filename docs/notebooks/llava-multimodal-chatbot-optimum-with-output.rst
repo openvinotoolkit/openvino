@@ -119,14 +119,14 @@ Install required dependencies
 
     from pathlib import Path
     import requests
-
+    
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q  "nncf>=2.14.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "openvino-tokenizers>=2024.5.0" "openvino>=2024.5.0" "openvino-genai>=2024.5.0"
-
+    
     utility_files = ["notebook_utils.py", "cmd_helper.py"]
-
+    
     for utility in utility_files:
         local_path = Path(utility)
         if not local_path.exists():
@@ -135,6 +135,11 @@ Install required dependencies
             )
         with local_path.open("w") as f:
             f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llava-multimodal-chatbot-optimum.ipynb")
 
 Convert and Optimize Model
 --------------------------
@@ -187,10 +192,10 @@ documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-
 .. code:: ipython3
 
     from cmd_helper import optimum_cli
-
+    
     model_id = "llava-hf/llava-1.5-7b-hf"
     model_path = Path(model_id.split("/")[-1]) / "FP16"
-
+    
     if not model_path.exists():
         optimum_cli(model_id, model_path, additional_args={"weight-format": "fp16"})
 
@@ -233,19 +238,19 @@ improves performance even more, but introduces a minor drop in
 prediction quality.
 
 More details about weights compression, can be found in `OpenVINO
-documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
+documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     compression_mode = widgets.Dropdown(
         options=["INT4", "INT8"],
         value="INT4",
         description="Compression mode:",
         disabled=False,
     )
-
+    
     compression_mode
 
 
@@ -263,16 +268,16 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
     import nncf
     import openvino as ov
     import gc
-
+    
     core = ov.Core()
-
-
+    
+    
     def compress_model_weights(precision):
         int4_compression_config = {"mode": nncf.CompressWeightsMode.INT4_ASYM, "group_size": 128, "ratio": 1, "all_layers": True}
         int8_compression_config = {"mode": nncf.CompressWeightsMode.INT8_ASYM}
-
+    
         compressed_model_path = model_path.parent / precision
-
+    
         if not compressed_model_path.exists():
             ov_model = core.read_model(model_path / "openvino_language_model.xml")
             compression_config = int4_compression_config if precision == "INT4" else int8_compression_config
@@ -285,8 +290,8 @@ documentation <https://docs.openvino.ai/2025/openvino-workflow/model-optimizatio
                 if file_name.name in ["openvino_language_model.xml", "openvino_language_model.bin"]:
                     continue
                 shutil.copy(file_name, compressed_model_path)
-
-
+    
+    
     compress_model_weights(compression_mode.value)
 
 
@@ -336,9 +341,9 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget(exclude=["NPU"])
-
+    
     device
 
 
@@ -359,18 +364,18 @@ Select model variant
 
     model_base_path = model_path.parent
     available_models = []
-
+    
     for precision in ["INT4", "INT8", "FP16"]:
         if (model_base_path / precision).exists():
             available_models.append(precision)
-
+    
     model_variant = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Compression mode:",
         disabled=False,
     )
-
+    
     model_variant
 
 
@@ -406,14 +411,14 @@ PyTorch implementation we will use PyTorch tensors as input.
     from PIL import Image
     from io import BytesIO
     from transformers import AutoProcessor, AutoConfig
-
+    
     config = AutoConfig.from_pretrained(model_path)
-
+    
     processor = AutoProcessor.from_pretrained(
         model_path, patch_size=config.vision_config.patch_size, vision_feature_select_strategy=config.vision_feature_select_strategy
     )
-
-
+    
+    
     def load_image(image_file):
         if image_file.startswith("http") or image_file.startswith("https"):
             response = requests.get(image_file)
@@ -421,13 +426,17 @@ PyTorch implementation we will use PyTorch tensors as input.
         else:
             image = Image.open(image_file).convert("RGB")
         return image
-
-
-    image_file = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    
+    
+    image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/d5fbbd1a-d484-415c-88cb-9986625b7b11"
+    image_file = Path("cat.png")
     text_message = "What is unusual on this image?"
-
-    image = load_image(image_file)
-
+    
+    if not image_file.exists():
+        image = load_image(image_url)
+    else:
+        image = load_image(image_file)
+    
     conversation = [
         {
             "role": "user",
@@ -437,9 +446,9 @@ PyTorch implementation we will use PyTorch tensors as input.
             ],
         },
     ]
-
+    
     prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
-
+    
     inputs = processor(images=image, text=prompt, return_tensors="pt")
 
 Test model inference
@@ -465,13 +474,13 @@ accumulating history of provided messages and images.
 .. code:: ipython3
 
     from transformers import TextStreamer
-
+    
     # Prepare
     streamer = TextStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
     display(image)
     print(f"Question: {text_message}")
     print("Answer:")
-
+    
     output_ids = ov_model.generate(
         **inputs,
         do_sample=False,
@@ -501,11 +510,11 @@ Interactive demo
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llava-multimodal-chatbot/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo_llava_optimum
-
+    
     demo = make_demo_llava_optimum(ov_model, processor)
-
+    
     try:
         demo.launch(debug=False)
     except Exception:

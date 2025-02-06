@@ -949,6 +949,10 @@ bool Gather::created() const {
     return getType() == Type::Gather;
 }
 
+bool Gather::neverExecute() const {
+    return isInPlace() || Node::neverExecute();
+}
+
 bool Gather::isExecutable() const {
     return !isInPlace() && Node::isExecutable();
 }
@@ -961,7 +965,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     constexpr size_t outputPort = 0;
 
