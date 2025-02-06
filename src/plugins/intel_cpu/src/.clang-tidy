@@ -80,8 +80,6 @@ CheckOptions:
     value: reasonable
   - key: modernize-pass-by-value.IncludeStyle
     value: google
-  - key: modernize-use-equals-default.IgnoreMacros
-    value: false
 ### To be considered to enable:
 #  # Unifies the usage of the statements
 #  - key: readability-braces-around-statements.ShortStatementLines
