@@ -10,6 +10,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -32,6 +33,23 @@ static std::shared_ptr<Model> create_trivial(element::Type type, const PartialSh
     data1->set_friendly_name("input1");
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
+    res->set_friendly_name("Result1");
+    res->get_output_tensor(0).set_names({"tensor_output1"});
+    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
+}
+
+static std::shared_ptr<Model> create_conv(element::Type type, const PartialShape& shape) {
+    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
+    data1->set_friendly_name("input1");
+    data1->get_output_tensor(0).set_names({"tensor_input1"});
+
+    auto weights = std::make_shared<op::v0::Constant>(type, ov::Shape{1, 3, 3, 3}, 1);
+    auto conv = std::make_shared<op::v1::Convolution>(data1, weights,
+                                                     Strides{},
+                                                     CoordinateDiff{},
+                                                     CoordinateDiff{},
+                                                     Strides{});
+    auto res = std::make_shared<op::v0::Result>(conv);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
@@ -2425,4 +2443,19 @@ TEST(pre_post_process, dump_error) {
     stream << p;
     auto dump = stream.str();
     EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
+}
+
+TEST(pre_post_process, mul_conv_fusion_in_moc) {
+    auto f = create_conv(element::f32, Shape{1, 3, 32, 32});
+    auto p = PrePostProcessor(f);
+
+    p.input().tensor().set_layout(Layout("NCHW"));
+    p.input().preprocess().reverse_channels();
+    p.input().preprocess().scale(255.);
+    f = p.build();
+
+    // we expect that MultiplyConvolutionFusion and ConstantFolding transformations will be applied.
+    EXPECT_EQ(f->get_ops().size(), 4);
+    EXPECT_EQ(count_ops_of_type<op::v1::Divide>(f), 0);
+    EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(f), 0);
 }
