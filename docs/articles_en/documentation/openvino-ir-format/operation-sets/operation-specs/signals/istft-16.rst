@@ -23,10 +23,14 @@ of shape ``[fft_results, frames, 2]`` or ``[batch, fft_results, frames, 2]``, wh
 The output is a restored real-valued signal in a discrete time domain. The shape of the output is 1D ``[signal_length]`` or 2D ``[batch, signal_length]``.
 If the ``signal_length`` is not provided as an input value, it is calculated according to the following rules:
 
-  * ``signal_length = (frames - 1) * frame_step`` for ``center == true`` 
-  * ``signal_length = (frames - 1) * frame_step + frame_size`` for ``center == false`` 
+  * ``default_signal_length = (frames - 1) * frame_step`` for ``center == true`` 
+  * ``default_signal_length = (frames - 1) * frame_step + frame_size`` for ``center == false`` 
 
-If the ``window_length`` can not be larger than ``frame_size``, but if smaller the window values will be padded with zeros on the left and right side. The size of the left padding is calculated as ``(frame_size - window_length) // 2``, then right padding size is filled to match the ``frame_size``.  
+If the ``signal_length`` input is provided, the number of output values will be adjusted accordingly. 
+  * If ``signal_length > default_signal_length`` the output is padded with zeros at the end.
+  * If ``signal_length < default_signal_length`` any additional generated samples are cut to the ``signal_length`` size.
+
+The ``window_length`` can not be larger than ``frame_size``, but if smaller the window values will be padded with zeros on the left and right side. The size of the left padding is calculated as ``(frame_size - window_length) // 2``, then right padding size is filled to match the ``frame_size``.  
 
 **Attributes**:
 
