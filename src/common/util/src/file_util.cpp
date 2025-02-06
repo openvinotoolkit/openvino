@@ -327,7 +327,6 @@ void ov::util::create_directory_recursive(const std::string& path) {
 
 bool ov::util::directory_exists(const ov::util::Path& path) {
     std::error_code ec;
-    const auto size = std::filesystem::exists(path, ec);
     return std::filesystem::exists(path, ec) && !ec;
 }
 
