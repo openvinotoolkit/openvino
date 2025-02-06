@@ -351,7 +351,58 @@ std::vector<EinsumParams> generateParams() {
             .inputs({{ET, {1, 3}, std::vector<T>{1, 2, 3}}, {ET, {3}, std::vector<T>{1, 2, 3}}})
             .equation("a...j,j...->a")
             .expectedResult({ET, {1}, std::vector<T>{14}})
-            .testcaseName("einsum_2in_prune_inp_ellipsis_no_out_ellipsis")
+            .testcaseName("einsum_2in_prune_inp_ellipsis_no_out_ellipsis"),
+        Builder{}
+            .inputs({{ET, {2, 2, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {4, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET,
+                      {1, 1, 2, 3, 1, 3},
+                      std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}}})
+            .equation("a...b,bcd,...dbc->c...a")
+            .expectedResult(
+                {ET, {3, 1, 1, 2, 2}, std::vector<T>{120, 360, 780, 1560, 150, 450, 840, 1680, 180, 540, 900, 1800}})
+            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis"),
+
+        Builder{}
+            .inputs({{ET, {2, 2, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {4, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {1, 2, 3, 1, 3, 3}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                                                             15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+                                                             29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
+                                                             43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54}}})
+            .equation("a...b,bcd,...dbcc->c...a")
+            .expectedResult(
+                {ET, {3, 1, 2, 2}, std::vector<T>{300, 900, 2220, 4440, 420, 1260, 2460, 4920, 540, 1620, 2700, 5400}})
+            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis_repeated_1"),
+        Builder{}
+            .inputs({{ET, {2, 2, 1, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {4, 1, 1, 1, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {3, 1, 3, 3}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                                                       15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}}})
+            .equation("a...b,bcccdd,...dbcc->cb...")
+            .expectedResult(
+                {ET, {3, 4, 2, 1, 1}, std::vector<T>{120, 180, 240, 360,  360, 540, 480, 720, 168, 252, 336, 504,
+                                                     504, 756, 672, 1008, 216, 324, 432, 648, 648, 972, 864, 1296}})
+            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis_repeated_1"),
+        Builder{}
+            .inputs({{ET, {2, 2, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {4, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {1, 2, 3, 1, 3, 3}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                                                             15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+                                                             29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
+                                                             43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54}}})
+            .equation("a...b,bcd,...dbcc->ca")
+            .expectedResult({ET, {3, 2}, std::vector<T>{2520, 5340, 2880, 6180, 3240, 7020}})
+            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis_repeated_3"),
+        Builder{}
+            .inputs({{ET, {2, 2, 1, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {4, 1, 1, 1, 1, 1}, std::vector<T>{1, 2, 3, 4}},
+                     {ET, {3, 1, 3, 3}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                                                       15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}}})
+            .equation("a...b,bcccdd,...dbcc->cb")
+            .expectedResult(
+                {ET, {3, 4}, std::vector<T>{300, 600, 900, 1200, 420, 840, 1260, 1680, 540, 1080, 1620, 2160}})
+            .testcaseName("einsum_3in_broadcast_duplicated_ellipsis_repeated_4")
 
     };
     return params;

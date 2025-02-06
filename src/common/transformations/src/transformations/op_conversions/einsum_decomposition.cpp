@@ -776,6 +776,50 @@ void extract_diagonal(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     input_subscripts[input_ind] = resultant_subscript;
 }
 
+/// \brief Adjusts the ranks of two input tensors by unsqueezing ellipses to the same rank.
+///
+/// This function ensures that the ellipses in the input subscripts of the two tensors have the same rank by unsqueezing
+/// the necessary dimensions. It modifies the inputs in place.
+///
+/// \param inputs A vector of input tensors.
+/// \param input_subscripts A vector of input subscripts corresponding to the input tensors.
+/// \param input_ind1 The index of the first input tensor in the inputs vector.
+/// \param input_ind2 The index of the second input tensor in the inputs vector.
+/// \param subgraph_nodes A vector of operation nodes that is included into
+///                      a sub-graph decomposing Einsum that is needed for copy_runtime_info
+void unsqueeze_ellipses_to_same_rank(ov::OutputVector& inputs,
+                                     std::vector<std::string>& input_subscripts,
+                                     size_t input_ind1,
+                                     size_t input_ind2,
+                                     ov::NodeVector& subgraph_nodes) {
+    constexpr char ellipsis[] = "...";
+    const auto& input1 = inputs[input_ind1];
+    const auto& input2 = inputs[input_ind2];
+    OPENVINO_ASSERT(input1.get_partial_shape().is_static() && input2.get_partial_shape().is_static());
+    auto label_to_dim_map1 = compute_label_dim_map(input1.get_partial_shape().size(), input_subscripts[input_ind1]);
+    auto label_to_dim_map2 = compute_label_dim_map(input2.get_partial_shape().size(), input_subscripts[input_ind2]);
+    if (label_to_dim_map1.find(ellipsis) != label_to_dim_map1.end() &&
+        label_to_dim_map2.find(ellipsis) != label_to_dim_map2.end()) {
+        std::vector<int64_t> unsqueeze_axis1, unsqueeze_axis2;
+        const auto& ellipsis_dims1 = label_to_dim_map1[ellipsis];
+        const auto& ellipsis_dims2 = label_to_dim_map2[ellipsis];
+        if (ellipsis_dims2.size() > ellipsis_dims1.size()) {
+            for (size_t i = 0; i < ellipsis_dims2.size() - ellipsis_dims1.size(); ++i) {
+                unsqueeze_axis1.push_back(ellipsis_dims1[0] + i);
+            }
+        } else if (ellipsis_dims1.size() > ellipsis_dims2.size()) {
+            for (size_t i = 0; i < ellipsis_dims1.size() - ellipsis_dims2.size(); ++i) {
+                unsqueeze_axis2.push_back(ellipsis_dims2[0] + i);
+            }
+        }
+        ov::Output<ov::Node> unsqueeze_output1 = unsqueeze_input(input1, unsqueeze_axis1, subgraph_nodes);
+        ov::Output<ov::Node> unsqueeze_output2 = unsqueeze_input(input2, unsqueeze_axis2, subgraph_nodes);
+        inputs[input_ind1] = unsqueeze_output1;
+        inputs[input_ind2] = unsqueeze_output2;
+        return;
+    }
+}
+
 /// \brief      Contract two inputs of Einsum operation according to equation.
 /// The result of the contraction is appended into input_nodes along with its subscript.
 /// The input nodes for these two operands are removed from input_nodes along with their input
@@ -809,6 +853,9 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
     const auto& input_node1 = input_nodes[input_ind1];
     const auto& input_node2 = input_nodes[input_ind2];
+
+    // unsqueeze inputs to have same rank of ellipsis for correct broadcasting
+    unsqueeze_ellipses_to_same_rank(input_nodes, input_subscripts, input_ind1, input_ind2, subgraph_nodes);
 
     // extract diagonals in case repeated labels in the corresponding input subscripts
     extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind1, subgraph_nodes);
@@ -882,7 +929,8 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         // unsqueeze the first operand with new dimensions in the tail
         // and the number of them is equal to the number of separate labels in the second
         // subscript
-        int64_t unsqueeze_dim = labels1.size();
+
+        int64_t unsqueeze_dim = input_node1.get_partial_shape().size();
         std::vector<int64_t> unsqueeze_axis1;
         for (size_t label_ind = 0; label_ind < separate_labels_inds2.size(); ++label_ind) {
             unsqueeze_axis1.push_back(unsqueeze_dim++);
