@@ -177,8 +177,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertCPULayerTest.*(\[1.1.1080.1920\]|\(2.17.5.4\))_.*_inputPRC=f32_targetPRC=f8e4m3_.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
-        // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
-        R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM_static.*)",
         // Issue: 122356
         R"(.*NmsRotatedOpTest.*(SortDesc=True|Clockwise=False).*)",
         // Issue: 126095

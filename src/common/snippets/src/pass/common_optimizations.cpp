@@ -11,7 +11,6 @@
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/validate.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/extract_constants.hpp"
 #include "snippets/pass/extract_unsupported_transposes.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
@@ -57,8 +56,6 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         // so we can enable ExtractConstants pass for quantized models
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
-        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::SplitDimensionM, is_domain_sensitive && config.get_split_m_dimension(),
-                               config.get_concurrency());
         subgraph_manager.run_passes(subgraph);
 
         // Validate the body after all common optimizations
