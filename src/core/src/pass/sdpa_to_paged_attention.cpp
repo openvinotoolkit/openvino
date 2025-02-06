@@ -28,7 +28,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
       m_allow_cache_rotation(allow_cache_rotation) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
-    // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
+    // Set name for both node and output tensor (should be only one tensor, and any other names will be overridden by a
     // given single name)
     node->set_friendly_name(name);
     OPENVINO_ASSERT(node->get_output_size() == 1);
@@ -176,19 +176,25 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+    for (const auto& param_name : {"beam_idx", "attention_mask"}) {
         if (auto param = get_parameter(model, param_name)) {
+            auto target_inputs = param->output(0).get_target_inputs();
+            if (!strcmp(param_name, "attention_mask") && target_inputs.size() == 1 &&
+                ov::is_type<op::util::ShapeOfBase>(target_inputs.begin()->get_node())) {
+                target_inputs.begin()->replace_source_output(unsqueezed_input_ids->output(0));
+                target_inputs = param->output(0).get_target_inputs();
+            }
             model->remove_parameter(param);
 
-            if (param->output(0).get_target_inputs().size() == 0) {
+            if (!target_inputs.empty()) {
                 std::stringstream consumers;
                 consumers << std::endl;
-                for (auto& input : param->output(0).get_target_inputs()) {
+                for (auto& input : target_inputs) {
                     consumers << *input.get_node() << std::endl;
                 }
-                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                OPENVINO_ASSERT(target_inputs.empty(),
                                 "PagedAttention transformation failed: couldn't remove ",
-                                param->output(0).get_target_inputs().size(),
+                                target_inputs.size(),
                                 " inputs of ",
                                 param_name,
                                 " input: ",
