@@ -153,7 +153,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
 
         std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
 
-        std::cout << "Dump inputs: " << dump_file << std::endl;
+        std::cout << "Dump inputs: " << dump_file << '\n';
 
         auto& desc = prEdge->getMemory().getDesc();
         if (desc.getPrecision() == ov::element::u1) {
@@ -190,7 +190,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
 
         std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
 
-        std::cout << "Dump outputs:  " << dump_file << std::endl;
+        std::cout << "Dump outputs:  " << dump_file << '\n';
 
         auto& desc = childEdge->getMemory().getDesc();
         if (desc.getPrecision() == ov::element::u1) {

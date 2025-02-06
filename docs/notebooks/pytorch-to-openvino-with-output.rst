@@ -7,7 +7,7 @@ Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 model conversion without an intermediate step to convert them into ONNX
 format. In order, if you try to use the lower OpenVINO version or prefer
 to use ONNX, please check this
-`tutorial <pytorch-to-openvino-with-output.html>`__.
+`tutorial <pytorch-onnx-to-openvino-with-output.html>`__.
 
 In this tutorial, we will use the
 `RegNetY_800MF <https://arxiv.org/abs/2003.13678>`__ model from
@@ -97,12 +97,6 @@ Install notebook dependencies
 
     %pip install -q "openvino>=2023.1.0" scipy Pillow torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Download input data and label map
 
 .. code:: ipython3
@@ -110,23 +104,39 @@ Download input data and label map
     import requests
     from pathlib import Path
     from PIL import Image
-
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("pytorch-to-openvino.ipynb")
+    
     MODEL_DIR = Path("model")
     DATA_DIR = Path("data")
-
+    
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_NAME = "regnet_y_800mf"
-
-    image = Image.open(requests.get("https://farm9.staticflickr.com/8225/8511402100_fea15da1c5_z.jpg", stream=True).raw)
-
+    
+    input_img_path = Path("test.jpg")
+    if not input_img_path.exists():
+        image = Image.open(requests.get("https://farm9.staticflickr.com/8225/8511402100_fea15da1c5_z.jpg", stream=True).raw)
+        image.save(input_img_path)
+    else:
+        image = Image.open(input_img_path)
+    
     labels_file = DATA_DIR / "imagenet_2012.txt"
-
+    
     if not labels_file.exists():
         resp = requests.get("https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/imagenet_2012.txt")
         with labels_file.open("wb") as f:
             f.write(resp.content)
-
+    
     imagenet_classes = labels_file.open("r").read().splitlines()
 
 Load PyTorch Model
@@ -152,13 +162,13 @@ enum ``RegNet_Y_800MF_Weights.DEFAULT``.
 .. code:: ipython3
 
     import torchvision
-
+    
     # get default weights using available weights Enum for model
     weights = torchvision.models.RegNet_Y_800MF_Weights.DEFAULT
-
+    
     # create model topology and load weights
     model = torchvision.models.regnet_y_800mf(weights=weights)
-
+    
     # switch model to inference mode
     model.eval();
 
@@ -176,13 +186,13 @@ the first dimension.
 .. code:: ipython3
 
     import torch
-
+    
     # Initialize the Weight Transforms
     preprocess = weights.transforms()
-
+    
     # Apply it to the input image
     img_transformed = preprocess(image)
-
+    
     # Add batch dimension to image tensor
     input_tensor = img_transformed.unsqueeze(0)
 
@@ -201,11 +211,11 @@ can be reused later.
 
     import numpy as np
     from scipy.special import softmax
-
+    
     # Perform model inference on input tensor
     result = model(input_tensor)
-
-
+    
+    
     # Postprocessing function for getting results in the same way for both PyTorch model inference and OpenVINO
     def postprocess_result(output_tensor: np.ndarray, top_k: int = 5):
         """
@@ -221,11 +231,11 @@ can be reused later.
         topk_labels = np.argsort(softmaxed_scores)[-top_k:][::-1]
         topk_scores = softmaxed_scores[topk_labels]
         return topk_labels, topk_scores
-
-
+    
+    
     # Postprocess results
     top_labels, top_scores = postprocess_result(result.detach().numpy())
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -244,7 +254,7 @@ can be reused later.
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark PyTorch Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -254,15 +264,15 @@ Benchmark PyTorch Model Inference
 .. code:: ipython3
 
     %%timeit
-
+    
     # Run model inference
     model(input_tensor)
 
 
 .. parsed-literal::
 
-    18.1 ms ± 484 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    21.1 ms ± 602 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    
 
 Convert PyTorch Model to OpenVINO Intermediate Representation
 -------------------------------------------------------------
@@ -273,7 +283,7 @@ Starting from the 2023.0 release OpenVINO supports direct PyTorch models
 conversion to OpenVINO Intermediate Representation (IR) format. OpenVINO
 model conversion API should be used for these purposes. More details
 regarding PyTorch model conversion can be found in OpenVINO
-`documentation <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/convert-model-pytorch.html>`__
+`documentation <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html>`__
 
 The ``convert_model`` function accepts the PyTorch model object and
 returns the ``openvino.Model`` instance ready to load on a device using
@@ -291,21 +301,21 @@ such as:
 
 and any other advanced options supported by model conversion Python API.
 More details can be found on this
-`page <https://docs.openvino.ai/2025/openvino-workflow/model-preparation/conversion-parameters.html>`__
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conversion-parameters.html>`__
 
 .. code:: ipython3
 
     import openvino as ov
-
+    
     # Create OpenVINO Core object instance
     core = ov.Core()
-
+    
     # Convert model to openvino.runtime.Model object
     ov_model = ov.convert_model(model)
-
+    
     # Save openvino.runtime.Model object on disk
     ov.save_model(ov_model, MODEL_DIR / f"{MODEL_NAME}_dynamic.xml")
-
+    
     ov_model
 
 
@@ -332,17 +342,10 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -350,7 +353,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -384,10 +387,10 @@ Run OpenVINO Model Inference
 
     # Run model inference
     result = compiled_model(input_tensor)[0]
-
+    
     # Posptorcess results
     top_labels, top_scores = postprocess_result(result)
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -406,7 +409,7 @@ Run OpenVINO Model Inference
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark OpenVINO Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -416,14 +419,14 @@ Benchmark OpenVINO Model Inference
 .. code:: ipython3
 
     %%timeit
-
+    
     compiled_model(input_tensor)
 
 
 .. parsed-literal::
 
-    3.29 ms ± 3.63 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    3.53 ms ± 25.3 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    
 
 Convert PyTorch Model with Static Input Shape
 ---------------------------------------------
@@ -450,7 +453,7 @@ reshaping example please check the following
 
 .. parsed-literal::
 
-    <Model: 'Model65'
+    <Model: 'Model68'
     inputs[
     <ConstOutput: names[x] shape[1,3,224,224] type: f32>
     ]
@@ -476,7 +479,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -514,10 +517,10 @@ Run OpenVINO Model Inference with Static Input Shape
 
     # Run model inference
     result = compiled_model(input_tensor)[0]
-
+    
     # Posptorcess results
     top_labels, top_scores = postprocess_result(result)
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -536,7 +539,7 @@ Run OpenVINO Model Inference with Static Input Shape
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark OpenVINO Model Inference with Static Input Shape
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -546,14 +549,14 @@ Benchmark OpenVINO Model Inference with Static Input Shape
 .. code:: ipython3
 
     %%timeit
-
+    
     compiled_model(input_tensor)
 
 
 .. parsed-literal::
 
-    2.91 ms ± 10.5 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    3.25 ms ± 73 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    
 
 Convert TorchScript Model to OpenVINO Intermediate Representation
 -----------------------------------------------------------------
@@ -599,20 +602,20 @@ Reference <https://pytorch.org/docs/stable/jit_language_reference.html#language-
 
     # Get model path
     scripted_model_path = MODEL_DIR / f"{MODEL_NAME}_scripted.pth"
-
+    
     # Compile and save model if it has not been compiled before or load compiled model
     if not scripted_model_path.exists():
         scripted_model = torch.jit.script(model)
         torch.jit.save(scripted_model, scripted_model_path)
     else:
         scripted_model = torch.jit.load(scripted_model_path)
-
+    
     # Run scripted model inference
     result = scripted_model(input_tensor)
-
+    
     # Postprocess results
     top_labels, top_scores = postprocess_result(result.detach().numpy())
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -631,7 +634,7 @@ Reference <https://pytorch.org/docs/stable/jit_language_reference.html#language-
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark Scripted Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -641,14 +644,14 @@ Benchmark Scripted Model Inference
 .. code:: ipython3
 
     %%timeit
-
+    
     scripted_model(input_tensor)
 
 
 .. parsed-literal::
 
-    14.3 ms ± 70 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    18.3 ms ± 1.12 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    
 
 Convert PyTorch Scripted Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -662,16 +665,16 @@ the original PyTorch model.
 
     # Convert model to openvino.runtime.Model object
     ov_model = ov.convert_model(scripted_model)
-
+    
     # Load OpenVINO model on device
     compiled_model = core.compile_model(ov_model, device.value)
-
+    
     # Run OpenVINO model inference
     result = compiled_model(input_tensor, device.value)[0]
-
+    
     # Postprocess results
     top_labels, top_scores = postprocess_result(result)
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -690,7 +693,7 @@ the original PyTorch model.
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark OpenVINO Model Inference Converted From Scripted Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -700,14 +703,14 @@ Benchmark OpenVINO Model Inference Converted From Scripted Model
 .. code:: ipython3
 
     %%timeit
-
+    
     compiled_model(input_tensor)
 
 
 .. parsed-literal::
 
-    3.25 ms ± 5.19 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    3.45 ms ± 72.8 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    
 
 Traced Model
 ~~~~~~~~~~~~
@@ -734,20 +737,20 @@ original PyTorch model code definitions.
 
     # Get model path
     traced_model_path = MODEL_DIR / f"{MODEL_NAME}_traced.pth"
-
+    
     # Trace and save model if it has not been traced before or load traced model
     if not traced_model_path.exists():
         traced_model = torch.jit.trace(model, example_inputs=input_tensor)
         torch.jit.save(traced_model, traced_model_path)
     else:
         traced_model = torch.jit.load(traced_model_path)
-
+    
     # Run traced model inference
     result = traced_model(input_tensor)
-
+    
     # Postprocess results
     top_labels, top_scores = postprocess_result(result.detach().numpy())
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -766,7 +769,7 @@ original PyTorch model code definitions.
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark Traced Model Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -776,14 +779,14 @@ Benchmark Traced Model Inference
 .. code:: ipython3
 
     %%timeit
-
+    
     traced_model(input_tensor)
 
 
 .. parsed-literal::
 
-    15.2 ms ± 315 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    18 ms ± 365 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    
 
 Convert PyTorch Traced Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -797,16 +800,16 @@ original PyTorch model.
 
     # Convert model to openvino.runtime.Model object
     ov_model = ov.convert_model(traced_model)
-
+    
     # Load OpenVINO model on device
     compiled_model = core.compile_model(ov_model, device.value)
-
+    
     # Run OpenVINO model inference
     result = compiled_model(input_tensor)[0]
-
+    
     # Postprocess results
     top_labels, top_scores = postprocess_result(result)
-
+    
     # Show results
     display(image)
     for idx, (label, score) in enumerate(zip(top_labels, top_scores)):
@@ -825,7 +828,7 @@ original PyTorch model.
     3: computer keyboard, keypad - 9.22%
     4: tabby, tabby cat - 9.09%
     5: hamper - 2.35%
-
+    
 
 Benchmark OpenVINO Model Inference Converted From Traced Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -835,11 +838,11 @@ Benchmark OpenVINO Model Inference Converted From Traced Model
 .. code:: ipython3
 
     %%timeit
-
+    
     compiled_model(input_tensor)[0]
 
 
 .. parsed-literal::
 
-    3.35 ms ± 3.85 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
+    3.63 ms ± 43.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    
