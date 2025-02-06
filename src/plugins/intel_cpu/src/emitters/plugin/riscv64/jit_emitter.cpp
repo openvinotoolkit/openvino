@@ -192,20 +192,26 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     std::set_difference(vec_regs.begin(), vec_regs.end(), ignore_vec_regs.begin(), ignore_vec_regs.end(),
                         std::inserter(target_vec_regs, target_vec_regs.begin()));
 
-    const auto vec_all_size = target_vec_regs.size() * get_vec_length();
-    const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
-    const int frame_size = rnd_up(vec_all_size + gpr_all_size, sp_aligment);
-
-    h->addi(sp, sp, -frame_size);
-    int imm = 0;
-    for (const auto& gpr_idx : gpr_regs) {
-        h->sd(Reg(gpr_idx), sp, imm);
-        imm += get_gpr_length();
+    // GPRs
+    {
+        const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
+        const int frame_size = rnd_up(gpr_all_size, sp_aligment);
+        h->addi(sp, sp, -frame_size);
+        int imm = 0;
+        for (const auto& gpr_idx : gpr_regs) {
+            h->sd(Reg(gpr_idx), sp, imm);
+            imm += get_gpr_length();
+        }
     }
-    for (const auto& vec_idx : target_vec_regs) {
-        h->addi(t0, sp, imm);
-        h->vse32_v(VReg(vec_idx), t0);
-        imm += get_vec_length();
+
+    // Vec regs
+    {
+        // TODO: support lmul
+        const int step = -rnd_up(get_vec_length(), sp_aligment);
+        for (const auto& vec_idx : target_vec_regs) {
+            h->addi(sp, sp, step);
+            h->vse32_v(VReg(vec_idx), sp);
+        }
     }
 }
 
@@ -216,21 +222,27 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
     std::set_difference(vec_regs.begin(), vec_regs.end(), ignore_vec_regs.begin(), ignore_vec_regs.end(),
                         std::inserter(target_vec_regs, target_vec_regs.begin()));
 
-    const auto vec_all_size = target_vec_regs.size() * get_vec_length();
-    const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
-    const int frame_size = rnd_up(vec_all_size + gpr_all_size, sp_aligment);
+    // GPRs
+    {
+        const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
+        const int frame_size = rnd_up(gpr_all_size, sp_aligment);
+        int imm = 0;
+        for (const auto& gpr_idx : gpr_regs) {
+            h->ld(Reg(gpr_idx), sp, imm);
+            imm += get_gpr_length();
+        }
+        h->addi(sp, sp, frame_size);
+    }
 
-    int imm = 0;
-    for (const auto& gpr_idx : gpr_regs) {
-        h->ld(Reg(gpr_idx), sp, imm);
-        imm += get_gpr_length();
+    // Vec regs
+    {
+        // TODO: support lmul
+        const int step = rnd_up(get_vec_length(), sp_aligment);
+        for (const auto& vec_idx : target_vec_regs) {
+            h->addi(sp, sp, step);
+            h->vle32_v(VReg(vec_idx), sp);
+        }
     }
-    for (const auto& vec_idx : target_vec_regs) {
-        h->addi(t0, sp, imm);
-        h->vle32_v(VReg(vec_idx), t0);
-        imm += get_vec_length();
-    }
-    h->addi(sp, sp, frame_size);
 }
 
 }  // namespace riscv64
