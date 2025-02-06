@@ -12,6 +12,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/utils/utils.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -125,7 +126,7 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
         if (!(constant && (ov::shape_size(input.get_shape()) == 1 ||
                            ov::is_type<ov::op::v0::FakeQuantize>(op)||
-                           ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op)))) {
+                           ov::snippets::utils::constant_input_should_be_inside_body(op)))) {
             count++;
         }
     }
@@ -201,6 +202,19 @@ std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_fusion_transpo
 }
 std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_decomposed_transpose_order(size_t rank) {
     return get_rank_equivalent_order({1, 2, 0}, rank);
+}
+
+bool ov::snippets::pass::TokenizeMHASnippets::is_internally_supported_transpose(const std::shared_ptr<opset1::Transpose>& transpose) {
+    const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    const auto& rank = order->get_output_partial_shape(0).rank();
+    // Note: only orders with rank 3 and above are supported
+    if (!order || rank.get_length() < 3)
+        return false;
+    const auto order_value = order->cast_vector<int>();
+    const auto transpose_child = *(transpose->get_output_target_inputs(0).begin());
+    const auto is_brgemm_case = ov::is_type<opset1::MatMul>(transpose_child.get_node()->shared_from_this());
+    return (is_brgemm_case && get_fusion_transpose_order(order_value.size()) == order_value) ||
+           (get_decomposed_transpose_order(order_value.size()) == order_value);
 }
 
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
@@ -470,7 +484,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                 const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
                 if (constant && (ov::shape_size(input.get_shape()) == 1 ||
                                  ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                                 op::Subgraph::constant_input_should_be_inside_body(node))) {
+                                 ov::snippets::utils::constant_input_should_be_inside_body(node))) {
                     // If Constant has one consumer - target node, we add Constant to body_inputs
                     // If Constant has several consumers, we should check that all these consumers are inside Subgraph body
                     // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we should
@@ -524,7 +538,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             OPENVINO_THROW("body results and node results size mismatch during subgraph collapse");
         }
 
-        auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
+        auto body = ov::snippets::utils::create_body(last_node->get_friendly_name(), body_results, body_parameters);
         auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
         // Copy runtime info from last node to subgraph - to copy topological order
         copy_runtime_info(last_node, subgraph);
@@ -535,7 +549,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
                 target_input.replace_source_output(subgraph->output(i));
             }
         }
-        op::update_out_tensor_name(subgraph);
+        ov::snippets::utils::update_out_tensor_name(subgraph);
 
         subgraph->validate_and_infer_types();
 

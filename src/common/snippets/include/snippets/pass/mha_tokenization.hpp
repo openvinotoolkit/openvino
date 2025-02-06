@@ -45,6 +45,11 @@ public:
 
     static std::vector<int32_t> get_fusion_transpose_order(size_t rank);
     static std::vector<int32_t> get_decomposed_transpose_order(size_t rank);
+    /***
+     * @brief Returns true if the transpose is supported by MHA pattern, i.e. can be fused to Brgemm or decomposed.
+     * @param transpose transpose node under consideration
+     */
+    static bool is_internally_supported_transpose(const std::shared_ptr<opset1::Transpose>& transpose);
     static bool is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul);
 };
 
