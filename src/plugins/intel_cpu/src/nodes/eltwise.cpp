@@ -1901,7 +1901,8 @@ void Eltwise::prepareParams() {
                                                 eltwise->getGamma()});
                 }
             } else if (node->getType() == Type::FakeQuantize) {
-                node->appendPostOps(key.postOps, {}, fqDataPtrs);
+                int channelAxis = 1;
+                node->appendPostOps(key.postOps, {}, fqDataPtrs, channelAxis);
             } else {
                 THROW_CPU_NODE_ERR("has unexpected fused op of type '", node->getTypeStr(), "'");
             }

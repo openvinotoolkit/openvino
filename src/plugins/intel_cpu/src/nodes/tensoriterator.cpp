@@ -156,7 +156,7 @@ public:
             getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
-    void execute(const dnnl::stream& strm, int iter = -1) override {
+    void execute(const dnnl::stream& strm, int iter) override {
         if (iter != 0) {
             reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
@@ -650,7 +650,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
-        mapper.second->execute(strm);
+        mapper.second->execute(strm, -1);
     }
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
@@ -672,7 +672,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
     }
 
     for (auto& mapper : last_mappers) {
-        mapper->execute(strm);
+        mapper->execute(strm, -1);
     }
 }
 
@@ -684,7 +684,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
-        mapper.second->execute(strm);
+        mapper.second->execute(strm, -1);
     }
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
@@ -868,7 +868,7 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 
             if (!newShape.isDynamic()) {
                 BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front());
-                mapper.execute(strm);
+                mapper.execute(strm, -1);
             }
         }
     }

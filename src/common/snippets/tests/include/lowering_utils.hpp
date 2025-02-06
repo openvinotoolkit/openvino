@@ -19,11 +19,12 @@ using BlockedShapeVector = ov::snippets::op::Subgraph::BlockedShapeVector;
 class DummyEmitter : public ov::snippets::Emitter {
 public:
     DummyEmitter(const std::vector<ov::Node::type_info_t>& custom_opset = {}) : ov::snippets::Emitter() {}
-    void emit_code(const std::vector<size_t>&,
-                   const std::vector<size_t>&,
-                   const std::vector<size_t>&,
-                   const std::vector<size_t>&) const override {}
     void emit_data() const override {}
+protected:
+    void emit_code_impl(const std::vector<size_t>&,
+                        const std::vector<size_t>&,
+                        const std::vector<size_t>&,
+                        const std::vector<size_t>&) const override {}
 };
 
 struct DummyCompiledSnippet : public ov::snippets::CompiledSnippet {

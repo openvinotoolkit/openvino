@@ -66,10 +66,10 @@ size_t jit_dnnl_emitter::get_inputs_num() const {
     return 1;
 }
 
-void jit_dnnl_emitter::emit_code(const std::vector<size_t>& in_vec_idxs,
-                                 const std::vector<size_t>& out_vec_idxs,
-                                 const std::vector<size_t>& pool_vec_idxs,
-                                 const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_dnnl_emitter::emit_code_impl(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs,
+                                      const std::vector<size_t>& pool_vec_idxs,
+                                      const std::vector<size_t>& pool_gpr_idxs) const {
     if (host_isa_ == cpu::x64::sse41) {
         if (out_vec_idxs[0] != in_vec_idxs[0]) {
             h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));

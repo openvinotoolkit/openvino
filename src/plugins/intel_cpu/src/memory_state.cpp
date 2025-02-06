@@ -58,7 +58,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto src = state->data();
 
     Memory mem(get_engine(), state_desc, src);
-    input_mem()->load(mem);
+    input_mem()->load(mem, true);
     reset_state_flag = false;
 }
 
@@ -97,7 +97,7 @@ ov::SoPtr<ov::ITensor> VariableStateBase::get_state() const {
 
     // reorder
     auto mem = std::make_shared<Memory>(get_engine(), current_ext_desc);
-    mem->load(*(internal_state_mem()));
+    mem->load(*(internal_state_mem()), true);
     return std::make_shared<Tensor>(mem);
 }
 
@@ -313,7 +313,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
                           m_scale_zp.at<float>({m, b, h, size_t{1}}));
         });
     } else {
-        m_internal_mem->load(external_mem);
+        m_internal_mem->load(external_mem, true);
     }
 
     // 2. Reset the beam search table
