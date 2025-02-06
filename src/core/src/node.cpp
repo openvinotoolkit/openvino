@@ -19,6 +19,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
@@ -533,8 +534,12 @@ bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
         (matcher->is_strict_mode() &&
          (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
           !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ INDEX, ELEMENT TYPE or PARTIAL SHAPE MISMATCH. EXPECTED IN PATTERN: ",
+                                                           pattern_value.get_index(), ", ", pattern_value.get_element_type(), ", ", pattern_value.get_partial_shape(),
+                                  ". OBSERVED IN GRAPH: ", graph_value.get_index(), ", ", graph_value.get_element_type(), ", ", graph_value.get_partial_shape());
         return false;
     }
+
     return match_node(matcher, graph_value);
 }
 
@@ -547,11 +552,20 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-        matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
-        auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
-        return true;
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "├─ TYPE MATCHED. CHECKING PATTERN ARGUMENTS");
+        if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
+            auto& pattern_map = matcher->get_pattern_value_map();
+            pattern_map[shared_from_this()] = graph_value;
+            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
+            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ ALL ARGUMENTS MATCHED");
+            return true;
+        }
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ ARGUMENTS DIDN'T MATCH");
+    } else {
+        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(shared_from_this()),
+                                                                                               ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
     }
     return false;
 }

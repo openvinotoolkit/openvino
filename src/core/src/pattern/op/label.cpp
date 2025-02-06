@@ -7,6 +7,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
+#include "openvino/util/log.hpp"
 
 ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
     switch (wrapped_values.size()) {
@@ -27,12 +28,19 @@ bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* match
         auto saved = matcher->start_match();
         matcher->add_node(graph_value);
         if (pattern_map.count(shared_from_this())) {
+            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ LABEL MATCHED: ", get_name());
             return saved.finish(pattern_map[shared_from_this()] == graph_value);
         } else {
             pattern_map[shared_from_this()] = graph_value;
-            return saved.finish(matcher->match_value(input_value(0), graph_value));
+            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level++), "├─ CHECKING INSIDE LABEL: ", get_name());
+            auto res = saved.finish(matcher->match_value(input_value(0), graph_value));
+            OPENVINO_DEBUG_EMPTY(matcher, level_string(--matcher->level), "│");
+            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ LABEL MATCHED"); // TODO: really not sure if we need it here
+            return res;
         }
     }
+    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
+    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ LABEL DIDN'T MATCH"); // TODO: really not sure if we need it here
     return false;
 }
 
