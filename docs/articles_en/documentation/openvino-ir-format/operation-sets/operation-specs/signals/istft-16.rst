@@ -42,7 +42,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
 
 * *normalized*
 
-  * **Description**: Flag that indicates wheather the input has been normalized. It is needed to correctly restore the signal and denormalize the output. Output of the STFT is divided by ``sqrt(frame_size)``, when normalized.
+  * **Description**: Flag that indicates whether the input has been normalized. It is needed to correctly restore the signal and denormalize the output. Output of the STFT is divided by ``sqrt(frame_size)``, when normalized.
   * **Range of values**:
 
     * ``false`` - input has not been normalized
@@ -55,7 +55,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
 
 * **1**: ``data`` - Tensor of type *T*, the ISTFT data input (compatible with a result of STFT operation). **Required.**
   * The data input shape can be 3D ``[fft_results, frames, 2]`` or 4D ``[batch, fft_results, frames, 2]``.
-* **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. If the ``window_length`` is smaller than ``frame_size``, window will be padded with zeros on the left and rigt sides. **Required.**
+* **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. If the ``window_length`` is smaller than ``frame_size``, window will be padded with zeros on the left and right sides. **Required.**
 * **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
 * **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing the distance (number of samples) between successive frames. **Required.**
 * **5**: ``signal_length`` - Scalar or single element 1D tensor of type *T_INT* describing the desired length of the output signal, if not provided it's calculated accordingly to the rules presented in the detailed description above. **Optional.**
