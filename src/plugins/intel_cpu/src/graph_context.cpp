@@ -26,7 +26,7 @@ GraphContext::GraphContext(Config config,
       m_numNumaNodes(1),
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       m_auxiliaryNetworkMemoryControl(std::make_shared<NetworkMemoryControl>()),
-      m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit()) {
+      m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit("main")) {
     if (m_streamExecutor) {
         m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_streamExecutor);
         m_numaNodeId = m_cpuStreamExecutor ? m_cpuStreamExecutor->get_numa_node_id() : 0;
