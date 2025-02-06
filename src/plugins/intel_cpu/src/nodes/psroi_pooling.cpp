@@ -301,7 +301,7 @@ void PSROIPooling::executeAverage(const inputType* srcData,
         wStart = std::min<int>(std::max<int>(wStart, 0), width);
         wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
 
-        const float binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
+        const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
 
         size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
         dstData[dstIndex] = 0;

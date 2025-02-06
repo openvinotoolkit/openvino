@@ -33,7 +33,7 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return impl_desc_type::asimd;
     }
 

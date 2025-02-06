@@ -5,6 +5,7 @@
 #include "reduce.h"
 
 #include <algorithm>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -91,7 +92,7 @@ struct ReduceKey {
     jit_reduce_config_params jcp;
     dnnl::post_ops postOps;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ReduceKey& rhs) const;
 };
 
@@ -1107,13 +1108,13 @@ private:
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
-            Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+            auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
             horiz_store(xmm_aux1, dst_dt, load_embedded);
         } else {
-            Xbyak::Zmm zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
+            auto zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
             vextractf32x4(xmm_aux1, zmm_dst, 0);
             vextractf32x4(xmm_aux2, zmm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
@@ -1862,13 +1863,13 @@ private:
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
-            Xbyak::Ymm ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
+            auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_aux1, ymm_dst, 0);
             vextractf128(xmm_aux2, ymm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
             horiz_store(xmm_aux1, dst_dt, load_embedded);
         } else {
-            Xbyak::Zmm zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
+            auto zmm_dst = Xbyak::Zmm(vmm_dst.getIdx());
             vextractf32x4(xmm_aux1, zmm_dst, 0);
             vextractf32x4(xmm_aux2, zmm_dst, 1);
             horiz_ps(xmm_aux1, xmm_aux2);
@@ -2178,7 +2179,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             }
 #endif
         } else {
-            supportedPrimitiveDescriptors.push_back({config, impl_type});
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
         }
     };
 
@@ -2291,11 +2292,11 @@ void Reduce::prepareParams() {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>(key.jcp, *attr.get()));
+            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>>(key.jcp, *attr.get());
         } else if (mayiuse(cpu::x64::avx2)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(key.jcp, *attr.get()));
+            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>>(key.jcp, *attr.get());
         } else if (mayiuse(cpu::x64::sse41)) {
-            post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(key.jcp, *attr.get()));
+            post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>>(key.jcp, *attr.get());
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (post_kernel) {
@@ -2419,11 +2420,11 @@ void Reduce::createPrimitive() {
 void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>(jcp));
+        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (mayiuse(cpu::x64::avx2)) {
-        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
+        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx2>>(jcp);
     } else if (mayiuse(cpu::x64::sse41)) {
-        kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
+        kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::sse41>>(jcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
     if (kernel) {
@@ -2440,8 +2441,8 @@ void Reduce::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 
-    const uint8_t* src_data = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t* dst_data = dstMemPtr->getDataAs<uint8_t>();
+    const auto* src_data = srcMemPtr->getDataAs<const uint8_t>();
+    auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
 
     if (empty_input && dst_size > 0) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -3018,7 +3019,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
 inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
     const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(&intermediate_buf[0]) : nullptr;
     const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
-    const float divisor = static_cast<float>(integerDivisor);
+    const auto divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
         parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
             const uint8_t* in_p = in_ptr + (ob * OC + oc) * OD * OH * OW * intermediate_data_size;
@@ -3034,7 +3035,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             (*reduce_post_kernel)(&arg);
         });
     } else if (layout == ReduceLayoutType::reduce_nspc) {
-        const size_t num_threads = static_cast<size_t>(parallel_get_max_threads());
+        const auto num_threads = static_cast<size_t>(parallel_get_max_threads());
         size_t OP = OB * OC >= num_threads ? OB * OC : OB * OC * OD;
         if (OP < num_threads && OW > blk_size) {
             OP *= OH;
@@ -3440,8 +3441,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<size_t>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<size_t>())) {
+        if (std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<>()) !=
+            std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<>())) {
             THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
         }
     } else {

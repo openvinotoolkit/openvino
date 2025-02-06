@@ -40,7 +40,7 @@ public:
                       const void* post_ops_data_) = 0;
     virtual ~MVNExecutor() = default;
 
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
     static VectorDims transformTo5DCase(const VectorDims& shape, bool initAcrossChannels);
 
@@ -55,10 +55,10 @@ using MVNExecutorCPtr = std::shared_ptr<const MVNExecutor>;
 class MVNExecutorBuilder {
 public:
     ~MVNExecutorBuilder() = default;
-    virtual bool isSupported(const MVNAttrs& mvnAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual bool isSupported(const MVNAttrs& mvnAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using MVNExecutorBuilderPtr = std::shared_ptr<MVNExecutorBuilder>;

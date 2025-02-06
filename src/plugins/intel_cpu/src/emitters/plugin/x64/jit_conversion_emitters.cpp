@@ -4,6 +4,8 @@
 
 #include "jit_conversion_emitters.hpp"
 
+#include <memory>
+
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl::impl::utils;
@@ -22,7 +24,7 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
       input_type(node->get_input_element_type(0)),
       output_type(node->get_output_element_type(0)) {
     if (output_type == ov::element::bf16) {
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
     }
 }
 

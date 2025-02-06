@@ -27,7 +27,6 @@ using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
-
 namespace node {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
@@ -149,7 +148,7 @@ struct RNNKey {
     dnnl::algorithm cellAct;
     dnnl::rnn_direction direction;
     dnnl::primitive_attr attr;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RNNKey& rhs) const;
 };
 
@@ -407,7 +406,7 @@ public:
         return m_shape_infer->get_pads_end();
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return m_shape_infer->get_port_mask();
     }
 
@@ -420,7 +419,7 @@ private:
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
 

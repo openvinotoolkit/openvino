@@ -15,6 +15,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64::matmul;
 
 #define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
+
 namespace ov {
 namespace intel_cpu {
 

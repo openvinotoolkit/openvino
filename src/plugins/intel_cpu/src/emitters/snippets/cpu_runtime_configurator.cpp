@@ -11,6 +11,7 @@
 #    include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
 #    include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
 #endif
+
 namespace ov {
 namespace intel_cpu {
 using namespace ov::snippets::lowered::pass;

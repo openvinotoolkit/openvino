@@ -4,6 +4,7 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -62,7 +63,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
         auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
                                                     : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa, element::bf16, mode);
     }
 
     const auto& jep = jep_;

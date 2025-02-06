@@ -88,4 +88,5 @@ void jit_perf_count_rdtsc_end_emitter::emit_impl(const std::vector<size_t>& in_i
 
 }  // namespace intel_cpu
 }  // namespace ov
+
 #endif  // SNIPPETS_DEBUG_CAPS

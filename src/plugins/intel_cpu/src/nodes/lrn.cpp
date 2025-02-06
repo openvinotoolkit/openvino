@@ -30,7 +30,7 @@ struct LrnKey {
     float beta;
     dnnl::primitive_attr attr;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const LrnKey& rhs) const;
 };
 

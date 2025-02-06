@@ -5,6 +5,7 @@
 #include "qkv_proj.hpp"
 
 #include "transformations/itt.hpp"
+
 namespace ov {
 namespace intel_cpu {
 

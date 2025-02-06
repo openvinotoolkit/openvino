@@ -239,8 +239,8 @@ void MultiClassNms::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MultiClassNms::execute(const dnnl::stream& strm) {
-    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
-    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
+    const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     auto dims_scores = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -385,7 +385,7 @@ void MultiClassNms::execute(const dnnl::stream& strm) {
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
     int* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
-    float* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
+    auto* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
     int* selected_num = validOutputsMemPtr->getDataAs<int>();
 
     auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
@@ -449,7 +449,7 @@ bool MultiClassNms::created() const {
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
     float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    const float norm = static_cast<float>(normalized == false);
+    const auto norm = static_cast<float>(normalized == false);
 
     // to align with reference
     yminI = boxesI[0];
@@ -540,7 +540,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                             adaptive_threshold *= m_nmsEta;
                         }
                         if (currBox.score == origScore) {
-                            fb.push_back({currBox.score, batch_idx, class_idx, currBox.idx});
+                            fb.emplace_back(currBox.score, batch_idx, class_idx, currBox.idx);
                             continue;
                         }
                         if (currBox.score > m_scoreThreshold) {
@@ -620,7 +620,7 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
             int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
             for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // align with ref
-                    sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
+                    sorted_boxes.emplace_back(scoresPtr[box_idx], box_idx);
                 }
             }
 

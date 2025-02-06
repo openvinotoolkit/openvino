@@ -42,16 +42,16 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& 
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc) {
     if (MemoryDescType::DnnlBlocked == desc.getType()) {
-        return DnnlBlockedMemoryDesc(*desc.as<DnnlBlockedMemoryDesc>());
+        return {*desc.as<DnnlBlockedMemoryDesc>()};
     } else if (MemoryDescType::Blocked == desc.getType()) {
         const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
-        return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(),
-                                     cpuDesc->getShape(),
-                                     cpuDesc->getBlockDims(),
-                                     cpuDesc->getOrder(),
-                                     cpuDesc->getOffsetPadding(),
-                                     cpuDesc->getOffsetPaddingToData(),
-                                     cpuDesc->getStrides());
+        return {cpuDesc->getPrecision(),
+                cpuDesc->getShape(),
+                cpuDesc->getBlockDims(),
+                cpuDesc->getOrder(),
+                cpuDesc->getOffsetPadding(),
+                cpuDesc->getOffsetPaddingToData(),
+                cpuDesc->getStrides()};
     } else {
         OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
     }

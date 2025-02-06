@@ -209,8 +209,8 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
     int ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     int OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 
-    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
-    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
+    std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
+    std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
     if (layout == InterpolateLayoutType::planar) {
         // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
         // EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
@@ -341,10 +341,10 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
         int sizeOH = OH * diaOH;
         int sizeOW = OW * diaOW;
         indexTable.resize((sizeOD + sizeOH + sizeOW) * 2);
-        float* weightTable = reinterpret_cast<float*>(&indexTable[0]);
-        float* weightOD = static_cast<float*>(&weightTable[0]);
-        float* weightOH = static_cast<float*>(&weightTable[sizeOD]);
-        float* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
+        auto* weightTable = reinterpret_cast<float*>(&indexTable[0]);
+        auto* weightOD = static_cast<float*>(&weightTable[0]);
+        auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
+        auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
         int* idxTable = static_cast<int*>(&indexTable[sizeOD + sizeOH + sizeOW]);
         int* idxOD = static_cast<int*>(&idxTable[0]);
@@ -431,7 +431,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
     int tblAdvance = 0;
     int* xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
     tblAdvance += OW;
-    float* xFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
+    auto* xFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
     for (int ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
         int ix_r = static_cast<int>(std::floor(ix));
@@ -447,7 +447,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
     tblAdvance += CUBIC_GRID_LEN * OW;
     int* yOrigin = static_cast<int*>(&indexTable[tblAdvance]);
     tblAdvance += OH;
-    float* yFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
+    auto* yFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
     for (int oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
         int iy_r = static_cast<int>(std::floor(iy));
@@ -515,7 +515,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
 
         if (interpAttrs.layout == InterpolateLayoutType::planar) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-            uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+            auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
             parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
                 const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                         inShapeBlock[3] * d + inShapeBlock[4] * h) *
@@ -529,7 +529,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-            uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+            auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
             parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
                 const uint8_t* src = src_data_origin +
                                      (inShapeBlock[1] * n +
@@ -549,7 +549,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
-            uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
+            auto* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
             if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
                 OPENVINO_THROW("Interpolate executor does not support padding on batch and channel dimensions");
             }

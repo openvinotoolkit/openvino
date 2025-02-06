@@ -50,10 +50,8 @@ Node::NodesFactory& Node::factory() {
 }
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
-    : selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
-      context(std::move(ctx)),
-      algorithm(Algorithm::Default),
+    : context(std::move(ctx)),
+
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -184,8 +182,7 @@ Node::Node(const std::string& type,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
-      selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
+
       context(ctx),
       originalInputPrecisions(std::move(inputPrecisions)),
       originalOutputPrecisions(std::move(outputPrecisions)),

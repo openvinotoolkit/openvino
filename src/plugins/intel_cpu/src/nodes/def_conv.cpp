@@ -4,9 +4,9 @@
 
 #include "def_conv.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <common/dnnl_thread.hpp>
+#include <memory>
 #include <openvino/op/deformable_convolution.hpp>
 #include <string>
 #include <vector>
@@ -720,7 +720,7 @@ struct DefConvKey {
     DeformableConvolution::DefConvAttr defConvAttr;
     impl_desc_type implType;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const DefConvKey& rhs) const;
 };
 
@@ -901,7 +901,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         }
         config.outConfs[0].setMemDesc(
             std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32, dataFormat));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     } else {
         // reference implementation
         config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
@@ -921,7 +921,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
                                                                               memory::data_type::f32,
                                                                               memory::format_tag::nchw));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
 
@@ -1131,11 +1131,11 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
     : DefConvExecutor(defConvAttr, descVector) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>(jcp));
+        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (mayiuse(cpu::x64::avx2)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
+        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::avx2>>(jcp);
     } else if (mayiuse(cpu::x64::sse41)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+        def_conv_kernel = std::make_shared<jit_uni_def_conv_kernel_f32<cpu::x64::sse41>>(jcp);
     } else {
         OPENVINO_THROW("Can't create DefConvJitExecutor");
     }
@@ -1359,7 +1359,7 @@ void DeformableConvolution::execute(const dnnl::stream& strm) {
         modulation = getSrcDataAtPortAs<float>(3);
     }
 
-    float* dst = dstMemory.getDataAs<float>();
+    auto* dst = dstMemory.getDataAs<float>();
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {

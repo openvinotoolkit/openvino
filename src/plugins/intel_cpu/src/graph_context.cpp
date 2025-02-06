@@ -23,7 +23,7 @@ GraphContext::GraphContext(Config config,
       m_isGraphQuantizedFlag(isGraphQuantized),
       m_streamExecutor(std::move(streamExecutor)),
       m_subMemoryManager(std::move(sub_memory_manager)),
-      m_numNumaNodes(1),
+
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       m_networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
     if (m_streamExecutor) {

@@ -31,7 +31,7 @@ bool StaticDimension::operator!=(const StaticDimension& dim) const {
 }
 
 StaticDimension StaticDimension::operator+(const StaticDimension& dim) const {
-    return StaticDimension(m_dimension + dim.m_dimension);
+    return {m_dimension + dim.m_dimension};
 }
 
 StaticDimension& StaticDimension::operator+=(const StaticDimension& dim) {
@@ -39,11 +39,11 @@ StaticDimension& StaticDimension::operator+=(const StaticDimension& dim) {
 }
 
 StaticDimension StaticDimension::operator-(const StaticDimension& dim) const {
-    return StaticDimension(m_dimension - dim.m_dimension);
+    return {m_dimension - dim.m_dimension};
 }
 
 StaticDimension StaticDimension::operator*(const StaticDimension& dim) const {
-    return StaticDimension(m_dimension * dim.m_dimension);
+    return {m_dimension * dim.m_dimension};
 }
 
 StaticDimension& StaticDimension::operator*=(const StaticDimension& dim) {
@@ -56,7 +56,7 @@ StaticDimension StaticDimension::operator/(const value_type divisor) const {
     if (m_dimension % divisor) {
         return StaticDimension{};
     }
-    return StaticDimension(m_dimension / divisor);
+    return {m_dimension / divisor};
 }
 
 StaticDimension& StaticDimension::operator/=(const value_type divisor) {

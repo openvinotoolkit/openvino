@@ -176,11 +176,11 @@ void DetectionOutput::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void DetectionOutput::execute(const dnnl::stream& strm) {
-    float* dstData = getDstDataAtPortAs<float>(0);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
-    const float* locData = getSrcDataAtPortAs<const float>(ID_LOC);
-    const float* confData = getSrcDataAtPortAs<const float>(ID_CONF);
-    const float* priorData = getSrcDataAtPortAs<const float>(ID_PRIOR);
+    const auto* locData = getSrcDataAtPortAs<const float>(ID_LOC);
+    const auto* confData = getSrcDataAtPortAs<const float>(ID_CONF);
+    const auto* priorData = getSrcDataAtPortAs<const float>(ID_PRIOR);
     const float* ARMConfData = inputShapes.size() > 3 ? getSrcDataAtPortAs<const float>(ID_ARM_CONF) : nullptr;
     const float* ARMLocData = inputShapes.size() > 4 ? getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
 
@@ -405,7 +405,7 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
                 for (int i = 0; i < detections; ++i) {
                     int pr = pindices[i];
                     mtx.lock();
-                    confIndicesClassMap.push_back(std::make_pair(pconf[pr], std::make_pair(c, pr)));
+                    confIndicesClassMap.emplace_back(pconf[pr], std::make_pair(c, pr));
                     mtx.unlock();
                 }
             });

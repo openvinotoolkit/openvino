@@ -4,8 +4,7 @@
 
 #include "adaptive_pooling.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>

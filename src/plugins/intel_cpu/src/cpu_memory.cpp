@@ -32,7 +32,7 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 
 namespace {
 inline void setSubnormalsToZero(float* data, size_t size) {
-    uint32_t* u32data = reinterpret_cast<uint32_t*>(data);
+    auto* u32data = reinterpret_cast<uint32_t*>(data);
     for (size_t i = 0; i < size; ++i) {
         if ((u32data[i] & (0xFF << 23)) == 0) {
             u32data[i] = 0;
@@ -638,7 +638,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
     VectorDims stride_dims = dims;
     stride_dims[dim] = splited_dim_vec[0];
     size_t stride =
-        std::accumulate(stride_dims.begin(), stride_dims.end(), static_cast<size_t>(1), std::multiplies<size_t>()) *
+        std::accumulate(stride_dims.begin(), stride_dims.end(), static_cast<size_t>(1), std::multiplies<>()) *
         prec.size();
 
     // create new shape for target memory

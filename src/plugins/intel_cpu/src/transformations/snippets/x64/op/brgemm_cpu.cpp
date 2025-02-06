@@ -187,5 +187,4 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 }  // namespace intel_cpu
-
 }  // namespace ov

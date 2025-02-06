@@ -313,7 +313,7 @@ void Split::execute(const dnnl::stream& strm) {
         return;
     }
 
-    uint8_t* srcData = srcMem.getDataAs<uint8_t>();
+    auto* srcData = srcMem.getDataAs<uint8_t>();
     OPENVINO_ASSERT(execPtr != nullptr);
     execPtr->exec(srcData, getRawDstMemPtrs());
 }

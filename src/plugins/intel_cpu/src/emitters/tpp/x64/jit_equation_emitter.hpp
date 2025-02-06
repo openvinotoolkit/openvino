@@ -5,6 +5,7 @@
 #pragma once
 
 #include "jit_tpp_emitter.hpp"
+
 namespace ov {
 namespace intel_cpu {
 

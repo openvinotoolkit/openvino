@@ -34,7 +34,7 @@ public:
                             arm_compute::Pooling3dLayerInfo* pool3d_info,
                             bool ignoreOutShapeErrors = false);
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
@@ -51,9 +51,9 @@ private:
 
 class AclPoolingExecutorBuilder : public PoolingExecutorBuilder {
 public:
-    bool isSupported(const PoolingAttrs& poolingAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported(const PoolingAttrs& poolingAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override {
         if ((srcDescs[0]->getPrecision() != ov::element::f32 && dstDescs[0]->getPrecision() != ov::element::f32) &&
             (srcDescs[0]->getPrecision() != ov::element::f16 && dstDescs[0]->getPrecision() != ov::element::f16)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
@@ -125,7 +125,7 @@ public:
         return true;
     }
 
-    PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclPoolingExecutor>(context);
     }
 };

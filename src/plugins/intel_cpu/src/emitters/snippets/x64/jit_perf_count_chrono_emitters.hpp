@@ -41,4 +41,5 @@ private:
 
 }  // namespace intel_cpu
 }  // namespace ov
+
 #endif  // SNIPPETS_DEBUG_CAPS

@@ -56,7 +56,7 @@ public:
      *
      * @return port_mask_t a bit mask where each bit corresponds to an input port number.
      */
-    virtual port_mask_t get_port_mask() const = 0;
+    [[nodiscard]] virtual port_mask_t get_port_mask() const = 0;
 };
 
 /**
@@ -86,7 +86,7 @@ constexpr IShapeInfer::port_mask_t FULL_PORT_MASK = 0xffffffff;
 class ShapeInferFactory {
 public:
     virtual ~ShapeInferFactory() = default;
-    virtual ShapeInferPtr makeShapeInfer() const = 0;
+    [[nodiscard]] virtual ShapeInferPtr makeShapeInfer() const = 0;
 };
 
 /**
@@ -102,7 +102,7 @@ public:
      */
     NgraphShapeInferFactory(std::shared_ptr<ov::Node> op);
 
-    ShapeInferPtr makeShapeInfer() const override;
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:
     std::shared_ptr<ov::Node> m_op;

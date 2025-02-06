@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -11,6 +13,7 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
+
 namespace intel_cpu {
 namespace brgemm_utils {
 
@@ -64,7 +67,7 @@ size_t compute_inner_k_block(const ov::element::Type& precision);
 /// \brief  Computes N dim in output blocked shape of BrgemmCopyB. Depends on tensor precision
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T compute_repacked_n_dim(T n, const ov::element::Type& precision) {
     return ov::snippets::utils::rnd_up(n, static_cast<T>(compute_inner_n_block(precision)));
 }
@@ -78,6 +81,7 @@ snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::Expres
 }  // namespace repacking
 }  // namespace brgemm_utils
 }  // namespace intel_cpu
+
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE>
     : public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {

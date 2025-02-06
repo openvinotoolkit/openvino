@@ -18,6 +18,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace ov::snippets::utils;
 
 namespace ov {
+
 namespace intel_cpu {
 namespace brgemm_utils {
 
@@ -142,6 +143,7 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
 }  // namespace repacking
 }  // namespace brgemm_utils
 }  // namespace intel_cpu
+
 template <>
 EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>::get() {
     static auto enum_names = EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>(

@@ -238,5 +238,5 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
     return;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

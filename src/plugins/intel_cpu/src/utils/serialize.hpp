@@ -16,7 +16,7 @@ namespace intel_cpu {
 
 class ModelSerializer {
 public:
-    typedef std::function<std::string(const std::string&)> CacheEncrypt;
+    using CacheEncrypt = std::function<std::string(const std::string&)>;
 
     ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn = {});
 
@@ -29,9 +29,8 @@ private:
 
 class ModelDeserializer {
 public:
-    typedef std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&,
-                                                     const std::shared_ptr<ov::AlignedBuffer>&)>
-        ModelBuilder;
+    using ModelBuilder = std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&,
+                                                                  const std::shared_ptr<ov::AlignedBuffer>&)>;
 
     ModelDeserializer(std::istream& model,
                       std::shared_ptr<ov::AlignedBuffer> model_buffer,

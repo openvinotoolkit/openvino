@@ -83,4 +83,5 @@ void DebugCapsConfig::readProperties() {
 
 }  // namespace intel_cpu
 }  // namespace ov
+
 #endif  // CPU_DEBUG_CAPS

@@ -92,7 +92,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
                                                                   srcMemoryDescs,
                                                                   dstMemoryDescs,
                                                                   transpose_context);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, factory});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
     };
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);

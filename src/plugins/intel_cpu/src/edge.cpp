@@ -10,6 +10,7 @@
 #include "openvino/util/pp.hpp"
 
 using namespace dnnl;
+
 namespace ov {
 namespace intel_cpu {
 

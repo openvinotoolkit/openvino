@@ -65,7 +65,7 @@ enum coord { w, h };
 
 class GridSampleKernelBase : public JitKernelBase {
 public:
-    void (*ker_)(const GridSamplesKernelExecArgs*);
+    void (*ker_)(const GridSamplesKernelExecArgs*){nullptr};
     void operator()(const GridSamplesKernelExecArgs* args) {
         assert(ker_);
         ker_(args);
@@ -75,7 +75,7 @@ public:
                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                                   uint64_t vlen)
         : JitKernelBase(name, isa),
-          ker_(nullptr),
+
           jcp(jcp),
           vlen(vlen),
           dataTypeSize(jcp.inDataPrc.size()),

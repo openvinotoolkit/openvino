@@ -83,4 +83,5 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_
 
 }  // namespace intel_cpu
 }  // namespace ov
+
 #endif  // SNIPPETS_DEBUG_CAPS

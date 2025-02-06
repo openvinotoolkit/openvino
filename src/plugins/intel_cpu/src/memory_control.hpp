@@ -34,7 +34,7 @@ public:
 
     MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
 
-    bool allocated() const {
+    [[nodiscard]] bool allocated() const {
         return m_allocated;
     }
 

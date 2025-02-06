@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <assert.h>
-
+#include <cassert>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -53,5 +52,4 @@ public:
     std::mutex _flagMutex;
 };
 }  // namespace intel_cpu
-
 }  // namespace ov

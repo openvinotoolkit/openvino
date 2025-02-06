@@ -7,6 +7,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -18,7 +19,7 @@ public:
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
 
@@ -29,7 +30,7 @@ private:
 class FCShapeInferFactory : public ShapeInferFactory {
 public:
     FCShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<FCShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length());
     }
 

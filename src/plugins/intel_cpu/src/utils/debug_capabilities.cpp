@@ -667,7 +667,7 @@ std::string to_string(const T* values, size_t N, size_t maxsize) {
             ss << "..." << N << "in total";
             break;
         }
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
+        if (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
             ss << static_cast<int>(values[i]);
         } else {
             ss << values[i];

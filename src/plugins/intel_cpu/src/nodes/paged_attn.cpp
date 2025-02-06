@@ -35,7 +35,7 @@ namespace node {
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
 };
 

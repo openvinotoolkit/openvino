@@ -31,4 +31,6 @@ std::string codec_xor_str(const std::string& source_str) {
 }
 
 }  // namespace intel_cpu
-}  // namespace ov.
+}  // namespace ov
+
+   // namespace ov.

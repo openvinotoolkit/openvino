@@ -28,16 +28,19 @@
 # -google-default-arguments,
 # -google-explicit-constructor,
 # -google-readability-casting,
+# -modernize-avoid-c-arrays,
 # -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # -modernize-concat-nested-namespaces. More compact way when C++17 is available
+# -modernize-use-constraints,
+# -modernize-use-std-numbers - to be enabled when align CI validation
 
 Checks: >
   -*,
   performance-*,
   google-*,
-  modernize-pass-by-value,
+  modernize-*,
   cppcoreguidelines-prefer-member-initializer,
   -bugprone-easily-swappable-parameters,
   -bugprone-fold-init-type,
@@ -51,6 +54,11 @@ Checks: >
   -google-readability-casting,
   -google-readability-todo,
   -readability-braces-around-statements,
+  -modernize-avoid-c-arrays,
+  -modernize-concat-nested-namespaces,
+  -modernize-loop-convert,
+  -modernize-use-constraints,
+  -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
   -readability-identifier-length,
   -readability-implicit-bool-conversion,
@@ -58,7 +66,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,
   -readability-function-cognitive-complexity,
-  -modernize-concat-nested-namespaces,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
