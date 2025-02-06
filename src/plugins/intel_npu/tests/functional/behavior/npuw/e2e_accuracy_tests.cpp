@@ -8,6 +8,7 @@
 #include "openvino/util/file_util.hpp"
 
 #include <filesystem>
+#include <algorithm>
 
 using namespace testing;
 using namespace ov::npuw::tests;
@@ -23,7 +24,7 @@ using namespace ov::intel_npu::npuw;
 template <typename T>
 T get_or_default(ov::AnyMap& config, const std::string& key, const T& default_value) {
     if (auto it = config.find(key); it != config.end()) {
-        returm config[key].as<T>();
+        return config[key].as<T>();
     }
     return default_value;
 }
@@ -66,16 +67,16 @@ public:
         const uint32_t m_seq_len_dim = get_or_default(properties, "NPUW_LLM_SEQ_LEN_DIM", 2);
 
         // Replace CACHE_DIR option if NPUW is enabled
-        if (properties.count("NPU_USE_NPUW") != 0u && properties.count("CACHE_DIR") != 0u) {
+        if (properties.count("CACHE_DIR") != 0u) {
             std::string cache_dir = properties["CACHE_DIR"].as<std::string>();
             properties.emplace("NPUW_CACHE_DIR", cache_dir);
             properties.erase("CACHE_DIR");
         }
 
-        std::shared_ptr<ov::Model> model = core.read_model("openvino_model.xml");
+        std::shared_ptr<ov::Model> model = core.read_model(model_path);
         m_compiled_model =
             std::make_shared<ov::CompiledModel>(core.compile_model(model, "NPU",
-            config));
+            properties));
         m_request = std::make_shared<ov::InferRequest>(m_compiled_model->create_infer_request());
     }
 
@@ -84,7 +85,7 @@ public:
 
         PRINT_ARRAY(input_ids_vec, input_ids_vec.size());
         ov::Tensor input_ids(ov::element::i64, ov::Shape{1, input_ids_vec.size()},
-                             input_ids_vec.data());
+                             reinterpret_cast<void*>(const_cast<int64_t*>((input_ids_vec.data()))));
 
         auto shape = input_ids.get_shape();
         ov::Tensor attention_mask{input_ids.get_element_type(), shape};
@@ -109,8 +110,8 @@ public:
         int64_t sum = 0;
         for (size_t i = 0; i < seq_length; i++) {
             const size_t element_offset = seq_length + i;
-            position_ids_raw_data[element_offset] = sum;
-            if (attention_mask_raw_data[element_offset] == 1) {
+            position_ids_raw_data[i] = sum;
+            if (attention_mask_raw_data[i] == 1) {
                 sum += 1;
             }
         }
@@ -142,7 +143,7 @@ public:
 
         std::size_t total_generated_tokens{1};
         // parametrize
-        for (; total_generated_tokens < m_max_prompt_len; total_generated_tokens++) {
+        for (; total_generated_tokens < 16; total_generated_tokens++) {
             // KV Cache is full, no further generation is possible
             if (position_ids_data + 1 == m_kvcache_total) {
                 break;
@@ -164,10 +165,10 @@ public:
         return result;
     }
 private:
-    uint32_t m_batch_dim{-1};
-    uint32_t m_seq_len_dim{-1};
-    int64_t m_max_prompt_len{-1};
-    int64_t m_kvcache_total{-1};
+    uint32_t m_batch_dim{0};
+    uint32_t m_seq_len_dim{0};
+    uint32_t m_max_prompt_len{0};
+    uint32_t m_kvcache_total{0};
     std::shared_ptr<ov::CompiledModel> m_compiled_model;
     std::shared_ptr<ov::InferRequest> m_request;
 };
@@ -180,6 +181,7 @@ public:
     std::shared_ptr<ov::Model> model;
 
     void SetUp() override {
+        // Register TEMPLATE plugin in OpenVINO:
         auto plugin_path =
             ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                             std::string(ov::test::utils::TEMPLATE_LIB)
@@ -192,6 +194,7 @@ public:
         auto param = GetParam();
         ov::AnyMap config;
         std::tie(m_model_path, config, m_reference) = param;
+        config["NPUW_DEVICES"] = "TEMPLATE";
         m_simple_llm.initialize(m_model_path, core, config);
     }
 
@@ -207,8 +210,10 @@ public:
         PRINT_ARRAY(m_actual, m_actual.size());
     }
 
-    bool accurate() {
-        return std::equal(m_actual.begin(), m_actual.end(), m_reference.begin());
+    void accurate() {
+        for (auto i = 0; i < m_actual.size(); ++i) {
+            ASSERT_EQ(m_actual[i], m_reference[i]);
+        }
     }
 
 private:
@@ -219,12 +224,11 @@ private:
 };
 
 TEST_P(E2EAccuracyTest, DefaultConfigIsAccurate) {
-    // Register TEMPLATE plugin in OpenVINO:    
     generate();
     accurate();
 }
 
 INSTANTIATE_TEST_SUITE_P(AccuracyNPUW, E2EAccuracyTest,
-    ::testing::Combine("C:\\apronina\\models\\TinyLlama\\openvino_model.xml",
-                       ov::AnyMap{},
-                       std::vector<int64_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}))
+    ::testing::Combine(testing::Values("C:\\apronina\\models\\TinyLlama\\openvino_model.xml"),
+                       testing::Values(ov::AnyMap{}),
+                       testing::Values(std::vector<int64_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})));
