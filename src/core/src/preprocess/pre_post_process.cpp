@@ -9,6 +9,8 @@
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "preprocess_impls.hpp"
+#include "transformations/common_optimizations/moc_transformations.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -200,6 +202,20 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     while (!function->get_results().empty())
         function->remove_result(*function->get_results().begin());
     function->add_results(results);
+
+    // After switching from ModelOptimizer to OVC, the order of
+    // applying PrePostProcessing and MOCTransformations has changed:
+    //
+    // MO path : [fw model conversion -> PrePostProcessing -> MOC] -> nncf
+    // OVC path: [fw model conversion -> MOC] -> PrePostProcessing -> nncf
+    //
+    // Since nncf is applied with a not fully optimized model, extra FQ ops might appear,
+    // which can affect both accuracy and performance.
+    // PrePostProcessing is not part of OVC, so we have to insert an additional
+    // MOC call inside PrePostProcessing.
+    ov::pass::Manager manager("pre_post_processing");
+    manager.register_pass<ov::pass::MOCTransformations>(false);
+    manager.run_passes(function);
 
     guard.reset();
     return function;
