@@ -127,12 +127,12 @@ void CheckWeightlessCacheAccuracy::run() {
         if (stat(path.c_str(), &result) == 0) {
             return result.st_mtime;
         }
-        return static_cast<__time_t>(0);
+        return static_cast<time_t>(0);
     };
 
     auto first_cache_path = get_cache_path();
     auto first_mod_time = get_mod_time(first_cache_path);
-    ASSERT_NE(first_mod_time, static_cast<__time_t>(0));
+    ASSERT_NE(first_mod_time, static_cast<time_t>(0));
 
     ov::CompiledModel imported_model;
     if (use_compile_model_api) {
