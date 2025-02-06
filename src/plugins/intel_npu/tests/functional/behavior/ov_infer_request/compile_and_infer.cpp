@@ -31,4 +31,11 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                                                 {ov::intel_npu::defer_weights_load(false)}})),
                          ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequestTurbo>);
 
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
+                         OVCompileAndInferRequesOnNewerDrivers,
+                         ::testing::Combine(::testing::Values(getConstantGraph(ov::element::f32)),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(configs)),
+                         ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequest>);
+
 }  // namespace
