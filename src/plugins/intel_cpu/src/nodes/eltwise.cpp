@@ -793,7 +793,13 @@ public:
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseMultiply,
+                    Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSubtract)) {
+            return false;
+        }
+
+        // TODO: Support LeakyRelu
+        if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
             return false;
         }
 
