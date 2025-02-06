@@ -106,6 +106,8 @@ protected:
 
     // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
     const size_t sp_aligment = 16;
+    // GP register count
+    const size_t gpr_count = 32;
     // Vector register count
     const size_t vec_count = 32;
     // integer gpr byte size
@@ -119,6 +121,8 @@ protected:
             = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
     const size_t num_abi_save_fp_gpr_regs
             = sizeof(abi_save_fp_gpr_regs) / sizeof(abi_save_fp_gpr_regs[0]);
+    const size_t num_abi_param_regs
+            = sizeof(abi_param_regs) / sizeof(abi_param_regs[0]);
 
     Xbyak_riscv::LMUL float2lmul(const float lmul) const;
     float lmul2float(const Xbyak_riscv::LMUL lmul) const;
