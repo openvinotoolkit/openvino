@@ -617,3 +617,15 @@ def test_tensor_keeps_memory():
 
     tensor = get_tensor()
     assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
+
+
+def test_init_from_data_ptr():
+    arr = np.ones((8, 16, 300), dtype=np.float32)
+    assert sys.getrefcount(arr) == 2
+
+    pointer, _ = arr.__array_interface__["data"]
+    tensor = ov.Tensor(pointer, ov.Shape(arr.shape), ov.Type.f32)
+    arr[0][0][0:2] = 0
+    assert sys.getrefcount(arr) == 2
+
+    assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
