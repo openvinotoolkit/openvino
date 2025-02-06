@@ -280,8 +280,6 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_scalar_scale = {
     {{{}, {{1, 10, 128}}}, {128, 32}},
 };
 
-const std::vector<ov::test::ElementType> weights_precisions_scalar_scale = {ov::element::u8};
-
 std::vector<ov::AnyMap> filter_additional_config_scalar_scale() {
     std::vector<ov::AnyMap> additional_config = {
         {{ov::hint::dynamic_quantization_group_size(0)}},
@@ -293,7 +291,7 @@ std::vector<ov::AnyMap> filter_additional_config_scalar_scale() {
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_scalar_scale,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_scalar_scale),
-                                            ::testing::ValuesIn(weights_precisions_scalar_scale),
+                                            ::testing::Values(ov::element::u8),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::undefined),
                                             ::testing::Values(false),
@@ -301,6 +299,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_scalar_scale,
                                             ::testing::Values(DecompressionType::scalar),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_scalar_scale()),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+
+const std::vector<MatMulDecompressionShapeParams> input_shapes_non_multiples_groups = {
+    {{{}, {{1, 3, 192}}}, {192, 128}, 96lu},
+};
+
+std::vector<ov::AnyMap> filter_additional_config_non_multiples_groups() {
+    std::vector<ov::AnyMap> additional_config = {
+        {{ov::hint::dynamic_quantization_group_size(64)}}
+    };
+    return additional_config;
+}
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_multiples_groups,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_non_multiples_groups),
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::ValuesIn(transpose_weights),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_non_multiples_groups()),
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
