@@ -67,8 +67,10 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> configurators({{LayoutType::ncsp, dataPrecision},
                                                  {LayoutType::ncsp, dataPrecision},
                                                  {LayoutType::ncsp, ov::element::i32},
-                                                 {LayoutType::ncsp, ov::element::i32},
                                                  {LayoutType::ncsp, ov::element::i32}});
+    if (getParentEdges().size() == 5) {
+        configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
+    }
 
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
