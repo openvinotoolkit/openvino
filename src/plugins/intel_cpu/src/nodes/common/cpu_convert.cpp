@@ -504,9 +504,7 @@ struct ConvertContext {
     bool converted;
 
     template <typename T>
-    [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] std::
-        tuple<T, T>
-        range() const {
+    [[nodiscard]] std::tuple<T, T> range() const {
         Range<T> r;
         r.fit(interimPrc);
         return r.fit(dstPrc);
