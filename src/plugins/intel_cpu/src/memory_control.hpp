@@ -81,7 +81,6 @@ public:
 
     std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
 
-private:
     const std::vector<MemoryControl::Ptr>& controlUnits() const {
         return m_controlUnits;
     }

@@ -26,7 +26,7 @@ static void dumpStatistics(std::ostream& os,
         os << "Memory stats for graph name: " << graph_lock._graph.GetName() << std::endl;
         os << std::endl;
         auto ctx = graph_lock._graph.getGraphContext();
-        auto&& statistics = ctx->getNetworkMemoryControl()->dumpStatistics();
+        auto&& statistics = ctx->getAuxiliaryNetworkMemoryControl()->dumpStatistics();
 
         for (auto&& stat : statistics) {
             os << "Memory control ID: " << stat.first << std::endl;
@@ -58,7 +58,7 @@ static void dumpStatisticsCSV(std::ofstream& os,
         CompiledModel::GraphGuard::Lock graph_lock{graph};
         os << "Memory stats for graph name: " << graph_lock._graph.GetName() << ";;;;;;" << std::endl;
         auto ctx = graph_lock._graph.getGraphContext();
-        auto&& statistics = ctx->getNetworkMemoryControl()->dumpStatistics();
+        auto&& statistics = ctx->getAuxiliaryNetworkMemoryControl()->dumpStatistics();
 
         for (auto&& stat : statistics) {
             os << "Memory control ID: " << stat.first << ";;;;;;" << std::endl;
