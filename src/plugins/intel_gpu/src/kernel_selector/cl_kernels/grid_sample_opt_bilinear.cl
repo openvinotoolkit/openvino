@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,40 +224,19 @@ KERNEL(grid_sample_opt_bilinear)(const __global data_t* restrict data,
 #if !defined(INTERPOLATION_MODE_BILINEAR)
 #error [clDNN grid_sample_opt_bilinear.cl]: This kernel only support bilinear interppolation mode.
 #endif
-    __local grid_t grid_for_this_block_shared[GRID_ELEMENTS_PER_BLOCK*2];
-
     const int n = get_global_id(0);
-
     const int GRID_OFFSET_FOR_THIS_BLOCK = GRID_ELEMENTS_PER_BLOCK*2*get_group_id(1);
     const int BLOCK_SIZE = get_local_size(1);
-
     const grid_t* restrict grid_for_this_block = grid + GRID_OFFSET_FOR_THIS_BLOCK;
-
     const int GRID_ELEMS_FOR_THIS_BLOCK = min(OUTPUT_SIZE_Y*OUTPUT_SIZE_X*2 - GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMENTS_PER_BLOCK*2); 
-
-    // if( get_local_linear_id() == 11) {
-    //     printf("Thread %i: get_num_groups(0): %i, GRID_OFFSET_FOR_THIS_BLOCK: %i\n", get_local_linear_id(), get_num_groups(0), GRID_OFFSET_FOR_THIS_BLOCK);
-    //     //printf("Thread %i: GRID_OFFSET_FOR_THIS_BLOCK: %i, GRID_ELEMS_FOR_THIS_BLOCK: %i\n", get_local_linear_id(), GRID_OFFSET_FOR_THIS_BLOCK, GRID_ELEMS_FOR_THIS_BLOCK);
-    // }
-
-    for(int i = get_local_linear_id(); i < GRID_ELEMS_FOR_THIS_BLOCK; i+= BLOCK_SIZE) { 
-        grid_for_this_block_shared[i] = grid_for_this_block[i];
-    }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
+    
     for(int thisThreadHW = get_local_linear_id()*2; thisThreadHW < GRID_ELEMS_FOR_THIS_BLOCK; thisThreadHW += 2*BLOCK_SIZE) {
         const int globalThisThreadHW = (thisThreadHW + GRID_OFFSET_FOR_THIS_BLOCK)/2;
         const int h = globalThisThreadHW / OUTPUT_SIZE_X;
         const int w = globalThisThreadHW % OUTPUT_SIZE_X;
 
-        // if( get_local_linear_id() == 11) {
-        //     printf("Thread %i: OUTPUT_SIZE_Y: %i, OUTPUT_SIZE_X: %i\n", get_local_linear_id(), OUTPUT_SIZE_Y, OUTPUT_SIZE_X);
-        //     printf("Thread %i: h: %i, w: %i\n", get_local_linear_id(), h, w);
-        // }
-
-        const grid_et x_n = grid_for_this_block_shared[thisThreadHW];
-        const grid_et y_n = grid_for_this_block_shared[thisThreadHW+1];
+        const grid_et x_n = grid_for_this_block[thisThreadHW];
+        const grid_et y_n = grid_for_this_block[thisThreadHW+1];
         const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);
         const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);
         const grid_et y_topleft = floor(y_d);
@@ -265,6 +244,7 @@ KERNEL(grid_sample_opt_bilinear)(const __global data_t* restrict data,
         const grid_et dy = y_d - y_topleft;
         const grid_et dx = x_d - x_topleft;
     
+        #pragma unroll
         for(int c = 0; c < OUTPUT_FEATURE_NUM; ++c) {
             const data_et v00 = get_padded(data, n, c, y_topleft, x_topleft);
             const data_et v01 = get_padded(data, n, c, y_topleft, x_topleft + 1);
