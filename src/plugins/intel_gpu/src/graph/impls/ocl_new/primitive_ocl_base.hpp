@@ -1,9 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
@@ -16,6 +17,9 @@
 #include "utils/kernel_base.hpp"
 
 
+#include <algorithm>
+#include <iterator>
+#include <unordered_map>
 #include <vector>
 #include <utility>
 
@@ -27,27 +31,28 @@ For example, all gpu convolution implementations should derive from primitive_im
 struct PrimitiveImplOCL : public primitive_impl {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::PrimitiveImplOCL)
 
-    std::vector<ov::intel_gpu::ocl::KernelData> _kernel_data;
-    std::vector<kernel::ptr> _kernels;
+    std::unordered_map<size_t, ov::intel_gpu::ocl::KernelData> _kernels_data;
+    std::vector<size_t> _stages_registration_order;
+    std::unordered_map<size_t, kernel::ptr> _kernels;
 
-    template<typename StageType, typename... Args>
-    size_t add_stage(const program_node& node, const kernel_impl_params& params, Args&&... args) {
+    template<typename StageType, size_t stage_id, typename... Args>
+    void add_stage(const program_node& node, const kernel_impl_params& params, Args&&... args) {
         static_assert(std::is_base_of<ov::intel_gpu::ocl::KernelGeneratorBase, StageType>::value, "StageType must derive from KernelGeneratorBase");
         auto stage = std::make_unique<StageType>(std::forward<Args>(args)...);
-        _kernel_data.push_back(stage->get_kernel_data(node, params));
-
-        return _kernel_data.size() - 1;
+        _kernels_data.emplace(stage_id, stage->get_kernel_data(node, params));
+        _stages_registration_order.push_back(stage_id);
     }
 
     PrimitiveImplOCL() = default;
 
     PrimitiveImplOCL(const PrimitiveImplOCL& other)
     : primitive_impl(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
-    , _kernel_data(other._kernel_data)
+    , _kernels_data(other._kernels_data)
+    , _stages_registration_order(other._stages_registration_order)
     , _kernels({}) {
         _kernels.reserve(other._kernels.size());
-        for (size_t k = 0; k < other._kernels.size(); ++k) {
-            _kernels.emplace_back(other._kernels[k]->clone(other.can_share_kernels));
+        for (const auto& [id, kernel] : other._kernels) {
+            _kernels.emplace(id, kernel->clone(other.can_share_kernels));
         }
         this->m_manager = other.m_manager;
     }
@@ -70,7 +75,7 @@ struct PrimitiveImplOCL : public primitive_impl {
     }
 
 protected:
-    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const {
+    virtual kernel_arguments_data get_arguments(const primitive_inst& instance, size_t stage) const {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -90,14 +95,19 @@ protected:
 
         args.shape_info = instance.shape_info_memory_ptr();
 
+        auto intermediates = instance.get_intermediates_memories();
+        args.intermediates = {intermediates.begin(), intermediates.end()};
+
         return args;
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
-        if (!_kernel_data.empty()) {
+        if (!_kernels_data.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
-            _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+            for (size_t i = 0; i < _stages_registration_order.size(); i++) {
+                _kernels.emplace(_stages_registration_order[i], compiled_kernels[i]);
+            }
         }
     }
 
@@ -106,51 +116,51 @@ protected:
 
         _kernels.reserve(cached_kernel_ids.size());
         for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
+            _kernels.emplace(_stages_registration_order[k], kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
-        return {kernels_cache.get_cached_kernel_ids(_kernels)};
+        std::vector<kernel::ptr> kernels;
+        std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(kernels), [](const decltype(_kernels)::value_type& e) { return e.second; });
+        return {kernels_cache.get_cached_kernel_ids(kernels)};
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
-        return _kernels;
+        std::vector<kernel::ptr> kernels;
+        std::transform(_kernels.begin(), _kernels.end(), std::back_inserter(kernels), [](const decltype(_kernels)::value_type& e) { return e.second; });
+        return kernels;
     }
 
-    void set_arguments(primitive_inst& instance) override {
-        OPENVINO_ASSERT(_kernels.size() == _kernel_data.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
-                                                                "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
-                                                                "[GPU] KernelData count: ", _kernel_data.size(), "\n",
-                                                                "[GPU] Likely some issue with empty tensor handling happened");
+    void set_arguments(primitive_inst& instance) override { }
+    void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override { }
 
+    event::ptr execute_stage(const std::vector<event::ptr>& events, primitive_inst& instance, size_t stage) {
         stream& stream = instance.get_network().get_stream();
-        for (size_t kd_idx = 0; kd_idx < _kernel_data.size(); ++kd_idx) {
-            // if (_kernel_data.kernels[kd_idx].skip_execution) {
-            //     continue;
-            // }
+        // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event won't be nullptr)
+        bool needs_completion_event = instance.needs_completion_event();
 
-            auto args = get_arguments(instance);
-            args.scalars = &_kernel_data[kd_idx].params.scalars;
+        auto& params = _kernels_data[stage].params;
+        auto args = get_arguments(instance, stage);
+        args.scalars = &params.scalars;
 
-            for (const auto& m : instance.get_intermediates_memories()) {
-                args.intermediates.push_back(m);
-            }
 
-            stream.set_arguments(*_kernels[kd_idx], _kernel_data[kd_idx].params, args);
+        if (instance.get_flag(ExecutionFlags::MEMORY_CHANGED)) {
+            stream.set_arguments(*_kernels[stage], _kernels_data[stage].params, args);
+            // TODO: Can we call update dispatch data here for required kernels only?
+            // Seems that it may conflict with fake alignment as get_impl_params stores not fake aligned data
+            // params.workGroups = _kernels_data[stage].update_dispatch_data_func(*instance.get_impl_params()).work_groups;
         }
-    }
 
-    void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override {
-        stream& stream = instance.get_network().get_stream();
+        const auto& gws = params.workGroups.global;
+        const auto& lws = params.workGroups.local;
 
-        for (size_t k = 0; k < _kernels.size(); ++k) {
-            // if (_kernel_data[k].skip_execution)
-            //     continue;
+        GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage << " kernel: gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+                               << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
+                               << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
-            stream.set_arguments(*_kernels[k], _kernel_data[k].params, args);
-        }
+        return stream.enqueue_kernel(*_kernels[stage], params, args, events, needs_completion_event);
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
@@ -158,38 +168,15 @@ protected:
         if (instance.can_be_optimized()) {
             return stream.aggregate_events(events, false, instance.is_output());
         }
-        std::vector<event::ptr> tmp_events(events);
+
         std::vector<event::ptr> all_events;
-        OPENVINO_ASSERT(_kernels.size() == _kernel_data.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
-                                                                "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
-                                                                "[GPU] KernelData count: ", _kernel_data.size(), "\n",
-                                                                "[GPU] Likely some issue with empty tensor handling happened");
-        for (size_t kd_idx = 0; kd_idx < _kernel_data.size(); ++kd_idx) {
-            // if (_kernel_data.kernels[kd_idx].skip_execution)
-            //     continue;
-            // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
-            bool needs_completion_event = instance.needs_completion_event();
+        std::vector<event::ptr> tmp_events(events);
 
-            auto& params = _kernel_data[kd_idx].params;
-            auto args = get_arguments(instance);
-            args.scalars = &params.scalars;
-
-            for (const auto& m : instance.get_intermediates_memories()) {
-                args.intermediates.push_back(m);
-            }
-
-            const auto& gws = params.workGroups.global;
-            const auto& lws = params.workGroups.local;
-
-            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
-                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
-                                   << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
-
-            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
-            // if (_kernel_data.needs_sub_kernels_sync) {
-                tmp_events = {ev};
-            // }
-            all_events.push_back(ev);
+        // Default impl just runs each stage in registration order
+        for (const auto& stage : _stages_registration_order) {
+            auto ev = execute_stage(tmp_events, instance, stage);
+            tmp_events = { ev };
+            all_events.emplace_back(ev);
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))
@@ -201,15 +188,15 @@ protected:
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
-        for (size_t i = 0; i < _kernel_data.size(); ++i) {
-            kernel_strings.push_back(_kernel_data[i].code.kernelString);
+        for (size_t i = 0; i < _kernels_data.size(); ++i) {
+            kernel_strings.push_back(_kernels_data[_stages_registration_order[i]].code.kernelString);
         }
         return kernel_strings;
     }
 
     void reset_kernels_source() override {
-        for (size_t i = 0; i < _kernel_data.size(); ++i) {
-            _kernel_data[i].code.kernelString.reset();
+        for (auto& [stage, kd] : _kernels_data) {
+            kd.code.kernelString.reset();
         }
     }
 
@@ -217,24 +204,18 @@ protected:
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
-        _kernels.resize(kernel_vec.size());
         for (auto& k : kernel_vec) {
             auto sub_kernel_idx = k.second;
             _kernels[sub_kernel_idx] = k.first;
         }
     }
 
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
-    }
-
     std::pair<std::string, std::string> get_kernels_dump_info() const override {
         return {};
-        // return kernel_dump_info;
     }
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        for (auto& kd : _kernel_data) {
+        for (auto& [stage_id, kd] : _kernels_data) {
             kd.params.workGroups = kd.update_dispatch_data_func(impl_params).work_groups;
         }
     }

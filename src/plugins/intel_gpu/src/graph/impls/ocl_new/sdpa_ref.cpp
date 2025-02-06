@@ -111,13 +111,13 @@ protected:
 
 class SDPARefImpl : public PrimitiveImplOCL {
 public:
-    size_t INDIRECT_STAGE;
-    size_t REGULAR_STAGE;
+    static constexpr const size_t INDIRECT_STAGE = 1;
+    static constexpr const size_t REGULAR_STAGE = 0;
 
     SDPARefImpl(const program_node& node, const kernel_impl_params& params)
         : PrimitiveImplOCL(std::string(SDPARef::get_type_info_static().name)) {
-        INDIRECT_STAGE = add_stage<SDPARefGenerator>(node, params, false);
-        REGULAR_STAGE = add_stage<SDPARefGenerator>(node, params, false);
+        add_stage<SDPARefGenerator, REGULAR_STAGE>(node, params, false);
+        add_stage<SDPARefGenerator, INDIRECT_STAGE>(node, params, true);
     }
 
     static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
@@ -147,6 +147,15 @@ public:
         bool is_prefill = state_layout.count() == 0;
         return !is_prefill;
     }
+
+    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        if (need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance))) {
+            return execute_stage(events, instance, INDIRECT_STAGE);
+        } else {
+            return execute_stage(events, instance, REGULAR_STAGE);
+        }
+    }
+
 
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         std::vector<layout> bufs;

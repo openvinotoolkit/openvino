@@ -165,15 +165,15 @@ protected:
 
 class GroupNormalizationRefImpl : public PrimitiveImplOCL {
 public:
-    size_t CALC_MEAN_STAGE;
-    size_t CALC_STD_STAGE;
-    size_t NORMALIZE_STAGE;
+    static constexpr size_t CALC_MEAN_STAGE = 0;
+    static constexpr size_t CALC_STD_STAGE = 1;
+    static constexpr size_t NORMALIZE_STAGE = 2;
 
     GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params)
         : PrimitiveImplOCL(std::string(GroupNormalizationRef::get_type_info_static().name)) {
-        CALC_MEAN_STAGE = add_stage<GroupNormalizationGeneratorCalcMeanRef>(node, params);
-        CALC_STD_STAGE = add_stage<GroupNormalizationGeneratorCalcStd>(node, params);
-        NORMALIZE_STAGE = add_stage<GroupNormalizationGeneratorNormalize>(node, params);
+        add_stage<GroupNormalizationGeneratorCalcMeanRef, CALC_MEAN_STAGE>(node, params);
+        add_stage<GroupNormalizationGeneratorCalcStd, CALC_STD_STAGE>(node, params);
+        add_stage<GroupNormalizationGeneratorNormalize, NORMALIZE_STAGE>(node, params);
     }
 
 
