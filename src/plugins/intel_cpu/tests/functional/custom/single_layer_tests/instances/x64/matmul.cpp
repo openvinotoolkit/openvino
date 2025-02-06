@@ -23,11 +23,27 @@ const std::vector<CPUSpecificParams> specificParams_FP16_AMX {
 };
 
 const std::vector<ShapeRelatedParams> IS_x64 = {
+    {static_shapes_to_test_representation({{700, 140}, {140, 700}}), {false, false}},
+    {static_shapes_to_test_representation({{700, 1400}, {1400, 700}}), {false, false}},
+    {static_shapes_to_test_representation({{1400, 1400}, {1400, 1400}}), {false, false}},
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, false}},
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {true, true}},
 };
+
+//For FP32 precision, FC has brgemm avx2 support but Matmul doen't have brgemm avx2.
+//Need to specify tryBrgAVX2 based on test case.
+std::vector<CPUSpecificParams> filterSpecificParams_Brgemm(bool tryBrgAVX2 = false) {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    } else if (tryBrgAVX2 && with_cpu_x86_avx2()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx2"}, "brgemm_avx2"});
+    }
+
+    return specificParams;
+}
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
         fusingRelu,
@@ -80,21 +96,22 @@ const auto testParams_Static_IS_x64 = ::testing::Combine(matMulParams_x64,
                                            ::testing::ValuesIn(filterCPUInfo(filterSpecificParams())));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_IS_x64, MatMulLayerCPUTest, testParams_Static_IS_x64, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BenchmarkMatMul_Static_IS_x64, BenchmarkMatMulLayerCPUTest, testParams_Static_IS_x64, MatMulLayerCPUTest::getTestCaseName);
 
-const auto matMulParams_x64_FP16 = ::testing::Combine(::testing::ValuesIn(IS_x64),
-                                             ::testing::Values(ov::element::f32),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(utils::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::Values(cpu_f16_plugin_config));
+const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS_x64),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(utils::InputLayerType::CONSTANT),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                       ::testing::Values(empty_plugin_config));
 
-const auto testParams_Static_IS_x64_FP16 = ::testing::Combine(matMulParams_x64_FP16,
-                                           ::testing::Values(MatMulNodeType::MatMul),
-                                           ::testing::ValuesIn(matmulFusingParams()),
-                                           ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
+const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::Values(emptyFusingSpec),
+                                             ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
 
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_IS_x64_FP16, MatMulLayerCPUTest, testParams_Static_IS_x64_FP16, MatMulLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Benchmark_FC_2D_Brgemm, BenchmarkMatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
                                                                 ::testing::Values(ElementType::f32),
@@ -158,19 +175,6 @@ std::vector<ov::AnyMap> filterAdditionalConfig_Brgemm() {
     }
 
     return additionalConfig;
-}
-
-//For FP32 precision, FC has brgemm avx2 support but Matmul doen't have brgemm avx2.
-//Need to specify tryBrgAVX2 based on test case.
-std::vector<CPUSpecificParams> filterSpecificParams_Brgemm(bool tryBrgAVX2 = false) {
-    std::vector<CPUSpecificParams> specificParams;
-    if (with_cpu_x86_avx512_core()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
-    } else if (tryBrgAVX2 && with_cpu_x86_avx2()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx2"}, "brgemm_avx2"});
-    }
-
-    return specificParams;
 }
 
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
@@ -241,34 +245,20 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
         fusingReluScaleShift
 };
 
-const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(utils::InputLayerType::CONSTANT),
-                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                       ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+// const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
+//                                                        ::testing::Values(ElementType::f32),
+//                                                        ::testing::Values(ElementType::undefined),
+//                                                        ::testing::Values(ElementType::undefined),
+//                                                        ::testing::Values(utils::InputLayerType::CONSTANT),
+//                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
+//                                                        ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
 
-const auto fullyConnectedParams2D_Brgemm_FP16_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
-                                                       ::testing::Values(ElementType::f32),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(ElementType::undefined),
-                                                       ::testing::Values(utils::InputLayerType::CONSTANT),
-                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                       ::testing::Values(cpu_f16_plugin_config));
+// const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
+//                                              ::testing::Values(MatMulNodeType::FullyConnected),
+//                                              ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
+//                                              ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
 
-const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_smoke,
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterSpecificParams_Brgemm(true)));
-
-const auto testParams2D_Brgemm_FP16_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_FP16_smoke,
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_FP16, MatMulLayerCPUTest, testParams2D_Brgemm_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS_brgemm_smoke = {
         {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
