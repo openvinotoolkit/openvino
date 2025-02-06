@@ -40,9 +40,7 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
 
     const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
     if (topKROI == nullptr) {
-        OPENVINO_THROW("Operation with name '",
-                       op->get_friendly_name(),
-                       "' is not an instance of ExperimentalDetectronTopKROIs from opset6.");
+        THROW_CPU_NODE_ERR("is not an instance of ExperimentalDetectronTopKROIs from opset6.");
     }
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1) {

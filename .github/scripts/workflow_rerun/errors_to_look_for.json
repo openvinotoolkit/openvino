@@ -126,5 +126,9 @@
     {
         "error_text": "the runner has received a shutdown signal",
         "ticket": 160818
+    },
+    {
+        "error_text": "Timed out waiting for server startup",
+        "ticket": 161077
     }
 ]

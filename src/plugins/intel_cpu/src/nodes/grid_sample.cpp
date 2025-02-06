@@ -41,7 +41,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (op->get_input_size() != 2 || op->get_output_size() != 1) {
