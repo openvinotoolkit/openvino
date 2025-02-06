@@ -101,6 +101,9 @@ public:
 
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
     bool is_quantized() const { return config.m_is_quantized; }
+#ifdef SNIPPETS_DEBUG_CAPS
+    DebugCapsConfig& get_debug_config() { return config.m_debug_config; }
+#endif  // SNIPPETS_DEBUG_CAPS
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
 
     // plugin sets generator for a snippet to some specific generator.
@@ -187,6 +190,9 @@ private:
         // True if Subgraph contains ops that are not applicable to auto broadcast rule.
         // (e.g. GroupNormalization, reshape)
         bool m_has_broadcast_sensitive_ops = false;
+#ifdef SNIPPETS_DEBUG_CAPS
+        DebugCapsConfig m_debug_config;
+#endif
     } config;
 
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;

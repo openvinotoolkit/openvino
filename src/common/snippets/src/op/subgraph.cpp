@@ -363,6 +363,9 @@ Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_
     lowering_config.m_enable_domain_optimization = !config.m_has_domain_sensitive_ops;
     lowering_config.m_min_parallel_work_amount = min_parallel_work_amount;
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
+#ifdef SNIPPETS_DEBUG_CAPS
+    lowering_config.debug_config = std::move(config.m_debug_config);
+#endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
