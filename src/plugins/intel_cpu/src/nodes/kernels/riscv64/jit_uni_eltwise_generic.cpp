@@ -229,7 +229,8 @@ void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg
     case ov::element::f32:
     case ov::element::i32: {
         if (broadcast) {
-            vlse32_v(src_vec(vec_idx), gpr_ptr, zero);
+            lw(aux_gpr(0), gpr_ptr);
+            vmv_v_x(src_vec(vec_idx), aux_gpr(0));
         } else {
             vle32_v(src_vec(vec_idx), gpr_ptr);
             add(gpr_ptr, gpr_ptr, reg_bvlen);
@@ -239,7 +240,8 @@ void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg
     case ov::element::i8:
     case ov::element::u8: {
         if (broadcast) {
-            vlse8_v(aux_vec(), gpr_ptr, zero);
+            lb(aux_gpr(0), gpr_ptr);
+            vmv_v_x(aux_vec(), aux_gpr(0));
         } else {
             vle8_v(aux_vec(), gpr_ptr);
             add(gpr_ptr, gpr_ptr, reg_bvlen);
