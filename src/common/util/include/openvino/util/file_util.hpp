@@ -231,13 +231,13 @@ std::wstring path_join_w(const std::vector<ov::util::Path>& paths);
 #endif
 
 using FilePath = ov::util::Path::string_type;
+inline std::string from_file_path(const ov::util::Path& path) {
+    return path.string();
 }
 
-inline FilePath to_file_path(const std::string& path) {
-    return path;
+inline FilePath to_file_path(const ov::util::Path& path) {
+    return path.native();
 }
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
