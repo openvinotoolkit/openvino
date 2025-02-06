@@ -55,7 +55,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
 
 * **1**: ``data`` - Tensor of type *T*, the ISTFT data input (compatible with a result of STFT operation). **Required.**
   * The data input shape can be 3D ``[fft_results, frames, 2]`` or 4D ``[batch, fft_results, frames, 2]``.
-* **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. If the ``window_length`` is smaller than ``frame_size``, window will be padded with zeros on the left and right sides. **Required.**
+* **2**: ``window`` - Tensor of type *T* and 1D shape ``[window_length]``, specifying the window values applied to restore the signal. The ``window_length`` is required to be equal or smaller than ``frame_size``, if smaller the window will be padded with zeros on the left and right sides. **Required.**
 * **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
 * **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing the distance (number of samples) between successive frames. **Required.**
 * **5**: ``signal_length`` - Scalar or single element 1D tensor of type *T_INT* describing the desired length of the output signal, if not provided it's calculated accordingly to the rules presented in the detailed description above. **Optional.**
@@ -91,6 +91,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
             </port>
             <port id="2"></port> <!-- frame_size value: 11 -->
             <port id="3"></port> <!-- frame_step value: 3 -->
+        </input>
         <output>
             <port id="4">
                 <dim>56</dim>
@@ -117,6 +118,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
             </port>
             <port id="2"></port> <!-- frame_size value: 11 -->
             <port id="3"></port> <!-- frame_step value: 3 -->
+        </input>
         <output>
             <port id="4">
                 <dim>4</dim>
@@ -144,6 +146,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
             </port>
             <port id="2"></port> <!-- frame_size value: 11 -->
             <port id="3"></port> <!-- frame_step value: 3 -->
+        </input>
         <output>
             <port id="4">
                 <dim>45</dim>
@@ -168,8 +171,9 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
             <port id="1">
                 <dim>7</dim>
             </port>
-            <port id="2"></port> <!-- frame_step value: 11 -->
-            <port id="3"></port> <!-- frame_size value: 3 -->
+            <port id="2"></port> <!-- frame_size value: 11 -->
+            <port id="3"></port> <!-- frame_step value: 3 -->
+        </input>
         <output>
             <port id="4">
                 <dim>4</dim>
@@ -198,6 +202,7 @@ If the ``window_length`` can not be larger than ``frame_size``, but if smaller t
             <port id="2"></port> <!-- frame_size value: 11 -->
             <port id="3"></port> <!-- frame_step value: 3 -->
             <port id="4"></port> <!-- signal_length value: 64 -->
+        </input>
         <output>
             <port id="5">
                 <dim>64</dim>
