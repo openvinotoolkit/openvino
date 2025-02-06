@@ -66,9 +66,9 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
     const auto* logits = getSrcDataAtPortAs<const float>(0);
-    const int* logitsLength = getSrcDataAtPortAs<const int>(1);
-    const int* labels = getSrcDataAtPortAs<const int>(2);
-    const int* labelsLength = getSrcDataAtPortAs<const int>(3);
+    const auto* logitsLength = getSrcDataAtPortAs<const int>(1);
+    const auto* labels = getSrcDataAtPortAs<const int>(2);
+    const auto* labelsLength = getSrcDataAtPortAs<const int>(3);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();

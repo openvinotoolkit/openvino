@@ -266,7 +266,7 @@ void Unique::flattenTensorExec() {
     T* uniDataPtr = getDstDataAtPortAs<T>(UNIQUE_DATA);
     cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int* firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
+        auto* firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {

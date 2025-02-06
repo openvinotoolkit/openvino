@@ -339,7 +339,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
-    int sz = static_cast<int>(pshape.size());
+    auto sz = static_cast<int>(pshape.size());
     for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;

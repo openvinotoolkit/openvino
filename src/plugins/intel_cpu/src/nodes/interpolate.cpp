@@ -2742,9 +2742,9 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
                                                       int OD,
                                                       int OH,
                                                       int OW) {
-    int* index_d = static_cast<int*>(&auxTable[0]);
-    int* index_h = static_cast<int*>(&auxTable[OD]);
-    int* index_w = static_cast<int*>(&auxTable[OD + OH]);
+    auto* index_d = static_cast<int*>(&auxTable[0]);
+    auto* index_h = static_cast<int*>(&auxTable[OD]);
+    auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
     bool is_nhwc = (configured_for_layout == by_channel);
 
@@ -2808,9 +2808,9 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
                                                    int OD,
                                                    int OH,
                                                    int OW) {
-    int* index_d = static_cast<int*>(&auxTable[0]);
-    int* index_h = static_cast<int*>(&auxTable[OD]);
-    int* index_w = static_cast<int*>(&auxTable[OD + OH]);
+    auto* index_d = static_cast<int*>(&auxTable[0]);
+    auto* index_h = static_cast<int*>(&auxTable[OD]);
+    auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
     std::vector<int> index_kernel(OH + OW);
     // index_h * IW * srcDataSize to reduce and simplify redundant compute
@@ -2852,7 +2852,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
                                                            int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,
     // EndBottomLeft:6,   EndBottomRight:7 weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
-    int* index = static_cast<int*>(&auxTable[0]);
+    auto* index = static_cast<int*>(&auxTable[0]);
     int eltInGrid = (spatialDimSize > 2) ? MAX_INPUT_INTERPOLATE : ((spatialDimSize > 1) ? 4 : 2);
     int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
     auto* weight = reinterpret_cast<float*>(&auxTable[scratchLen]);
@@ -2963,9 +2963,9 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
                                                          int OH,
                                                          int OW) {
     const int idxNum = 1;
-    int* xOrigin = static_cast<int*>(&auxTable[0]);
+    auto* xOrigin = static_cast<int*>(&auxTable[0]);
     auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
-    int* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
+    auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
     int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
@@ -3017,18 +3017,18 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
                                                       int OH,
                                                       int OW) {
     int tblAdvance = 0;
-    int* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW;
     auto* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
     tblAdvance += CUBIC_GRID_LEN * OW;
-    int* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OH;
     auto* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
 
     tblAdvance += CUBIC_GRID_LEN * OH;
-    int* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW * OH;
-    int* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
 
     parallel_for2d(B, C, [&](size_t n, size_t c) {
         const uint8_t* in_ptr_nc = in_ptr_ + (IW * IH * C * n + IW * IH * c) * srcDataSize;
@@ -3376,14 +3376,14 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
         auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
-        int* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
-        int* idxOD = static_cast<int*>(&idxTable[0]);
-        int* idxOH = static_cast<int*>(&idxTable[sizeOD]);
-        int* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+        auto* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
+        auto* idxOD = static_cast<int*>(&idxTable[0]);
+        auto* idxOH = static_cast<int*>(&idxTable[sizeOD]);
+        auto* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
         for (size_t oz = 0; oz < OD; oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
-            int iz_r = static_cast<int>(std::round(iz));
+            auto iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
                 idxOD[oz * diaOD + i] = r;
                 if (r < 0 || r >= static_cast<int>(ID)) {
@@ -3396,7 +3396,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         }
         for (size_t oy = 0; oy < OH; oy++) {
             float iy = coordTransToInput(oy, fy, IH, OH);
-            int iy_r = static_cast<int>(std::round(iy));
+            auto iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
                 idxOH[oy * diaOH + i] = r;
                 if (r < 0 || r >= static_cast<int>(IH)) {
@@ -3409,7 +3409,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         }
         for (size_t ox = 0; ox < OW; ox++) {
             float ix = coordTransToInput(ox, fx, IW, OW);
-            int ix_r = static_cast<int>(std::round(ix));
+            auto ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
                 idxOW[ox * diaOW + i] = r;
                 if (r < 0 || r >= static_cast<int>(IW)) {
@@ -3459,12 +3459,12 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     }
 
     int tblAdvance = 0;
-    int* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* xOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OW;
     auto* xFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
     for (int ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
-        int ix_r = static_cast<int>(std::floor(ix));
+        auto ix_r = static_cast<int>(std::floor(ix));
         xOrigin[ox] = ix_r;
         float m = ix - ix_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
@@ -3475,12 +3475,12 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     }
 
     tblAdvance += CUBIC_GRID_LEN * OW;
-    int* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
+    auto* yOrigin = static_cast<int*>(&auxTable[tblAdvance]);
     tblAdvance += OH;
     auto* yFactor = reinterpret_cast<float*>(&auxTable[tblAdvance]);
     for (int oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
-        int iy_r = static_cast<int>(std::floor(iy));
+        auto iy_r = static_cast<int>(std::floor(iy));
         yOrigin[oy] = iy_r;
         float m = iy - iy_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
@@ -3492,9 +3492,9 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
 
     if (layout == InterpolateLayoutType::planar) {
         tblAdvance += CUBIC_GRID_LEN * OH;
-        int* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
+        auto* sequenceOH = static_cast<int*>(&auxTable[tblAdvance]);
         tblAdvance += OH * OW;
-        int* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
+        auto* sequenceOW = static_cast<int*>(&auxTable[tblAdvance]);
         for (int h = 0; h < OH; ++h) {
             int offset = h * OW;
             for (int w = 0; w < OW; ++w) {
@@ -3575,9 +3575,9 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
     offset += filterArgsX.filterLen * OW;
     auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterArgsY.filterLen * OH;
-    int* indexX = static_cast<int*>(&auxTable[offset]);
+    auto* indexX = static_cast<int*>(&auxTable[offset]);
     offset += 2 * OW;
-    int* indexY = static_cast<int*>(&auxTable[offset]);
+    auto* indexY = static_cast<int*>(&auxTable[offset]);
 
     auto generateTbl = [&](int inLen, int outLen, float fScale, filterArgs args, float* weightTbl, int* idxTbl) {
         int min = 0;
@@ -3634,9 +3634,9 @@ void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
                                                 int OD,
                                                 int OH,
                                                 int OW) {
-    int* index_d = static_cast<int*>(&auxTable[0]);
-    int* index_h = static_cast<int*>(&auxTable[OD]);
-    int* index_w = static_cast<int*>(&auxTable[OD + OH]);
+    auto* index_d = static_cast<int*>(&auxTable[0]);
+    auto* index_h = static_cast<int*>(&auxTable[OD]);
+    auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
     const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
     auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
@@ -3762,9 +3762,9 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
                                                    int OH,
                                                    int OW) {
     const int idxNum = 1;
-    int* xOrigin = static_cast<int*>(&auxTable[0]);
+    auto* xOrigin = static_cast<int*>(&auxTable[0]);
     auto* xFactor = reinterpret_cast<float*>(&auxTable[OW]);
-    int* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
+    auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
     const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
@@ -3904,10 +3904,10 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
     auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
     auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
-    int* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
-    int* idxOD = static_cast<int*>(&idxTable[0]);
-    int* idxOH = static_cast<int*>(&idxTable[sizeOD]);
-    int* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+    auto* idxTable = static_cast<int*>(&auxTable[sizeOD + sizeOH + sizeOW]);
+    auto* idxOD = static_cast<int*>(&idxTable[0]);
+    auto* idxOH = static_cast<int*>(&idxTable[sizeOD]);
+    auto* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
     parallel_for2d(B, C, [&](size_t b, size_t c) {
         const uint8_t* in_ptr_nc = in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c) * srcDataSize;
@@ -4001,9 +4001,9 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
     offset += filterLenX * OW;
     auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterLenY * OH;
-    int* indexX = static_cast<int*>(&auxTable[offset]);
+    auto* indexX = static_cast<int*>(&auxTable[offset]);
     offset += 2 * OW;
-    int* indexY = static_cast<int*>(&auxTable[offset]);
+    auto* indexY = static_cast<int*>(&auxTable[offset]);
 
     // workBuffer needed when both pass is true
     bool xPass = IW != OW;

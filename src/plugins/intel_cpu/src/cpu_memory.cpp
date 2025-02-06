@@ -558,7 +558,7 @@ bool mbind_move(void* data, size_t size, int targetNode) {
     int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
-    char* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
+    auto* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
         ((reinterpret_cast<uintptr_t>(data)) & ~(static_cast<uintptr_t>(pagesize - 1))));
     uint64_t mask = 0;
     unsigned flags = 0;

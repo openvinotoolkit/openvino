@@ -490,7 +490,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                                             const VectorDims& boxesStrides,
                                             const VectorDims& scoresStrides,
                                             std::vector<FilteredBox>& filtBoxes) {
-    int max_out_box = static_cast<int>(m_output_boxes_per_class);
+    auto max_out_box = static_cast<int>(m_output_boxes_per_class);
     parallel_for2d(m_batches_num, m_classes_num, [&](int batch_idx, int class_idx) {
         const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float* scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];

@@ -384,9 +384,9 @@ void MultiClassNms::execute(const dnnl::stream& strm) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), static_cast<size_t>(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    int* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
+    auto* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
     auto* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
-    int* selected_num = validOutputsMemPtr->getDataAs<int>();
+    auto* selected_num = validOutputsMemPtr->getDataAs<int>();
 
     auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
         return batch_idx * num_box + box_idx;

@@ -685,7 +685,7 @@ private:
     inline void worker_vector_unroll() {
         // if mean(sum) for continous data, then fast pass for major part
         if (!jcp_.normalize_variance && jcp_.layout == MVNLayoutType::mvn_planar) {
-            Vmm vmm_one = Vmm(15);
+            auto vmm_one = Vmm(15);
             // i8/u8 fast path
             if (mayiuse(avx512_core_vnni) && jcp_.src_data_size == 1) {
                 uni_vmovups(vmm_one, ptr[reg_table]);

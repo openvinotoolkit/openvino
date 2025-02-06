@@ -185,7 +185,7 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
     const float* ARMLocData = inputShapes.size() > 4 ? getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
 
     float* reorderedConfData = reorderedConf.data();
-    int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
+    auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
 
     float* decodedBboxesData = decodedBboxes.data();
     float* bboxSizesData = bboxSizes.data();
@@ -570,7 +570,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                                                             int* indicesData,
                                                             int* indicesBufData,
                                                             int* detectionsData) {
-    int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
+    auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
         const int off = n * priorsNum * classesNum;
         const int offV = n * priorsNum;  // vertical info

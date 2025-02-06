@@ -915,7 +915,7 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Ymm ymm_dst, ov::element::Type dst_prc) {
-        Xmm xmm_dst = Xmm(ymm_dst.getIdx());
+        auto xmm_dst = Xmm(ymm_dst.getIdx());
 
         if (dst_prc != ov::element::f32) {
             uni_vcvtps2dq(ymm_dst, ymm_dst);

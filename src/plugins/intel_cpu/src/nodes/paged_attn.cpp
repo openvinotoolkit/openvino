@@ -244,7 +244,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
         }
-        int orgInput = static_cast<int>(op->get_input_size());
+        auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
             orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
             return true;

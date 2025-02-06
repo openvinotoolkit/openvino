@@ -999,8 +999,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
         if (jcp_.round_to_zero && !support_intermediate_int) {
             uni_vroundps(vmm_dst, vmm_dst, 3);  // rounding to zero
         }
@@ -1753,8 +1753,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
         // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
         if (!post_ops_fusing && jcp_.round_to_zero) {
             uni_vroundps(vmm_dst, vmm_dst, 3);

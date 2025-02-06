@@ -64,8 +64,8 @@ void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->fabs(dst.s, src.s);
 }
@@ -102,9 +102,9 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src0 = TReg(in_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->uni_fadd(dst.s, src0.s, src1.s);
 }
@@ -171,9 +171,9 @@ void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg aux = TReg(aux_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto aux = TReg(aux_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->ld1r(aux.s, table_val2("min"));
     h->fmax(dst.s, src.s, aux.s);
@@ -216,9 +216,9 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src0 = TReg(in_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->uni_fdiv(dst.s, src0.s, src1.s);
 }
@@ -605,8 +605,8 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
     h->frintm(dst.s, src.s);
 }
 
@@ -650,10 +650,10 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg dividend = TReg(in_vec_idxs[0]);
-    TReg divisor = TReg(in_vec_idxs[1]);
-    TReg r = TReg(out_vec_idxs[0]);
-    TReg aux = TReg(aux_vec_idxs[0]);
+    auto dividend = TReg(in_vec_idxs[0]);
+    auto divisor = TReg(in_vec_idxs[1]);
+    auto r = TReg(out_vec_idxs[0]);
+    auto aux = TReg(aux_vec_idxs[0]);
 
     h->fdiv(aux.s, dividend.s, divisor.s);
     h->frintm(aux.s, aux.s);
@@ -702,8 +702,8 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
     h->frintp(dst.s, src.s);
 }
 
@@ -744,8 +744,8 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
     h->fneg(dst.s, src.s);
 }
 
@@ -1142,10 +1142,10 @@ void jit_hswish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
-    TReg aux0 = TReg(aux_vec_idxs[0]);
-    TReg aux1 = TReg(aux_vec_idxs[1]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
+    auto aux0 = TReg(aux_vec_idxs[0]);
+    auto aux1 = TReg(aux_vec_idxs[1]);
 
     // result = (x * min(max(x + 3, 0), 6)) / 6
     h->ld1r(aux0.s, table_val2("three"));
@@ -1224,10 +1224,10 @@ void jit_is_finite_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
-    TReg aux0 = TReg(aux_vec_idxs[0]);
-    TReg aux1 = TReg(aux_vec_idxs[1]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
+    auto aux0 = TReg(aux_vec_idxs[0]);
+    auto aux1 = TReg(aux_vec_idxs[1]);
 
     // According to the IEEE standard, NaN values have the odd property that comparisons involving them are always
     // false.
@@ -1404,9 +1404,9 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
-    TReg aux = TReg(aux_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
+    auto aux = TReg(aux_vec_idxs[0]);
 
     // According to the IEEE standard, NaN values have the odd property that comparisons involving them are always
     // false.
@@ -1709,9 +1709,9 @@ void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
-    TReg tmp1 = TReg(aux_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
+    auto tmp1 = TReg(aux_vec_idxs[0]);
 
     h->eor(tmp1.b16, tmp1.b16, tmp1.b16);
     h->fcmeq(tmp1.s, tmp1.s, src.s);
@@ -1820,9 +1820,9 @@ void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src1 = TReg(in_vec_idxs[0]);
-    TReg src2 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[0]);
+    auto src2 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->fmaxnm(dst.s, src1.s, src2.s);
 }
@@ -1862,9 +1862,9 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src1 = TReg(in_vec_idxs[0]);
-    TReg src2 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[0]);
+    auto src2 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->fminnm(dst.s, src1.s, src2.s);
 }
@@ -2000,10 +2000,10 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg dividend = TReg(in_vec_idxs[0]);
-    TReg divisor = TReg(in_vec_idxs[1]);
-    TReg r = TReg(out_vec_idxs[0]);
-    TReg aux = TReg(aux_vec_idxs[0]);
+    auto dividend = TReg(in_vec_idxs[0]);
+    auto divisor = TReg(in_vec_idxs[1]);
+    auto r = TReg(out_vec_idxs[0]);
+    auto aux = TReg(aux_vec_idxs[0]);
 
     h->fdiv(aux.s, dividend.s, divisor.s);
     h->frintz(aux.s, aux.s);
@@ -2110,9 +2110,9 @@ void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src0 = TReg(in_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->uni_fmul(dst.s, src0.s, src1.s);
 }
@@ -2191,7 +2191,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     if (power == 0.f) {
         h->fmov(dst.s, 1.);
@@ -2203,7 +2203,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         return get_from_dst ? TReg(out_vec_idxs[0]) : TReg(in_vec_idxs[0]);
     };
 
-    TReg aux = TReg(aux_vec_idxs[0]);
+    auto aux = TReg(aux_vec_idxs[0]);
     if (scale != 1.f) {
         auto adr = table_val2("scale");
         h->ld1r(aux.s, adr);
@@ -2308,10 +2308,10 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg tmp = TReg(aux_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[0]);
-    TReg src2 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto tmp = TReg(aux_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[0]);
+    auto src2 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->fcmge(dst.s, src1.s, 0.0);
     h->fmul(tmp.s, src1.s, src2.s);
@@ -2356,9 +2356,9 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg tmp = TReg(aux_vec_idxs[0]);
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto tmp = TReg(aux_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->movi(tmp.s, 0);
     h->fmaxnm(dst.s, src.s, tmp.s);
@@ -2402,8 +2402,8 @@ void jit_round_half_away_from_zero_emitter::emit_isa(const std::vector<size_t>& 
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->frinta(dst.s, src.s);
 }
@@ -2444,8 +2444,8 @@ void jit_round_half_to_even_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->frintn(dst.s, src.s);
 }
@@ -2696,8 +2696,8 @@ void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->fsqrt(dst.s, src.s);
 }
@@ -2736,9 +2736,9 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src0 = TReg(in_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->uni_fsub(dst.s, src0.s, src1.s);
 }
@@ -2875,10 +2875,10 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_vec_idxs[0]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src = TReg(in_vec_idxs[0]);
+    auto dst = TReg(out_vec_idxs[0]);
 
-    TReg aux = TReg(aux_vec_idxs[0]);
+    auto aux = TReg(aux_vec_idxs[0]);
 
     h->ld1r(aux.s, table_val2("two"));
     h->uni_fmul(aux.s, src.s, aux.s);

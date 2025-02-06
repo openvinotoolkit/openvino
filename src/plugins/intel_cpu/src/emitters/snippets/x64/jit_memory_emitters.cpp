@@ -168,7 +168,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     Reg64 in_reg(in[0]);
-    Vmm vmm_dst = Vmm(out[0]);
+    auto vmm_dst = Vmm(out[0]);
 
     // It doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for
     // `BroadcastLoad`, key point here is not to add post-increment, it might be fixed by some other approach in future

@@ -608,7 +608,7 @@ private:
             size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
             }
@@ -628,13 +628,13 @@ private:
                 size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
-                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
-                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+                    auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    auto roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
                     int hstart, hend, wstart, wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
@@ -679,10 +679,10 @@ private:
                         arg.dst =
                             &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                     } else {
-                        int top_y_index = static_cast<int>(floorf(in_y));
-                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index = static_cast<int>(floorf(in_x));
-                        int right_x_index = static_cast<int>(ceilf(in_x));
+                        auto top_y_index = static_cast<int>(floorf(in_y));
+                        auto bottom_y_index = static_cast<int>(ceilf(in_y));
+                        auto left_x_index = static_cast<int>(floorf(in_x));
+                        auto right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
@@ -744,7 +744,7 @@ public:
             size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
             }
@@ -769,13 +769,13 @@ public:
                 size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
-                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
-                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+                    auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    auto roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
                     int hstart, hend, wstart, wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
@@ -844,10 +844,10 @@ public:
                             }
                         }
                     } else {
-                        int top_y_index = static_cast<int>(floorf(in_y));
-                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index = static_cast<int>(floorf(in_x));
-                        int right_x_index = static_cast<int>(ceilf(in_x));
+                        auto top_y_index = static_cast<int>(floorf(in_y));
+                        auto bottom_y_index = static_cast<int>(ceilf(in_y));
+                        auto left_x_index = static_cast<int>(floorf(in_x));
+                        auto right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;

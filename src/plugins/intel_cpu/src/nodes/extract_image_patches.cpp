@@ -479,8 +479,8 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
                                                                            void* dst,
                                                                            const VectorDims& istrides,
                                                                            const VectorDims& ostrides) const {
-    const char* src_data = reinterpret_cast<const char*>(src);
-    char* dst_data = reinterpret_cast<char*>(dst);
+    const auto* src_data = reinterpret_cast<const char*>(src);
+    auto* dst_data = reinterpret_cast<char*>(dst);
 
     const std::vector<size_t> ostrides_partial = {ostrides[0],
                                                   jpp.KW * IC * ostrides[1],
@@ -538,8 +538,8 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
                                                                                   const VectorDims& istrides,
                                                                                   const VectorDims& ostrides) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    const char* src_data = reinterpret_cast<const char*>(src);
-    char* dst_data = reinterpret_cast<char*>(dst);
+    const auto* src_data = reinterpret_cast<const char*>(src);
+    auto* dst_data = reinterpret_cast<char*>(dst);
     const auto& jpp = pKernel->jpp;
 
     const std::vector<size_t> ostrides_partial = {ostrides[0],

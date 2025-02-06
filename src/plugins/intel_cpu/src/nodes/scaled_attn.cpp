@@ -1294,7 +1294,7 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             }
         }
 
-        int orgSDPAInput = static_cast<int>(op->get_input_size());
+        auto orgSDPAInput = static_cast<int>(op->get_input_size());
         const auto node = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(op);
         if (node) {
             if (node->get_config().fuse_concat) {

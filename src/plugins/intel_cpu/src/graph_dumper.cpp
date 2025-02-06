@@ -328,7 +328,7 @@ void summary_perf(const Graph& graph) {
 
         for (auto& it : A) {
             std::stringstream ss;
-            int percentage = static_cast<int>(it.second * 100 / total_avg);
+            auto percentage = static_cast<int>(it.second * 100 / total_avg);
             if (percentage == 0) {
                 break;
             }

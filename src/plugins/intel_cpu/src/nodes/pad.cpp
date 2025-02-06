@@ -250,7 +250,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.dataSize = params.attrs.prc.size();
 
     auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
-        const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
+        const auto* ptr = srcMemory[type]->getDataAs<const int32_t>();
         parameter.resize(size);
         for (size_t i = 0; i < size; i++) {
             parameter[i] = static_cast<int>(ptr[i]);

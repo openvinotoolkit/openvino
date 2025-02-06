@@ -585,8 +585,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
 
         if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);

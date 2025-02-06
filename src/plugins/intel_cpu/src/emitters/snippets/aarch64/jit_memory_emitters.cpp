@@ -85,8 +85,8 @@ void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const 
 template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    XReg src = XReg(in[0]);
-    TReg dst = TReg(out[0]);
+    auto src = XReg(in[0]);
+    auto dst = TReg(out[0]);
 
     h->uni_ld1rw(dst.s, src, byte_offset);
 }

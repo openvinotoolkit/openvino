@@ -451,7 +451,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     const size_t nDims = std::max(inputRank, outputRank);
 
     auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type, const size_t size, const int value) {
-        const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
+        const auto* ptr = srcMemory[type]->getDataAs<const int32_t>();
         parameter.assign(ptr, ptr + size);
 
         if (type != attrs.AXES_ID && params.attrs.ellipsisMaskCounter == 0 && size < nDims) {

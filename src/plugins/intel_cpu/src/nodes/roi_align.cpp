@@ -911,9 +911,9 @@ void ROIAlign::executeSpecified() {
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
     auto inputDimVector = srcMemory0.getStaticDims();
-    const int C = static_cast<int>(inputDimVector[1]);
-    const int H = static_cast<int>(inputDimVector[2]);
-    const int W = static_cast<int>(inputDimVector[3]);
+    const auto C = static_cast<int>(inputDimVector[1]);
+    const auto H = static_cast<int>(inputDimVector[2]);
+    const auto W = static_cast<int>(inputDimVector[3]);
 
     const int binCount = pooledH * pooledW;
 

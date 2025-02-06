@@ -2375,7 +2375,7 @@ inline void TopK::prepare_original_idx() {
 //   empty tail: p-n elements in the rear don't need sorting,
 inline void TopK::bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val) {
     // memory stride of adjacent elements in sorting
-    int sort_stride = static_cast<int>(I);
+    auto sort_stride = static_cast<int>(I);
     cnt = 0;
     for (int len = 2; len < p; len <<= 1) {
         for (int start = 0; start < p; start += len) {

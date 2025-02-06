@@ -924,8 +924,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
                                " (out of range)");
         }
         const auto space = dimensions[axis];
-        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
-        const int end = static_cast<int>((rule.end < 0 ? (space + 1) : 0) + rule.end);
+        const auto start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const auto end = static_cast<int>((rule.end < 0 ? (space + 1) : 0) + rule.end);
 
         const auto stride = rule.stride;
         if (stride == 0) {

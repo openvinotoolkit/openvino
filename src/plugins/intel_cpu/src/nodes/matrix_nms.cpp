@@ -425,8 +425,8 @@ void MatrixNms::execute(const dnnl::stream& strm) {
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
     auto* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
-    int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
-    int* validOutputs = validOutputsMemPtr->getDataAs<int>();
+    auto* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
+    auto* validOutputs = validOutputsMemPtr->getDataAs<int>();
     for (size_t i = 0; i < m_numPerBatch.size(); i++) {
         validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
     }

@@ -44,9 +44,9 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
 
-    Vmm src_vmm = Vmm(in[0]);
-    Vmm dst_vmm = Vmm(out[0]);
-    Vmm aux_vmm = Vmm(aux_vec_idxs[0]);
+    auto src_vmm = Vmm(in[0]);
+    auto dst_vmm = Vmm(out[0]);
+    auto aux_vmm = Vmm(aux_vec_idxs[0]);
 
     if (in[0] != out[0]) {
         h->uni_vmovups(dst_vmm, src_vmm);

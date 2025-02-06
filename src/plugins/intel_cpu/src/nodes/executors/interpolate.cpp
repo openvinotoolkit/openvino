@@ -346,14 +346,14 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
         auto* weightOH = static_cast<float*>(&weightTable[sizeOD]);
         auto* weightOW = static_cast<float*>(&weightTable[sizeOD + sizeOH]);
 
-        int* idxTable = static_cast<int*>(&indexTable[sizeOD + sizeOH + sizeOW]);
-        int* idxOD = static_cast<int*>(&idxTable[0]);
-        int* idxOH = static_cast<int*>(&idxTable[sizeOD]);
-        int* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
+        auto* idxTable = static_cast<int*>(&indexTable[sizeOD + sizeOH + sizeOW]);
+        auto* idxOD = static_cast<int*>(&idxTable[0]);
+        auto* idxOH = static_cast<int*>(&idxTable[sizeOD]);
+        auto* idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
         for (int oz = 0; oz < static_cast<int>(OD); oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
-            int iz_r = static_cast<int>(std::round(iz));
+            auto iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
                 idxOD[oz * diaOD + i] = r;
                 if (r < 0 || r >= static_cast<int>(ID)) {
@@ -366,7 +366,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
         }
         for (int oy = 0; oy < static_cast<int>(OH); oy++) {
             float iy = coordTransToInput(oy, fy, IH, OH);
-            int iy_r = static_cast<int>(std::round(iy));
+            auto iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
                 idxOH[oy * diaOH + i] = r;
                 if (r < 0 || r >= static_cast<int>(IH)) {
@@ -379,7 +379,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
         }
         for (int ox = 0; ox < static_cast<int>(OW); ox++) {
             float ix = coordTransToInput(ox, fx, IW, OW);
-            int ix_r = static_cast<int>(std::round(ix));
+            auto ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
                 idxOW[ox * diaOW + i] = r;
                 if (r < 0 || r >= static_cast<int>(IW)) {
@@ -429,12 +429,12 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
     }
 
     int tblAdvance = 0;
-    int* xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
+    auto* xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
     tblAdvance += OW;
     auto* xFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
     for (int ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
-        int ix_r = static_cast<int>(std::floor(ix));
+        auto ix_r = static_cast<int>(std::floor(ix));
         xOrigin[ox] = ix_r;
         float m = ix - ix_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
@@ -445,12 +445,12 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
     }
 
     tblAdvance += CUBIC_GRID_LEN * OW;
-    int* yOrigin = static_cast<int*>(&indexTable[tblAdvance]);
+    auto* yOrigin = static_cast<int*>(&indexTable[tblAdvance]);
     tblAdvance += OH;
     auto* yFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
     for (int oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
-        int iy_r = static_cast<int>(std::floor(iy));
+        auto iy_r = static_cast<int>(std::floor(iy));
         yOrigin[oy] = iy_r;
         float m = iy - iy_r;
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
@@ -462,9 +462,9 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
 
     if (layout == InterpolateLayoutType::planar) {
         tblAdvance += CUBIC_GRID_LEN * OH;
-        int* sequenceOH = static_cast<int*>(&indexTable[tblAdvance]);
+        auto* sequenceOH = static_cast<int*>(&indexTable[tblAdvance]);
         tblAdvance += OH * OW;
-        int* sequenceOW = static_cast<int*>(&indexTable[tblAdvance]);
+        auto* sequenceOW = static_cast<int*>(&indexTable[tblAdvance]);
         for (int h = 0; h < OH; ++h) {
             int offset = h * OW;
             for (int w = 0; w < OW; ++w) {

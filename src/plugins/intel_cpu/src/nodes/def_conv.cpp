@@ -338,31 +338,31 @@ private:
                         mov(aux3_reg_input_buffer, aux2_reg_input_buffer);
                         add(aux3_reg_input_buffer, (ow * jcp_.kh * jcp_.kw * jcp_.ic) * jcp_.typesize_in);
 
-                        Xmm xmm_v1_off = Xmm(9);
-                        Xmm xmm_v2_off = Xmm(10);
-                        Xmm xmm_v3_off = Xmm(11);
-                        Xmm xmm_v4_off = Xmm(12);
+                        auto xmm_v1_off = Xmm(9);
+                        auto xmm_v2_off = Xmm(10);
+                        auto xmm_v3_off = Xmm(11);
+                        auto xmm_v4_off = Xmm(12);
 
-                        Xmm xmm_w1 = Xmm(4);
-                        Xmm xmm_w2 = Xmm(1);
-                        Xmm xmm_w3 = Xmm(8);
-                        Xmm xmm_w4 = Xmm(5);
+                        auto xmm_w1 = Xmm(4);
+                        auto xmm_w2 = Xmm(1);
+                        auto xmm_w3 = Xmm(8);
+                        auto xmm_w4 = Xmm(5);
 
-                        Xmm xmm_v1 = Xmm(2);
-                        Xmm xmm_v2 = Xmm(3);
+                        auto xmm_v1 = Xmm(2);
+                        auto xmm_v2 = Xmm(3);
                         ;
-                        Xmm xmm_v3 = Xmm(6);
-                        Xmm xmm_v4 = Xmm(7);
+                        auto xmm_v3 = Xmm(6);
+                        auto xmm_v4 = Xmm(7);
 
-                        Vmm vmm_w1 = Vmm(xmm_w1.getIdx());
-                        Vmm vmm_w2 = Vmm(xmm_w2.getIdx());
-                        Vmm vmm_w3 = Vmm(xmm_w3.getIdx());
-                        Vmm vmm_w4 = Vmm(xmm_w4.getIdx());
+                        auto vmm_w1 = Vmm(xmm_w1.getIdx());
+                        auto vmm_w2 = Vmm(xmm_w2.getIdx());
+                        auto vmm_w3 = Vmm(xmm_w3.getIdx());
+                        auto vmm_w4 = Vmm(xmm_w4.getIdx());
 
-                        Vmm vmm_v1 = Vmm(xmm_v1.getIdx());
-                        Vmm vmm_v2 = Vmm(xmm_v2.getIdx());
-                        Vmm vmm_v3 = Vmm(xmm_v3.getIdx());
-                        Vmm vmm_v4 = Vmm(xmm_v4.getIdx());
+                        auto vmm_v1 = Vmm(xmm_v1.getIdx());
+                        auto vmm_v2 = Vmm(xmm_v2.getIdx());
+                        auto vmm_v3 = Vmm(xmm_v3.getIdx());
+                        auto vmm_v4 = Vmm(xmm_v4.getIdx());
 
                         // offsets computation
                         size_t ind_off_hh = sampledPointsPerPixel *
@@ -600,8 +600,8 @@ private:
                                 psrldq(vmm_dst, jcp_.typesize_out);
                             } else {
                                 Ymm ymm_dst = get_ymm_acc(ow);
-                                Vmm vmm_tmp = Vmm(0);
-                                Ymm ymm_tmp = Ymm(0);
+                                auto vmm_tmp = Vmm(0);
+                                auto ymm_tmp = Ymm(0);
 
                                 vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
                                 vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);

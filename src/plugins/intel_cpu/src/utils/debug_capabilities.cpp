@@ -160,7 +160,7 @@ std::ostream& operator<<(std::ostream& os, const NodeDesc& desc) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& c_node) {
-    Node& node = const_cast<Node&>(c_node);
+    auto& node = const_cast<Node&>(c_node);
     const int align_col = 50;
     const char* comma = "";
     auto node_id = [](Node& node) {

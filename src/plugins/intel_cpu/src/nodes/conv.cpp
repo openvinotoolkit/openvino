@@ -426,7 +426,7 @@ void Convolution::getSupportedDescriptors() {
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
 
-    int expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
+    auto expectedInputEdgesNum = static_cast<int>(getOriginalInputsNumber());
     for (size_t i = 0; i < fusedWith.size(); i++) {
         if (fusedWith[i]->getType() == Type::Convolution) {
             expectedInputEdgesNum += static_cast<int>(fusedWith[i]->getOriginalInputsNumber()) - 1;
