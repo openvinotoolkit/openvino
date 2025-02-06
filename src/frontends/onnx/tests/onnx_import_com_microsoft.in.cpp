@@ -1682,3 +1682,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
+    const auto model = convert_model("com.microsoft/bias_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                  13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    const std::vector<float> bias = {2, 0, -1};
+    const std::vector<float> skip = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7};
+
+    const std::vector<float> expected_output = {3,  2,  2,  7,  6,  6,  11, 10, 10, 15, 14, 14,
+                                                19, 18, 18, 23, 22, 22, 27, 26, 26, 31, 30, 30};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+    test_case.add_input<float>(Shape{2, 4, 3}, skip);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+
+    test_case.run();
+}
