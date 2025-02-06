@@ -388,7 +388,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                 // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
+                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(std::move(program)));
             }
         } else {
             cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);

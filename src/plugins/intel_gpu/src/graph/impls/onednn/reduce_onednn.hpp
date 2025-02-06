@@ -15,7 +15,7 @@ namespace onednn {
 inline bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
-    auto input_layout = node.get_input_layout();
+    const auto& input_layout = node.get_input_layout();
     if (node.get_output_layout().format == format::any)
         return false;
 
@@ -43,7 +43,8 @@ inline bool is_reduce_blocked_axes(reduce_node const& node) {
 
 struct ReduceImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::reduce")
-    ReduceImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
+    ReduceImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+        : ImplementationManager(impl_types::onednn, shape_type, std::move(vf)) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {

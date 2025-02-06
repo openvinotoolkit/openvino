@@ -11,7 +11,8 @@ namespace ocl {
 
 struct SoftmaxImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::softmax")
-    SoftmaxImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
+    SoftmaxImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+        : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 };
 
