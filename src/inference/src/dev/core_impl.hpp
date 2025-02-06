@@ -5,8 +5,8 @@
 #pragma once
 
 #include "cache_guard.hpp"
-#include "dev/plugin.hpp"
 #include "cache_manager.hpp"
+#include "dev/plugin.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -172,7 +172,7 @@ private:
     mutable ov::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
-        ov::util::FilePath libraryLocation;
+        ov::util::Path libraryLocation;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
         CreatePluginEngineFunc* pluginCreateFunc = nullptr;
