@@ -242,8 +242,7 @@ Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
-
-    if (inputPortDesc->getMemDesc()->getPrecision() == element::undefined) {
+    if (inputPortDesc->getMemDesc()->getPrecision() == element::dynamic) {
         return ReorderStatus::No;
     }
 
@@ -462,7 +461,7 @@ const MemoryDesc& Edge::getOutputDesc() const {
 }
 
 const MemoryDesc& Edge::getDesc() const {
-    if (getInputDesc().getPrecision() == element::undefined) {
+    if (getInputDesc().getPrecision() == element::dynamic) {
         return getInputDesc();
     }
 

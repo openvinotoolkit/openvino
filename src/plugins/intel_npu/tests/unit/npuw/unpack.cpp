@@ -10,13 +10,21 @@ namespace {
 const auto TestCases = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4}),
         ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::f16}),
-        ::testing::ValuesIn({ov::element::Type_t::undefined}), // no used in this test
-        ::testing::ValuesIn({ov::element::Type_t::undefined}), // no used in this test
+        ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test
+        ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test
         ::testing::ValuesIn({3lu, 0lu}),
-        ::details::ShapesIn({Tensors{input={1, 1, 1, 32};},
-                             Tensors{input={1,1,1, 128};},
-                             Tensors{input={1,1,1, 390};},
-                             Tensors{input={1,1,1, 82};}}),
+        ::details::ShapesIn({Tensors{input={1, 1, 1, 32};
+}
+, Tensors {
+    input = {1, 1, 1, 128};
+}
+, Tensors {
+    input = {1, 1, 1, 390};
+}
+, Tensors {
+    input = {1, 1, 1, 82};
+}
+}),
         ::testing::ValuesIn({true, false}),
         ::testing::ValuesIn({true, false})
 );
@@ -29,13 +37,27 @@ const auto TestCasesScale = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4}), // TODO: add i8 as input for test
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
         ::testing::ValuesIn({ov::element::Type_t::f16, ov::element::Type_t::f32}),
-        ::testing::ValuesIn({ov::element::Type_t::undefined}), // no used in this test
+        ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test
         ::testing::ValuesIn({3lu, 0lu}),
-        ::details::ShapesIn({Tensors{input={1,32, 128};     scale = {1, 32, 1};},
-                             Tensors{input={32, 128};       scale = {32, 1};},
-                             Tensors{input={64, 160};       scale = {64, 1};},
-                             Tensors{input={1024, 4};       scale = {64, 1};},
-                             Tensors{input={1, 1, 1024, 4}; scale = {1, 1, 64, 1};}}),
+        ::details::ShapesIn({Tensors{input={1,32, 128};     scale = {1, 32, 1};
+}
+, Tensors {
+    input = {32, 128};
+    scale = {32, 1};
+}
+, Tensors {
+    input = {64, 160};
+    scale = {64, 1};
+}
+, Tensors {
+    input = {1024, 4};
+    scale = {64, 1};
+}
+, Tensors {
+    input = {1, 1, 1024, 4};
+    scale = {1, 1, 64, 1};
+}
+}),
         ::testing::ValuesIn({true, false}),
         ::testing::ValuesIn({true, false})
 );

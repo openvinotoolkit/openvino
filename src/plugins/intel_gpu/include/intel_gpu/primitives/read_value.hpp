@@ -27,11 +27,11 @@ struct read_value : public primitive_base<read_value> {
                const std::vector<input_info>& inputs,
                const std::string& variable_id,
                const std::vector<layout>& output_layouts,
-               const ov::element::Type& user_specified_type = ov::element::undefined)
-            : primitive_base(id, inputs, output_layouts.size()),
-              variable_id{variable_id},
-              output_layouts{output_layouts},
-              user_specified_type(user_specified_type) {
+               const ov::element::Type& user_specified_type = ov::element::dynamic)
+        : primitive_base(id, inputs, output_layouts.size()),
+          variable_id{variable_id},
+          output_layouts{output_layouts},
+          user_specified_type(user_specified_type) {
         for (size_t output_idx = 0; output_idx < output_layouts.size(); output_idx++) {
             output_data_types[output_idx] = optional_data_type(output_layouts[output_idx].data_type);
         }
@@ -63,7 +63,7 @@ struct read_value : public primitive_base<read_value> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<read_value>::load(ib);
-        ov::element::Type_t data_type = ov::element::Type_t::undefined;
+        ov::element::Type_t data_type = ov::element::Type_t::dynamic;
         ib >> variable_id;
         size_t output_layouts_size;
         ib >> output_layouts_size;

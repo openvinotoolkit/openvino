@@ -29,7 +29,7 @@ public:
     }
 
     void validate_and_infer_types() override {
-        set_output_type(0, ov::element::undefined, ov::PartialShape::dynamic());
+        set_output_type(0, ov::element::dynamic, ov::PartialShape::dynamic());
     }
 };
 

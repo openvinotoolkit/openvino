@@ -102,7 +102,7 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
         auto fqOnDataCopy = fqOnData;
         fqOnDataCopy.outputHighValues = {255.f};
         fqOnDataCopy.outputPrecision =
-            fqOnData.outputPrecision == ov::element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
+            fqOnData.outputPrecision == ov::element::dynamic ? ov::element::u8 : fqOnData.outputPrecision;
 
         std::shared_ptr<Node> lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
         lastNode = makeDequantization(lastNode,
