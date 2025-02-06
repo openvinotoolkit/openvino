@@ -10,31 +10,6 @@ typedef INPUT0_TYPE data_et;
 typedef float grid_et;
 typedef OUTPUT_TYPE output_et;
 
-inline const data_et FUNC(
-    get_data_single_value)(const data_t* buffer, const size_t n, const size_t c, const size_t h, const size_t w) {
-    const size_t idx = INPUT0_GET_INDEX(n, c, h, w);
-    return buffer[idx];
-}
-#define get_data_single_value FUNC_CALL(get_data_single_value)
-
-inline const grid_et FUNC(
-    get_grid_single_value)(const grid_t* buffer, const size_t n, const size_t c, const size_t h, const size_t w) {
-    const size_t idx = INPUT1_GET_INDEX(n, h, w, c);
-    return buffer[idx];
-}
-#define get_grid_single_value FUNC_CALL(get_grid_single_value)
-
-inline void FUNC(set_output_single_value)(const output_et value,
-                                          output_t* buffer,
-                                          const size_t n,
-                                          const size_t c,
-                                          const size_t h,
-                                          const size_t w) {
-    const size_t idx = OUTPUT_GET_INDEX(n, c, h, w);
-    buffer[idx] = value;
-}
-#define set_output_single_value FUNC_CALL(set_output_single_value)
-
 #if defined(ALIGN_CORNERS)
 #define rescale_align FUNC(denormalize)
 inline grid_et rescale_align(const grid_et value, const size_t range) {
@@ -48,25 +23,10 @@ inline grid_et rescale_noalign(const grid_et value, const size_t range) {
 #endif
 #define denormalize FUNC_CALL(denormalize)
 
-#if defined(PADDING_MODE_ZEROS)
-#define zeros_padding FUNC(get_padded)
-inline data_et zeros_padding(const data_t* data, const size_t n, const size_t c, const long y_d, const long x_d) {
-    const long H = convert_long(INPUT0_SIZE_Y);
-    const long W = convert_long(INPUT0_SIZE_X);
-    if (y_d < 0 || x_d < 0 || y_d >= H || x_d >= W) {
-        return 0;
-    } else {
-        const size_t y = (size_t)(y_d);
-        const size_t x = (size_t)(x_d);
-        return get_data_single_value(data, n, c, y, x);
-    }
+inline const bool FUNC(is_between)(int val, int min, int max) {
+    return (val >= min) && (val < max);
 }
-#undef zeros_padding
-#else
-#error [clDNN grid_sample_ref.cl]: undefined padding mode
-#endif
-
-#define get_padded FUNC_CALL(get_padded)
+#define is_between FUNC_CALL(is_between)
 
 KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
                         const __global grid_t* restrict grid,
@@ -95,26 +55,62 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
         const int h = globalThisThreadHW / OUTPUT_SIZE_X;
         const int w = globalThisThreadHW % OUTPUT_SIZE_X;
 
+        const int OUTPUT_OFFSET_THIS_THREAD = n*OUTPUT_FEATURE_NUM*OUTPUT_SIZE_Y*OUTPUT_SIZE_X + h*OUTPUT_SIZE_X + w;
+        const int OUTPUT_C_STRIDE = OUTPUT_SIZE_Y*OUTPUT_SIZE_X;
+
         const grid_et x_n = grid_for_this_block[thisThreadHW];
         const grid_et y_n = grid_for_this_block[thisThreadHW+1];
         const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);
         const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);
-        const grid_et y_topleft = floor(y_d);
-        const grid_et x_topleft = floor(x_d);
+        const int y_topleft = (int)floor(y_d);
+        const int x_topleft = (int)floor(x_d);
         const grid_et dy = y_d - y_topleft;
         const grid_et dx = x_d - x_topleft;
+
+        const bool y_topleft_valid = is_between(y_topleft, 0, INPUT0_SIZE_Y);
+        const bool y_topleft_plus_valid = is_between(y_topleft + 1, 0, INPUT0_SIZE_Y);
+        const bool x_topleft_valid = is_between(x_topleft, 0, INPUT0_SIZE_X);
+        const bool x_topleft_plus_valid = is_between(x_topleft + 1, 0, INPUT0_SIZE_X);
+
+        const int INPUT_OFFSET_THIS_THREAD = n*INPUT0_FEATURE_NUM*INPUT0_SIZE_Y*INPUT0_SIZE_X;
+        const int INPUT_C_STRIDE = INPUT0_SIZE_Y*INPUT0_SIZE_X;
+
+        const bool v00_valid = y_topleft_valid && x_topleft_valid;
+        const bool v01_valid = y_topleft_valid && x_topleft_plus_valid;
+        const bool v10_valid = y_topleft_plus_valid && x_topleft_valid;
+        const bool v11_valid = y_topleft_plus_valid && x_topleft_plus_valid;
+
+        const int v00_OFFSET = v00_valid ? (INPUT_OFFSET_THIS_THREAD + y_topleft*INPUT0_SIZE_X + x_topleft) : 0;
+        const int v01_OFFSET = v01_valid ? (INPUT_OFFSET_THIS_THREAD + y_topleft*INPUT0_SIZE_X + x_topleft + 1) : 0;
+        const int v10_OFFSET = v10_valid ? (INPUT_OFFSET_THIS_THREAD + (y_topleft + 1)*INPUT0_SIZE_X + x_topleft) : 0;
+        const int v11_OFFSET = v11_valid ? (INPUT_OFFSET_THIS_THREAD + (y_topleft + 1)*INPUT0_SIZE_X + x_topleft + 1) : 0;
     
         #pragma unroll
         for(int c = 0; c < OUTPUT_FEATURE_NUM; ++c) {
-            const data_et v00 = get_padded(data, n, c, y_topleft, x_topleft);
-            const data_et v01 = get_padded(data, n, c, y_topleft, x_topleft + 1);
-            const data_et v10 = get_padded(data, n, c, y_topleft + 1, x_topleft);
-            const data_et v11 = get_padded(data, n, c, y_topleft + 1, x_topleft + 1);
+            const int INPUT_OFFSET_FOR_THIS_C = c*INPUT_C_STRIDE;
 
-            const data_et q0 = (1 - dx) * v00 + dx * v01;
-            const data_et q1 = (1 - dx) * v10 + dx * v11;
+            // WARNING: This loads may read from 'wrong' location - this 
+            // is done intentianally to keep warp without need to sync
+            // and allows for having multiple such loads on the fly - if
+            // compiler is smart enough.
+            // Otherwise, if load is done conditionally, software pipelinging
+            // is hindered by having warp sync due to warp divergence.
+            // Tested on a770 GPU with ocl 3.0
+            const data_et v00_d = data[v00_OFFSET + INPUT_OFFSET_FOR_THIS_C];
+            const data_et v01_d = data[v01_OFFSET + INPUT_OFFSET_FOR_THIS_C];
+            const data_et v10_d = data[v10_OFFSET + INPUT_OFFSET_FOR_THIS_C];
+            const data_et v11_d = data[v11_OFFSET + INPUT_OFFSET_FOR_THIS_C];
+
+            const data_et v00 = v00_valid ? v00_d * (1 - dx) : 0;
+            const data_et v01 = v01_valid ? v01_d * dx : 0;
+            const data_et v10 = v10_valid ? v10_d * (1 - dx) : 0;
+            const data_et v11 = v11_valid ? v11_d * dx : 0;
+
+            const data_et q0 = v00 + v01;
+            const data_et q1 = v10 + v11;
             const data_et out = dy * q1 + (1 - dy) * q0;
-            set_output_single_value(out, output, n, c, h, w);
+
+            output[OUTPUT_OFFSET_THIS_THREAD + c*OUTPUT_C_STRIDE] = out;
         }
     }
 }
