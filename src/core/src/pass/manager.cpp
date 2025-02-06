@@ -138,6 +138,8 @@ private:
     std::chrono::nanoseconds m_last_time = std::chrono::high_resolution_clock::duration::zero();
 };
 
+// Do nothing
+
 class Profiler {
 public:
     /**
