@@ -106,6 +106,9 @@ void OperatorsBridge::register_operator(const std::string& name,
                                         int64_t version,
                                         const std::string& domain,
                                         Operator fn) {
+    if (name == "Equal") {
+        std::cout << "Registering Equal operator" << std::endl;
+    }
     auto it = m_map[domain][name].find(version);
     if (it == std::end(m_map[domain][name])) {
         m_map[domain][name].emplace(version, std::move(fn));
