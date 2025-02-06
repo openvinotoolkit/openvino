@@ -327,6 +327,10 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(.*ConcatMultiQuerySDPTest.*u8.*)");
+#if defined(OV_CPU_WITH_KLEIDIAI)
+    // Issue: FC KleidiAI executor does not support f16 yet
+    retVector.emplace_back(R"(smoke_FC.*f16.*)");
+#endif
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
