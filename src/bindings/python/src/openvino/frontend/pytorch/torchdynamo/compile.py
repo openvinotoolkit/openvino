@@ -13,7 +13,7 @@ from hashlib import sha256
 from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder, ExecuTorchPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino import Core, Type, PartialShape, serialize
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
 
@@ -78,11 +78,8 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
     return compiled_model
 
-def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None, executorch=False):
+def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
     core = Core()
-
-    if executorch:
-        model_hash_str = None
 
     device = _get_device(options)
     cache_root = _get_cache_dir(options)
@@ -104,10 +101,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
                 input_types.append(input_data.type())
                 input_shapes.append(input_data.size())
 
-        if executorch:
-            decoder = ExecuTorchPythonDecoder(gm)
-        else:
-            decoder = TorchFXPythonDecoder(gm)
+        decoder = TorchFXPythonDecoder(gm)
 
         im = fe.load(decoder)
 
