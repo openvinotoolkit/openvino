@@ -119,8 +119,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(extra_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-undef")
     if(MSVC64)
-        # Recommended Win ARM arch build in https://arm-software.github.io/ComputeLibrary/latest/how_to_build.xhtml
-        set(OV_CPU_ARM_TARGET_ARCH armv8a)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
     elseif(CMAKE_POSITION_INDEPENDENT_CODE)
