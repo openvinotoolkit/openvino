@@ -24,8 +24,7 @@
 using Loop = ov::op::v5::Loop;
 using TensorIterator = ov::op::v0::TensorIterator;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num, int64_t rank) {
@@ -344,5 +343,4 @@ static void CreateTensorIteratorOp(ProgramBuilder& p, const std::shared_ptr<Tens
 REGISTER_FACTORY_IMPL(v5, Loop);
 REGISTER_FACTORY_IMPL(v0, TensorIterator);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

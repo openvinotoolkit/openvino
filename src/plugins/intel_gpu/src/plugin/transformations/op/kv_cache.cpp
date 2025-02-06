@@ -10,9 +10,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 KVCache::KVCache(const OutputVector& inputs,
                  const std::shared_ptr<ov::op::util::Variable>& past_variable,
@@ -207,6 +205,4 @@ std::vector<ov::PartialShape> shape_infer(const KVCacheCompressed* op,
     return out_shapes;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

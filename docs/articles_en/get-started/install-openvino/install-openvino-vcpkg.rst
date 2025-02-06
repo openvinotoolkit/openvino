@@ -61,7 +61,7 @@ And running from terminal:
 
 Congratulations! You've just Installed and used OpenVINO in your project! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <../configurations>`
+:doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
 Uninstalling OpenVINO
@@ -83,7 +83,7 @@ Now that you've installed OpenVINO Runtime, you can try the following things:
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
 * See pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
-* See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
+* See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../get-started/learn-openvino/openvino-samples>`.
 * Check out the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__ .
 
 

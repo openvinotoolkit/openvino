@@ -22,8 +22,9 @@ If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, const
     : srcMemPtr(std::move(from)),
       dstMemPtrs(std::move(to)),
       size(0) {
-    if (srcMemPtr->getDesc().isDefined())
+    if (srcMemPtr->getDesc().isDefined()) {
         size = srcMemPtr->getShape().getElementsCount();
+    }
 
     // Backup dstMemPtrs
     for (auto& ptr : dstMemPtrs) {
@@ -91,10 +92,7 @@ void If::getSupportedDescriptors() {
         if (auto inNode = subGraphThen.getInputNodeByIndex(ifOp->get_then_body()->get_parameter_index(param))) {
             inputMemThen.push_back(getToMemories(inNode.get(), 0));
         } else {
-            OPENVINO_THROW("Then body of node If with name ",
-                           getName(),
-                           " does not have input with name: ",
-                           param->get_friendly_name());
+            THROW_CPU_NODE_ERR("Then body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
@@ -102,10 +100,7 @@ void If::getSupportedDescriptors() {
         if (auto inNode = subGraphElse.getInputNodeByIndex(ifOp->get_else_body()->get_parameter_index(param))) {
             inputMemElse.push_back(getToMemories(inNode.get(), 0));
         } else {
-            OPENVINO_THROW("Else body of node If with name ",
-                           getName(),
-                           " does not have input with name: ",
-                           param->get_friendly_name());
+            THROW_CPU_NODE_ERR("Else body of node does not have input with name: ", param->get_friendly_name());
         }
     }
 
@@ -114,10 +109,7 @@ void If::getSupportedDescriptors() {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
-            OPENVINO_THROW("Then body of node If with name ",
-                           getName(),
-                           " does not have output with name: ",
-                           out->get_friendly_name());
+            THROW_CPU_NODE_ERR("Then body of node does not have output with name: ", out->get_friendly_name());
         }
     }
 
@@ -126,10 +118,7 @@ void If::getSupportedDescriptors() {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
-            OPENVINO_THROW("Else body of node If with name ",
-                           getName(),
-                           " does not have output with name: ",
-                           out->get_friendly_name());
+            THROW_CPU_NODE_ERR("Else body of node does not have output with name: ", out->get_friendly_name());
         }
     }
 
@@ -158,8 +147,9 @@ void If::getSupportedDescriptors() {
 }
 
 void If::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     NodeConfig config;
     config.inConfs.reserve(getParentEdges().size());
@@ -239,8 +229,9 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
 
 std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) const {
     std::deque<MemoryPtr> memories;
-    for (const auto& edge : node->getChildEdgesAtPort(port))
+    for (const auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());
+    }
     return memories;
 }
 
@@ -251,12 +242,14 @@ void If::execute(const dnnl::stream& strm) {
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
     auto& subGraph = condition ? subGraphThen : subGraphElse;
 
-    for (auto& mapper : beforeMappers)
+    for (auto& mapper : beforeMappers) {
         mapper->execute(strm);
+    }
     subGraph.ResetInferCount();
     subGraph.Infer();
-    for (auto& mapper : afterMappers)
+    for (auto& mapper : afterMappers) {
         mapper->execute(strm);
+    }
 }
 
 void If::executeDynamicImpl(const dnnl::stream& strm) {
