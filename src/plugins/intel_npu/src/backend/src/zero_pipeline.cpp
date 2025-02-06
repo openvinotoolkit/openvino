@@ -65,7 +65,7 @@ Pipeline::Pipeline(const Config& config,
                 if (remote_tensor == nullptr) {
                     data = input_tensors.at(io_index).at(i)->data();
                 } else {
-                    data = zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+                    data = remote_tensor->get_original_memory();
                 }
 
                 graph->set_argument_value(desc.idx, data);
@@ -79,7 +79,7 @@ Pipeline::Pipeline(const Config& config,
             if (remote_tensor == nullptr) {
                 data = input_tensors.at(io_index).at(0)->data();
             } else {
-                data = zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+                data = remote_tensor->get_original_memory();
             }
 
             graph->set_argument_value(
@@ -97,7 +97,7 @@ Pipeline::Pipeline(const Config& config,
             if (remote_tensor == nullptr) {
                 data = output_tensors.at(io_index)->data();
             } else {
-                data = zeroUtils::extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
+                data = remote_tensor->get_original_memory();
             }
 
             graph->set_argument_value(

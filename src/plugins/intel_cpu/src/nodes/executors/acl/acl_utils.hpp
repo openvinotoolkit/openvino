@@ -99,15 +99,19 @@ inline int axisCast(const std::size_t axis,
     case NO_LAYOUT_CONVERSION:
         return revertedAxis;
     case NHWC_TO_NCHW:
-        if (shapeSize == 4)
+        if (shapeSize == 4) {
             return nhwcToNchw[revertedAxis];
-        if (shapeSize == 5)
+        }
+        if (shapeSize == 5) {
             return ndhwcToNcdhw[revertedAxis];
+        }
     case NCHW_TO_NHWC:
-        if (shapeSize == 4)
+        if (shapeSize == 4) {
             return nchwToNhwc[revertedAxis];
-        if (shapeSize == 5)
+        }
+        if (shapeSize == 5) {
             return ncdhwToNdhwc[revertedAxis];
+        }
     default:
         return -1;
     }

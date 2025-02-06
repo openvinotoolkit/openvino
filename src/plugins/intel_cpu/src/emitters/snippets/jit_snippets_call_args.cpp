@@ -58,7 +58,7 @@ void jit_snippets_call_args::loop_args_t::init_pointers_and_copy_data(const int6
     std::memcpy(m_finalization_offsets, finalization_offsets, chunk_size);
 }
 
-void swap(jit_snippets_call_args::loop_args_t& first, jit_snippets_call_args::loop_args_t& second) {
+void swap(jit_snippets_call_args::loop_args_t& first, jit_snippets_call_args::loop_args_t& second) noexcept {
     std::swap(first.m_work_amount, second.m_work_amount);
     std::swap(first.m_num_data_ptrs, second.m_num_data_ptrs);
     std::swap(first.m_ptr_increments, second.m_ptr_increments);

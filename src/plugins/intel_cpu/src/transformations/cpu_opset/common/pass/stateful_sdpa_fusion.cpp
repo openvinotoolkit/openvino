@@ -136,8 +136,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                     }
                 }
                 assign = ov::as_type<opset6::Assign>(to_node);
-                if (assign)
+                if (assign) {
                     return true;
+                }
             }
             return false;
         };
@@ -150,8 +151,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                             ov::op::v0::ShapeOf::get_type_info_static(),
                             ov::op::v3::ShapeOf::get_type_info_static(),
                             ov::op::v0::Convert::get_type_info_static(),
-                            ov::op::v8::Gather::get_type_info_static()))
+                            ov::op::v8::Gather::get_type_info_static())) {
                     return false;
+                }
             }
             return true;
         };
@@ -207,8 +209,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             for (auto&& node : nodes) {
                 if (pattern_map.count(node)) {
                     auto p = pattern_map.at(node).get_node_shared_ptr();
-                    if (p->get_output_target_inputs(0).size() != 1)
+                    if (p->get_output_target_inputs(0).size() != 1) {
                         return false;
+                    }
                 }
             }
             return true;
@@ -277,15 +280,17 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         new_node->set_friendly_name(old_node->get_friendly_name());
         copy_runtime_info(old_node, new_node);
         ov::replace_node(old_node, {new_node->output(0)});
-        if (assign_cvt_k_node)
+        if (assign_cvt_k_node) {
             assign_cvt_k_node->set_arguments({new_node->output(1)});
-        else
+        } else {
             assign_k_node->set_arguments({new_node->output(1)});
+        }
 
-        if (assign_cvt_v_node)
+        if (assign_cvt_v_node) {
             assign_cvt_v_node->set_arguments({new_node->output(2)});
-        else
+        } else {
             assign_v_node->set_arguments({new_node->output(2)});
+        }
 
         // Markup pattern:
         // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that

@@ -181,8 +181,9 @@ PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    if (permute_kernel)
+    if (permute_kernel) {
         permute_kernel->create_ker();
+    }
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -209,8 +210,9 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
 
-    if (static_cast<int>(dst_dims[0]) != mb)
+    if (static_cast<int>(dst_dims[0]) != mb) {
         dst_dims[0] = mb;
+    }
 
     switch (jcp.n) {
     case 1:

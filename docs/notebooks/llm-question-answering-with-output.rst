@@ -83,7 +83,7 @@ Prerequisites
 
     %pip uninstall -q -y optimum optimum-intel
     %pip install  -Uq "openvino>=2024.3.0" "openvino-genai"
-    %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.40.0" "onnx<1.16.2" "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.40.0" "huggingface-hub>=0.26.5" "onnx<1.16.2" "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Select model for inference
 --------------------------
@@ -183,17 +183,23 @@ The available options are:
     from pathlib import Path
     import requests
     
-    # Fetch `notebook_utils` module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        # Fetch `notebook_utils` module
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
     
     if not Path("./config.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-question-answering/config.py")
     from config import SUPPORTED_LLM_MODELS
     import ipywidgets as widgets
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llm-question-answering.ipynb")
 
 .. code:: ipython3
 

@@ -6,9 +6,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 Placeholder::Placeholder() : ov::op::Op() {
     validate_and_infer_types();
@@ -29,6 +27,4 @@ std::shared_ptr<Node> Placeholder::clone_with_new_inputs(const ov::OutputVector&
     return std::make_shared<Placeholder>();
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

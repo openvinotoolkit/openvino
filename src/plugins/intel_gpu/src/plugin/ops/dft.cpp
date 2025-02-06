@@ -13,8 +13,7 @@
 #include "openvino/op/irdft.hpp"
 #include "openvino/op/rdft.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -101,5 +100,4 @@ REGISTER_FACTORY_IMPL(v7, IDFT);
 REGISTER_FACTORY_IMPL(v9, RDFT);
 REGISTER_FACTORY_IMPL(v9, IRDFT);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

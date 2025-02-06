@@ -163,8 +163,9 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
 }
 
 size_t jit_load_emitter::get_aux_gprs_count() const {
-    if (load_num_ == 3)
+    if (load_num_ == 3) {
         return 1;
+    }
 
     return 0;
 }
@@ -318,8 +319,9 @@ void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::
 }
 
 size_t jit_store_emitter::get_aux_gprs_count() const {
-    if (store_num_ == 3)
+    if (store_num_ == 3) {
         return 1;
+    }
 
     return 0;
 }

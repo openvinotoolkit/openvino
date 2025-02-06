@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,9 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmTPP")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
-        if (!brgemm || ov::as_type_ptr<tpp::op::BrgemmTPP>(node))
+        if (!brgemm || ov::as_type_ptr<tpp::op::BrgemmTPP>(node)) {
             OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmTPP pass");
+        }
 
         if (brgemm->is_dynamic()) {
             return false;
@@ -63,8 +64,10 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         const auto& precision_b = brgemm->get_input_element_type(1);
         const auto& precision_c = brgemm->get_output_element_type(0);
 
-        if (!is_supported_brgemm_configuration({layout_a, layout_b, layout_c}, {precision_a, precision_b, precision_c}))
+        if (!is_supported_brgemm_configuration({layout_a, layout_b, layout_c},
+                                               {precision_a, precision_b, precision_c})) {
             return false;
+        }
 
         const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
         const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();

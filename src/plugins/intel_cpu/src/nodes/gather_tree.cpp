@@ -36,28 +36,36 @@ GatherTree::GatherTree(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (inputShapes.size() != 4)
+    if (inputShapes.size() != 4) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-    if (outputShapes.size() != 1)
+    }
+    if (outputShapes.size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+    }
 
-    if (getInputShapeAtPort(GATHER_TREE_STEP_IDX).getRank() != 3)
+    if (getInputShapeAtPort(GATHER_TREE_STEP_IDX).getRank() != 3) {
         THROW_CPU_NODE_ERR("step_idx vector should be 3 dimension");
-    if (getInputShapeAtPort(GATHER_TREE_PARENT_IDX).getRank() != 3)
+    }
+    if (getInputShapeAtPort(GATHER_TREE_PARENT_IDX).getRank() != 3) {
         THROW_CPU_NODE_ERR("parent_idx vector should be 3 dimension");
-    if (getInputShapeAtPort(GATHER_TREE_MAX_SEQ_LEN).getRank() != 1)
+    }
+    if (getInputShapeAtPort(GATHER_TREE_MAX_SEQ_LEN).getRank() != 1) {
         THROW_CPU_NODE_ERR("max_seq_len vector should be 1 dimension");
-    if (!is_scalar(op->get_input_partial_shape(GATHER_TREE_END_TOKEN)))
+    }
+    if (!is_scalar(op->get_input_partial_shape(GATHER_TREE_END_TOKEN))) {
         THROW_CPU_NODE_ERR("end_token should be scalar");
+    }
 }
 
 void GatherTree::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!one_of(precision, ov::element::f32, ov::element::i32))
+    if (!one_of(precision, ov::element::f32, ov::element::i32)) {
         precision = ov::element::f32;
+    }
 
     if (getOriginalInputPrecisionAtPort(GATHER_TREE_PARENT_IDX) != precision ||
         getOriginalInputPrecisionAtPort(GATHER_TREE_MAX_SEQ_LEN) != precision ||
@@ -75,21 +83,23 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
 }
 
 void GatherTree::execute(const dnnl::stream& strm) {
-    if (!execPtr)
+    if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
+    }
 
-    if (precision == ov::element::f32)
+    if (precision == ov::element::f32) {
         execPtr->exec<float>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
                              getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                              getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                              getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
                              getDstMemoryAtPort(0));
-    else
+    } else {
         execPtr->exec<int32_t>(getSrcMemoryAtPort(GATHER_TREE_STEP_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_PARENT_IDX),
                                getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN),
                                getSrcMemoryAtPort(GATHER_TREE_END_TOKEN),
                                getDstMemoryAtPort(0));
+    }
 }
 
 void GatherTree::prepareParams() {
@@ -98,16 +108,21 @@ void GatherTree::prepareParams() {
     const auto& maxSeqLenMemPtr = getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!stepIdxMemPtr || !stepIdxMemPtr->isDefined())
+    if (!stepIdxMemPtr || !stepIdxMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory of 'step_ids'.");
-    if (!parentIdxMemPtr || !parentIdxMemPtr->isDefined())
+    }
+    if (!parentIdxMemPtr || !parentIdxMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory of 'parent_ids'.");
-    if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isDefined())
+    }
+    if (!maxSeqLenMemPtr || !maxSeqLenMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory of 'max_seq_len'.");
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    }
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined output memory.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
         THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
+    }
 
     const VectorDims& stepIdxDims = stepIdxMemPtr->getStaticDims();
     const VectorDims& parentIdxDims = parentIdxMemPtr->getStaticDims();
@@ -155,8 +170,9 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
         int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
         if (maxSequenceInBeam > 0) {
             int32_t time, idx = (maxTime - 1) * bbSize + batch * beamWidth;
-            for (time = (maxTime - 1); time >= maxSequenceInBeam; time--, idx -= bbSize)
+            for (time = (maxTime - 1); time >= maxSequenceInBeam; time--, idx -= bbSize) {
                 finalIdx[idx + beam] = endToken;
+            }
 
             for (int32_t parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
                 if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) ||
@@ -171,10 +187,11 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
             bool finished = false;
             auto* final = &finalIdx[batch * beamWidth + beam];
             for (time = 0; time < maxSequenceInBeam; time++, final += bbSize) {
-                if (finished)
+                if (finished) {
                     (*final) = endToken;
-                else if ((*final) == endToken)
+                } else if ((*final) == endToken) {
                     finished = true;
+                }
             }
         }
     });

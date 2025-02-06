@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 /// Add dynamic quantization node and fuse it with KV cache operation
@@ -40,5 +39,4 @@ public:
 };
 
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

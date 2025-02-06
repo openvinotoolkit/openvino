@@ -11,7 +11,7 @@ elements. This enables more accurate and efficient interaction with
 GUIs, empowering AI agents to perform tasks across various platforms and
 applications.
 
-|image0|
+.. image:: https://microsoft.github.io/OmniParser/static/images/flow_merged0.png
 
 More details about model can be found in `Microsoft blog
 post <https://www.microsoft.com/en-us/research/articles/omniparser-for-pure-vision-based-gui-agent/>`__,
@@ -19,6 +19,7 @@ post <https://www.microsoft.com/en-us/research/articles/omniparser-for-pure-visi
 repo <https://github.com/microsoft/OmniParser>`__ and `model
 card <https://huggingface.co/microsoft/OmniParser>`__. In this tutorial
 we consider how to run OmniParser using OpenVINO.
+
 
 **Table of contents:**
 
@@ -62,8 +63,6 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
-.. |image0| image:: https://microsoft.github.io/OmniParser/static/images/flow_merged0.png
-
 Prerequisites
 -------------
 
@@ -71,29 +70,14 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-
-    %pip install -q "torch>=2.1" easyocr torchvision accelerate "supervision==0.18.0" "transformers>=4.45" timm "einops==0.8.0" "ultralytics==8.1.24" pillow opencv-python "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2024.4.0"
-
-    if platform.system() == "Darwin":
-        %pip install -q "numpy<2.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. code:: ipython3
-
     from pathlib import Path
     import requests
+    import shutil
 
     notebook_utils_path = Path("notebook_utils.py")
     florence_helper_path = Path("ov_florence2_helper.py")
     omniparser_helper_path = Path("ov_omniparser_helper.py")
+    pip_utils_path = Path("pip_helper.py")
 
     if not notebook_utils_path.exists():
         r = requests.get(
@@ -101,13 +85,62 @@ Prerequisites
         )
         notebook_utils_path.open("w", encoding="utf-8").write(r.text)
 
+    if not pip_utils_path.exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
+        )
+        pip_utils_path.open("w", encoding="utf-8").write(r.text)
+
     if not florence_helper_path.exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/florence2/ov_florence2_helper.py")
-        florence_helper_path.open("w", encoding="utf-8").write(r.text)
+        if Path("../florence2/ov_florence2_helper.py").exists():
+            shutil.copy(Path("../florence2/ov_florence2_helper.py"), florence_helper_path)
+        else:
+            r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/florence2/ov_florence2_helper.py")
+            florence_helper_path.open("w", encoding="utf-8").write(r.text)
 
     if not omniparser_helper_path.exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/omniparser/ov_omniparser_helper.py")
         omniparser_helper_path.open("w", encoding="utf-8").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("omniparser.ipynb")
+
+.. code:: ipython3
+
+    import platform
+    from pip_helper import pip_install
+
+    pip_install(
+        "torch>=2.1",
+        "torchvision",
+        "accelerate",
+        "transformers>=4.45",
+        "timm",
+        "einops==0.8.0",
+        "ultralytics==8.3.59",
+        "pillow",
+        "opencv-python",
+        "gradio>=4.19",
+        "defusedxml",
+        "pyyaml",
+        "scipy",
+        "scikit-image",
+        "python-bidi",
+        "pyclipper",
+        "Shapely",
+        "ninja",
+        "tqdm",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+    )
+    pip_install("--no-deps", "supervision==0.18.0")
+    pip_install("--no-deps", "easyocr", "--extra-index-url", "https://download.pytorch.org/whl/cpu")
+    pip_install("-U", "--pre", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/pre-release", "openvino>=2024.6.0")
+
+    if platform.system() == "Darwin":
+        pip_install("numpy<2.0")
 
 Prepare models
 --------------
@@ -164,8 +197,13 @@ API. You can find more examples of this API usage in these
 
 .. parsed-literal::
 
-    2024-12-10 02:35:42.631431: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 02:35:42.657651: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    <frozen importlib.util>:247: DeprecationWarning: The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. Please replace `openvino.runtime` with `openvino`.
+    2025-01-22 21:12:17.990214: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-01-22 21:12:18.002873: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1737565938.018756 1013181 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1737565938.023306 1013181 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2025-01-22 21:12:18.039051: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -197,32 +235,32 @@ API. You can find more examples of this API usage in these
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/ultralytics/nn/tasks.py:714: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      ckpt = torch.load(file, map_location="cpu")
+    Ultralytics 8.3.59 🚀 Python-3.11.4 torch-2.5.1+cpu CPU (Intel Core(TM) i9-10980XE 3.00GHz)
 
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.1.24 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
-    model summary (fused): 168 layers, 3005843 parameters, 0 gradients, 8.1 GFLOPs
-
-    PyTorch: starting from 'weights/icon_detect/best.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 5, 8400) (11.7 MB)
-
-    OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /home/ea/work/py311/lib/python3.11/site-packages/thop/profile.py:12: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+      if LooseVersion(torch.__version__) < LooseVersion("1.0.0"):
+    /home/ea/work/py311/lib/python3.11/site-packages/thop/profile.py:12: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+      if LooseVersion(torch.__version__) < LooseVersion("1.0.0"):
+    /home/ea/work/py311/lib/python3.11/site-packages/thop/profile.py:68: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+      if LooseVersion(torch.__version__) >= LooseVersion("1.1.0"):
+    /home/ea/work/py311/lib/python3.11/site-packages/thop/profile.py:68: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+      if LooseVersion(torch.__version__) >= LooseVersion("1.1.0"):
 
 
 .. parsed-literal::
 
-    OpenVINO: export success ✅ 1.3s, saved as 'weights/icon_detect/best_openvino_model/' (6.1 MB)
+    model summary (fused): 168 layers, 3,005,843 parameters, 0 gradients, 8.1 GFLOPs
 
-    Export complete (2.7s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/omniparser/weights/icon_detect
+    [34m[1mPyTorch:[0m starting from 'weights/icon_detect/best.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 5, 8400) (11.7 MB)
+
+    [34m[1mOpenVINO:[0m starting export with openvino 2025.1.0-17945-3e8bc27b226...
+    [34m[1mOpenVINO:[0m export success ✅ 2.0s, saved as 'weights/icon_detect/best_openvino_model/' (6.1 MB)
+
+    Export complete (2.3s)
+    Results saved to [1m/home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/omniparser/weights/icon_detect[0m
     Predict:         yolo predict task=detect model=weights/icon_detect/best_openvino_model imgsz=640 half
     Validate:        yolo val task=detect model=weights/icon_detect/best_openvino_model imgsz=640 data=None half
     Visualize:       https://netron.app
@@ -263,6 +301,18 @@ workflow and steps for running it using OpenVINO in this
 
 .. parsed-literal::
 
+    CODE_OF_CONDUCT.md:   0%|          | 0.00/444 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    SUPPORT.md:   0%|          | 0.00/1.24k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     SECURITY.md:   0%|          | 0.00/2.66k [00:00<?, ?B/s]
 
 
@@ -275,7 +325,7 @@ workflow and steps for running it using OpenVINO in this
 
 .. parsed-literal::
 
-    SUPPORT.md:   0%|          | 0.00/1.24k [00:00<?, ?B/s]
+    preprocessor_config.json:   0%|          | 0.00/806 [00:00<?, ?B/s]
 
 
 
@@ -293,6 +343,18 @@ workflow and steps for running it using OpenVINO in this
 
 .. parsed-literal::
 
+    tokenizer.json:   0%|          | 0.00/1.36M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    LICENSE:   0%|          | 0.00/1.14k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     .gitattributes:   0%|          | 0.00/1.56k [00:00<?, ?B/s]
 
 
@@ -305,43 +367,19 @@ workflow and steps for running it using OpenVINO in this
 
 .. parsed-literal::
 
-    LICENSE:   0%|          | 0.00/1.14k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    CODE_OF_CONDUCT.md:   0%|          | 0.00/444 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    preprocessor_config.json:   0%|          | 0.00/806 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    tokenizer.json:   0%|          | 0.00/1.36M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     tokenizer_config.json:   0%|          | 0.00/34.0 [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    pytorch_model.bin:   0%|          | 0.00/464M [00:00<?, ?B/s]
+    vocab.json:   0%|          | 0.00/1.10M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/1.10M [00:00<?, ?B/s]
+    pytorch_model.bin:   0%|          | 0.00/464M [00:00<?, ?B/s]
 
 
 
@@ -383,13 +421,13 @@ workflow and steps for running it using OpenVINO in this
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+    /home/ea/work/py311/lib/python3.11/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
       warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
     Florence2LanguageForConditionalGeneration has generative capabilities, as `prepare_inputs_for_generation` is explicitly overwritten. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, `PreTrainedModel` will NOT inherit from `GenerationMixin`, and this model will lose the ability to call `generate` and other related functions.
       - If you're using `trust_remote_code=True`, you can get rid of this warning by loading the model with an auto class. See https://huggingface.co/docs/transformers/en/model_doc/auto#auto-classes
       - If you are the owner of the model architecture code, please modify your model class such that it inherits from `GenerationMixin` (after `PreTrainedModel`, otherwise you'll get an exception).
       - If you are not the owner of the model architecture class, please contact the model code owner to update it.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/modeling_utils.py:5055: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
@@ -452,8 +490,9 @@ Select inference device for icon detector
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.1.24 🚀 Python-3.8.10 torch-2.4.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics 8.3.59 🚀 Python-3.11.4 torch-2.5.1+cpu CPU (Intel Core(TM) i9-10980XE 3.00GHz)
     Loading weights/icon_detect/best_openvino_model for OpenVINO inference...
+    Using OpenVINO LATENCY mode for batch=1 inference...
 
 
 Screen regions captioning
@@ -552,7 +591,7 @@ Select device for OCR
 
 .. parsed-literal::
 
-    Neither CUDA nor MPS are available - defaulting to CPU. Note: This module is much faster with a GPU.
+    Using CPU. Note: This module is much faster with a GPU.
 
 
 
@@ -592,8 +631,8 @@ provides easy-to-use interface for screen parsing process.
 .. parsed-literal::
 
 
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/omniparser/examples/windows_home.png: 640x640 32 0s, 37.7ms
-    Speed: 2.5ms preprocess, 37.7ms inference, 1.1ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/omniparser/examples/windows_home.png: 640x640 32 0s, 55.1ms
+    Speed: 3.4ms preprocess, 55.1ms inference, 2.2ms postprocess per image at shape (1, 3, 640, 640)
     finish processing
 
 
@@ -658,23 +697,9 @@ Interactive demo
     demo = make_demo(process_image_gradio)
 
     try:
-        demo.launch(debug=False, height=600)
+        demo.launch(debug=True, height=600)
     except Exception:
-        demo.launch(debug=False, share=True, height=600)
+        demo.launch(debug=True, share=True, height=600)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

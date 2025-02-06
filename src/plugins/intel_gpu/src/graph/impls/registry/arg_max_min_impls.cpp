@@ -6,8 +6,7 @@
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "arg_max_min_inst.h"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
@@ -23,5 +22,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<arg_m
     return impls;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

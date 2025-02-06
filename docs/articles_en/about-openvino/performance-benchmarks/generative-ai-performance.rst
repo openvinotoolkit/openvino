@@ -56,7 +56,7 @@ The tables below list the key performance indicators for inference on built-in G
 
    .. grid-item::
 
-      .. button-link:: https://docs.openvino.ai/2024/_static/benchmarks_files/llm_models_platform_list_.pdf
+      .. button-link:: https://docs.openvino.ai/2025/_static/download/benchmarking_genai_platform_list.pdf
          :color: primary
          :outline:
          :expand:

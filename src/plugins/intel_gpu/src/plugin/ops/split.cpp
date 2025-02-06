@@ -11,8 +11,7 @@
 
 #include "intel_gpu/primitives/crop.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static bool IsDynamic(const std::shared_ptr<ov::Node>& op) {
     if (op->is_dynamic()) {
@@ -135,5 +134,4 @@ static void CreateVariadicSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 REGISTER_FACTORY_IMPL(v1, Split);
 REGISTER_FACTORY_IMPL(v1, VariadicSplit);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

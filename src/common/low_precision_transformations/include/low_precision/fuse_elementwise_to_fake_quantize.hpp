@@ -19,7 +19,6 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API FuseElementwiseToFakeQuantizeTransformation : public CleanupTransformation {
 public:
     FuseElementwiseToFakeQuantizeTransformation(const Params& params);
-    virtual ~FuseElementwiseToFakeQuantizeTransformation() = default;
 
     bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
 };

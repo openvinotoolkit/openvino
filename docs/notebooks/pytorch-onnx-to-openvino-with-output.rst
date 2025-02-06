@@ -82,12 +82,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     # Install openvino package
     %pip install -q "openvino>=2023.1.0" onnx torch torchvision opencv-python tqdm --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Preparation
 -----------
 
@@ -116,13 +110,19 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("pytorch-onnx-to-openvino.ipynb")
 
 Settings
 ~~~~~~~~
@@ -172,12 +172,13 @@ have not downloaded the model before.
 
 .. code:: ipython3
 
-    print("Downloading the LRASPP MobileNetV3 model (if it has not been downloaded already)...")
-    download_file(
-        LRASPP_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1.url,
-        filename=weights_path.name,
-        directory=weights_path.parent,
-    )
+    if not weights_path.exists():
+        print("Downloading the LRASPP MobileNetV3 model (if it has not been downloaded already)...")
+        download_file(
+            LRASPP_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1.url,
+            filename=weights_path.name,
+            directory=weights_path.parent,
+        )
     # create model object
     model = lraspp_mobilenet_v3_large()
     # read state dict, use map_location argument to avoid a situation where weights are saved in cuda (which may not be unavailable on the system)
@@ -192,24 +193,9 @@ have not downloaded the model before.
 .. parsed-literal::
 
     Downloading the LRASPP MobileNetV3 model (if it has not been downloaded already)...
-
-
-
-.. parsed-literal::
-
-    lraspp_mobilenet_v3_large.pt:   0%|          | 0.00/12.5M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
+    'model/lraspp_mobilenet_v3_large.pt' already exists.
     Loaded PyTorch LRASPP MobileNetV3 model
-
-
-.. parsed-literal::
-
-    /tmp/ipykernel_2234490/47468665.py:10: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      state_dict = torch.load(weights_path, map_location="cpu")
-
+    
 
 ONNX Model Conversion
 ---------------------
@@ -255,8 +241,12 @@ line of the output will read:
 
 .. parsed-literal::
 
+    ============= Diagnostic Run torch.onnx.export version 2.0.1+cu117 =============
+    verbose: False, log level: Level.ERROR
+    ======================= 0 NONE 0 NOTE 0 WARNING 0 ERROR ========================
+    
     ONNX model exported to model/lraspp_mobilenet_v3_large.onnx.
-
+    
 
 Convert ONNX Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -281,7 +271,7 @@ For more information on how to convert models, see this
 .. parsed-literal::
 
     Exporting ONNX model to IR... This may take a few minutes.
-
+    
 
 Show Results
 ------------
@@ -316,10 +306,13 @@ Images need to be normalized before propagating through the network.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
-        directory="data",
-    )
+    image_filename = Path("data") / "coco.jpg"
+    
+    if not image_filename.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
+            directory="data",
+        )
     
     image = cv2.cvtColor(cv2.imread(str(image_filename)), cv2.COLOR_BGR2RGB)
     
@@ -329,13 +322,6 @@ Images need to be normalized before propagating through the network.
     # Convert the resized images to network input shape.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
     normalized_input_image = np.expand_dims(np.transpose(normalized_image, (2, 0, 1)), 0)
-
-
-
-.. parsed-literal::
-
-    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
-
 
 Load the OpenVINO IR Network and Run Inference on the ONNX model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -379,7 +365,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -459,7 +445,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -563,10 +549,44 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.040 seconds per image, FPS: 25.15
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 55.72
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.73
+    PyTorch model on CPU: 0.038 seconds per image, FPS: 26.50
+    ONNX model in OpenVINO Runtime/CPU: 0.026 seconds per image, FPS: 38.21
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.026 seconds per image, FPS: 38.87
+    
 
+.. parsed-literal::
+
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    
+
+.. parsed-literal::
+
+    ONNX model in OpenVINO/GPU: 0.035 seconds per image, FPS: 28.38
+    
+
+.. parsed-literal::
+
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    75 warnings generated.
+    
+
+.. parsed-literal::
+
+    IR model in OpenVINO/GPU: 0.035 seconds per image, FPS: 28.22
+    
 
 **Show Device Information**
 
@@ -583,8 +603,9 @@ performance.
 
 .. parsed-literal::
 
-    CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
-
+    CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz
+    GPU: NVIDIA GeForce RTX 3090 (dGPU)
+    
 
 References
 ----------

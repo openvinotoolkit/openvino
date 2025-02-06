@@ -31,8 +31,9 @@ protected:
                                    jit_snippets_call_args& call_args);
 
     inline void* get_external_scratchpad_ptr(size_t ithr, size_t idx) const {
-        if (m_repacked_inputs.empty())
+        if (m_repacked_inputs.empty()) {
             return nullptr;
+        }
 
         uint8_t* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + m_internal_buffer_size;
         for (const auto& p : m_repacked_inputs) {

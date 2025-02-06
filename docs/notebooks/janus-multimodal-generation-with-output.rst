@@ -1,5 +1,5 @@
-Multimodal understanding and generation with Janus and OpenVINO
-===============================================================
+Multimodal understanding and generation with Janus-Pro and OpenVINO
+===================================================================
 
 Janus is a novel autoregressive framework that unifies multimodal
 understanding and generation. It addresses the limitations of previous
@@ -16,6 +16,11 @@ More details can be found in the
 `paper <https://arxiv.org/abs/2410.13848>`__, original
 `repository <https://github.com/deepseek-ai/Janus>`__ and `model
 card <https://huggingface.co/deepseek-ai/Janus-1.3B>`__
+
+Janus-Pro is an advanced version of Janus, significantly improving
+multimodal understanding and visual generation. More details can be
+found in
+`paper <https://github.com/deepseek-ai/Janus/blob/main/janus_pro_tech_report.pdf>`__.
 
 In this tutorial we consider how to run and optimize Janus using
 OpenVINO.
@@ -75,16 +80,24 @@ Prerequisites
             with open(util_path, "w") as f:
                 f.write(r.text)
 
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("janus-multimodal-generation.ipynb")
+
 .. code:: ipython3
 
     import platform
 
-    %pip install -q "gradio>=4.19" "torch>=2.2" "torchvision" "safetensors" "transformers>=4.38" "nncf>=2.14" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "gradio>=4.19" "torch>=2.2" "torchvision" "safetensors" "transformers>=4.45" "nncf>=2.14" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/deepseek-ai/Janus" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -U --pre "openvino>2024.5" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
+
+    if platform.python_version_tuple()[1] == "9":
+        %pip install -q "transformers<4.48"
 
 Convert and Optimize model
 --------------------------
@@ -229,9 +242,9 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
     import nncf
     from ov_janus_helper import convert_janus_model
+    import ipywidgets as widgets
 
-    model_id = "deepseek-ai/Janus-1.3B"
-    model_path = Path(model_id.split("/")[-1] + "-ov")
+    model_ids = ["deepseek-ai/Janus-Pro-1B", "deepseek-ai/Janus-Pro-7B", "deepseek-ai/Janus-1.3B"]
 
     compression_configuration = {
         "mode": nncf.CompressWeightsMode.INT4_ASYM,
@@ -242,21 +255,13 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     # uncomment the line to see model conversion code
     # ??convert_janus_model
 
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    model_id = widgets.Dropdown(options=model_ids, value=model_ids[0])
+    model_id
 
 
 .. parsed-literal::
 
-    2024-11-26 20:09:59.629857: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-26 20:09:59.643309: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-    E0000 00:00:1732637399.658322 1754417 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    E0000 00:00:1732637399.662894 1754417 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-11-26 20:09:59.679869: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    <frozen importlib.util>:247: DeprecationWarning: The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. Please replace `openvino.runtime` with `openvino`.
 
 
 .. parsed-literal::
@@ -266,18 +271,184 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
 .. parsed-literal::
 
-    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/auto/image_processing_auto.py:520: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
+    2025-01-28 11:36:54.976268: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-01-28 11:36:54.989484: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1738049815.003897 2873562 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1738049815.008201 2873562 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2025-01-28 11:36:55.024219: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/auto/image_processing_auto.py:524: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
       warnings.warn(
+    /home/ea/work/py311/lib/python3.11/site-packages/wandb/analytics/sentry.py:82: SentryHubDeprecationWarning: `sentry_sdk.Hub` is deprecated and will be removed in a future major release. Please consult our 1.x to 2.x migration guide for details on how to migrate `Hub` usage to the new API: https://docs.sentry.io/platforms/python/migration/1.x-to-2.x
+      self.hub = sentry_sdk.Hub(client)
 
 
-.. code:: ipython3
-
-    convert_janus_model(model_id, model_path, compression_configuration)
 
 
 .. parsed-literal::
 
-    ✅ Janus-1.3B model already converted. You can find results in Janus-1.3B-ov
+    Dropdown(options=('deepseek-ai/Janus-Pro-1B', 'deepseek-ai/Janus-Pro-7B', 'deepseek-ai/Janus-1.3B'), value='de…
+
+
+
+.. code:: ipython3
+
+    from pathlib import Path
+
+    model_path = Path(model_id.value.split("/")[-1] + "-ov")
+    convert_janus_model(model_id.value, model_path, compression_configuration)
+
+
+.. parsed-literal::
+
+    ⌛ Janus-Pro-1B conversion started. Be patient, it may takes some time.
+    ⌛ Load Original model
+
+
+
+.. parsed-literal::
+
+    preprocessor_config.json:   0%|          | 0.00/346 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer_config.json:   0%|          | 0.00/285 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    tokenizer.json:   0%|          | 0.00/4.72M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    special_tokens_map.json:   0%|          | 0.00/344 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    You are using the default legacy behaviour of the <class 'transformers.models.llama.tokenization_llama_fast.LlamaTokenizerFast'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565 - if you loaded a llama tokenizer from a GGUF file you can ignore this message.
+
+
+
+.. parsed-literal::
+
+    processor_config.json:   0%|          | 0.00/210 [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    Some kwargs in processor config are unused and will not have any effect: ignore_id, image_tag, num_image_tokens, add_special_token, mask_prompt, sft_format.
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.46k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    pytorch_model.bin:   0%|          | 0.00/4.18G [00:00<?, ?B/s]
+
+
+.. parsed-literal::
+
+    ✅ Original model successfully loaded
+    ⌛ Convert Input embedding model
+    ✅ Input embedding model successfully converted
+    ⌛ Convert LM head model
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/modeling_utils.py:5055: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+
+
+.. parsed-literal::
+
+    ✅ LM head model successfully converted
+    ⌛ Convert Language model
+
+
+.. parsed-literal::
+
+    We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class (https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:460: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+      or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/models/llama/modeling_llama.py:1058: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /home/ea/work/py311/lib/python3.11/site-packages/transformers/cache_utils.py:444: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+      len(self.key_cache[layer_idx]) == 0
+
+
+.. parsed-literal::
+
+    ✅ Language model successfully converted
+    ⌛ Weights compression with int4_asym mode started
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 1% (1 / 168)                │ 0% (0 / 167)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_asym                 │ 99% (167 / 168)             │ 100% (167 / 167)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    ✅ Weights compression finished
+    ⌛ Convert Image embedding model
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/torch/__init__.py:2040: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert condition, message
+
+
+.. parsed-literal::
+
+    ✅ Image embedding model successfully converted
+    ⌛ Convert Gen head model
+    ✅ Gen head model successfully converted
+    ⌛ Convert Gen image embeddings model
+    ✅ Gen image embeddings model successfully converted
+    ⌛ Convert Gen decoder model
+
+
+.. parsed-literal::
+
+    /home/ea/work/py311/lib/python3.11/site-packages/janus/models/vq_model.py:379: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      w_ = w_ * (int(c) ** (-0.5))
+
+
+.. parsed-literal::
+
+    ✅ Gen decoder model successfully converted
+    ✅ deepseek-ai/Janus-Pro-1B model conversion finished. You can find results in Janus-Pro-1B-ov
 
 
 Create Inference Pipeline
@@ -333,7 +504,7 @@ processor code and we can reuse it.
 
 .. parsed-literal::
 
-    Some kwargs in processor config are unused and will not have any effect: image_end_tag, sft_format, image_tag, num_image_tokens, add_special_token, mask_prompt, ignore_id, image_start_tag.
+    Some kwargs in processor config are unused and will not have any effect: ignore_id, image_end_tag, add_special_token, mask_prompt, sft_format, image_start_tag, image_tag, num_image_tokens.
 
 
 Run visual language chat
@@ -405,7 +576,7 @@ Run visual language chat
 .. parsed-literal::
 
     Answer:
-    The image depicts a gray and white tabby cat lying comfortably inside a cardboard box. The cat is lying on its back with its legs and paws spread out in a relaxed manner. The cat's eyes are closed, and it appears to be enjoying a nap. The box is placed on a light-colored carpet, and in the background, there is a portion of a white couch visible. The lighting in the room is soft and natural, suggesting that the photo was taken during the daytime. The overall scene conveys a sense of tranquility and contentment.
+    The image shows a gray tabby cat lying on its back inside an open cardboard box. The cat appears to be relaxed and comfortable, with its belly exposed and its paws relaxed. The box is placed on a light-colored carpet, and there is a beige sofa in the background. The overall setting appears to be a cozy indoor environment, likely a living room.
 
 
 Run Image generation

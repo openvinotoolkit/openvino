@@ -154,12 +154,14 @@ void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == static_cast<size_t>(max_num_out))
+        if (count == static_cast<size_t>(max_num_out)) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -246,8 +248,9 @@ void nms_cpu(const int num_boxes,
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
@@ -324,8 +327,9 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
 }
 
 void GenerateProposals::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto roiNumPrecision = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -345,7 +349,7 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
 void GenerateProposals::execute(const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            OPENVINO_THROW("Incorrect number of input or output edges!");
+            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -359,16 +363,18 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         for (size_t i = 1; i < deltaDims.size(); i++) {
             deltas_dims_size *= deltaDims[i];
         }
-        if (anchor_dims_size != deltas_dims_size)
-            OPENVINO_THROW("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
+        if (anchor_dims_size != deltas_dims_size) {
+            THROW_CPU_NODE_ERR("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
+        }
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (size_t i = 1; i < scoreDims.size(); i++) {
             score_dims_size *= scoreDims[i];
         }
-        if (deltas_dims_size != (4 * score_dims_size))
-            OPENVINO_THROW("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
+        if (deltas_dims_size != (4 * score_dims_size)) {
+            THROW_CPU_NODE_ERR("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
+        }
 
         size_t im_info_dims_size = 1;
         const auto& infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
@@ -498,8 +504,7 @@ void GenerateProposals::execute(const dnnl::stream& strm) {
         memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
         memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 

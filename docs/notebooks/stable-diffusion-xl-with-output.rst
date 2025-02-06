@@ -133,6 +133,19 @@ You can save the model on disk using the ``save_pretrained`` method.
     
     model_id = "stabilityai/stable-diffusion-xl-base-1.0"
     model_dir = Path("openvino-sd-xl-base-1.0")
+    
+    import requests
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("stable-diffusion-xl.ipynb")
 
 
 .. parsed-literal::
@@ -153,13 +166,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()

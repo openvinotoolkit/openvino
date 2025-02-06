@@ -26,10 +26,12 @@ std::string jit_emitter_pretty_name(const std::string& pretty_func) {
         size_t counter = 1;
         while (counter != 0 && parenthesis > 0) {
             parenthesis--;
-            if (pretty_func[parenthesis] == '>')
+            if (pretty_func[parenthesis] == '>') {
                 counter++;
-            if (pretty_func[parenthesis] == '<')
+            }
+            if (pretty_func[parenthesis] == '<') {
                 counter--;
+            }
         }
     }
     SAFE_SYMBOL_FINDING(end, pretty_func.substr(0, parenthesis).rfind("::"))

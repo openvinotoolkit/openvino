@@ -152,7 +152,7 @@ Supported PaddlePaddle Layers
 #############################
 
 For the list of supported standard layers, refer to the
-:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations>`
+:doc:`Supported Operations <../../documentation/compatibility-and-support/supported-operations>`
 page.
 
 
@@ -160,5 +160,5 @@ Additional Resources
 ####################
 
 Check out more examples of model conversion in
-:doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
+:doc:`interactive Python tutorials <../../get-started/learn-openvino/interactive-tutorials-python>`.
 

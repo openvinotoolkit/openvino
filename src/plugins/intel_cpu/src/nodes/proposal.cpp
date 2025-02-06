@@ -138,8 +138,9 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void Proposal::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (store_prob) {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -167,8 +168,9 @@ void Proposal::execute(const dnnl::stream& strm) {
         const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
         float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
-        if (store_prob)
+        if (store_prob) {
             outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+        }
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
@@ -177,14 +179,14 @@ void Proposal::execute(const dnnl::stream& strm) {
         const float imgHeight = imgInfoData[0];
         const float imgWidth = imgInfoData[1];
         if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.f) || (imgWidth < 0.f)) {
-            OPENVINO_THROW("Proposal operation image info input must have positive image height and width.");
+            THROW_CPU_NODE_ERR("image info input must have positive image height and width.");
         }
 
         // scale factor for height & width
         const float scaleHeight = imgInfoData[2];
         const float scaleWidth = imgInfoSize == 4 ? imgInfoData[3] : scaleHeight;
         if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.f) || (scaleWidth < 0.f)) {
-            OPENVINO_THROW("Proposal operation image info input must have non negative scales.");
+            THROW_CPU_NODE_ERR("image info input must have non negative scales.");
         }
 
         ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
@@ -197,8 +199,7 @@ void Proposal::execute(const dnnl::stream& strm) {
                                                   outProbData,
                                                   conf);
     } catch (const ov::Exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 

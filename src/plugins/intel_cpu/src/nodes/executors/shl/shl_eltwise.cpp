@@ -52,8 +52,9 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     const auto unifiedRank = srcDescs.front()->as<BlockedMemoryDesc>()->getBlockDims().size();
     auto has_unified_layout = [unifiedLayout, unifiedRank](const MemoryDescPtr& desc) {
         if (desc->hasLayoutType(LayoutType::nspc)) {    // ensure the same rank
-            if (desc->as<BlockedMemoryDesc>()->getBlockDims().size() != unifiedRank)
+            if (desc->as<BlockedMemoryDesc>()->getBlockDims().size() != unifiedRank) {
                 return false;
+            }
         }
         return desc->hasLayoutType(unifiedLayout);
     };

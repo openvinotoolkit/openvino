@@ -148,8 +148,9 @@ private:
     }
 
     size_t aux_vecs_count() const override {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             return 0;
+        }
         return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };

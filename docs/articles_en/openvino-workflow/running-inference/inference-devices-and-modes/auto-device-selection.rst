@@ -314,7 +314,7 @@ asynchronous inference pipeline. For information on asynchronous inference, see 
 :doc:`Async API documentation <../integrate-openvino-with-your-application/inference-request>` .
 The following notebooks provide examples of how to set up an asynchronous pipeline:
 
-* :doc:`Image Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`
+* :doc:`Image Classification Async Sample <../../../get-started/learn-openvino/openvino-samples/image-classification-async>`
 * `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/async-api-with-output.html>`__
 * `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/auto-device-with-output.html>`__
 
@@ -497,7 +497,7 @@ For limited device choice:
 
    benchmark_app –d AUTO:CPU,GPU –m <model> -i <input> -niter 1000
 
-For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino/openvino-samples/benchmark-tool>` article.
+For more information, refer to the :doc:`Benchmark Tool <../../../get-started/learn-openvino/openvino-samples/benchmark-tool>` article.
 
 .. note::
 

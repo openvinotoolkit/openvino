@@ -115,6 +115,20 @@ controlnet model and ``stable-diffusion-v1-5``:
         ControlNetModel,
     )
     
+    from pathlib import Path
+    import requests
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("qrcode-monster.ipynb")
+    
     controlnet = ControlNetModel.from_pretrained("monster-labs/control_v1p_sd15_qrcode_monster")
     
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
@@ -453,14 +467,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    if not Path("notebook_utils.py").exists():
-        r = requests.get(
-            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-        )
-        open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()

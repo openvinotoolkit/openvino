@@ -114,8 +114,9 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
         const auto addr = h->rsp + i * sizeof(void*);
         h->mov(h->qword[addr], Reg64(static_cast<int>(reg_idx)));
         const auto bytes_offset = io_offsets[i];
-        if (bytes_offset)
+        if (bytes_offset) {
             h->add(h->qword[addr], bytes_offset);
+        }
     }
 
     const auto& compiled_kernel = get_compiled_kernel_ptr();
@@ -138,8 +139,9 @@ void EquationTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vec
 
 void EquationTppEmitter::execute_kernel(libxsmm_meqn_function equation_kernel, int argc, void** argv) {
     std::vector<libxsmm_matrix_arg> inputs(argc - 1);
-    for (int i = 0; i < argc - 1; i++)
+    for (int i = 0; i < argc - 1; i++) {
         inputs[i].primary = argv[i];
+    }
     libxsmm_meqn_param param;
     param.ops_args = nullptr;
     param.inputs = inputs.data();

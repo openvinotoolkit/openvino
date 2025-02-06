@@ -25,7 +25,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::broadcast_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<broadcast_impl>(*this);
+        return std::make_unique<broadcast_impl>(*this);
     }
 
     broadcast_impl() : parent("broadcast_cpu_impl") {}
@@ -121,7 +121,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const broadcast_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<broadcast_impl>();
+        return std::make_unique<broadcast_impl>();
     }
 };
 

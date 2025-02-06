@@ -135,8 +135,9 @@ static primitive_desc createPrimitiveDesc(const dnnl::engine& engine,
     for (auto preferredImplType : implPriorities) {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, preferredImplType);
 
-        if (found)
+        if (found) {
             return std::move(prim_desc);
+        }
     }
 
     return std::move(first_desc);

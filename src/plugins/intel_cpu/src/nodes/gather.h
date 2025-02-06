@@ -25,6 +25,7 @@ public:
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
     void resolveInPlaceEdges(Edge::LOOK look) override;
 

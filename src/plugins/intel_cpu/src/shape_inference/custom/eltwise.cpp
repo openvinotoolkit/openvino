@@ -29,8 +29,9 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     auto output_shape = input_shapes[max_rank_idx].get();
     // use NUMPY broadcast rule
     for (size_t i = 0; i < input_shapes.size(); i++) {
-        if (i == max_rank_idx)
+        if (i == max_rank_idx) {
             continue;
+        }
 
         auto& input_shape = input_shapes[i].get();
         if (input_shape.size() > output_shape.size()) {
@@ -42,8 +43,9 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                 if (output_shape[offset + j] == 1) {
                     output_shape[offset + j] = input_shape[j];
                 } else {
-                    if (input_shape[j] != 1)
+                    if (input_shape[j] != 1) {
                         OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
+                    }
                 }
             }
         }

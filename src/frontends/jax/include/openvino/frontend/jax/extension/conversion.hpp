@@ -13,7 +13,7 @@ namespace ov {
 namespace frontend {
 namespace jax {
 
-class JAX_API ConversionExtension : public ConversionExtensionBase {
+class JAX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 

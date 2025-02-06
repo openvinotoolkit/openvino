@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void TopKImpl(ProgramBuilder& p,
                      const std::shared_ptr<ov::Node>& op,
@@ -109,5 +108,4 @@ static void CreateTopKOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v11::T
 REGISTER_FACTORY_IMPL(v1, TopK);
 REGISTER_FACTORY_IMPL(v11, TopK);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -123,7 +123,8 @@ bool ShlFCExecutor::update(const MemoryArgs& memory) {
 
     const auto src_shape = src.getShape();
     const auto dst_shape = dst.getShape();
-    dim_M = std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), size_t(1), std::multiplies<size_t>());
+    dim_M =
+        std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), static_cast<size_t>(1), std::multiplies<size_t>());
     dim_In = src_shape.back();
     dim_Out = dst_shape.back();
     LDA = dim_In * memory.at(ARG_SRC)->getPrecision().size();

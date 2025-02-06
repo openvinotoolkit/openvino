@@ -165,12 +165,14 @@ static void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count == max_num_out) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -257,8 +259,9 @@ static void nms_cpu(const int num_boxes,
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
@@ -311,8 +314,9 @@ static void retrieve_rois_cpu(const int num_rois,
         rois[roi * 5 + 3] = x1;
         rois[roi * 5 + 4] = y1;
 
-        if (probs)
+        if (probs) {
             probs[roi] = src_probs[index];
+        }
     });
 
     if (num_rois < post_nms_topn_) {

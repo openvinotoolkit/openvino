@@ -30,8 +30,9 @@ size_t combine(size_t seed, const T& v) {
 
 template <typename T>
 size_t combine(size_t seed, const std::vector<T>& v) {
-    for (const auto& elem : v)
+    for (const auto& elem : v) {
         seed = combine(seed, elem);
+    }
     return seed;
 }
 

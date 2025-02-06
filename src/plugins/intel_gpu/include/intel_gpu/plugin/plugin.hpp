@@ -11,8 +11,7 @@
 #include <string>
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class Plugin : public ov::IPlugin {
 private:
@@ -67,5 +66,4 @@ public:
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

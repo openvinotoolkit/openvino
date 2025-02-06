@@ -13,7 +13,7 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 
-class PADDLE_API ConversionExtension : public ConversionExtensionBase {
+class PADDLE_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 

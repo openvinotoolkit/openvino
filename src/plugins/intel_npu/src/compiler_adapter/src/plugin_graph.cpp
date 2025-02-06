@@ -15,9 +15,9 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
-                         std::vector<uint8_t> blob,
+                         std::unique_ptr<BlobContainer> blobPtr,
                          const Config& config)
-    : IGraph(graphHandle, std::move(metadata), config, std::optional<std::vector<uint8_t>>(std::move(blob))),
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
@@ -31,7 +31,7 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
 }
 
 size_t PluginGraph::export_blob(std::ostream& stream) const {
-    stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
+    stream.write(reinterpret_cast<const char*>(_blobPtr->get_ptr()), _blobPtr->size());
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -40,21 +40,26 @@ size_t PluginGraph::export_blob(std::ostream& stream) const {
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = _blob.data(); it != _blob.data() + _blob.size(); ++it) {
+        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr());
+             it != reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size();
+             ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
         std::stringstream str;
-        str << "Blob size: " << _blob.size() << ", hash: " << std::hex << result;
+        str << "Blob size: " << _blobPtr->size() << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return _blob.size();
+    return _blobPtr->size();
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
-    return _compiler->process_profiling_output(profData, _blob, config);
+    std::vector<uint8_t> blob(_blobPtr->size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()),
+                reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size());
+    return _compiler->process_profiling_output(profData, blob, config);
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {

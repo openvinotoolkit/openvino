@@ -128,17 +128,21 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 }
 
 void Lrn::getSupportedDescriptors() {
-    if (!descs.empty())
+    if (!descs.empty()) {
         return;
+    }
 
-    if (getParentEdges().size() != 2)
+    if (getParentEdges().size() != 2) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges");
+    }
 
     ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
-    if (precision != ov::element::f32 && precision != ov::element::bf16)
+    if (precision != ov::element::f32 && precision != ov::element::bf16) {
         precision = ov::element::f32;
+    }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
     const auto& parentShape = getInputShapeAtPort(0);
@@ -163,14 +167,17 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_
 void Lrn::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isDefined())
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("input memory is undefined");
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    }
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("destination memory is undefined");
+    }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("preferable primitive descriptor did not set");
+    }
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -194,8 +201,9 @@ void Lrn::prepareParams() {
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        if (!found)
+        if (!found) {
             return nullptr;
+        }
 
         return std::make_shared<DnnlExecutor>(prim_desc);
     };
@@ -204,7 +212,7 @@ void Lrn::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
     if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());

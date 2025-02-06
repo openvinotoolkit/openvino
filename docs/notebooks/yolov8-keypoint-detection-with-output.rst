@@ -104,7 +104,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "protobuf==3.20.*" "torch>=2.1" "torchvision>=0.16" "ultralytics==8.2.24" "onnx" tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "protobuf==3.20.*" "torch>=2.1" "torchvision>=0.16" "ultralytics==8.3.59" tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -116,22 +116,29 @@ Import required utility functions. The lower cell will download the
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, VideoPlayer, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("yolov8-keypoint-detection.ipynb")
 
 .. code:: ipython3
 
     # Download a test sample
     IMAGE_PATH = Path("./data/intel_rnb.jpg")
-    download_file(
-        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
-        filename=IMAGE_PATH.name,
-        directory=IMAGE_PATH.parent,
-    )
+    if not IMAGE_PATH.exists():
+        download_file(
+            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+            filename=IMAGE_PATH.name,
+            directory=IMAGE_PATH.parent,
+        )
 
 
 
@@ -361,10 +368,9 @@ evaluation function.
     DATA_PATH = OUT_DIR / "val2017.zip"
     CFG_PATH = OUT_DIR / "coco8-pose.yaml"
     
-    download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
-    download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
     if not (OUT_DIR / "coco8-pose/labels").exists():
+        download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
+        download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
         with ZipFile(DATA_PATH, "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
 
@@ -412,7 +418,7 @@ Define validation function
         """
         validator.seen = 0
         validator.jdict = []
-        validator.stats = dict(tp_p=[], tp=[], conf=[], pred_cls=[], target_cls=[])
+        validator.stats = dict(tp_p=[], tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         validator.batch_i = 1
         validator.confusion_matrix = ConfusionMatrix(nc=validator.nc)
         model.reshape({0: [1, 3, -1, -1]})
@@ -636,10 +642,11 @@ Let’s load ``skip magic`` extension to skip quantization if
 .. code:: ipython3
 
     # Fetch skip_kernel_extension module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 

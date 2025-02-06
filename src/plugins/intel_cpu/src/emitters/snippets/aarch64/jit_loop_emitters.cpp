@@ -141,8 +141,9 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     XReg reg_work_amount = XReg(in.back());
     if (!evaluate_once) {
         for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
-            if (!is_incremented[idx] || ptr_increments[idx] == 0)
+            if (!is_incremented[idx] || ptr_increments[idx] == 0) {
                 continue;
+            }
             XReg data_reg = XReg(data_ptr_reg_idxs[idx]);
             if (ptr_increments[idx] > 0) {
                 h->add_imm(data_reg, data_reg, ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
@@ -156,8 +157,9 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     }
 
     for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
-        if (!is_incremented[idx] || finalization_offsets[idx] == 0)
+        if (!is_incremented[idx] || finalization_offsets[idx] == 0) {
             continue;
+        }
         XReg data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
         if (finalization_offsets[idx] > 0) {
             h->add_imm(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);

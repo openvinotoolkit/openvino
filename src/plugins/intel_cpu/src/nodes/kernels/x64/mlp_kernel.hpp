@@ -55,10 +55,11 @@ public:
     int m_M_hint;
 
     MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
-        if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16)
+        if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16) {
             m_tile_reg_ksize = 32;
-        else
+        } else {
             m_tile_reg_ksize = 64;
+        }
         setup(M_hint);
     }
 
@@ -198,10 +199,12 @@ struct Work {
         static MKernel jit_amx_bf16(BM, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(BM, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(BM, TMUL_TYPE::SSD);
-        if (quant_i8)
+        if (quant_i8) {
             return jit_amx_i8;
-        if (is_f16)
+        }
+        if (is_f16) {
             return jit_amx_f16;
+        }
         return jit_amx_bf16;
     }
 
@@ -209,10 +212,12 @@ struct Work {
         static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(16, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(16, TMUL_TYPE::SSD);
-        if (quant_i8)
+        if (quant_i8) {
             return jit_amx_i8;
-        if (is_f16)
+        }
+        if (is_f16) {
             return jit_amx_f16;
+        }
         return jit_amx_bf16;
     }
 
@@ -229,8 +234,9 @@ struct Work {
             auto* pw_temp = pw;
             for (int n = n0; n < n1; n++, pw_temp += stride_in_bytes / sizeof(Tsrc)) {
                 float fsum = 0;
-                for (int k = k0; k < k1; k++)
+                for (int k = k0; k < k1; k++) {
                     fsum += pw_temp[k];
+                }
                 *p_wsum_per_oc++ = fsum;
             }
         }
@@ -268,14 +274,16 @@ struct Work {
             for (int n = n0; n < n1; n += 32) {
                 for (int dn = 0; dn < 16; dn++, pw1_temp += stride_temp) {
                     float fsum = 0;
-                    for (int k = k0; k < k1; k++)
+                    for (int k = k0; k < k1; k++) {
                         fsum += pw1_temp[k];
+                    }
                     *p_wsum_per_oc++ = fsum;
                 }
                 for (int dn = 0; dn < 16; dn++, pw2_temp += stride_temp) {
                     float fsum = 0;
-                    for (int k = k0; k < k1; k++)
+                    for (int k = k0; k < k1; k++) {
                         fsum += pw2_temp[k];
+                    }
                     *p_wsum_per_oc++ = fsum;
                 }
             }

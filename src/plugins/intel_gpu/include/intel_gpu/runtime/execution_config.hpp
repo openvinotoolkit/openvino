@@ -7,8 +7,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 enum class PropertyVisibility {
     INTERNAL = 0,
@@ -150,7 +149,6 @@ protected:
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
     void apply_debug_options(const cldnn::device_info& info);
-    void update_specific_default_properties(const cldnn::device_info& info);
 
     template <typename T, PropertyMutability mutability>
     void apply_rt_info_property(const ov::Property<T, mutability>& property, const ov::RTMap& rt_info) {
@@ -169,11 +167,10 @@ private:
     std::map<std::string, PropertyVisibility> supported_properties;
     std::map<std::string, BaseValidator::Ptr> property_validators;
 
-    bool specific_default_properties_is_set = false;
+    bool finalized = false;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 namespace cldnn {
 using ov::intel_gpu::ExecutionConfig;

@@ -8,8 +8,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/stft.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateSTFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::STFT>& op) {
     validate_inputs_count(op, {4});
@@ -21,5 +20,4 @@ static void CreateSTFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::S
 
 REGISTER_FACTORY_IMPL(v15, STFT);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

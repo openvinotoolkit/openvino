@@ -170,18 +170,6 @@ ExpressionPtr Expression::clone() const {
 }
 
 bool Expression::visit_attributes(AttributeVisitor &visitor) {
-    auto subtensor2str = [](const VectorDims& subtensor) {
-        std::stringstream ss;
-        for (size_t i = 0; i < subtensor.size(); ++i) {
-            const auto& v = subtensor[i];
-            const auto v_str = utils::is_full_dim_value(v) ? "FULL_DIM" :
-                               utils::is_dynamic_value(v)  ? "?" : std::to_string(v);
-            const auto del = i < subtensor.size() - 1 ? ", " : "";
-            ss << v_str << del;
-        }
-        return ss.str();
-    };
-
     std::ostringstream in_regs, out_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
@@ -194,7 +182,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
 
         const auto& subtensor = desc->get_subtensor();
         if (!subtensor.empty())
-            subtensors.emplace_back("in_subtensor_" + std::to_string(i), subtensor2str(subtensor));
+            subtensors.emplace_back("in_subtensor_" + std::to_string(i), utils::tensor2str(subtensor));
 
         const auto& layout = desc->get_layout();
         if (!layout.empty() && !utils::is_planar_layout(layout))
@@ -210,7 +198,7 @@ bool Expression::visit_attributes(AttributeVisitor &visitor) {
 
         const auto& subtensor = desc->get_subtensor();
         if (!subtensor.empty())
-            subtensors.emplace_back("out_subtensor_" + std::to_string(i), subtensor2str(subtensor));
+            subtensors.emplace_back("out_subtensor_" + std::to_string(i), utils::tensor2str(subtensor));
 
         const auto& layout = desc->get_layout();
         if (!layout.empty() && !utils::is_planar_layout(layout))

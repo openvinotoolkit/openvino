@@ -57,21 +57,21 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     
     # Fetch `notebook_utils` module
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file, device_widget
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("openvino-api.ipynb")
 
 Loading OpenVINO Runtime and Showing Info
 -----------------------------------------
@@ -106,8 +106,8 @@ the name of the device.
 
 .. parsed-literal::
 
-    CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
-
+    CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz
+    
 
 Select device for inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,7 +126,7 @@ inference using this widget
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', options=('CPU',), value='CPU')
 
 
 
@@ -172,7 +172,7 @@ information on how to convert your existing TensorFlow, PyTorch or ONNX
 model to OpenVINO IR format with model conversion API, refer to the
 `tensorflow-to-openvino <tensorflow-classification-to-openvino-with-output.html>`__
 and
-`pytorch-onnx-to-openvino <pytorch-to-openvino-with-output.html>`__
+`pytorch-onnx-to-openvino <pytorch-onnx-to-openvino-with-output.html>`__
 notebooks.
 
 .. code:: ipython3
@@ -181,27 +181,22 @@ notebooks.
     ir_model_name_xml = "classification.xml"
     ir_model_name_bin = "classification.bin"
     
-    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
-    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
+    if not Path("model/" + ir_model_name_xml).exists():
+        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
+        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
+
+
+.. parsed-literal::
+
+    'model/classification.xml' already exists.
+    'model/classification.bin' already exists.
+    
 
 
 
 .. parsed-literal::
 
-    classification.xml:   0%|          | 0.00/179k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    classification.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -237,20 +232,20 @@ points to the filename of an ONNX model.
     onnx_model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/segmentation.onnx"
     onnx_model_name = "segmentation.onnx"
     
-    download_file(onnx_model_url, filename=onnx_model_name, directory="model")
+    if not Path("model/" + onnx_model_name).exists():
+        download_file(onnx_model_url, filename=onnx_model_name, directory="model")
+
+
+.. parsed-literal::
+
+    'model/segmentation.onnx' already exists.
+    
 
 
 
 .. parsed-literal::
 
-    segmentation.onnx:   0%|          | 0.00/4.41M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -286,33 +281,13 @@ without any conversion step. Pass the filename with extension to
     paddle_model_name = "inference.pdmodel"
     paddle_params_name = "inference.pdiparams"
     
-    download_file(paddle_model_url + paddle_model_name, filename=paddle_model_name, directory="model")
-    download_file(
-        paddle_model_url + paddle_params_name,
-        filename=paddle_params_name,
-        directory="model",
-    )
-
-
-
-.. parsed-literal::
-
-    inference.pdmodel:   0%|          | 0.00/1.03M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    inference.pdiparams:   0%|          | 0.00/21.0M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
-
-
+    if not Path("model/" + paddle_model_name).exists() or not Path("model/" + paddle_params_name).exists():
+        download_file(paddle_model_url + paddle_model_name, filename=paddle_model_name, directory="model")
+        download_file(
+            paddle_model_url + paddle_params_name,
+            filename=paddle_params_name,
+            directory="model",
+        )
 
 .. code:: ipython3
 
@@ -341,22 +316,8 @@ TensorFlow models saved in frozen graph format can also be passed to
     pb_model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/classification.pb"
     pb_model_name = "classification.pb"
     
-    download_file(pb_model_url, filename=pb_model_name, directory="model")
-
-
-
-.. parsed-literal::
-
-    classification.pb:   0%|          | 0.00/9.88M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
-
-
+    if not Path("model/" + pb_model_name).exists():
+        download_file(pb_model_url, filename=pb_model_name, directory="model")
 
 .. code:: ipython3
 
@@ -390,12 +351,6 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
     %pip install -q kagglehub
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     from pathlib import Path
@@ -403,12 +358,6 @@ It is pre-trained model optimized to work with TensorFlow Lite.
     
     tflite_model_dir = kagglehub.model_download("tensorflow/inception/tfLite/v4-quant")
     tflite_model_path = Path(tflite_model_dir) / "1.tflite"
-
-
-.. parsed-literal::
-
-    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.4)
-
 
 .. code:: ipython3
 
@@ -442,12 +391,6 @@ model form torchvision library. After conversion model using
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision --extra-index-url https://download.pytorch.org/whl/cpu
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -483,15 +426,22 @@ Information about the inputs and outputs of the model are in
     ir_model_name_xml = "classification.xml"
     ir_model_name_bin = "classification.bin"
     
-    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
-    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
+    if not Path("model/" + ir_model_name_xml).exists():
+        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
+        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
+
+.. parsed-literal::
+
+    'model/classification.xml' already exists.
+    'model/classification.bin' already exists.
+    
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -561,7 +511,7 @@ The next cell prints the input layout, precision and shape.
 
     input precision: <Type: 'float32'>
     input shape: [1,3,224,224]
-
+    
 
 This cell shows that the model expects inputs with a shape of
 [1,3,224,224], and that this is in the ``NCHW`` layout. This means that
@@ -630,7 +580,7 @@ precision and shape.
 
     output precision: <Type: 'float32'>
     output shape: [1,1001]
-
+    
 
 This cell shows that the model returns outputs with a shape of [1,
 1001], where 1 is the batch size (``N``) and 1001 is the number of
@@ -669,12 +619,6 @@ produced data as values.
     # Install opencv package for image handling
     %pip install -q opencv-python
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
 **Load the network**
 
 .. code:: ipython3
@@ -683,17 +627,9 @@ produced data as values.
     ir_model_name_xml = "classification.xml"
     ir_model_name_bin = "classification.bin"
     
-    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
-    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
-
-
+    if not Path("model/" + ir_model_name_xml).exists():
+        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
+        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
 .. code:: ipython3
 
@@ -716,19 +652,20 @@ the input layout of the network.
 
     import cv2
     
-    image_filename = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg",
-        directory="data",
-    )
+    image_filename = Path("data/coco_hollywood.jpg")
+    if not image_filename.exists():
+        image_filename = download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg",
+            directory="data",
+        )
     image = cv2.imread(str(image_filename))
     image.shape
 
 
-
 .. parsed-literal::
 
-    coco_hollywood.jpg:   0%|          | 0.00/485k [00:00<?, ?B/s]
-
+    'data/coco_hollywood.jpg' already exists.
+    
 
 
 
@@ -860,27 +797,22 @@ input shape.
     ir_model_name_xml = "segmentation.xml"
     ir_model_name_bin = "segmentation.bin"
     
-    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
-    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
+    if not Path("model/" + ir_model_name_xml).exists():
+        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
+        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
+
+
+.. parsed-literal::
+
+    'model/segmentation.xml' already exists.
+    'model/segmentation.bin' already exists.
+    
 
 
 
 .. parsed-literal::
 
-    segmentation.xml:   0%|          | 0.00/1.38M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    segmentation.bin:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -917,7 +849,7 @@ input shape.
     model input shape: [1,3,544,544]
     compiled_model input shape: [1,3,544,544]
     compiled_model output shape: [1,1,544,544]
-
+    
 
 The input shape for the segmentation network is [1,3,512,512], with the
 ``NCHW`` layout: the network expects 3-channel images with a width and
@@ -957,7 +889,7 @@ set ``new_shape = (2,3,544,544)`` in the cell above.
 
     input shape: [2,3,544,544]
     output shape: [2,1,544,544]
-
+    
 
 The output shows that by setting the batch size to 2, the first element
 (``N``) of the input and output shape has a value of 2. Propagate the
@@ -988,7 +920,7 @@ input image through the network to see the result:
 
     input data shape: (2, 3, 544, 544)
     result data data shape: [2,1,544,544]
-
+    
 
 Caching a Model
 ---------------
@@ -1018,15 +950,22 @@ the cache.
     ir_model_name_xml = "classification.xml"
     ir_model_name_bin = "classification.bin"
     
-    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
-    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
+    if not Path("model/" + ir_model_name_xml).exists():
+        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory="model")
+        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory="model")
 
+
+.. parsed-literal::
+
+    'model/classification.xml' already exists.
+    'model/classification.bin' already exists.
+    
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1056,8 +995,8 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the AUTO device took 0.13 seconds.
-
+    Loading the network to the CPU device took 0.14 seconds.
+    
 
 After running the previous cell, we know the model exists in the cache
 directory. Then, we delete the compiled model and load it again. Now, we
@@ -1074,5 +1013,5 @@ measure the time it takes now.
 
 .. parsed-literal::
 
-    Loading the network to the AUTO device took 0.08 seconds.
-
+    Loading the network to the CPU device took 0.06 seconds.
+    

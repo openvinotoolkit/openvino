@@ -117,35 +117,6 @@ Prerequisites
 
     %pip install -q "matplotlib>=3.4"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Collecting iopath>=0.1.10
-      Using cached iopath-0.1.10-py3-none-any.whl
-    Requirement already satisfied: pillow>=9.4.0 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (10.4.0)
-    Requirement already satisfied: hydra-core>=1.3.2 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (1.3.2)
-    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from iopath>=0.1.10) (4.67.1)
-    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from iopath>=0.1.10) (4.12.2)
-    Requirement already satisfied: portalocker in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from iopath>=0.1.10) (3.0.0)
-    Requirement already satisfied: omegaconf<2.4,>=2.2 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from hydra-core>=1.3.2) (2.3.0)
-    Requirement already satisfied: antlr4-python3-runtime==4.9.* in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from hydra-core>=1.3.2) (4.9.3)
-    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from hydra-core>=1.3.2) (24.2)
-    Requirement already satisfied: importlib-resources in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from hydra-core>=1.3.2) (6.4.5)
-    Requirement already satisfied: PyYAML>=5.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from omegaconf<2.4,>=2.2->hydra-core>=1.3.2) (6.0.2)
-    Requirement already satisfied: zipp>=3.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from importlib-resources->hydra-core>=1.3.2) (3.20.2)
-    Installing collected packages: iopath
-      Attempting uninstall: iopath
-        Found existing installation: iopath 0.1.9
-        Uninstalling iopath-0.1.9:
-          Successfully uninstalled iopath-0.1.9
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    detectron2 0.6 requires iopath<0.1.10,>=0.1.7, but you have iopath 0.1.10 which is incompatible.
-    Successfully installed iopath-0.1.10
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import requests
@@ -158,13 +129,19 @@ Prerequisites
         )
         open("notebook_utils.py", "w").write(r.text)
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
 
     from notebook_utils import download_file
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("segment-anything-2-image.ipynb")
 
 Clone and install segment-anything-2
 
@@ -175,22 +152,18 @@ Clone and install segment-anything-2
 
     repo_dir = clone_repo("https://github.com/facebookresearch/sam2.git")
 
+
+.. parsed-literal::
+
+    env: SAM2_BUILD_CUDA=0
+
+
 .. code:: ipython3
 
     %env SAM2_BUILD_CUDA=0
     %cd sam2
     %pip install -q -e .
     %cd ..
-
-
-.. parsed-literal::
-
-    env: SAM2_BUILD_CUDA=0
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/sam2-image-segmentation/sam2
-    ERROR: Package 'sam-2' requires a different Python: 3.8.10 not in '>=3.10.0'
-    Note: you may need to restart the kernel to use updated packages.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/sam2-image-segmentation
-
 
 .. code:: ipython3
 
@@ -218,16 +191,17 @@ Prepare image
     import matplotlib.pyplot as plt
     from PIL import Image
 
-    download_file("https://raw.githubusercontent.com/facebookresearch/segment-anything/main/notebooks/images/truck.jpg")
+    image_path = Path("truck.jpg")
+    if not image_path.exists():
+        download_file("https://raw.githubusercontent.com/facebookresearch/segment-anything/main/notebooks/images/truck.jpg")
 
-    image = Image.open("truck.jpg")
+    image = Image.open(image_path)
     image = np.array(image.convert("RGB"))
-
 
 
 .. parsed-literal::
 
-    truck.jpg:   0%|          | 0.00/265k [00:00<?, ?B/s]
+    'truck.jpg' already exists.
 
 
 .. code:: ipython3
@@ -484,6 +458,12 @@ Example Image
     download_file("https://raw.githubusercontent.com/facebookresearch/segment-anything/main/notebooks/images/truck.jpg")
     image = cv2.imread("truck.jpg")
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+
+.. parsed-literal::
+
+    'truck.jpg' already exists.
+
 
 .. code:: ipython3
 
@@ -842,20 +822,6 @@ point.
     # EXAMPLE: `demo.launch(server_name="your server name", server_port="server port in int")`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
-
 .. code:: ipython3
 
     # please uncomment and run this cell for stopping gradio interface
@@ -982,7 +948,7 @@ The optimization process contains the following steps:
 
 .. parsed-literal::
 
-    Checkbox(value=False, description='Quantization')
+    Checkbox(value=True, description='Quantization')
 
 
 
@@ -998,6 +964,13 @@ The optimization process contains the following steps:
         open(skip_kernel_extension_file_name, "w").write(r.text)
 
     %load_ext skip_kernel_extension
+
+
+.. parsed-literal::
+
+    The skip_kernel_extension extension is already loaded. To reload it, use:
+      %reload_ext skip_kernel_extension
+
 
 Prepare a calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1017,11 +990,16 @@ the label files.
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path(".")
 
-    download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-
     if not (OUT_DIR / "coco128/images/train2017").exists():
+        download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
         with ZipFile("coco128.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
+
+
+.. parsed-literal::
+
+    'coco128.zip' already exists.
+
 
 Create an instance of the ``nncf.Dataset`` class that represents the
 calibration dataset. For PyTorch, we can pass an instance of the
@@ -1076,6 +1054,12 @@ dataset and returns data that can be passed to the model for inference.
 
 
     calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+
 
 Run quantization and serialize OpenVINO IR model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1169,6 +1153,11 @@ We can reuse the previous code to validate the output of ``INT8`` model.
     plt.axis("off")
     plt.show()
 
+
+
+.. image:: segment-anything-2-image-with-output_files/segment-anything-2-image-with-output_92_0.png
+
+
 Run ``INT8`` model in automatic mask generation mode
 
 .. code:: ipython3
@@ -1182,6 +1171,13 @@ Run ``INT8`` model in automatic mask generation mode
     out = draw_anns(image, prediction)
     cv2.imwrite("result_int8.png", out[:, :, ::-1])
     PIL.Image.open("result_int8.png")
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/5 [00:00<?, ?it/s]
+
 
 Compare Performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1199,8 +1195,182 @@ models.
         # Inference FP32 model (OpenVINO IR)
         !benchmark_app -m $ov_encoder_path -d $device.value
 
+
+.. parsed-literal::
+
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
+    [ INFO ] Device info:
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
+    [ INFO ]
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 135.25 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     image (node: image) : f32 / [...] / [1,3,1024,1024]
+    [ INFO ] Model outputs:
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_2) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_1) : f32 / [...] / [1,32,256,256]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape) : f32 / [...] / [1,64,128,128]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,1024,1024]
+    [ INFO ] Model outputs:
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_2) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_1) : f32 / [...] / [1,32,256,256]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape) : f32 / [...] / [1,64,128,128]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 12310.29 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: Model0
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+    [ INFO ] Fill input 'image' with random values
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 5245.18 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            84 iterations
+    [ INFO ] Duration:         138035.30 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        19586.42 ms
+    [ INFO ]    Average:       19531.25 ms
+    [ INFO ]    Min:           16426.16 ms
+    [ INFO ]    Max:           21435.90 ms
+    [ INFO ] Throughput:   0.61 FPS
+
+
 .. code:: ipython3
 
     if Path(ov_encoder_path).exists() and Path(ov_encoder_path_int8).exists():
         # Inference INT8 model (OpenVINO IR)
         !benchmark_app -m $ov_encoder_path_int8 -d $device.value
+
+
+.. parsed-literal::
+
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
+    [ INFO ] Device info:
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2024.3.0-16041-1e3b88e4e3f-releases/2024/3
+    [ INFO ]
+    [ INFO ]
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 167.08 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     image (node: image) : f32 / [...] / [1,3,1024,1024]
+    [ INFO ] Model outputs:
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_2) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_1) : f32 / [...] / [1,32,256,256]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape) : f32 / [...] / [1,64,128,128]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 1
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,1024,1024]
+    [ INFO ] Model outputs:
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_2) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape_1) : f32 / [...] / [1,32,256,256]
+    [ INFO ]     ***NO_NAME*** (node: aten::view/Reshape) : f32 / [...] / [1,64,128,128]
+    [Step 7/11] Loading the model to the device
+    [ INFO ] Compile model took 14885.66 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: Model0
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]     LOG_LEVEL: Level.NO
+    [ INFO ]     MODEL_DISTRIBUTION_POLICY: set()
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 12
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
+    [ INFO ]   PERF_COUNT: False
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+    [ INFO ] Fill input 'image' with random values
+    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+    [ INFO ] First inference took 3194.85 ms
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            120 iterations
+    [ INFO ] Duration:         136297.32 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        13600.36 ms
+    [ INFO ]    Average:       13575.21 ms
+    [ INFO ]    Min:           10246.83 ms
+    [ INFO ]    Max:           15038.88 ms
+    [ INFO ] Throughput:   0.88 FPS
+

@@ -82,7 +82,7 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
     auto external_buffer_size =
         std::accumulate(m_repacked_inputs.begin(),
                         m_repacked_inputs.end(),
-                        size_t(0),
+                        static_cast<size_t>(0),
                         [](size_t sum, const std::pair<size_t, RepackedInput>& p) {
                             auto curr_mem_size = p.second.desc()->getCurrentMemSize();
                             OPENVINO_ASSERT(curr_mem_size != ov::intel_cpu::MemoryDesc::UNDEFINED_SIZE,
@@ -98,8 +98,9 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
         // To avoid extra overheads in runtime on vector creation,
         // we initialize `repacked_offsets_by_threads` by default here
         m_repacked_offsets_by_threads.resize(m_nthreads);
-        for (size_t i = 0; i < m_repacked_offsets_by_threads.size(); ++i)
+        for (size_t i = 0; i < m_repacked_offsets_by_threads.size(); ++i) {
             clean_repacked_offsets(i);
+        }
 
         if (m_tensor_rank == rank6D) {
             init_offset = [](const std::vector<size_t>& offsets, const std::vector<size_t>& indexes, size_t& offset) {
@@ -108,8 +109,9 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
             };
         } else {
             init_offset = [](const std::vector<size_t>& offsets, const std::vector<size_t>& indexes, size_t& offset) {
-                for (size_t j = 0; j < indexes.size(); j++)
+                for (size_t j = 0; j < indexes.size(); j++) {
                     offset += offsets[j] * indexes[j];
+                }
             };
         }
     }
@@ -128,8 +130,9 @@ void SubgraphExecutor::segfault_detector() {
     if (enabled_segfault_detector) {
         __sighandler_t signal_handler = [](int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
-                std::cout << segfault_detector_emitter->info() << std::endl;
+            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local()) {
+                std::cout << segfault_detector_emitter->info() << '\n';
+            }
             auto tid = parallel_get_thread_num();
             OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
                            std::to_string(tid));
@@ -169,10 +172,11 @@ std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::st
                         "Unsupported shape rank of repacking data");
 
         const auto& kernel = repacked_input.kernel<BrgemmCopyBKernel>();
-        if (m_tensor_rank == rank6D)
+        if (m_tensor_rank == rank6D) {
             parallel4d_repacking(kernel.get(), dom, in_strides, out_strides, src, dst);
-        else
+        } else {
             parallelNd_repacking(kernel.get(), dom, in_strides, out_strides, src, dst);
+        }
 
         reordered_in_ptrs[in_idx] = dst_mem;
         offset += desc->getCurrentMemSize();

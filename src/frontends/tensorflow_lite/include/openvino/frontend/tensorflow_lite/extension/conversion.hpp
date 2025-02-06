@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class TENSORFLOW_LITE_API ConversionExtension : public ConversionExtensionBase {
+class TENSORFLOW_LITE_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
     using Ptr = std::shared_ptr<ConversionExtension>;
 

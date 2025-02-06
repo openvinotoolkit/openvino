@@ -28,8 +28,9 @@ void ROIAlignRotated::getSupportedDescriptors() {
 }
 
 void ROIAlignRotated::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
@@ -98,7 +99,7 @@ void ROIAlignRotated::execute(const dnnl::stream&) {
         CASE(f32);
         CASE(f64);
     default:
-        OPENVINO_THROW("[ROIAlignRotated]: Unhandled data type ", type, " in execute()");
+        THROW_CPU_NODE_ERR("Unhandled data type ", type, " in execute()");
     }
 #undef CASE
 }

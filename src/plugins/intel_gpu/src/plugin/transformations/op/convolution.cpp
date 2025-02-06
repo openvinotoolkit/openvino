@@ -9,9 +9,7 @@
 #include "group_convolution_shape_inference.hpp"
 #include "openvino/op/group_conv.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 Convolution::Convolution(const ov::Output<Node>& data_batch,
                          const ov::Output<Node>& filters,
@@ -156,6 +154,4 @@ std::vector<ov::PartialShape> shape_infer(const Convolution* op,
    }
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

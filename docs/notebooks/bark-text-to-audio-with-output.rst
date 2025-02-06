@@ -96,11 +96,18 @@ Prerequisites
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("bark-text-to-audio.ipynb")
 
 Download and Convert models
 ---------------------------
@@ -131,7 +138,7 @@ models for that.
 
     text_use_small = True
     
-    text_encoder = load_model(model_type="text", use_gpu=False, use_small=text_use_small, force_reload=False)
+    text_encoder = load_model(model_type="text", use_gpu=False, use_small=text_use_small, force_reload=False, weights_only=False)
     
     text_encoder_model = text_encoder["model"]
     tokenizer = text_encoder["tokenizer"]
@@ -593,8 +600,6 @@ consists from several steps, illustrated on the diagram below:
             semantic_history = None
         encoded_text = np.ascontiguousarray(_tokenize(tokenizer, text)) + TEXT_ENCODING_OFFSET
         if len(encoded_text) > 256:
-            p = round((len(encoded_text) - 256) / len(encoded_text) * 100, 1)
-            logger.warning(f"warning, text too long, lopping of last {p}%")
             encoded_text = encoded_text[:256]
         encoded_text = np.pad(
             encoded_text,

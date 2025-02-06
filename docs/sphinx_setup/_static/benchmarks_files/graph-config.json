@@ -20,8 +20,9 @@
         "Latency": "latency"
     },
     "UnitDescription": {
+        "sec.": "(lower is better)",
         "msec.": "(lower is better)",
-        "ms": "(lower is better)",
+        "ms.": "(lower is better)",
         "msec/token": "(lower is better)",
         "Generating time, sec.": "(lower is better)",
         "msec/token/TDP": "(lower is better)",

@@ -79,11 +79,17 @@ Prerequisites
     
     
     %pip install -q "torch>=2.3" "torchvision>=0.18.1" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
+    %pip install -q -U "transformers>=4.45" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install --pre -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"  --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q datasets  "gradio>=4.0" "soundfile>=0.12" "librosa" "python-ffmpeg<=1.0.16"
     %pip install -q "nncf>=2.14.0" "jiwer" "typing_extensions>=4.9"
     if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0"
+    
+    from transformers.utils.import_utils import is_tf_available
+    
+    if is_tf_available():
         %pip install -q "numpy<2.0"
 
 .. code:: ipython3
@@ -102,6 +108,11 @@ Prerequisites
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
         )
         open("cmd_helper.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("whisper-asr-genai.ipynb")
 
 Load PyTorch model
 ------------------
@@ -193,6 +204,7 @@ arbitrary length.
 
     from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq, pipeline
     from transformers.utils import logging
+    import torch
     
     processor = AutoProcessor.from_pretrained(model_id.value)
     
@@ -203,7 +215,7 @@ arbitrary length.
         model=pt_model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
-        device="cpu",
+        device=torch.device("cpu"),
     )
 
 Run PyTorch model inference
@@ -220,12 +232,13 @@ The ``pipeline`` expects audio data in numpy array format. We will use
     
     en_example_short = Path("data", "courtroom.wav")
     
-    # a wav sample
-    download_file(
-        "https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/courtroom.wav",
-        en_example_short.name,
-        directory=en_example_short.parent,
-    )
+    if not en_example_short.exists():
+        # a wav sample
+        download_file(
+            "https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/courtroom.wav",
+            en_example_short.name,
+            directory=en_example_short.parent,
+        )
 
 
 .. parsed-literal::
@@ -660,10 +673,11 @@ Please select below whether you would like to run Whisper quantization.
     # Fetch `skip_kernel_extension` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     ov_quantized_pipe = None
     
@@ -732,7 +746,7 @@ improves quantization quality.
         encoder_calibration_data = []
         decoder_calibration_data = []
         ov_model.encoder.request = InferRequestWrapper(ov_model.encoder.request, encoder_calibration_data, apply_caching=True)
-        ov_model.decoder_with_past.request = InferRequestWrapper(ov_model.decoder_with_past.request,
+        ov_model.decoder.request = InferRequestWrapper(ov_model.decoder.request,
                                                                  decoder_calibration_data,
                                                                  apply_caching=True)
     
@@ -741,7 +755,9 @@ improves quantization quality.
           model=ov_model,
           chunk_length_s=30,
           tokenizer=ov_processor.tokenizer,
-          feature_extractor=ov_processor.feature_extractor)
+          feature_extractor=ov_processor.feature_extractor,
+          device=torch.device("cpu")
+          )
         try:
             calibration_dataset = dataset = load_dataset("openslr/librispeech_asr", "clean", split="validation", streaming=True, trust_remote_code=True)
             for sample in tqdm(islice(calibration_dataset, calibration_dataset_size), desc="Collecting calibration data",
@@ -749,7 +765,7 @@ improves quantization quality.
                 pipe(sample["audio"], return_timestamps=True)
         finally:
             ov_model.encoder.request = ov_model.encoder.request.request
-            ov_model.decoder_with_past.request = ov_model.decoder_with_past.request.request
+            ov_model.decoder.request = ov_model.decoder.request.request
     
         return encoder_calibration_data, decoder_calibration_data
 
@@ -799,17 +815,17 @@ negligible.
             del encoder_calibration_data
             gc.collect()
     
-            print("Quantizing decoder with past")
-            quantized_decoder_with_past = nncf.quantize(
-                ov_model.decoder_with_past.model,
+            print("Quantizing decoder")
+            quantized_decoder = nncf.quantize(
+                ov_model.decoder.model,
                 nncf.Dataset(decoder_calibration_data),
                 subset_size=len(decoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
                 advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.96)
             )
-            ov.save_model(quantized_decoder_with_past, quantized_model_path / "openvino_decoder_with_past_model.xml")
-            del quantized_decoder_with_past
+            ov.save_model(quantized_decoder, quantized_model_path / "openvino_decoder_model.xml")
+            del quantized_decoder
             del decoder_calibration_data
             gc.collect()
     

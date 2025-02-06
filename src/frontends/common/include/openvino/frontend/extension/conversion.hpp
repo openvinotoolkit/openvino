@@ -20,7 +20,7 @@ public:
         return m_op_type;
     }
 
-    ~ConversionExtensionBase() override = default;
+    ~ConversionExtensionBase() override;
 
 private:
     std::string m_op_type;

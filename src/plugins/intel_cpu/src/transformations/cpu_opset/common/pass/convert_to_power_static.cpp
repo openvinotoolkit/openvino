@@ -41,8 +41,9 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
 
     const int nonConstPort = 1 - constPort;
     auto input_rank = node->get_input_partial_shape(nonConstPort).rank();
-    if (input_rank.is_dynamic())
+    if (input_rank.is_dynamic()) {
         return false;
+    }
     auto const_shape = node->get_input_shape(constPort);
     return ov::shape_size(const_shape) == 1 && input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
            !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
@@ -61,8 +62,9 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
 template <>
 bool isConvertableToPowerStatic(const std::shared_ptr<ov::opset1::Power>& node) {
     auto input_rank = node->get_input_partial_shape(0).rank();
-    if (input_rank.is_dynamic())
+    if (input_rank.is_dynamic()) {
         return false;
+    }
     auto const_node = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
     return const_node &&
            input_rank.get_length() >= static_cast<ov::Dimension::value_type>(const_node->get_shape().size()) &&
@@ -135,20 +137,24 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
 
         std::shared_ptr<ov::Node> toReplace = node;
         if (auto power = ov::as_type_ptr<ov::opset1::Power>(node)) {
-            if (!isConvertableToPowerStatic(power))
+            if (!isConvertableToPowerStatic(power)) {
                 return false;
+            }
             toReplace = convert(power);
         } else if (auto add = ov::as_type_ptr<ov::opset1::Add>(node)) {
-            if (!isConvertableToPowerStatic(add))
+            if (!isConvertableToPowerStatic(add)) {
                 return false;
+            }
             toReplace = convert(add);
         } else if (auto sub = ov::as_type_ptr<ov::opset1::Subtract>(node)) {
-            if (!isConvertableToPowerStatic(sub))
+            if (!isConvertableToPowerStatic(sub)) {
                 return false;
+            }
             toReplace = convert(sub);
         } else if (auto mult = ov::as_type_ptr<ov::opset1::Multiply>(node)) {
-            if (!isConvertableToPowerStatic(mult))
+            if (!isConvertableToPowerStatic(mult)) {
                 return false;
+            }
             toReplace = convert(mult);
         } else {
             OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");

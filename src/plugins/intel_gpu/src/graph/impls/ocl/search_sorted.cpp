@@ -19,7 +19,7 @@ struct search_sorted_impl : typed_primitive_impl_ocl<search_sorted> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::search_sorted_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<search_sorted_impl>(*this);
+        return std::make_unique<search_sorted_impl>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {

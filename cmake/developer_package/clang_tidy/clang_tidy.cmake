@@ -3,7 +3,7 @@
 #
 
 if(ENABLE_CLANG_TIDY)
-    set(CLANG_TIDY_REQUIRED_VERSION 15 CACHE STRING "clang-tidy version to use")
+    set(CLANG_TIDY_REQUIRED_VERSION 18 CACHE STRING "clang-tidy version to use")
     set(CLANG_TIDY_FILENAME clang-tidy-${CLANG_TIDY_REQUIRED_VERSION} clang-tidy)
     find_host_program(CLANG_TIDY NAMES ${CLANG_TIDY_FILENAME} PATHS ENV PATH)
     if(CLANG_TIDY)

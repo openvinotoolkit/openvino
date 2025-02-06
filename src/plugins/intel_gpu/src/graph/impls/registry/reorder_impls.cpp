@@ -14,8 +14,7 @@
     #include "impls/ocl/reorder.hpp"
 #endif
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
@@ -48,5 +47,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reord
     return impls;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

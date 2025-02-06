@@ -69,17 +69,19 @@ Prerequisites
 
     import platform
 
+
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
+
+
     %pip install -q "nncf>=2.11.0" "torch>=2.1" "torchvision" "timm" "opencv_python" "pillow" "PyYAML" "scipy" "scikit-image" "datasets" "gradio>=4.19"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -Uq "openvino>=2024.3.0"
-    if platform.python_version_tuple()[1] in ["8", "9"]:
-        %pip install -q "gradio-imageslider<=0.0.17" "typing-extensions>=4.9.0"
-    else:
-        %pip install -q "gradio-imageslider"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    tensorflow 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -90,24 +92,22 @@ Prerequisites
     import requests
 
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
 
-
-
-.. parsed-literal::
-
-    1491
-
-
+    collect_telemetry("ddcolor-image-colorization.ipynb")
 
 .. code:: ipython3
 
@@ -127,15 +127,21 @@ Prerequisites
 
 .. code:: ipython3
 
-    try:
-        from inference.colorization_pipeline_hf import DDColorHF, ImageColorizationPipelineHF
-    except Exception:
-        from inference.colorization_pipeline_hf import DDColorHF, ImageColorizationPipelineHF
+    if Path("DDColor/inference").exists():
+        try:
+            from inference.colorization_pipeline_hf import DDColorHF, ImageColorizationPipelineHF
+        except Exception:
+            from inference.colorization_pipeline_hf import DDColorHF, ImageColorizationPipelineHF
+    else:
+        try:
+            from infer_hf import DDColorHF, ImageColorizationPipelineHF
+        except Exception:
+            from infer_hf import DDColorHF, ImageColorizationPipelineHF
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/875/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
       warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
 
 
@@ -348,10 +354,11 @@ improve model inference speed.
     OV_INT8_COLORIZER_PATH = Path("ddcolor_int8.xml")
     compiled_int8_model = None
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
 
     %load_ext skip_kernel_extension
 
@@ -416,10 +423,10 @@ Perform model quantization
 
 .. parsed-literal::
 
-    2024-12-09 23:13:28.920989: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-09 23:13:28.960154: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-03 23:55:05.499380: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2025-02-03 23:55:05.538709: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-12-09 23:13:29.365051: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2025-02-03 23:55:05.951653: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -527,7 +534,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 42.11 ms
+    [ INFO ] Read model took 42.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -543,7 +550,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1306.24 ms
+    [ INFO ] Compile model took 1292.95 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -580,17 +587,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 545.28 ms
+    [ INFO ] First inference took 546.86 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            78 iterations
-    [ INFO ] Duration:         17287.20 ms
+    [ INFO ] Count:            72 iterations
+    [ INFO ] Duration:         16123.94 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1322.14 ms
-    [ INFO ]    Average:       1314.14 ms
-    [ INFO ]    Min:           1050.70 ms
-    [ INFO ]    Max:           1411.16 ms
-    [ INFO ] Throughput:   4.51 FPS
+    [ INFO ]    Median:        1337.94 ms
+    [ INFO ]    Average:       1322.61 ms
+    [ INFO ]    Min:           901.39 ms
+    [ INFO ]    Max:           1725.13 ms
+    [ INFO ] Throughput:   4.47 FPS
 
 
 .. code:: ipython3
@@ -616,7 +623,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 68.20 ms
+    [ INFO ] Read model took 69.28 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -625,14 +632,14 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,512,512]
-    [ INFO ] Reshape model took 0.05 ms
+    [ INFO ] Reshape model took 0.04 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,512,512]
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2220.56 ms
+    [ INFO ] Compile model took 2213.17 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -669,17 +676,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 271.85 ms
+    [ INFO ] First inference took 275.90 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            156 iterations
-    [ INFO ] Duration:         15721.73 ms
+    [ INFO ] Duration:         15504.26 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        595.10 ms
-    [ INFO ]    Average:       599.45 ms
-    [ INFO ]    Min:           551.25 ms
-    [ INFO ]    Max:           666.38 ms
-    [ INFO ] Throughput:   9.92 FPS
+    [ INFO ]    Median:        592.20 ms
+    [ INFO ]    Average:       590.64 ms
+    [ INFO ]    Min:           357.21 ms
+    [ INFO ]    Max:           685.31 ms
+    [ INFO ] Throughput:   10.06 FPS
 
 
 Interactive inference
@@ -692,9 +699,8 @@ Interactive inference
     def generate(image, use_int8=True):
         image_in = cv2.imread(image)
         image_out = process(image_in, compiled_model if not use_int8 else compiled_int8_model)
-        image_in_pil = PIL.Image.fromarray(cv2.cvtColor(image_in, cv2.COLOR_BGR2RGB))
         image_out_pil = PIL.Image.fromarray(cv2.cvtColor(image_out, cv2.COLOR_BGR2RGB))
-        return (image_in_pil, image_out_pil)
+        return image_out_pil
 
 
     if not Path("gradio_helper.py").exists():

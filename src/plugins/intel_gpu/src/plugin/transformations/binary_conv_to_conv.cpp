@@ -19,8 +19,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 template <typename DST_T>
@@ -116,5 +115,4 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

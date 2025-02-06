@@ -14,12 +14,10 @@ using Placeholder = ov::intel_gpu::op::Placeholder;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreatePlaceholderOp(ProgramBuilder&, const std::shared_ptr<ov::intel_gpu::op::Placeholder>&) { }
 
 REGISTER_FACTORY_IMPL(internal, Placeholder);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

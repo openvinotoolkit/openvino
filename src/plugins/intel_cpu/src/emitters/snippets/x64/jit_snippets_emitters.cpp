@@ -36,11 +36,12 @@ jit_result_emitter::jit_result_emitter(jit_generator* h, cpu_isa_t isa, const Ex
 jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
-    if (n->get_input_element_type(0) != n->get_output_element_type(0))
+    if (n->get_input_element_type(0) != n->get_output_element_type(0)) {
         OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
                                  n->get_input_element_type(0),
                                  " and ",
                                  n->get_output_element_type(0));
+    }
     byte_size = n->get_input_element_type(0).size();
 }
 

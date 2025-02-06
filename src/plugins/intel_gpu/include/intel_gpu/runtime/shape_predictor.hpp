@@ -84,8 +84,6 @@ private:
 
 }  // namespace cldnn
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 using ShapePredictor = cldnn::ShapePredictor;
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

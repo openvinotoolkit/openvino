@@ -103,6 +103,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
+      M(0),
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
@@ -142,8 +143,9 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
+    if (curNumaNode == numaNodeID) {
         return;
+    }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
     if (m_attrs.withBias) {

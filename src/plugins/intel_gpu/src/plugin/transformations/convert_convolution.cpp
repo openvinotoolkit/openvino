@@ -22,8 +22,7 @@
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 namespace {
 
 template<typename W_T, typename AZP_T>
@@ -236,5 +235,4 @@ bool ConvertConvolutionToInternal::run_on_model(const std::shared_ptr<ov::Model>
     return manager.run_passes(m);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -18,7 +18,7 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto multinomial_op = as_type_ptr<op::v13::Multinomial>(op);
@@ -114,6 +114,11 @@ void Multinomial::prepareParams() {
     m_input_elements_count = m_batches_count * m_probs_count;
     m_output_elements_count = m_batches_count * m_samples_count;
     m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
+}
+
+bool Multinomial::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(PROBS_PORT) ||
+           getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT);
 }
 
 bool Multinomial::isExecutable() const {

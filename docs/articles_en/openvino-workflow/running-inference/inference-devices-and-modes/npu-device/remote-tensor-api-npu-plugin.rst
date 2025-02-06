@@ -130,6 +130,6 @@ For possible low-level properties and their description, refer to the header fil
 Additional Resources
 ####################
 
-* `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
-* `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
+* `ov::Core <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__
+* `ov::RemoteTensor <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
 

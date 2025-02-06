@@ -213,7 +213,7 @@ program::program(engine& engine, const ExecutionConfig& config)
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
-    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
+    _layout_optimizer = std::make_unique<layout_optimizer>();
 }
 
 program::~program() {
@@ -238,13 +238,13 @@ void program::init_program() {
         _compilation_context = program::make_compilation_context(_config);
 
 
-    _layout_optimizer = cldnn::make_unique<layout_optimizer>();
+    _layout_optimizer = std::make_unique<layout_optimizer>();
     size_t impls_cache_capacity = _impls_cache_capacity;
     GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
         impls_cache_capacity = debug_config->impls_cache_capacity;
     }
 
-    _impls_cache = cldnn::make_unique<ImplementationsCache>(impls_cache_capacity);
+    _impls_cache = std::make_unique<ImplementationsCache>(impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
@@ -530,6 +530,7 @@ void program::init_graph() {
             node->get_output_layouts();
         if (node->is_type<lstm_seq>()) {
             _config.set_property(ov::intel_gpu::use_onednn(true));
+            _config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         }
     }
     // Perform initial shape_of subgraphs markup
@@ -553,7 +554,7 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_quantization>();
     }
 
-    _layout_optimizer = cldnn::make_unique<layout_optimizer>(output_size_handling_enabled);
+    _layout_optimizer = std::make_unique<layout_optimizer>(output_size_handling_enabled);
     set_layout_optimizer_attributes(*_layout_optimizer);
 
     reorder_factory rf;

@@ -72,7 +72,7 @@ Install necessary packages
 .. code:: ipython3
 
     %pip install -q "transformers>=4.25.1" torch accelerate "gradio>4.19" "datasets>=2.14.6" "matplotlib>=3.4" diffusers pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "openvino>=2024.3.0"
 
 Create Pytorch Models pipeline
 ------------------------------
@@ -910,6 +910,11 @@ can provide device selecting one from available in dropdown list.
     device = device_widget()
     
     device
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("instruct-pix2pix-image-editing.ipynb")
 
 
 
@@ -975,10 +980,18 @@ seed for latent state initialization and number of steps.
 
     import io
     import requests
+    from diffusers.utils import load_image
     
+    default_image_path = Path("default_image.png")
     default_url = "https://user-images.githubusercontent.com/29454499/223343459-4ac944f0-502e-4acf-9813-8e9f0abc8a16.jpg"
+    
+    if not default_image_path.exists():
+        img = load_image(default_url)
+        img.save(default_image_path)
+    
+    default_image = PIL.Image.open(default_image_path)
     # read uploaded image
-    image = PIL.Image.open(io.BytesIO(image_widget.value[-1]["content"]) if image_widget.value else requests.get(default_url, stream=True).raw)
+    image = PIL.Image.open(io.BytesIO(image_widget.value[-1]["content"])) if image_widget.value else default_image
     image = image.convert("RGB")
     print("Pipeline settings")
     print(f"Input text: {text_prompt.value}")
@@ -1075,10 +1088,11 @@ Let’s load ``skip magic`` extension to skip quantization if
     # Fetch `skip_kernel_extension` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -1361,8 +1375,3 @@ Interactive demo with Gradio
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

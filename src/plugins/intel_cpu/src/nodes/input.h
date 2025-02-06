@@ -56,12 +56,17 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     void withMeanImage();
     MemoryCPtr getMemoryPtr() const;
 
     void execute(const dnnl::stream& strm) override {}
     void executeDynamicImpl(const dnnl::stream& strm) override {}
+
+    bool neverExecute() const override {
+        return true;
+    }
     bool isExecutable() const override {
         return false;
     }

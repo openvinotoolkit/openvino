@@ -67,8 +67,9 @@ void jit_emitter::emit_data() const {
     for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
         const auto& te = (*it).second;  // get map entry for a given key
         const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
-        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t))
+        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
             h->dd(te.val);
+        }
     }
 }
 
@@ -127,33 +128,41 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
 
     for (size_t idx = 0; idx < get_max_vecs_count(); idx++) {
-        if (aux_vec_idxs.size() >= get_aux_vecs_count())
+        if (aux_vec_idxs.size() >= get_aux_vecs_count()) {
             break;
+        }
 
         if (is_vec_input) {
-            if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end())
+            if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end()) {
                 continue;
+            }
         }
         if (is_vec_output) {
-            if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end())
+            if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end()) {
                 continue;
+            }
         }
 
-        if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end())
+        if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end()) {
             continue;
-        if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end())
+        }
+        if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end()) {
             continue;
+        }
 
-        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) != aux_vec_idxs.end())
+        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) != aux_vec_idxs.end()) {
             continue;
-        if (std::find(preserved_vec_idxs.begin(), preserved_vec_idxs.end(), idx) != preserved_vec_idxs.end())
+        }
+        if (std::find(preserved_vec_idxs.begin(), preserved_vec_idxs.end(), idx) != preserved_vec_idxs.end()) {
             continue;
+        }
 
         aux_vec_idxs.push_back(idx);
         preserved_vec_idxs.push_back(idx);
     }
-    if (aux_vec_idxs.size() < get_aux_vecs_count())
+    if (aux_vec_idxs.size() < get_aux_vecs_count()) {
         OV_CPU_JIT_EMITTER_THROW("Failed to allocate required number of vector registers");
+    }
 
     // gpr registers
     for (auto idx : pool_aux_gpr_idxs) {
@@ -164,31 +173,38 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     for (size_t gpr_idx = 0; gpr_idx <= end_gpr_idx; ++gpr_idx) {
         size_t _idx = end_gpr_idx - gpr_idx;  // we allocate from the end
 
-        if (aux_gpr_idxs.size() >= get_aux_gprs_count())
+        if (aux_gpr_idxs.size() >= get_aux_gprs_count()) {
             break;
+        }
         if ((_idx == Xbyak_aarch64::Operand::X18) || (_idx == Xbyak_aarch64::Operand::X23) ||
-            (_idx == Xbyak_aarch64::Operand::X24) || (_idx == Xbyak_aarch64::Operand::X28))
+            (_idx == Xbyak_aarch64::Operand::X24) || (_idx == Xbyak_aarch64::Operand::X28)) {
             continue;
+        }
 
         if (!is_vec_input) {
-            if (std::find(in_idxs.begin(), in_idxs.end(), _idx) != in_idxs.end())
+            if (std::find(in_idxs.begin(), in_idxs.end(), _idx) != in_idxs.end()) {
                 continue;
+            }
         }
         if (!is_vec_output) {
-            if (std::find(out_idxs.begin(), out_idxs.end(), _idx) != out_idxs.end())
+            if (std::find(out_idxs.begin(), out_idxs.end(), _idx) != out_idxs.end()) {
                 continue;
+            }
         }
 
-        if (std::find(aux_gpr_idxs.begin(), aux_gpr_idxs.end(), _idx) != aux_gpr_idxs.end())
+        if (std::find(aux_gpr_idxs.begin(), aux_gpr_idxs.end(), _idx) != aux_gpr_idxs.end()) {
             continue;
-        if (std::find(preserved_gpr_idxs.begin(), preserved_gpr_idxs.end(), _idx) != preserved_gpr_idxs.end())
+        }
+        if (std::find(preserved_gpr_idxs.begin(), preserved_gpr_idxs.end(), _idx) != preserved_gpr_idxs.end()) {
             continue;
+        }
 
         aux_gpr_idxs.push_back(_idx);
         preserved_gpr_idxs.push_back(_idx);
     }
-    if (aux_gpr_idxs.size() < get_aux_gprs_count())
+    if (aux_gpr_idxs.size() < get_aux_gprs_count()) {
         OV_CPU_JIT_EMITTER_THROW("Failed to allocate required number of general-purpose registers");
+    }
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose

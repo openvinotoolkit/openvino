@@ -21,9 +21,8 @@ combined. Using CLIP, you can provide a text query and CLIP will return
 the images most related to the query.
 
 In this tutorial, we consider how to use MobileCLIP to implement a
-visual content search engine for finding relevant frames in video.
-
-**Table of contents:**
+visual content search engine for finding relevant frames in video. ####
+Table of contents:
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
@@ -62,178 +61,47 @@ Prerequisites
 
 .. code:: ipython3
 
+    from pathlib import Path
     import requests
-
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
-    )
-    open("cmd_helper.py", "w").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    1491
-
-
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("mobileclip-video-search.ipynb")
 
 .. code:: ipython3
 
     from cmd_helper import clone_repo
-
-
+    
+    
     clone_repo("https://github.com/apple/ml-mobileclip.git")
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('ml-mobileclip')
-
-
 
 .. code:: ipython3
 
     %pip install -q "./ml-mobileclip" --no-deps
-
+    
     %pip install -q "clip-benchmark>=1.4.0" "datasets>=2.8.0" "open-clip-torch>=2.20.0" "timm>=0.9.5" "torch>=2.5.0" "torchvision>=0.20.0" --extra-index-url https://download.pytorch.org/whl/cpu
-
-    %pip install -q "matplotlib>=3.4" "Pillow"  "altair" "pandas" "tqdm" "salesforce-lavis==1.0.2"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: Could not find a version that satisfies the requirement torch>=2.5.0 (from versions: 1.4.0, 1.4.0+cpu, 1.5.0, 1.5.0+cpu, 1.5.1, 1.5.1+cpu, 1.6.0, 1.6.0+cpu, 1.7.0, 1.7.0+cpu, 1.7.1, 1.7.1+cpu, 1.8.0, 1.8.0+cpu, 1.8.1, 1.8.1+cpu, 1.9.0, 1.9.0+cpu, 1.9.1, 1.9.1+cpu, 1.10.0, 1.10.0+cpu, 1.10.1, 1.10.1+cpu, 1.10.2, 1.10.2+cpu, 1.11.0, 1.11.0+cpu, 1.12.0, 1.12.0+cpu, 1.12.1, 1.12.1+cpu, 1.13.0, 1.13.0+cpu, 1.13.1, 1.13.1+cpu, 2.0.0, 2.0.0+cpu, 2.0.1, 2.0.1+cpu, 2.1.0, 2.1.0+cpu, 2.1.1, 2.1.1+cpu, 2.1.2, 2.1.2+cpu, 2.2.0, 2.2.0+cpu, 2.2.1, 2.2.1+cpu, 2.2.2, 2.2.2+cpu, 2.3.0, 2.3.0+cpu, 2.3.1, 2.3.1+cpu, 2.4.0, 2.4.0+cpu, 2.4.1, 2.4.1+cpu)
-    ERROR: No matching distribution found for torch>=2.5.0
-    Note: you may need to restart the kernel to use updated packages.
-      error: subprocess-exited-with-error
-
-      × pip subprocess to install build dependencies did not run successfully.
-      │ exit code: 1
-      ╰─> [92 lines of output]
-          Ignoring numpy: markers 'python_version >= "3.9"' don't match your environment
-          Collecting setuptools
-            Using cached setuptools-75.3.0-py3-none-any.whl.metadata (6.9 kB)
-          Collecting cython<3.0,>=0.25
-            Using cached Cython-0.29.37-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl.metadata (3.1 kB)
-          Collecting cymem<2.1.0,>=2.0.2
-            Using cached cymem-2.0.10.tar.gz (10 kB)
-            Installing build dependencies: started
-            Installing build dependencies: finished with status 'done'
-            Getting requirements to build wheel: started
-            Getting requirements to build wheel: finished with status 'done'
-            Preparing metadata (pyproject.toml): started
-            Preparing metadata (pyproject.toml): finished with status 'done'
-          Collecting preshed<3.1.0,>=3.0.2
-            Using cached preshed-3.0.9-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.2 kB)
-          Collecting murmurhash<1.1.0,>=0.28.0
-            Using cached murmurhash-1.0.11.tar.gz (13 kB)
-            Installing build dependencies: started
-            Installing build dependencies: finished with status 'done'
-            Getting requirements to build wheel: started
-            Getting requirements to build wheel: finished with status 'done'
-            Preparing metadata (pyproject.toml): started
-            Preparing metadata (pyproject.toml): finished with status 'done'
-          Collecting thinc<8.4.0,>=8.3.0
-            Using cached thinc-8.3.2.tar.gz (193 kB)
-            Installing build dependencies: started
-            Installing build dependencies: finished with status 'error'
-            error: subprocess-exited-with-error
-
-            × pip subprocess to install build dependencies did not run successfully.
-            │ exit code: 1
-            ╰─> [50 lines of output]
-                Ignoring numpy: markers 'python_version >= "3.9"' don't match your environment
-                Collecting setuptools
-                  Using cached setuptools-75.3.0-py3-none-any.whl.metadata (6.9 kB)
-                Collecting cython<3.0,>=0.25
-                  Using cached Cython-0.29.37-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl.metadata (3.1 kB)
-                Collecting murmurhash<1.1.0,>=1.0.2
-                  Using cached murmurhash-1.0.11.tar.gz (13 kB)
-                  Installing build dependencies: started
-                  Installing build dependencies: finished with status 'done'
-                  Getting requirements to build wheel: started
-                  Getting requirements to build wheel: finished with status 'done'
-                  Preparing metadata (pyproject.toml): started
-                  Preparing metadata (pyproject.toml): finished with status 'done'
-                Collecting cymem<2.1.0,>=2.0.2
-                  Using cached cymem-2.0.10.tar.gz (10 kB)
-                  Installing build dependencies: started
-                  Installing build dependencies: finished with status 'done'
-                  Getting requirements to build wheel: started
-                  Getting requirements to build wheel: finished with status 'done'
-                  Preparing metadata (pyproject.toml): started
-                  Preparing metadata (pyproject.toml): finished with status 'done'
-                Collecting preshed<3.1.0,>=3.0.2
-                  Using cached preshed-3.0.9-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.2 kB)
-                Collecting blis<1.1.0,>=1.0.0
-                  Using cached blis-1.0.1.tar.gz (3.6 MB)
-                  Installing build dependencies: started
-                  Installing build dependencies: finished with status 'error'
-                  error: subprocess-exited-with-error
-
-                  × pip subprocess to install build dependencies did not run successfully.
-                  │ exit code: 1
-                  ╰─> [8 lines of output]
-                      Collecting setuptools
-                        Using cached setuptools-75.3.0-py3-none-any.whl.metadata (6.9 kB)
-                      Collecting cython>=0.25
-                        Using cached Cython-3.0.11-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)
-                      ERROR: Ignored the following versions that require a different python version: 1.25.0 Requires-Python >=3.9; 1.25.1 Requires-Python >=3.9; 1.25.2 Requires-Python >=3.9; 1.26.0 Requires-Python <3.13,>=3.9; 1.26.1 Requires-Python <3.13,>=3.9; 1.26.2 Requires-Python >=3.9; 1.26.3 Requires-Python >=3.9; 1.26.4 Requires-Python >=3.9; 2.0.0 Requires-Python >=3.9; 2.0.1 Requires-Python >=3.9; 2.0.2 Requires-Python >=3.9; 2.1.0 Requires-Python >=3.10; 2.1.0rc1 Requires-Python >=3.10; 2.1.1 Requires-Python >=3.10; 2.1.2 Requires-Python >=3.10; 2.1.3 Requires-Python >=3.10; 2.2.0 Requires-Python >=3.10; 2.2.0rc1 Requires-Python >=3.10; 75.4.0 Requires-Python >=3.9; 75.5.0 Requires-Python >=3.9; 75.6.0 Requires-Python >=3.9
-                      ERROR: Could not find a version that satisfies the requirement numpy<3.0.0,>=2.0.0 (from versions: 1.3.0, 1.4.1, 1.5.0, 1.5.1, 1.6.0, 1.6.1, 1.6.2, 1.7.0, 1.7.1, 1.7.2, 1.8.0, 1.8.1, 1.8.2, 1.9.0, 1.9.1, 1.9.2, 1.9.3, 1.10.0.post2, 1.10.1, 1.10.2, 1.10.4, 1.11.0, 1.11.1, 1.11.2, 1.11.3, 1.12.0, 1.12.1, 1.13.0, 1.13.1, 1.13.3, 1.14.0, 1.14.1, 1.14.2, 1.14.3, 1.14.4, 1.14.5, 1.14.6, 1.15.0, 1.15.1, 1.15.2, 1.15.3, 1.15.4, 1.16.0, 1.16.1, 1.16.2, 1.16.3, 1.16.4, 1.16.5, 1.16.6, 1.17.0, 1.17.1, 1.17.2, 1.17.3, 1.17.4, 1.17.5, 1.18.0, 1.18.1, 1.18.2, 1.18.3, 1.18.4, 1.18.5, 1.19.0, 1.19.1, 1.19.2, 1.19.3, 1.19.4, 1.19.5, 1.20.0, 1.20.1, 1.20.2, 1.20.3, 1.21.0, 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.22.0, 1.22.1, 1.22.2, 1.22.3, 1.22.4, 1.23.0, 1.23.1, 1.23.2, 1.23.3, 1.23.4, 1.23.5, 1.24.0, 1.24.1, 1.24.2, 1.24.3, 1.24.4)
-                      ERROR: No matching distribution found for numpy<3.0.0,>=2.0.0
-
-                      [end of output]
-
-                  note: This error originates from a subprocess, and is likely not a problem with pip.
-                error: subprocess-exited-with-error
-
-                × pip subprocess to install build dependencies did not run successfully.
-                │ exit code: 1
-                ╰─> See above for output.
-
-                note: This error originates from a subprocess, and is likely not a problem with pip.
-                [end of output]
-
-            note: This error originates from a subprocess, and is likely not a problem with pip.
-          error: subprocess-exited-with-error
-
-          × pip subprocess to install build dependencies did not run successfully.
-          │ exit code: 1
-          ╰─> See above for output.
-
-          note: This error originates from a subprocess, and is likely not a problem with pip.
-          [end of output]
-
-      note: This error originates from a subprocess, and is likely not a problem with pip.
-    error: subprocess-exited-with-error
-
-    × pip subprocess to install build dependencies did not run successfully.
-    │ exit code: 1
-    ╰─> See above for output.
-
-    note: This error originates from a subprocess, and is likely not a problem with pip.
-    Note: you may need to restart the kernel to use updated packages.
-
+    
+    %pip install -q "matplotlib>=3.4" "Pillow"  "altair" "pandas" "tqdm" "opencv-python>=4.9" "gradio>=4.19"
+    %pip install -q "--no-deps salesforce-lavis==1.0.2" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "contexttimer" "einops>=0.4.1" decord omegaconf sentencepiece timm spacy --extra-index-url https://download.pytorch.org/whl/cpu
 
 .. code:: ipython3
 
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2024.0.0" "altair" "opencv-python" "opencv-contrib-python" "gradio>=4.19"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q  "openvino>=2024.5.0"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "transformers>=4.45" "tokenizers>=0.20" --extra-index-url https://download.pytorch.org/whl/cpu
 
 Select model
 ------------
@@ -289,23 +157,23 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     import ipywidgets as widgets
-
-
+    
+    
     model_dir = Path("checkpoints")
-
-
+    
+    
     def default_image_probs(image_features, text_features):
         image_probs = (100.0 * text_features @ image_features.T).softmax(dim=-1)
         return image_probs
-
-
+    
+    
     def blip2_image_probs(image_features, text_features):
         image_probs = image_features[:, 0, :] @ text_features[:, 0, :].t()
         return image_probs
-
-
+    
+    
     supported_models = {
         "MobileCLIP": {
             "mobileclip_s0": {
@@ -393,8 +261,8 @@ comparison purposes, you can select different models among:
             },
         },
     }
-
-
+    
+    
     model_type = widgets.Dropdown(options=supported_models.keys(), default="MobileCLIP", description="Model type:")
     model_type
 
@@ -410,13 +278,13 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     available_models = supported_models[model_type.value]
-
+    
     model_checkpoint = widgets.Dropdown(
         options=available_models.keys(),
         default=list(available_models),
         description="Model:",
     )
-
+    
     model_checkpoint
 
 
@@ -424,14 +292,14 @@ comparison purposes, you can select different models among:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', options=('mobileclip_s0', 'mobileclip_s1', 'mobileclip_s2', 'mobileclip_b', 'mo…
+    Dropdown(description='Model:', options=('blip2_feature_extractor',), value='blip2_feature_extractor')
 
 
 
 .. code:: ipython3
 
     from notebook_utils import download_file, device_widget
-
+    
     model_config = available_models[model_checkpoint.value]
 
 Run model inference
@@ -466,8 +334,8 @@ Prepare image gallery
     import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image
-
-
+    
+    
     def visualize_result(images: List, query: str = "", selected: List[int] = None):
         """
         Utility function for visualization classification results
@@ -495,8 +363,8 @@ Prepare image gallery
                 mask = np.ones_like(np.array(images[idx]))
                 a.imshow(mask, "jet", interpolation="none", alpha=0.75)
         return fig
-
-
+    
+    
     images_urls = [
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/282ce53e-912d-41aa-ab48-2a001c022d74",
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/9bb40168-82b5-4b11-ada6-d8df104c736c",
@@ -506,46 +374,22 @@ Prepare image gallery
     image_names = ["red_panda.png", "cat.png", "raccoon.png", "dog.png"]
     sample_path = Path("data")
     sample_path.mkdir(parents=True, exist_ok=True)
-
+    
     images = []
     for image_name, image_url in zip(image_names, images_urls):
         image_path = sample_path / image_name
         if not image_path.exists():
             download_file(image_url, filename=image_name, directory=sample_path)
         images.append(Image.open(image_path).convert("RGB").resize((640, 420)))
-
+    
     input_labels = ["cat"]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-
+    
     visualize_result(images, "image gallery");
 
 
 
-.. parsed-literal::
-
-    red_panda.png:   0%|          | 0.00/50.6k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    cat.png:   0%|          | 0.00/54.5k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    raccoon.png:   0%|          | 0.00/106k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    dog.png:   0%|          | 0.00/716k [00:00<?, ?B/s]
-
-
-
-.. image:: mobileclip-video-search-with-output_files/mobileclip-video-search-with-output_12_4.png
+.. image:: mobileclip-video-search-with-output_files/mobileclip-video-search-with-output_12_0.png
 
 
 Prepare model
@@ -559,8 +403,8 @@ preprocessing utilities
 .. code:: ipython3
 
     import torch
-
-
+    
+    
     class Blip2Model(torch.nn.Module):
         def __init__(self, ln_vision, visual_encoder, query_tokens, q_former, vision_proj, text_proj, tokenizer):
             super().__init__()
@@ -571,13 +415,13 @@ preprocessing utilities
             self.vision_proj = vision_proj
             self.text_proj = text_proj
             self.tok = tokenizer
-
+    
         def encode_image(self, image):
             image_embeds_frozen = self.ln_vision(self.visual_encoder(image))
             image_embeds_frozen = image_embeds_frozen.float()
             image_atts = torch.ones(image_embeds_frozen.size()[:-1], dtype=torch.long)
             query_tokens = self.query_tokens.expand(image_embeds_frozen.shape[0], -1, -1)
-
+    
             query_output = self.q_former.bert(
                 query_embeds=query_tokens,
                 encoder_hidden_states=image_embeds_frozen,
@@ -586,9 +430,9 @@ preprocessing utilities
             )
             image_embeds = query_output.last_hidden_state
             image_features = self.vision_proj(image_embeds)
-
+    
             return image_features
-
+    
         def encode_text(self, input_ids, attention_mask):
             text_output = self.q_former.bert(
                 input_ids,
@@ -598,7 +442,7 @@ preprocessing utilities
             text_embeds = text_output.last_hidden_state
             text_features = self.text_proj(text_embeds)
             return text_features
-
+    
         def tokenizer(self, text_descriptions):
             input_ids = self.tok(text_descriptions, return_tensors="pt", padding=True).input_ids
             attention_mask = self.tok(text_descriptions, return_tensors="pt", padding=True).attention_mask
@@ -611,11 +455,11 @@ preprocessing utilities
     import time
     import mobileclip
     import open_clip
-
+    
     # instantiate model
     model_name = model_config["model_name"]
     pretrained = model_config["pretrained"]
-
+    
     if model_type.value == "MobileCLIP":
         model_dir.mkdir(exist_ok=True)
         model_url = model_config["url"]
@@ -624,7 +468,7 @@ preprocessing utilities
         tokenizer = mobileclip.get_tokenizer(model_name)
     elif model_type.value == "Blip2":
         from lavis.models import load_model_and_preprocess
-
+    
         model, vis_processors, txt_processors = load_model_and_preprocess(name=model_name, model_type=pretrained, is_eval=True)
         model = Blip2Model(model.ln_vision, model.visual_encoder, model.query_tokens, model.Qformer, model.vision_proj, model.text_proj, model.tokenizer)
         preprocess = vis_processors["eval"]
@@ -632,25 +476,6 @@ preprocessing utilities
     else:
         model, _, preprocess = open_clip.create_model_and_transforms(model_name, pretrained=pretrained)
         tokenizer = open_clip.get_tokenizer(model_name)
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
-      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
-
-
-
-.. parsed-literal::
-
-    mobileclip_s0.pt:   0%|          | 0.00/206M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/mobileclip-video-search/ml-mobileclip/mobileclip/__init__.py:75: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      chkpt = torch.load(pretrained)
-
 
 Perform search
 ~~~~~~~~~~~~~~
@@ -662,7 +487,7 @@ Perform search
     image_tensor = torch.stack([preprocess(image) for image in images])
     text = tokenizer(text_descriptions)
     image_probs_function = model_config["image_probs"]
-
+    
     with torch.no_grad():
         # calculate image embeddings
         image_encoding_start = time.perf_counter()
@@ -674,20 +499,20 @@ Perform search
         text_features = model.encode_text(**text) if model_type.value == "Blip2" else model.encode_text(text)
         text_encoding_end = time.perf_counter()
         print(f"Text encoding took {text_encoding_end - text_encoding_start:.3} ms")
-
+    
         image_features /= image_features.norm(dim=-1, keepdim=True)
         text_features /= text_features.norm(dim=-1, keepdim=True)
         image_probs = image_probs_function(image_features, text_features)
         selected_image = [torch.argmax(image_probs).item()]
-
+    
     visualize_result(images, input_labels[0], selected_image);
 
 
 .. parsed-literal::
 
-    Image encoding took 0.116 ms
-    Text encoding took 0.0123 ms
-
+    Image encoding took 0.731 ms
+    Text encoding took 0.0229 ms
+    
 
 
 .. image:: mobileclip-video-search-with-output_files/mobileclip-video-search-with-output_17_1.png
@@ -713,8 +538,8 @@ be used separately. Let’s convert each part to OpenVINO.
 
     import types
     import torch.nn.functional as F
-
-
+    
+    
     def se_block_forward(self, inputs):
         """Apply forward pass."""
         b, c, h, w = inputs.size()
@@ -730,12 +555,12 @@ be used separately. Let’s convert each part to OpenVINO.
 
     import openvino as ov
     import gc
-
+    
     ov_models_dir = Path("ov_models")
     ov_models_dir.mkdir(exist_ok=True)
-
+    
     image_encoder_path = ov_models_dir / f"{model_checkpoint.value}_im_encoder.xml"
-
+    
     if not image_encoder_path.exists():
         if "mobileclip_s" in model_name:
             model.image_encoder.model.conv_exp.se.forward = types.MethodType(se_block_forward, model.image_encoder.model.conv_exp.se)
@@ -748,9 +573,9 @@ be used separately. Let’s convert each part to OpenVINO.
         ov.save_model(ov_image_encoder, image_encoder_path)
         del ov_image_encoder
         gc.collect()
-
+    
     text_encoder_path = ov_models_dir / f"{model_checkpoint.value}_text_encoder.xml"
-
+    
     if not text_encoder_path.exists():
         model.forward = model.encode_text
         if model_type.value == "Blip2":
@@ -760,16 +585,9 @@ be used separately. Let’s convert each part to OpenVINO.
         ov.save_model(ov_text_encoder, text_encoder_path)
         del ov_text_encoder
         gc.collect()
-
+    
     del model
     gc.collect();
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/mobileclip-video-search/ml-mobileclip/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len != self.num_embeddings:
-
 
 Run OpenVINO model inference
 ----------------------------
@@ -784,9 +602,9 @@ Select device for image encoder
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -794,7 +612,7 @@ Select device for image encoder
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -817,7 +635,7 @@ Select device for text encoder
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -843,18 +661,18 @@ Perform search
     print(f"Text encoding took {text_encoding_end - text_encoding_start:.3} ms")
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
-
+    
     image_probs = image_probs_function(image_features, text_features)
     selected_image = [torch.argmax(image_probs).item()]
-
+    
     visualize_result(images, input_labels[0], selected_image);
 
 
 .. parsed-literal::
 
-    Image encoding took 0.0284 ms
-    Text encoding took 0.005 ms
-
+    Image encoding took 0.202 ms
+    Text encoding took 0.0043 ms
+    
 
 
 .. image:: mobileclip-video-search-with-output_files/mobileclip-video-search-with-output_28_1.png
@@ -875,56 +693,30 @@ support searching in Chinese.
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     cn2en_trans_model_path = "ov_models/cn2en_trans_model"
     cn2en_trans_model_id = "Helsinki-NLP/opus-mt-zh-en"
-
+    
     if not Path(cn2en_trans_model_path).exists():
         !optimum-cli export openvino --model {cn2en_trans_model_id} --task text2text-generation-with-past --trust-remote-code {cn2en_trans_model_path}
-
-
-.. parsed-literal::
-
-    2024-12-10 02:25:36.467688: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 02:25:36.491610: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/marian/tokenization_marian.py:175: UserWarning: Recommended: pip install sacremoses.
-      warnings.warn("Recommended: pip install sacremoses.")
-    Moving the following attributes in the config to the generation config: {'max_length': 512, 'num_beams': 6, 'bad_words_ids': [[65000]]}. You are seeing this warning because you've set generation parameters in the model config, as opposed to in the generation config.
-    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/marian/modeling_marian.py:207: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/marian/modeling_marian.py:214: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/marian/modeling_marian.py:246: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/marian/modeling_marian.py:166: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if (
-    model.safetensors:   0%|                             | 0.00/312M [00:00<?, ?B/s]Exporting tokenizers to OpenVINO is not supported for tokenizers version > 0.19 and openvino version <= 2024.4. Please downgrade to tokenizers version <= 0.19 to export tokenizers to OpenVINO.
-    model.safetensors: 100%|█████████████████████| 312M/312M [00:04<00:00, 71.1MB/s]
-
 
 .. code:: ipython3
 
     from transformers import AutoTokenizer
     from optimum.intel import OVModelForSeq2SeqLM
-
+    
     tr_tokenizer = AutoTokenizer.from_pretrained(cn2en_trans_model_path)
     tr_model = OVModelForSeq2SeqLM.from_pretrained(cn2en_trans_model_path)
 
 
 .. parsed-literal::
 
-    2024-12-10 02:26:01.092495: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 02:26:01.118195: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/marian/tokenization_marian.py:175: UserWarning: Recommended: pip install sacremoses.
+    /home2/ethan/intel/openvino_notebooks/openvino_env/lib/python3.10/site-packages/transformers/models/marian/tokenization_marian.py:175: UserWarning: Recommended: pip install sacremoses.
       warnings.warn("Recommended: pip install sacremoses.")
-
+    Compiling the encoder to CPU ...
+    Compiling the decoder to CPU ...
+    Compiling the decoder to CPU ...
+    
 
 Interactive Demo
 ----------------
@@ -957,40 +749,42 @@ models can require different optimal threshold for search.
     )
     from open_clip.transform import image_transform
     from typing import Optional
-
-
+    
+    
     current_device = device.value
     current_model = image_encoder_path.name.split("_im_encoder")[0]
-
+    
     available_converted_models = [model_file.name.split("_im_encoder")[0] for model_file in ov_models_dir.glob("*_im_encoder.xml")]
     available_devices = list(core.available_devices) + ["AUTO"]
-
-    download_file(
-        "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4",
-        directory=sample_path,
-    )
-    download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
-        directory=sample_path,
-        filename="coco.mp4",
-    )
-
-
+    
+    if not (sample_path / "car-detection.mp4").exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4",
+            directory=sample_path,
+        )
+    if not Path("coco.mp4").exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
+            directory=sample_path,
+            filename="coco.mp4",
+        )
+    
+    
     def is_english(text):
         for char in text:
             if not char.isascii():
                 return False
         return True
-
-
+    
+    
     def translate(text):
         if tr_tokenizer:
             t = tr_tokenizer(text, return_tensors="pt")
             r = tr_model.generate(**t)
             text = tr_tokenizer.decode(r[0][1:-1])
         return text
-
-
+    
+    
     def get_preprocess_probs_tokenizer(model_name):
         if "mobileclip" in model_name:
             resolution = supported_models["MobileCLIP"][model_name]["image_size"]
@@ -1009,7 +803,7 @@ models can require different optimal threshold for search.
             image_probs = default_image_probs
         elif "blip2" in model_name:
             from lavis.models import load_model_and_preprocess
-
+    
             model, vis_processors, txt_processors = load_model_and_preprocess(name=model_name, model_type=pretrained, is_eval=True)
             model = Blip2Model(model.ln_vision, model.visual_encoder, model.query_tokens, model.Qformer, model.vision_proj, model.text_proj, model.tokenizer)
             preprocess = vis_processors["eval"]
@@ -1021,10 +815,10 @@ models can require different optimal threshold for search.
             preprocess = image_transform((resize_size, resize_size), is_train=False, resize_mode="longest")
             tokenizer = open_clip.get_tokenizer(model_configs[model_name]["model_name"])
             image_probs = default_image_probs
-
+    
         return preprocess, image_probs, tokenizer
-
-
+    
+    
     def run(
         path: str,
         text_search: str,
@@ -1044,7 +838,7 @@ models can require different optimal threshold for search.
         global ov_compiled_image_encoder
         global ov_compiled_text_encoder
         global image_probs_function
-
+    
         if current_model != model_name or device != current_device:
             ov_compiled_image_encoder = core.compile_model(ov_models_dir / f"{model_name}_im_encoder.xml", device)
             ov_compiled_text_encoder = core.compile_model(ov_models_dir / f"{model_name}_text_encoder.xml", device)
@@ -1054,7 +848,7 @@ models can require different optimal threshold for search.
         # Load video
         dataset = LoadVideo(path, transforms=preprocess, vid_stride=stride)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-
+    
         # Get image query features
         if image_search:
             image = preprocess(image_search).unsqueeze(0)
@@ -1077,7 +871,7 @@ models can require different optimal threshold for search.
         for image, orig, frame, timestamp in dataloader:
             with torch.no_grad():
                 image_features = torch.from_numpy(ov_compiled_image_encoder(image)[0])
-
+    
             image_features /= image_features.norm(dim=-1, keepdim=True)
             probs = image_probs_function(image_features, query_features)
             probs = probs.cpu().numpy().squeeze(1) if "blip2" in model_name else probs[0]
@@ -1090,15 +884,15 @@ models can require different optimal threshold for search.
                 }
             )
             res = pd.concat([res, df])
-
+    
             # Check if frame is over threshold
             for i, p in enumerate(probs):
                 if p > thresh:
                     matches.append(to_pil_image(orig[i]))
                     matches_probs.append(p)
-
+    
             print(f"Frames: {frame.tolist()} - Probs: {probs}")
-
+    
         # Create plot of similarity values
         lines = (
             alt.Chart(res)
@@ -1109,16 +903,16 @@ models can require different optimal threshold for search.
             )
         ).properties(width=600)
         rule = alt.Chart().mark_rule(strokeDash=[6, 3], size=2).encode(y=alt.datum(thresh))
-
+    
         selected_frames = np.argsort(-1 * np.array(matches_probs))[:20]
         matched_sorted_frames = [matches[idx] for idx in selected_frames]
-
+    
         return (
             lines + rule,
             matched_sorted_frames,
         )  # Only return up to 20 images to not crash the UI
-
-
+    
+    
     class LoadVideo(Dataset):
         def __init__(self, path, transforms, vid_stride=1):
             self.transforms = transforms
@@ -1126,75 +920,55 @@ models can require different optimal threshold for search.
             self.cur_frame = 0
             self.cap = cv2.VideoCapture(path)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT) / self.vid_stride)
-
+    
         def __getitem__(self, _):
             # Read video
             # Skip over frames
             for _ in range(self.vid_stride):
                 self.cap.grab()
                 self.cur_frame += 1
-
+    
             # Read frame
             _, img = self.cap.retrieve()
             timestamp = self.cap.get(cv2.CAP_PROP_POS_MSEC)
-
+    
             # Convert to PIL
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(np.uint8(img))
-
+    
             # Apply transforms
             img_t = self.transforms(img)
-
+    
             return img_t, to_tensor(img), self.cur_frame, timestamp
-
+    
         def __len__(self):
             return self.total_frames
 
 
-
 .. parsed-literal::
 
-    car-detection.mp4:   0%|          | 0.00/2.68M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    coco.mp4:   0%|          | 0.00/877k [00:00<?, ?B/s]
-
+    'data/car-detection.mp4' already exists.
+    'data/coco.mp4' already exists.
+    
 
 .. code:: ipython3
 
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/mobileclip-video-search/gradio_helper.py")
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo, Option
-
+    
     demo = make_demo(
         run=run,
         model_option=Option(choices=available_converted_models, value=model_checkpoint.value),
         device_option=Option(choices=available_devices, value=device.value),
     )
-
+    
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(share=True, debug=False)
+        demo.launch(share=True, debug=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
