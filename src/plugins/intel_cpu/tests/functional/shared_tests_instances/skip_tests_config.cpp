@@ -479,18 +479,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\[\?.\?.\?\]_\(\[1,1,4096\]\)_weights_shape=\[4096,4096\]_group_size=128_weights_precision=nf4_decompression_precision=f16_scale_precision=undefined_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)");
     retVector.emplace_back(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)");
-    // Issue: MFDNN-12818
-    retVector.emplace_back(R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,1,3\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)");
-    retVector.emplace_back(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.CompareWithRefs/Type=GRUSequence.*2.5.10.*2.1.4.*2.1.4.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
-        // Issue: MFDNN-12818
-        retVector.emplace_back(R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,1,3\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)");
-        retVector.emplace_back(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.CompareWithRefs/Type=GRUSequence.*2.5.10.*2.1.4.*2.1.4.*)");
     }
     if (!ov::with_cpu_x86_avx2()) {
         // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
@@ -579,6 +573,17 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
+    }
+        // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA would fail when gemm_avx512 fall back to gemm_avx2
+    if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
+        retVector.emplace_back(R"(nightly.*bf16.*/(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest|RNNSequenceCPUTest).CompareWithRefs.*ENFORCE_BF16=YES.*)");
+    }
+    if (ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        // GRUCell and GRUSequence BF16 tests on SPR would fail when gemm_avx512 fall back to gemm_avx2
+        retVector.emplace_back(R"(.*/GRU.*ENFORCE_BF16=YES.*)");
+        // GroupDeconv 3D would fail on BF16 when gemm_avx512 fall back to gemm_avx2
+        retVector.emplace_back(R"(nightly_GroupDeconv_3D_Planar_BF16/GroupDeconvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?.12.\?.\?.\?\]_TS=\(\(2.12.7.7.7\)\)_\(\(2.12.5.7.7\)\)_\(\(1.12.9.4.9\)\)_\(\(2.12.5.7.7\)\)_PRC=f32.*S=\(2.2.2\)_PB=\(0.0.0\)_PE=\(0.0.0\)_D=\(1.1.1\)_OP=\(\)_O=6_G.*primitive=jit_gemm.*_ENFORCE_BF16=YES)");
     }
     // MHA FP16 precision is only supported on amx_fp16 platform
     if (!ov::with_cpu_x86_avx512_core_amx_fp16()) {
