@@ -18,7 +18,7 @@
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
-    "test_setup": "node ./tests/unit/setup.js",
+    "test_setup": "node ./tests/setup.js",
     "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",

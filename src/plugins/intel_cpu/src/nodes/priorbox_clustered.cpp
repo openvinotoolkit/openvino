@@ -31,7 +31,7 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -77,8 +77,9 @@ bool PriorBoxClustered::needPrepareParams() const {
 }
 
 void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -87,13 +88,14 @@ void PriorBoxClustered::initSupportedPrimitiveDescriptors() {
 
 void PriorBoxClustered::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
 
-void PriorBoxClustered::execute(dnnl::stream strm) {
+void PriorBoxClustered::execute(const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -143,11 +145,13 @@ void PriorBoxClustered::execute(dnnl::stream strm) {
             // 1. A single variance value (to be repeated 4 times for each prior)
             // 2. 4 variance values
             if (var_size == 1) {
-                for (size_t j = 0; j < 4; j++)
+                for (size_t j = 0; j < 4; j++) {
                     dst_data[idx + j + out_shape[1]] = variances[0];
+                }
             } else {
-                for (size_t j = 0; j < var_size; j++)
+                for (size_t j = 0; j < var_size; j++) {
                     dst_data[idx + j + out_shape[1]] = variances[j];
+                }
             }
         }
     });

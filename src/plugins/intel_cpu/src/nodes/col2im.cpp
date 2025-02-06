@@ -10,7 +10,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace node {
-Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Col2Im::Col2Im(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -40,8 +40,9 @@ void Col2Im::getSupportedDescriptors() {
 }
 
 void Col2Im::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc(
         {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
@@ -57,7 +58,7 @@ bool Col2Im::needPrepareParams() const {
     return false;
 }
 
-void Col2Im::executeDynamicImpl(dnnl::stream strm) {
+void Col2Im::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -89,7 +90,7 @@ struct Col2Im::Col2ImExecute {
         ctx.node.executeImpl<TData, TIndex>();
     }
 };
-void Col2Im::execute(dnnl::stream strm) {
+void Col2Im::execute(const dnnl::stream& strm) {
     auto dataPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto indexPrecision = getParentEdgeAt(1)->getMemory().getDesc().getPrecision();
 

@@ -18,8 +18,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 GroupNormComposition::GroupNormComposition() {
     using namespace ov::pass::pattern;
@@ -108,5 +107,4 @@ GroupNormComposition::GroupNormComposition() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

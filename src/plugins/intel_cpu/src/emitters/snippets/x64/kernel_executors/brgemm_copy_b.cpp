@@ -22,9 +22,8 @@ BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt,
                                                  bool is_with_comp,
                                                  bool is_transposed_B,
                                                  dnnl_dim_t wei_N_blk)
-    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)) {
-    m_hash = compute_hash();
-}
+    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)),
+      m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
     return !utils::one_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
@@ -220,28 +219,21 @@ void BrgemmCopyBKernel::generate() {
 
     mov(src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(src)]);
     mov(tr_src_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(tr_src)]);
-    if (is_with_comp)
+    if (is_with_comp) {
         mov(comp_reg, ptr[abi_param1 + GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)]);
+    }
 
     size_t start_in = 0;
     size_t start_out = 0;
     size_t start_comp = 0;
 
-    auto add_ptr_increments = [&](size_t current_N) {
+    for (size_t nb = 0; nb < div_up(N_blk, wei_N_blk); nb++) {
+        const auto current_N = N_blk - nb * wei_N_blk < wei_N_blk ? wei_N_tail : wei_N_blk;
+        emit_brgemm_copy_b_kernel_call(current_N, K, start_in, start_out, start_comp);
+
         start_in += is_transpose ? K * current_N * wei_data_size : current_N * wei_data_size;
         start_out += current_N * vnni_factor * wei_data_size;
         start_comp += is_with_comp ? current_N * sizeof(int32_t) : 0;
-    };
-
-    // OneDNN requires tail handling before main iterations
-    if (wei_N_tail != 0) {
-        emit_brgemm_copy_b_kernel_call(wei_N_tail, K, start_in, start_out, start_comp);
-        add_ptr_increments(wei_N_tail);
-    }
-
-    for (auto nb = wei_N_tail; nb < N_blk; nb += wei_N_blk) {
-        emit_brgemm_copy_b_kernel_call(wei_N_blk, K, start_in, start_out, start_comp);
-        add_ptr_increments(wei_N_blk);
     }
 
     postamble();
@@ -253,11 +245,12 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
                                                        size_t offset_out,
                                                        size_t offset_comp) {
     EmitABIRegSpills spill(this);
-    spill.preamble();
+    spill.preamble(get_live_regs());
 
     const auto add_offset = [&](Xbyak::Reg64 reg, size_t bytes_offset) {
-        if (bytes_offset)
+        if (bytes_offset) {
             add(reg, bytes_offset);
+        }
     };
 
     // save function address in gpr to pass in call instruction
@@ -268,10 +261,11 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
 
     add_offset(src_reg, offset_in);      // abi_param2
     add_offset(tr_src_reg, offset_out);  // abi_param3
-    if (is_with_comp)                    // abi_param4
+    if (is_with_comp) {                  // abi_param4
         add_offset(comp_reg, offset_comp);
-    else
+    } else {
         mov(comp_reg, reinterpret_cast<uintptr_t>(nullptr));
+    }
 
 #ifdef _WIN32
     // Note: ABI requires that the remaining parameters (except the first for) are pushed to the stack in right-to-left
@@ -284,7 +278,7 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
     mov(abi_param6, K);
 #endif
 
-    spill.rsp_align();
+    spill.rsp_align(rbx.getIdx());
     call(rbp);
     spill.rsp_restore();
 
@@ -294,6 +288,16 @@ void BrgemmCopyBKernel::emit_brgemm_copy_b_kernel_call(size_t N,
 #endif
 
     spill.postamble();
+}
+
+std::set<snippets::Reg> BrgemmCopyBKernel::get_live_regs() const {
+    // Only the registers `src_reg`, `tr_src_reg` and `comp_reg` should be
+    // saved on each `jit_brgemm_matmul_copy_b_t` binary call.
+    // They're ABI parameter registers (caller saved). So we have to manually
+    // spills only them on each `jit_brgemm_matmul_copy_b_t` binary call
+    return {{snippets::RegType::gpr, static_cast<size_t>(src_reg.getIdx())},
+            {snippets::RegType::gpr, static_cast<size_t>(tr_src_reg.getIdx())},
+            {snippets::RegType::gpr, static_cast<size_t>(comp_reg.getIdx())}};
 }
 
 void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel,
@@ -377,7 +381,7 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     init(N_dim, N_blk, 0);
 
     const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = brgemm_utils::repacking::compute_LDB(N_dim, brg_weight_etype);
+    const auto LDB = brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype);
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         brg_weight_etype.size();

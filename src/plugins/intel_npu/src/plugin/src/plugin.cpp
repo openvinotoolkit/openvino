@@ -7,11 +7,8 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "npuw/compiled_model.hpp"
-#include "npuw/llm_compiled_model.hpp"
-#include "npuw/serialization.hpp"
-#include "driver_compiler_adapter.hpp"
 #include "compiler_adapter_factory.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -23,6 +20,8 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/llm_compiled_model.hpp"
+#include "npuw/serialization.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -184,6 +183,7 @@ Plugin::Plugin()
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
+    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
 
     // TODO: generation of available backends list can be done during execution of CMake scripts
     std::vector<AvailableBackends> backendRegistry;
@@ -450,6 +450,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
+        {ov::intel_npu::compiler_dynamic_quantization.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILER_DYNAMIC_QUANTIZATION>();
+          }}},
         {ov::intel_npu::turbo.name(),
          {_backends->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
@@ -566,7 +572,12 @@ Plugin::Plugin()
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
+}
 
+void Plugin::reset_supported_properties() const {
+    /// reset first
+    _supportedProperties.clear();  /// Mutable member
+    /// populate
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
@@ -574,15 +585,44 @@ Plugin::Plugin()
     }
 }
 
+void Plugin::reset_compiler_dependent_properties() const {
+    uint32_t active_compiler_version = 0;
+    // get active compiler version
+    try {
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), _globalConfig);
+        active_compiler_version = dummyCompiler->get_version();
+    } catch (...) {
+        _logger.warning(
+            "No available compiler. Can not determine version > compiler dependent properties remain hidden");
+        return;
+    }
+
+    // NPU_COMPILER_DYNAMIC_QUANTIZATION
+    // unpublish if compiler version requirement is not met
+    if (_properties.find(ov::intel_npu::compiler_dynamic_quantization.name()) != _properties.end()) {
+        if (active_compiler_version >= ICOMPILER_MAKE_VERSION(7, 1)) {
+            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = true;  /// mark supported
+        } else {
+            std::get<0>(_properties[ov::intel_npu::compiler_dynamic_quantization.name()]) = false;  // mark unsupported
+        }
+    }
+}
+
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
     update_log_level(config);
+    bool compiler_type_change = false;
     for (const auto& configEntry : config) {
         if (_properties.find(configEntry.first) == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
         } else {
             if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
+            }
+            if (configEntry.first == ov::intel_npu::compiler_type.name()) {
+                // we just assume its a change, not compare against old value
+                compiler_type_change = true;
             }
         }
     }
@@ -595,11 +635,25 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+    if (compiler_type_change) {
+        // if compiler type was changed > need to reset properties to match the new compiler
+        // since properties have changed > need to reset supported_properties as well
+        reset_compiler_dependent_properties();
+        reset_supported_properties();
+    }
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     const std::map<std::string, std::string>& amends = any_copy(arguments);
     const Config amendedConfig = merge_configs(_globalConfig, amends);
+
+    /// Special case for supportedProperties
+    /// populate it at first get
+    if (name == ov::supported_properties.name() && _supportedProperties.size() < 1) {
+        reset_compiler_dependent_properties();
+        reset_supported_properties();
+    }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
@@ -755,7 +809,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             npu_plugin_properties.insert(*it);
         }
     }
-    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+
+    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
+    // ov::internal::cached_model_buffer has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (npu_plugin_properties.count(ov::internal::cached_model_buffer.name())) {
+        modelBuffer =
+            npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        npu_plugin_properties.erase(ov::internal::cached_model_buffer.name());
+    }
+
+    const auto propertiesMap = any_copy(npu_plugin_properties);
 
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
@@ -784,16 +848,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Incompatible blob version!");
         }
 
+        std::unique_ptr<BlobContainer> blobPtr;
         auto graphSize = storedMeta->get_blob_size();
 
-        std::vector<uint8_t> blob(graphSize);
-        stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-        if (!stream) {
-            OPENVINO_THROW("Failed to read data from stream!");
-        }
-        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+        if (modelBuffer == nullptr) {
+            std::vector<uint8_t> blob(graphSize);
+            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            if (!stream) {
+                OPENVINO_THROW("Failed to read data from stream!");
+            }
+            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto graph = compiler->parse(std::move(blob), localConfig);
+            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
+        } else {
+            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+        }
+
+        auto graph = compiler->parse(std::move(blobPtr), localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

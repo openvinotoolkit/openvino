@@ -94,8 +94,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 ov::Any value = val.as<std::string>();
                 int val_i = value.as<int>();
-                if (val_i < 0)
+                if (val_i < 0) {
                     OPENVINO_THROW("invalid value.");
+                }
                 hintNumRequests = static_cast<uint32_t>(val_i);
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -113,6 +114,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::enable_cpu_pinning.name(),
+                               ". Expected only true/false.");
+            }
+        } else if (key == ov::hint::enable_cpu_reservation.name()) {
+            try {
+                enableCpuReservation = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::enable_cpu_reservation.name(),
                                ". Expected only true/false.");
             }
         } else if (key == ov::hint::scheduling_core_type.name()) {
@@ -268,14 +279,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::intel_cpu::snippets_mode.name()) {
             try {
                 auto const mode = val.as<ov::intel_cpu::SnippetsMode>();
-                if (mode == ov::intel_cpu::SnippetsMode::ENABLE)
+                if (mode == ov::intel_cpu::SnippetsMode::ENABLE) {
                     snippetsMode = SnippetsMode::Enable;
-                else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK)
+                } else if (mode == ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK) {
                     snippetsMode = SnippetsMode::IgnoreCallback;
-                else if (mode == ov::intel_cpu::SnippetsMode::DISABLE)
+                } else if (mode == ov::intel_cpu::SnippetsMode::DISABLE) {
                     snippetsMode = SnippetsMode::Disable;
-                else
+                } else {
                     OPENVINO_THROW("invalid value");
+                }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -386,8 +398,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::f16;
             }
 #endif
-            if (mayiuse(avx512_core_bf16))
+            if (mayiuse(avx512_core_bf16)) {
                 inferencePrecision = ov::element::bf16;
+            }
         } else {
             inferencePrecision = ov::element::undefined;
         }
@@ -421,8 +434,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         }
     }
 
-    if (!prop.empty())
+    if (!prop.empty()) {
         _config.clear();
+    }
 
     if (exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
         streams = 1;
@@ -443,17 +457,20 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
 }
 
 void Config::updateProperties() {
-    if (!_config.empty())
+    if (!_config.empty()) {
         return;
+    }
 
-    if (collectPerfCounters == true)
+    if (collectPerfCounters == true) {
         _config.insert({ov::enable_profiling.name(), "YES"});
-    else
+    } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
-    if (exclusiveAsyncRequests == true)
+    }
+    if (exclusiveAsyncRequests == true) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
-    else
+    } else {
         _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});
+    }
 
     _config.insert({ov::device::id.name(), device_id});
 
