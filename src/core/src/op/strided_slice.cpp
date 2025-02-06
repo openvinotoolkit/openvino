@@ -172,6 +172,16 @@ AxisSet StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask)
 
 std::shared_ptr<Node> StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
+    if (new_args.size() == 3) {
+        return std::make_shared<v1::StridedSlice>(new_args.at(0),
+                                                  new_args.at(1),
+                                                  new_args.at(2),
+                                                  m_begin_mask,
+                                                  m_end_mask,
+                                                  m_new_axis_mask,
+                                                  m_shrink_axis_mask,
+                                                  m_ellipsis_mask);
+    }
     check_new_args_count(this, new_args);
     return std::make_shared<v1::StridedSlice>(new_args.at(0),
                                               new_args.at(1),
