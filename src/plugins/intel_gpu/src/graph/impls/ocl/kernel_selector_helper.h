@@ -101,7 +101,7 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {}, bool is_runtime_fc = false);
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
@@ -287,25 +287,21 @@ inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const
 }
 
 inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& impl_param) {
-    bool is_runtime_fc = false;
-    if (p.GetType() == kernel_selector::KernelType::FULLY_CONNECTED) {
-        is_runtime_fc = true;
-    }
     auto& bp = static_cast<kernel_selector::base_params&>(p);
     for (size_t i = 0; i < bp.inputs.size(); i++) {
-        bp.inputs[i] = convert_data_tensor(impl_param.input_layouts[i], tensor {}, is_runtime_fc);
+        bp.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
     }
     for (size_t i = 0; i < bp.outputs.size(); i++) {
-        bp.outputs[i] = convert_data_tensor(impl_param.output_layouts[i], tensor {}, is_runtime_fc);
+        bp.outputs[i] = convert_data_tensor(impl_param.output_layouts[i]);
     }
 
     for (size_t i = 0; i < bp.fused_ops.size(); i++) {
         const auto& fused_prim = impl_param.fused_desc[i];
         auto& fd = bp.fused_ops[i];
-        fd.output_tensor = convert_data_tensor(fused_prim.output_layout, tensor {}, is_runtime_fc);
+        fd.output_tensor = convert_data_tensor(fused_prim.output_layout);
         fd.tensors.clear();
         for (size_t i = fd.dep_idx_start; i < fd.dep_idx_start + fd.dep_size; i++) {
-            fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i), tensor {}, is_runtime_fc));
+            fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
     }
 }

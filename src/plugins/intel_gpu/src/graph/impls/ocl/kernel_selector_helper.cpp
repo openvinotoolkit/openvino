@@ -876,7 +876,7 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset, bool is_runtime_fc) {
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals_original = l.get_partial_shape();
 
@@ -910,7 +910,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
         elm.pitch = pitch;
         elm.pad.before = dynamic_pad_dims[tensor_index] ? 0 : lp;
         elm.pad.after = dynamic_pad_dims[tensor_index] ? 0 : up;
-        elm.pad.is_dynamic = is_runtime_fc ? false : dynamic_pad_dims[tensor_index];
+        elm.pad.is_dynamic = dynamic_pad_dims[tensor_index];
         elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);
