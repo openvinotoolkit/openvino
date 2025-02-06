@@ -16,11 +16,6 @@ execute_process(
     OUTPUT_VARIABLE patch_output
     ERROR_VARIABLE patch_error
 )
-if(NOT patch_result EQUAL 0)
-    message(FATAL_ERROR "Failed to apply patch: ${patch_error}")
-else()
-    message(STATUS "Patch applied successfully: ${patch_output}")
-endif()
 
 if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
@@ -296,8 +291,10 @@ endif ()
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
 endif()
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation

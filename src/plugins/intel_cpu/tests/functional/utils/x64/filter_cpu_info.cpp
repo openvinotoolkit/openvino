@@ -21,7 +21,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
     for (auto param : CPUParams) {
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
 
-        if ((selectedTypeStr.find("acl") != std::string::npos))
+        if (selectedTypeStr.find("acl") != std::string::npos)
             continue;
 
         resCPUParams.push_back(param);

@@ -11,4 +11,47 @@ index 97ce7eb..8e2d0ca 100644
  )
  
  target_compile_options(kleidiai
+ diff --git a/kai/kai_common.h b/kai/kai_common.h
+index 26ff525..af32491 100644
+--- a/kai/kai_common.h
++++ b/kai/kai_common.h
+@@ -134,6 +134,39 @@ inline static uint16_t kai_cast_f16_f32(float f32) {
+     memcpy(&f16, &tmp, sizeof(uint16_t));
+     return f16;
+ }
++#else
++inline static uint16_t kai_cast_f16_f32(float f32) {
++    uint32_t f32_bits = *(uint32_t*)&f32;  // Interpret float as uint32_t
++    uint16_t f16_bits;
++
++    uint32_t sign     = (f32_bits >> 16) & 0x8000;  // Extract sign
++    int32_t exponent  = ((f32_bits >> 23) & 0xFF) - 127 + 15;  // Adjust exponent
++    uint32_t mantissa = f32_bits & 0x7FFFFF;  // Extract mantissa
++
++    if (exponent <= 0) {
++        // Underflow to zero or denormalized number
++        if (exponent < -10) {
++            f16_bits = sign;  // Too small to be represented -> return 0
++        } else {
++            // Convert to denormalized half-precision
++            mantissa |= 0x800000;  // Add implicit leading 1
++            mantissa >>= (1 - exponent);  // Shift right
++            f16_bits = sign | (mantissa >> 13);  // Pack result
++        }
++    } else if (exponent >= 31) {
++        // Overflow to infinity
++        f16_bits = sign | 0x7C00;
++        if (mantissa) {
++            // NaN case
++            f16_bits |= (mantissa >> 13);
++        }
++    } else {
++        // Normalized case
++        f16_bits = sign | (exponent << 10) | (mantissa >> 13);
++    }
++
++    return f16_bits;
++}
+ #endif
  
+ inline static size_t kai_roundup(size_t a, size_t b) {

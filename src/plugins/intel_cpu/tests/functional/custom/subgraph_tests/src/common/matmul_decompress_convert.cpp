@@ -207,6 +207,13 @@ protected:
         }
 
         std::string cpuNodeType = "FullyConnected";
+        // replace kleidiai with acl type if input shapes are not 2D
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (selectedType == "kleidiai" &&
+            (inShapeA.rank().get_length() != 2 || inShapeB.rank().get_length() != 2)) {
+            selectedType = "acl";
+        }
+#endif
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};

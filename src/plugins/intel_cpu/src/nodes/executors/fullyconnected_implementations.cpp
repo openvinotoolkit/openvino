@@ -242,6 +242,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(srcRank(config) == 2U, UNSUPPORTED_SRC_RANK);
+                VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 return MatMulKleidiAIExecutor::supports(config);
             },
             // requiresFallback
