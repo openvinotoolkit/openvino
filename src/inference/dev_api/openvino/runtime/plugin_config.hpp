@@ -78,10 +78,9 @@
 #ifdef ENABLE_DEBUG_CAPS
 #define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
     static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
-        auto v = read_env(PropertyNamespace::PropertyVar.name(), m_allowed_env_prefix, &m_ ## PropertyVar); \
-        if (v.empty()) \
-            return m_ ## PropertyVar.value; \
-        return v.as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
+        static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
+             m_allowed_env_prefix, m_ ## PropertyVar); \
+        return init_helper.m_option.value; \
     }
 #define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
@@ -242,6 +241,20 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor);
 
 protected:
+    template<typename OptionType>
+    class GlobalOptionInitializer {
+    public:
+        GlobalOptionInitializer(const std::string& name, const std::string& prefix, OptionType& option) : m_option(option) {
+            auto val = PluginConfig::read_env(name, prefix, &option);
+            if (!val.empty()) {
+                std::cout << "Non default global config value for " << name << " = " << val.template as<std::string>() << std::endl;
+                option.set_any(val);
+            }
+        }
+
+        OptionType& m_option;
+    };
+
     virtual void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {}
     void apply_env_options();
     void apply_config_options(std::string_view device_name, std::string_view config_path = "");
