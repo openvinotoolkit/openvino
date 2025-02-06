@@ -1295,7 +1295,7 @@ size_t Eltwise::getOpInputsNum() const {
     case Algorithm::EltwiseSelect:
         return 3;
     default:
-        OPENVINO_THROW("Unsupported operation for Eltwise node with name `", getName(), "`.");
+        THROW_CPU_NODE_ERR("Unsupported operation.");
     }
 }
 
@@ -1313,10 +1313,10 @@ bool Eltwise::isWithBroadcast() {
 
 void Eltwise::getSupportedDescriptors() {
     if (getParentEdges().size() < 1) {
-        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 }
 
@@ -1371,9 +1371,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
-        OPENVINO_THROW("Unexpected: Eltwise node with name '",
-                       getName(),
-                       "' uses reference impl, but unexpectedly fused with other ops");
+        THROW_CPU_NODE_ERR("uses reference impl, but unexpectedly fused with other ops");
     }
 
     size_t expectedInputsNum = getOpInputsNum();
@@ -1384,23 +1382,19 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
     }
     if (getParentEdges().size() > MAX_ELTWISE_INPUTS) {
-        OPENVINO_THROW("Eltwise node with name `",
-                       getName(),
-                       "` doesn't support more than ",
-                       MAX_ELTWISE_INPUTS,
-                       " inputs (actual = ",
-                       getParentEdges().size(),
-                       ")");
+        THROW_CPU_NODE_ERR("doesn't support more than ",
+                           MAX_ELTWISE_INPUTS,
+                           " inputs (actual = ",
+                           getParentEdges().size(),
+                           ")");
     }
 
     if (expectedInputsNum != getParentEdges().size()) {
-        OPENVINO_THROW("Eltwise node with name `",
-                       getName(),
-                       "` has invalid input number of inputs: expected = ",
-                       expectedInputsNum,
-                       " (actual = ",
-                       getParentEdges().size(),
-                       ")");
+        THROW_CPU_NODE_ERR("has invalid input number of inputs: expected = ",
+                           expectedInputsNum,
+                           " (actual = ",
+                           getParentEdges().size(),
+                           ")");
     }
 
     std::vector<ov::element::Type> inputPrecisions;
@@ -1424,7 +1418,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     if (inputPrecisions.size() != getParentEdges().size()) {
-        OPENVINO_THROW("Eltwise node with name `", getName(), "` has invalid input precisions configuration.");
+        THROW_CPU_NODE_ERR("has invalid input precisions configuration.");
     }
 
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -1446,7 +1440,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
 
         if (outputPrecision == ov::element::bf16 || hasBF16) {
-            OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support BF16 precision on this target.");
+            THROW_CPU_NODE_ERR("doesn't support BF16 precision on this target.");
         }
     }
 #    if defined(OV_CPU_WITH_ACL)
@@ -1463,14 +1457,14 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             ? (canUseOptimizedShapeAgnosticImpl ? EltwiseImplType::optimizedShapeAgnostic : EltwiseImplType::optimized)
             : EltwiseImplType::reference;
 #else
-    OPENVINO_THROW("Unknow CPU architecture");
+    THROW_CPU_NODE_ERR("Unknown CPU architecture");
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
     auto filterPrecision = [&](const ov::element::Type& prc, const ov::element::Type& forcedPrec) {
         if (isBitwise(algorithm)) {
             if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
-                OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
+                THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
             }
             return prc;
         }
@@ -1518,11 +1512,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                     if (isBitwise(algorithm)) {
                         if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) ==
                             supportedPrecisions.end()) {
-                            OPENVINO_THROW("Eltwise node with name `",
-                                           getName(),
-                                           "` doesn't support ",
-                                           prc,
-                                           " precision.");
+                            THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
                         }
                         return prc;
                     }
@@ -1534,7 +1524,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                     } else if (prc == ov::element::f64) {
                         return ov::element::f32;
                     } else {
-                        OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
+                        THROW_CPU_NODE_ERR("doesn't support ", prc, " precision.");
                     }
                 } else {
                     return prc;
@@ -1562,7 +1552,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    enum LayoutType { Planar, ChannelsFirst, Blocked };
+    enum LayoutType : uint8_t { Planar, ChannelsFirst, Blocked };
 
     auto initDesc = [&](LayoutType lt, const bool useEltwiseExecutor = false, const bool useJit = false) -> NodeDesc {
         auto createMemoryDesc =
@@ -1678,7 +1668,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 if (mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
                     impl_type = impl_desc_type::jit_asimd;
                 } else {
-                    OPENVINO_THROW("not supported architecture");
+                    THROW_CPU_NODE_ERR("not supported architecture");
                 }
 #elif defined(OPENVINO_ARCH_X86_64)
                 if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
@@ -1913,11 +1903,7 @@ void Eltwise::prepareParams() {
             } else if (node->getType() == Type::FakeQuantize) {
                 node->appendPostOps(key.postOps, {}, fqDataPtrs);
             } else {
-                OPENVINO_THROW("Unexpected: Eltwise node with name '",
-                               getName(),
-                               "' has unexpected fused op of type '",
-                               node->getTypeStr(),
-                               "'");
+                THROW_CPU_NODE_ERR("has unexpected fused op of type '", node->getTypeStr(), "'");
             }
         }
 
@@ -2030,7 +2016,7 @@ void Eltwise::execute(const dnnl::stream& strm) {
 
         eltwiseExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
     } else {
-        OPENVINO_THROW("Can't execute eltwise node with name: ", getName(), ". Primitive isn't created");
+        THROW_CPU_NODE_ERR("Primitive isn't created");
     }
 }
 
@@ -2150,9 +2136,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             if (scales.size() == 1) {
                 depthwiseData.resize(channelSize, depthwiseData.back());
             } else if (scales.size() != channelSize) {
-                OPENVINO_THROW("Appending Eltwise node with name '",
-                               getName(),
-                               "' failed due to scales data size inconsistency");
+                THROW_CPU_NODE_ERR("Appending node has failed due to scales data size inconsistency");
             }
             depthwiseData.insert(depthwiseData.end(), shifts.begin(), shifts.end());
             if (shifts.empty()) {
@@ -2161,9 +2145,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             } else if (shifts.size() == 1) {
                 depthwiseData.resize(2 * channelSize, depthwiseData.back());
             } else if (shifts.size() != channelSize) {
-                OPENVINO_THROW("Appending Eltwise node with name '",
-                               getName(),
-                               "' failed due to shifts data size inconsistency");
+                THROW_CPU_NODE_ERR("Appending node has failed due to shifts data size inconsistency");
             }
             depthwiseDataSize = 2 * channelSize;
 
