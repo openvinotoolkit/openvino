@@ -1653,6 +1653,36 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_add) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_deformconv) {
+    const auto model = convert_model("com.microsoft/deformconv.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data(1 * 3 * 224 * 224, 0); 
+    const std::vector<float> offsets(1 * 18 * 224 * 224, 0.0f); 
+    const std::vector<int8_t> weights(64 * 3 * 3 * 3, 0); 
+    const std::vector<float> data_scale{0.1f};
+    const std::vector<int8_t> data_zero_point{0};
+    const std::vector<float> weight_scale{0.2f};
+    const std::vector<int8_t> weight_zero_point{0};
+    const std::vector<float> output_scale{0.3f};
+    const std::vector<int8_t> output_zero_point{0};
+
+    const std::vector<int8_t> expected_output(1 * 64 * 224 * 224, 0); 
+
+    test_case.add_input<int8_t>(Shape{1, 3, 224, 224}, data);  
+    test_case.add_input<float>(Shape{1, 18, 224, 224}, offsets); 
+    test_case.add_input<int8_t>(Shape{64, 3, 3, 3}, weights);
+    test_case.add_input<float>(Shape{1}, data_scale);
+    test_case.add_input<int8_t>(Shape{1}, data_zero_point);
+    test_case.add_input<float>(Shape{1}, weight_scale);
+    test_case.add_input<int8_t>(Shape{1}, weight_zero_point);
+    test_case.add_input<float>(Shape{1}, output_scale);
+    test_case.add_input<int8_t>(Shape{1}, output_zero_point);
+    
+    test_case.add_expected_output<int8_t>(Shape{1, 64, 224, 224}, expected_output); 
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     const auto model = convert_model("com.microsoft/q_linear_mul.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
