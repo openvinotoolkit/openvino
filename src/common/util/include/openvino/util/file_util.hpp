@@ -150,16 +150,7 @@ void create_directory_recursive(const std::wstring& path);
  * @param path - path to directory
  * @return true if directory exists, false otherwise
  */
-bool directory_exists(const std::string& path);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-/**
- * @brief Interface function to check if directory exists for given path
- * @param path - path to directory wide-string
- * @return true if directory exists, false otherwise
- */
-bool directory_exists(const std::wstring& path);
-#endif
+bool directory_exists(const ov::util::Path& path);
 
 /**
  * @brief      Returns file size for file

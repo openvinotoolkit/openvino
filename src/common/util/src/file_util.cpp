@@ -325,29 +325,11 @@ void ov::util::create_directory_recursive(const std::string& path) {
     }
 }
 
-bool ov::util::directory_exists(const std::string& path) {
-    struct stat sb;
-
-    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
+bool ov::util::directory_exists(const ov::util::Path& path) {
+    std::error_code ec;
+    const auto size = std::filesystem::exists(path, ec);
+    return std::filesystem::exists(path, ec) && !ec;
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-bool ov::util::directory_exists(const std::wstring& path) {
-#    ifdef _WIN32
-    struct stat sb;
-
-    if (wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
-#    else
-    return directory_exists(wstring_to_string(path));
-#    endif
-}
-#endif
 
 namespace {
 
