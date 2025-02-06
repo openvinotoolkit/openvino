@@ -65,8 +65,7 @@ float device::get_gops(cldnn::data_types dt) const {
 }
 
 bool device::use_unified_shared_memory() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_usm) {
+    GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
     if (get_mem_caps().supports_usm()) {

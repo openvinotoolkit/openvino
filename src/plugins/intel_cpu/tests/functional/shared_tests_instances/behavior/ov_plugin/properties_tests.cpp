@@ -52,7 +52,7 @@ const std::vector<ov::AnyMap> cpu_inproperties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      {ov::hint::num_requests.name(), "should be int"}},
     {{ov::num_streams.name(), "OFF"}},
-    {{ov::hint::enable_cpu_pinning.name(), "OFF"}},
+    {{ov::hint::enable_cpu_pinning.name(), "NOT_BOOL"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

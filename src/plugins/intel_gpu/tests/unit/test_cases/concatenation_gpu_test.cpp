@@ -1422,7 +1422,7 @@ public:
         }
         auto outputs = concat_network->execute();
 
-        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_enabled = config.get_optimize_data();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
@@ -1642,7 +1642,7 @@ public:
         }
         auto outputs = concat_network.execute();
 
-        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_enabled = config.get_optimize_data();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
@@ -1805,7 +1805,7 @@ public:
         }
         auto outputs = concat_network.execute();
 
-        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_enabled = config.get_optimize_data();
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
 
         // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
