@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <tuple>
 
 #include "compare.hpp"
 #include "itt.hpp"
