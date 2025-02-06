@@ -35,6 +35,7 @@ struct fused_primitive_desc {
 
     template<typename T>
     std::shared_ptr<T> get_typed_fuse_params() const {
+        static_assert(std::has_virtual_destructor_v<T>);
         auto p = std::dynamic_pointer_cast<T>(f_param);
         if (!p)
             throw std::runtime_error("Invalid dynamic cast of fused parameters!");
