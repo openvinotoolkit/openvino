@@ -104,7 +104,8 @@ void ConvertCPULayerTest::SetUp() {
 #if defined(OPENVINO_ARCH_ARM64)
     if (inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
         inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
-        outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2) {
+        outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2 ||
+        outPrc == ov::element::nf4) {
         primitive = "ref";
     } else if (shapes.first.is_static() &&
         inPrc != ov::element::bf16 && outPrc != ov::element::bf16 &&
