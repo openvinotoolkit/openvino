@@ -123,7 +123,7 @@ std::string getExecutableDirectory() {
         throw "Can't get test executable path name";
     }
     path = std::string(buffer, len);
-    return ov::util::get_directory(path);
+    return ov::util::get_directory(path).string();
 }
 
 std::string getCurrentWorkingDir() {
