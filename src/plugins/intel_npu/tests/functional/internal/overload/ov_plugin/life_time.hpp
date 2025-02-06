@@ -216,6 +216,8 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, ExportImportWithSkipBlobCompatibilityC
     {
         auto compiled_model = core.compile_model(function, target_device, configuration);
         OV_ASSERT_NO_THROW(compiled_model.export_model(stream));
+        // taint the blob
+        stream << 0xCACA0;
     }
     auto disable_version_check_var = std::getenv("NPU_DISABLE_VERSION_CHECK");
     bool dev_build = 1;
