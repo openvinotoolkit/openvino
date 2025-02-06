@@ -884,7 +884,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     std::vector<int64_t> common_labels_inds1, common_labels_inds2;
     std::vector<int64_t> separate_labels_inds1, separate_labels_inds2;
     std::vector<int64_t> reduced_labels_inds1, reduced_labels_inds2;
-    std::vector<std::string> common_labels, sep_labels1, sep_labels2, reduced_labels;  // +++++
+    std::vector<std::string> common_labels, sep_labels1, sep_labels2, reduced_labels;
     for (size_t label_ind = 0; label_ind < labels1.size(); ++label_ind) {
         const auto& label = labels1[label_ind];
         auto iter = std::find(labels2.begin(), labels2.end(), label);
@@ -1154,8 +1154,7 @@ void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
         bool has_ellipsis_in_input = std::find(labels.begin(), labels.end(), ellipsis) != labels.end();
         has_ellipsis |= has_ellipsis_in_input;
         all_no_ellipsis_or_empty &=
-            !has_ellipsis_in_input || (input_nodes[i].get_partial_shape().rank().get_length() ==
-                                       static_cast<ov::Dimension::value_type>(labels.size() - 1));
+            !has_ellipsis_in_input || (input_nodes[i].get_partial_shape().size() + 1 == labels.size());
     }
 
     if (!has_ellipsis) {
@@ -1175,8 +1174,7 @@ void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
         for (size_t i = 0; i < input_nodes.size(); ++i) {
             const auto& labels = ov::op::v7::Einsum::extract_labels(input_subscripts[i]);
             if (std::find(labels.begin(), labels.end(), ellipsis) != labels.end() &&
-                input_nodes[i].get_partial_shape().rank().get_length() ==
-                    static_cast<ov::Dimension::value_type>(labels.size() - 1)) {
+                input_nodes[i].get_partial_shape().size() + 1 == labels.size()) {
                 input_nodes[i] = unsqueeze_input(
                     input_nodes[i],
                     {static_cast<int64_t>(
