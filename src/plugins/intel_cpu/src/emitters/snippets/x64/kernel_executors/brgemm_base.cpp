@@ -7,6 +7,7 @@
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/gemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #define DIM_CAST(X)   static_cast<dnnl_dim_t>(X)
@@ -163,7 +164,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     const auto in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
     const auto in1_shape = snippets::utils::get_planar_vdims(input_pds[1]->get_shape(), input_pds[1]->get_layout());
     auto in0_subtensor = input_pds[0]->get_subtensor();
+    OPENVINO_ASSERT(!in0_subtensor.empty(), "Incorrect in0 subtensor size");
     auto in1_subtensor = input_pds[1]->get_subtensor();
+    OPENVINO_ASSERT(!in1_subtensor.empty(), "Incorrect in1 subtensor size");
 
     // Need to update M, K, N
     // 1. If the original value in subtensor is `FULL_DIM`, it means that
@@ -254,11 +257,15 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     const auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
 
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
-    // In case of data repacking LDB is chosen in accordance with repacking buffer size
-    if (with_repacking(brgemm_node->get_type())) {
-        LDB = DIM_CAST(brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1)));
+    if (is_type<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
+    } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
+        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
+        // In case of data repacking LDB is chosen in accordance with repacking buffer size
+        if (with_repacking(brgemm_node->get_type())) {
+            LDB = DIM_CAST(brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1)));
+        }
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(false, "Got invalid node type in update_config");
     }
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
