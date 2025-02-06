@@ -28,10 +28,13 @@
 # -google-default-arguments,
 # -google-explicit-constructor,
 # -google-readability-casting,
+# -modernize-avoid-c-arrays,
 # -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # -modernize-concat-nested-namespaces. More compact way when C++17 is available
+# -modernize-use-constraints,
+# -modernize-use-std-numbers - to be enabled when align CI validation
 
 Checks: >
   -*,
