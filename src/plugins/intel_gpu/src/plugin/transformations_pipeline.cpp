@@ -981,7 +981,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
 
-        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16 && !enableInt8) {
+        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
 
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
@@ -1010,8 +1010,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::SharedOpOptimization>();
 
             pass_config->set_callback<ov::pass::activations_scaling::ScaleDownSingleLayer>(
-                [](const std::shared_ptr<const ov::Node> &node) -> bool {
-                    return (node->input(0).get_element_type() == ov::element::f32);
+                [&infer_precision](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return (node->input(0).get_element_type() != infer_precision);
                 });
 
             // Move down scalar-multiply layers as much as possible
