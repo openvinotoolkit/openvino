@@ -78,29 +78,30 @@ private:
         return Xbyak_riscv::Reg(25 + idx);
     }
 
-    inline Xbyak_riscv::VReg dst_vec() const {
+    inline Xbyak_riscv::VReg mask_vec() const {
         return Xbyak_riscv::VReg(0);
     }
 
-    inline Xbyak_riscv::VReg src_vec(const int idx, const Xbyak_riscv::LMUL lmul) const {
-        const auto lmul_v = static_cast<int>(lmul2float(lmul));
-        const auto vec_idx = (idx + 1) * (lmul_v == 0 ? 1 : lmul_v);
+    inline Xbyak_riscv::VReg dst_vec() const {
+        const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
+        // v0 - mask register
+        const auto vec_idx = lmul_v == 0 ? 1 : lmul_v;
+        return Xbyak_riscv::VReg(vec_idx);
+    }
+
+    inline Xbyak_riscv::VReg src_vec(const int idx) const {
+        const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
+        // v0 and v[lmul] - mask and dst registers
+        const auto vec_idx = (idx + 2) * (lmul_v == 0 ? 1 : lmul_v);
         OPENVINO_ASSERT(vec_idx >= 0 && static_cast<size_t>(vec_idx) < vec_count,
                         "src vector reg " + std::to_string(vec_idx) + " is not supported");
         return Xbyak_riscv::VReg(vec_idx);
     }
 
-    //inline Xbyak_riscv::VReg aux_vec(const int idx, const Xbyak_riscv::LMUL lmul) {
-    //    const auto vec_idx = (idx + 1) * lmul2int(lmul);
-    //    OPENVINO_ASSERT(vec_idx >= 0 && static_cast<size_t>(vec_idx) < vec_count,
-    //                    "src vector reg " + std::to_string(vec_idx) + " is not supported");
-    //    return Xbyak_riscv::VReg(vec_idx);
-    //}
-
     // last vec register
-    inline Xbyak_riscv::VReg aux_vec(const Xbyak_riscv::LMUL lmul) {
-        const auto lmul_v = static_cast<int>(lmul2float(lmul));
-        const auto vec_idx = 32 - (lmul_v == 0 ? 1 : lmul_v);;
+    inline Xbyak_riscv::VReg aux_vec() {
+        const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
+        const auto vec_idx = 32 - (lmul_v == 0 ? 1 : lmul_v);
         OPENVINO_ASSERT(vec_idx >= 0 && static_cast<size_t>(vec_idx) < vec_count,
                         "src vector reg " + std::to_string(vec_idx) + " is not supported");
         return Xbyak_riscv::VReg(vec_idx);
@@ -116,6 +117,8 @@ private:
                      const ov::element::Type& src_prc, const ov::element::Type& dst_prc, bool broadcast);
     // Store vector with pointer increment
     void store_vector(const Xbyak_riscv::Reg& gpr_work_amount, const ov::element::Type& src_prc, const ov::element::Type& dst_prc);
+
+    Xbyak_riscv::LMUL get_max_lmul(const ov::element::Type& exec_prc) const;
 
     Xbyak_riscv::Reg reg_const_params = Xbyak_riscv::a0;
     Xbyak_riscv::Reg reg_indexes = Xbyak_riscv::a1;

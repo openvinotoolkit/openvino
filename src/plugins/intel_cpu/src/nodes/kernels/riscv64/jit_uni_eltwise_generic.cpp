@@ -79,10 +79,11 @@ void jit_uni_eltwise_generic::generate() {
         lqw(reg_work_amount, static_cast<int>(jep.work_amount));
     }
 
-    // TODO: Support any LMUL values
-    //       LMUL = 4 can be used only if ... 
+    // TODO: Support any LMUL values: get_max_lmul(exec_prc);
     exec_lmul = LMUL::m1;
     exec_sew = bytes2sew(exec_prc.size());
+    OPENVINO_ASSERT(lmul2float(exec_lmul) <= lmul2float(get_max_lmul(exec_prc)),
+                    "Unsupported LMUL configuration for the kernel");
 
     // We set other values for `current` variables to force first call `update_vlen`
     current_lmul = LMUL::m2;
@@ -228,9 +229,9 @@ void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg
     case ov::element::f32:
     case ov::element::i32: {
         if (broadcast) {
-            vlse32_v(src_vec(vec_idx, exec_lmul), gpr_ptr, zero);
+            vlse32_v(src_vec(vec_idx), gpr_ptr, zero);
         } else {
-            vle32_v(src_vec(vec_idx, exec_lmul), gpr_ptr);
+            vle32_v(src_vec(vec_idx), gpr_ptr);
             add(gpr_ptr, gpr_ptr, reg_bvlen);
         }
         break;
@@ -238,17 +239,17 @@ void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg
     case ov::element::i8:
     case ov::element::u8: {
         if (broadcast) {
-            vlse8_v(aux_vec(needed_lmul), gpr_ptr, zero);
+            vlse8_v(aux_vec(), gpr_ptr, zero);
         } else {
-            vle8_v(aux_vec(needed_lmul), gpr_ptr);
+            vle8_v(aux_vec(), gpr_ptr);
             add(gpr_ptr, gpr_ptr, reg_bvlen);
         }
 
         update_vlen(gpr_work_amount, exec_sew, exec_lmul);
         if (src_prc.is_signed())
-            vsext_vf4(src_vec(vec_idx, exec_lmul), aux_vec(needed_lmul));
+            vsext_vf4(src_vec(vec_idx), aux_vec());
         else
-            vzext_vf4(src_vec(vec_idx, exec_lmul), aux_vec(needed_lmul));
+            vzext_vf4(src_vec(vec_idx), aux_vec());
         break;
     }
     default: {
@@ -257,10 +258,10 @@ void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg
     }
 
     if (one_of(dst_prc, ov::element::f32) && one_of(src_prc, ov::element::i8, ov::element::u8, ov::element::i32))
-        vfcvt_f_x_v(src_vec(vec_idx, exec_lmul), src_vec(vec_idx, exec_lmul)); // int32 -> fp32
+        vfcvt_f_x_v(src_vec(vec_idx), src_vec(vec_idx)); // int32 -> fp32
 
     if (one_of(dst_prc, ov::element::i32) && one_of(src_prc, ov::element::f16, ov::element::f32))
-        vfcvt_x_f_v(src_vec(vec_idx, exec_lmul), src_vec(vec_idx, exec_lmul)); // fp32 -> int32
+        vfcvt_x_f_v(src_vec(vec_idx), src_vec(vec_idx)); // fp32 -> int32
 }
 
 void jit_uni_eltwise_generic::store_vector(const Xbyak_riscv::Reg& gpr_work_amount, const ov::element::Type& src_prc, const ov::element::Type& dst_prc) {
@@ -291,8 +292,8 @@ void jit_uni_eltwise_generic::store_vector(const Xbyak_riscv::Reg& gpr_work_amou
             else
                 vnclipu_wi(dst, src, 0);
         };
-        vnclip(aux_vec(exec_lmul), dst_vec(), 0.5f, 2);
-        vnclip(dst_vec(), aux_vec(exec_lmul), 0.25f, 1);
+        vnclip(aux_vec(), dst_vec(), 0.5f, 2);
+        vnclip(dst_vec(), aux_vec(), 0.25f, 1);
 
         vse8_v(dst_vec(), dst_gpr());
         add(dst_gpr(), dst_gpr(), reg_bvlen);
@@ -302,6 +303,29 @@ void jit_uni_eltwise_generic::store_vector(const Xbyak_riscv::Reg& gpr_work_amou
         OPENVINO_THROW("dst " + dst_prc.to_string() + " is not supported, src is " + src_prc.to_string());
     }
     }
+}
+
+Xbyak_riscv::LMUL jit_uni_eltwise_generic::get_max_lmul(const ov::element::Type& exec_prc) const {
+    OPENVINO_ASSERT(eltwise_emitter, "Eltwise emitter is missed");
+
+    const auto input_count = jep_.inputs_number;
+    const auto output_count = 1;
+    size_t max_aux_vec_count = eltwise_emitter->aux_vecs_count();
+    for (const auto& post_op_emitter : post_op_emitters) {
+        max_aux_vec_count = std::max(max_aux_vec_count, post_op_emitter->aux_vecs_count());
+    }
+
+    // aux vec is needed for intermediate conversion in load/store
+    if (jep_.src_prc[input_count - 1].size() < exec_prc.size() || jep_.dst_prc.size() < exec_prc.size())
+        max_aux_vec_count = std::max(max_aux_vec_count, 1lu);
+
+    const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1; // 1 - vec register
+    const auto mul = static_cast<size_t>(vec_count / needed_vec_count);
+    OPENVINO_ASSERT(mul != 0, "Incorrect configuration!");
+    if (mul < 2) return LMUL::m1;
+    if (mul < 4) return LMUL::m2;
+    if (mul < 8) return LMUL::m4;
+    return LMUL::m8;
 }
 
 namespace {
@@ -344,7 +368,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic::create_eltwise_emitter(con
 void jit_uni_eltwise_generic::compute_eltwise_op() {
     std::vector<size_t> in_idxs;
     for (size_t i = 0; i < eltwise_emitter->get_inputs_num(); i++) {
-        in_idxs.push_back(src_vec(i, exec_lmul).getIdx());
+        in_idxs.push_back(src_vec(i).getIdx());
     }
 
     std::vector<size_t> aux_idxs;
@@ -370,7 +394,7 @@ void jit_uni_eltwise_generic::apply_post_ops() {
         std::vector<size_t> in_idxs;
         in_idxs.push_back(dst_vec().getIdx());
         for (size_t j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++) {
-            in_idxs.push_back(src_vec(input_idx++, exec_lmul).getIdx());
+            in_idxs.push_back(src_vec(input_idx++).getIdx());
         }
 
         std::vector<size_t> out_idxs;
