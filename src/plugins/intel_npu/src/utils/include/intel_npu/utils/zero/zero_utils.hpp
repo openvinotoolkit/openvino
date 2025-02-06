@@ -8,12 +8,37 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <optional>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "zero_types.hpp"
 
 namespace intel_npu {
+
+enum priority {
+    NORMAL,
+    LOW,
+    HIGH,
+
+    PRIORITY_COUNT
+};
+
+enum turbo {
+    DISABLED,
+    ENABLED,
+
+    TURBO_COUNT
+};
+
+enum workload {
+    NOT_SET,
+    DEFAULT,
+    EFFICIENT,
+
+    WORKLOAD_COUNT
+};
 
 struct ArgumentDescriptor {
     ze_graph_argument_properties_3_t info;
@@ -50,6 +75,42 @@ namespace zeroUtils {
                        ze_result_to_description(result)); \
     }
 
+static inline priority toPriorityEnum(const ze_command_queue_priority_t& val) {
+    switch (val) {
+    case ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW:
+        return priority::LOW;
+    case ZE_COMMAND_QUEUE_PRIORITY_NORMAL:
+        return priority::NORMAL;
+    case ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH:
+        return priority::HIGH;
+    default:
+        OPENVINO_THROW("Incorrect queue priority.");
+    }
+}
+
+static inline turbo toTurboEnum(bool val) {
+    if (val) {
+        return turbo::ENABLED;
+    }
+
+    return turbo::DISABLED;
+}
+
+static inline workload toWorkloadEnum(const std::optional<ze_command_queue_workload_type_t>& val) {
+    if (!val.has_value()) {
+        return workload::NOT_SET;
+    }
+
+    switch (*val) {
+    case ZE_WORKLOAD_TYPE_DEFAULT:
+        return workload::DEFAULT;
+    case ZE_WORKLOAD_TYPE_BACKGROUND:
+        return workload::EFFICIENT;
+    default:
+        OPENVINO_THROW("Incorrect workload type.");
+    }
+}
+
 static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
     switch (val) {
     case ov::hint::Priority::LOW:
@@ -60,6 +121,17 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
         return ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH;
     default:
         OPENVINO_THROW("Incorrect queue priority.");
+    }
+}
+
+static inline ze_command_queue_workload_type_t toZeQueueWorkloadType(const ov::WorkloadType& val) {
+    switch (val) {
+    case ov::WorkloadType::DEFAULT:
+        return ZE_WORKLOAD_TYPE_DEFAULT;
+    case ov::WorkloadType::EFFICIENT:
+        return ZE_WORKLOAD_TYPE_BACKGROUND;
+    default:
+        OPENVINO_THROW("Unknown value for WorkloadType.");
     }
 }
 

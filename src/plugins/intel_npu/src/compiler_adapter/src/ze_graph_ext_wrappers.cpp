@@ -160,10 +160,10 @@ void ZeGraphExtWrappers::setGraphArgumentValue(ze_graph_handle_t graphHandle, ui
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
 }
 
-void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, const Config& config) const {
+void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle) const {
     if (_zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
         _logger.debug("Use initialize_graph_through_command_list for ext version smaller than 1.8");
-        initialize_graph_through_command_list(graphHandle, config);
+        initialize_graph_through_command_list(graphHandle);
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
@@ -177,13 +177,12 @@ void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, const Co
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-            initialize_graph_through_command_list(graphHandle, config);
+            initialize_graph_through_command_list(graphHandle);
         }
     }
 }
 
-void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
-                                                               const Config& config) const {
+void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t graphHandle) const {
     ze_device_properties_t deviceProperties = {};
     deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",

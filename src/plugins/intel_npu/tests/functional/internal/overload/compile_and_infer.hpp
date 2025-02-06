@@ -5,8 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <common_test_utils/test_assertions.hpp>
+#include <exception>
 #include <sstream>
+#include <thread>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "intel_npu/config/common.hpp"
@@ -100,11 +103,12 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
             return property == workload_type.name();
         });
 
+    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+    ov::InferRequest req;
+
     if (isCommandQueueExtSupported()) {
         ASSERT_TRUE(workloadTypeSupported);
-        ov::InferRequest req;
-        OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
-
         const auto properties = execNet.get_property(supported_properties.name()).as<std::vector<PropertyName>>();
         ASSERT_TRUE(std::any_of(properties.begin(), properties.end(), [](const PropertyName& property) {
             return property == workload_type.name();
@@ -120,8 +124,9 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         ASSERT_FALSE(workloadTypeSupported);
-        OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
+        OV_EXPECT_THROW_HAS_SUBSTRING(req.infer(),
                                       ov::Exception,
                                       "WorkloadType property is not supported by the current Driver Version!");
     }
@@ -137,10 +142,11 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
             return property == workload_type.name();
         });
 
+    ov::InferRequest req;
+
     if (isCommandQueueExtSupported()) {
         ASSERT_TRUE(workloadTypeSupported);
         OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
-        ov::InferRequest req;
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         bool is_called = false;
         OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
@@ -151,8 +157,10 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         ASSERT_FALSE(workloadTypeSupported);
-        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+        OV_EXPECT_THROW_HAS_SUBSTRING(req.infer(),
                                       ov::Exception,
                                       "WorkloadType property is not supported by the current Driver Version!");
     }
@@ -164,9 +172,9 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
     ov::AnyMap modelConfiguration;
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
     OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+    ov::InferRequest req;
 
     if (isCommandQueueExtSupported()) {
-        ov::InferRequest req;
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         bool is_called = false;
         OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
@@ -177,7 +185,8 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(),
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+        OV_EXPECT_THROW_HAS_SUBSTRING(req.infer(),
                                       ov::Exception,
                                       "WorkloadType property is not supported by the current Driver Version!");
     }
@@ -206,6 +215,59 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilation
     }
 }
 
+TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeUpdateAfterCompilationWithMultipleInfers) {
+    if (isCommandQueueExtSupported()) {
+        OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+
+        auto secondCompiledModel = core->compile_model(function, target_device, configuration);
+
+        ov::InferRequest req1, req2, req3;
+        OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req3 = secondCompiledModel.create_infer_request());
+        bool isCalled = false;
+        OV_ASSERT_NO_THROW(req1.set_callback([&](std::exception_ptr exception_ptr) {
+            ASSERT_EQ(exception_ptr, nullptr);
+            isCalled = true;
+        }));
+        OV_ASSERT_NO_THROW(req1.start_async());
+        OV_ASSERT_NO_THROW(req1.wait());
+        ASSERT_TRUE(isCalled);
+
+        OV_ASSERT_NO_THROW(req3.infer());
+
+        ov::AnyMap modelConfiguration;
+        modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+        ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::DEFAULT);
+        OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2.infer());
+
+        modelConfiguration[workload_type.name()] = WorkloadType::EFFICIENT;
+        OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
+        ASSERT_EQ(execNet.get_property(workload_type.name()).as<WorkloadType>(), WorkloadType::EFFICIENT);
+        isCalled = false;
+        OV_ASSERT_NO_THROW(req2.set_callback([&](std::exception_ptr exception_ptr) {
+            ASSERT_EQ(exception_ptr, nullptr);
+            isCalled = true;
+        }));
+        OV_ASSERT_NO_THROW(req2.start_async());
+        OV_ASSERT_NO_THROW(req2.wait());
+        ASSERT_TRUE(isCalled);
+
+        req1 = {};
+        req2 = {};
+        req3 = {};
+
+        OV_ASSERT_NO_THROW(req1 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2 = secondCompiledModel.create_infer_request());
+        OV_ASSERT_NO_THROW(req1.infer());
+        OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req2.infer());
+        OV_ASSERT_NO_THROW(req3.infer());
+        OV_ASSERT_NO_THROW(req3.infer());
+    }
+}
+
 using OVCompileAndInferRequestTurbo = OVCompileAndInferRequest;
 
 TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
@@ -217,12 +279,13 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
             return property == intel_npu::turbo.name();
         });
 
+    ov::InferRequest req;
+
     if (isCommandQueueExtSupported()) {
         ASSERT_TRUE(isTurboSupported);
         OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
         auto turbosetting_compiled_model = execNet.get_property(intel_npu::turbo.name());
         OV_ASSERT_NO_THROW(turbosetting_compiled_model = true);
-        ov::InferRequest req;
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         bool is_called = false;
         OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
@@ -233,16 +296,87 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        auto cr_ex = configuration.find(intel_npu::defer_weights_load.name());
-        if (cr_ex->second.as<bool>() == false) {
-            OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
-                                          ov::Exception,
-                                          "Turbo is not supported by the current driver");
-        } else {
-            OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
-            OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(),
-                                          ov::Exception,
-                                          "Turbo is not supported by the current driver");
+        OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+        OV_EXPECT_THROW_HAS_SUBSTRING(req.infer(), ov::Exception, "Turbo is not supported by the current driver");
+    }
+}
+
+using OVCompileAndInferRequesOnNewerDrivers = OVCompileAndInferRequest;
+
+TEST_P(OVCompileAndInferRequesOnNewerDrivers, MultipleCompiledModelsTestsSyncInfers) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isTurboSupported =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == intel_npu::turbo.name();
+        });
+
+    if (isCommandQueueExtSupported()) {
+        ASSERT_TRUE(isTurboSupported);
+
+        const int no_of_iterations = 256;
+        std::array<ov::CompiledModel, no_of_iterations> compiled_models;
+
+        for (int i = 0; i < no_of_iterations; ++i) {
+            if (i % 4) {
+                configuration[intel_npu::turbo.name()] = false;
+            } else {
+                configuration[intel_npu::turbo.name()] = true;
+            }
+
+            if (i % 5 == 1) {
+                configuration[workload_type.name()] = WorkloadType::DEFAULT;
+            } else if (i % 5 == 2) {
+                configuration[workload_type.name()] = WorkloadType::EFFICIENT;
+            }
+
+            if (i % 3 == 0) {
+                configuration[ov::hint::model_priority.name()] = ov::hint::Priority::LOW;
+            } else if (i % 3 == 1) {
+                configuration[ov::hint::model_priority.name()] = ov::hint::Priority::MEDIUM;
+            } else if (i % 3 == 2) {
+                configuration[ov::hint::model_priority.name()] = ov::hint::Priority::HIGH;
+            }
+
+            OV_ASSERT_NO_THROW(compiled_models[i] = core->compile_model(function, target_device, configuration));
+        }
+
+        std::array<ov::InferRequest, no_of_iterations> infer_reqs;
+        std::array<std::thread, no_of_iterations> infer_reqs_threads;
+        for (int i = 0; i < no_of_iterations; ++i) {
+            OV_ASSERT_NO_THROW(infer_reqs[i] = compiled_models[i].create_infer_request());
+        }
+
+        for (int i = 0; i < no_of_iterations; ++i) {
+            infer_reqs_threads[i] = std::thread([&compiled_models, &infer_reqs, i]() -> void {
+                OV_ASSERT_NO_THROW(infer_reqs[i].infer());
+
+                ov::AnyMap modelConfiguration;
+                if (i % 5 == 0) {
+                    modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
+                    OV_ASSERT_NO_THROW(compiled_models[i].set_property(modelConfiguration));
+                } else if (i % 5 == 1) {
+                    modelConfiguration[workload_type.name()] = WorkloadType::EFFICIENT;
+                    OV_ASSERT_NO_THROW(compiled_models[i].set_property(modelConfiguration));
+                } else if (i % 5 == 2) {
+                    modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
+                    OV_ASSERT_NO_THROW(compiled_models[i].set_property(modelConfiguration));
+                } else if (i % 5 == 3) {
+                    modelConfiguration[workload_type.name()] = WorkloadType::EFFICIENT;
+                    OV_ASSERT_NO_THROW(compiled_models[i].set_property(modelConfiguration));
+                }
+
+                OV_ASSERT_NO_THROW(infer_reqs[i].infer());
+
+                infer_reqs[i] = {};
+            });
+        }
+
+        for (int i = 0; i < no_of_iterations; ++i) {
+            infer_reqs_threads[i].join();
         }
     }
 }
