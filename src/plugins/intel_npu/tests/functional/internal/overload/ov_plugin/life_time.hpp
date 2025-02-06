@@ -63,8 +63,10 @@ public:
 
 #define EXPECT_NO_CRASH(_statement) EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
 
-static void release_order_test(std::vector<std::size_t> order, const std::string& deviceName,
-                               std::shared_ptr<ov::Model> function, ov::AnyMap configuration) {
+static void release_order_test(std::vector<std::size_t> order,
+                               const std::string& deviceName,
+                               std::shared_ptr<ov::Model> function,
+                               ov::AnyMap configuration) {
     ov::AnyVector objects;
     {
         ov::Core core = createCoreWithTemplate();
@@ -90,7 +92,7 @@ TEST_P(OVHoldersTestNPU, Orders) {
             order_str << objects.at(i) << " ";
         }
         EXPECT_NO_CRASH(release_order_test(order, target_device, function, configuration))
-                << "for order: " << order_str.str();
+            << "for order: " << order_str.str();
     } while (std::next_permutation(order.begin(), order.end()));
 }
 
@@ -151,9 +153,8 @@ TEST_P(OVHoldersTestNPU, LoadedRemoteContext) {
     }
 }
 
-class OVHoldersTestOnImportedNetworkNPU :
-        public OVPluginTestBase,
-        public testing::WithParamInterface<CompilationParams> {
+class OVHoldersTestOnImportedNetworkNPU : public OVPluginTestBase,
+                                          public testing::WithParamInterface<CompilationParams> {
 protected:
     ov::AnyMap configuration;
     std::string deathTestStyle;
@@ -207,6 +208,37 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, LoadedTensor) {
     auto compiled_model = core.import_model(stream, target_device, configuration);
     auto request = compiled_model.create_infer_request();
     ov::Tensor tensor = request.get_input_tensor();
+}
+
+TEST_P(OVHoldersTestOnImportedNetworkNPU, ExportImportWithSkipBlobCompatibilityCheck) {
+    ov::Core core = createCoreWithTemplate();
+    std::stringstream stream;
+    {
+        auto compiled_model = core.compile_model(function, target_device, configuration);
+        OV_ASSERT_NO_THROW(compiled_model.export_model(stream));
+        // taint the blob
+        stream << 0xCACA0;
+    }
+    auto disable_version_check_var = std::getenv("NPU_DISABLE_VERSION_CHECK");
+    bool dev_build = 1;
+
+#ifndef NPU_PLUGIN_DEVELOPER_BUILD
+    dev_build = 0;
+#    define NPU_PLUGIN_DEVELOPER_BUILD
+#endif
+    char env[] = "NPU_DISABLE_VERSION_CHECK=1";
+    putenv(env);
+
+    OV_ASSERT_NO_THROW(auto compiled_model = core.import_model(stream, target_device, configuration));
+
+    // restore env var and flag
+    char temp[50] = "NPU_DISABLE_VERSION_CHECK";
+    strncat(temp, disable_version_check_var, 2);
+    putenv(temp);
+
+    if (!dev_build) {
+#undef NPU_PLUGIN_DEVELOPER_BUILD
+    }
 }
 
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {

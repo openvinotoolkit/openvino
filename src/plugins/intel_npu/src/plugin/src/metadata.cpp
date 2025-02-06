@@ -13,36 +13,6 @@
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
-namespace {
-
-std::streampos getFileSize(std::istream& stream) {
-    auto log = intel_npu::Logger::global().clone("getFileSize");
-    if (!stream) {
-        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
-    }
-
-    if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
-        return stream.rdbuf()->in_avail();
-    }
-    const std::streampos streamStart = stream.tellg();
-    stream.seekg(0, std::ios_base::end);
-    const std::streampos streamEnd = stream.tellg();
-    stream.seekg(streamStart, std::ios_base::beg);
-
-    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
-
-    if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (",
-                       streamEnd,
-                       ") is not larger than streamStart (",
-                       streamStart,
-                       ")!");
-    }
-
-    return streamEnd - streamStart;
-}
-}  // anonymous namespace
-
 namespace intel_npu {
 
 OpenvinoVersion::OpenvinoVersion(std::string_view version)
@@ -102,15 +72,6 @@ bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
         logger.error("Imported blob OpenVINO version: %s, but the current OpenVINO version is: %s",
                      _ovVersion.get_version().c_str(),
                      ov::get_openvino_version().buildNumber);
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-        if (auto envVar = std::getenv("NPU_DISABLE_VERSION_CHECK")) {
-            if (envVarStrToBool("NPU_DISABLE_VERSION_CHECK", envVar)) {
-                logger.info("Blob compatibility check skipped.");
-                return true;
-            }
-        }
-#endif
         return false;
     }
     return true;
@@ -121,7 +82,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
 
-    std::streampos currentStreamPos = stream.tellg(), streamSize = getFileSize(stream);
+    std::streampos currentStreamPos = stream.tellg(), streamSize = MetadataBase::getFileSize(stream);
     stream.seekg(streamSize - std::streampos(magicBytesSize), std::ios::cur);
     stream.read(blobMagicBytes.data(), magicBytesSize);
     if (MAGIC_BYTES != blobMagicBytes) {
@@ -160,6 +121,33 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
 uint64_t Metadata<METADATA_VERSION_1_0>::get_blob_size() const {
     return _blobDataSize;
+}
+
+std::streampos MetadataBase::getFileSize(std::istream& stream) {
+    auto log = intel_npu::Logger::global().clone("getFileSize");
+    if (!stream) {
+        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
+    }
+
+    if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
+        return stream.rdbuf()->in_avail();
+    }
+    const std::streampos streamStart = stream.tellg();
+    stream.seekg(0, std::ios_base::end);
+    const std::streampos streamEnd = stream.tellg();
+    stream.seekg(streamStart, std::ios_base::beg);
+
+    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
+
+    if (streamEnd < streamStart) {
+        OPENVINO_THROW("Invalid stream size: streamEnd (",
+                       streamEnd,
+                       ") is not larger than streamStart (",
+                       streamStart,
+                       ")!");
+    }
+
+    return streamEnd - streamStart;
 }
 
 }  // namespace intel_npu
