@@ -344,19 +344,14 @@ TEST(plugin_config, can_read_from_config) {
 }
 
 #ifdef ENABLE_DEBUG_CAPS
-TEST(plugin_config, can_get_global_property) {
-    NotEmptyTestConfig cfg;
-    ASSERT_EQ(cfg.get_debug_global_property(), 4);
-}
 
-TEST(plugin_config, global_property_read_env_on_each_call) {
+TEST(plugin_config, global_property_read_env_on_first_call) {
     try {
-        ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 4);
         set_env("OV_DEBUG_GLOBAL_PROPERTY", "10");
         ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 10);
 
         set_env("OV_DEBUG_GLOBAL_PROPERTY", "20");
-        ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 20);
+        ASSERT_EQ(NotEmptyTestConfig::get_debug_global_property(), 10);
     } catch (std::exception&) {}
 
     unset_env("OV_DEBUG_GLOBAL_PROPERTY");

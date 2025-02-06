@@ -228,7 +228,7 @@ void PluginConfig::cleanup_unsupported(ov::AnyMap& config) const {
     for (auto it = config.begin(); it != config.end();) {
         auto& name = it->first;
         auto opt_it = std::find_if(m_options_map.begin(), m_options_map.end(), [&](const OptionMapEntry& o) { return o.first == name; });
-        if (opt_it == m_options_map.end()) {
+        if (opt_it == m_options_map.end() || opt_it->second->get_visibility() == OptionVisibility::DEBUG_GLOBAL) {
             it = config.erase(it);
         } else {
             ++it;
