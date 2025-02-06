@@ -497,6 +497,11 @@ void regclass_Tensor(py::module m) {
         return "<" + Common::get_class_name(self) + ": " + ss.str() + ">";
     });
 
+    cls.def("__copy__", [](const ov::Tensor& self) {
+        ov::Tensor dst(self);
+        return dst;
+    });
+
     cls.def("__deepcopy__", [](const ov::Tensor& self, py::dict& memo) {
         ov::Tensor dst(self.get_element_type(), self.get_shape());
         std::memcpy(dst.data(), self.data(), self.get_byte_size());
