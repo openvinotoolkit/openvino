@@ -246,10 +246,9 @@ class TestReflectionPad(PytorchLayerTest):
                    kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})
 
 class TestReplicatePad1D(PytorchLayerTest):
-    def _prepare_input(self, ndim=4, dtype="float32"):
+    def _prepare_input(self):
         import numpy as np
-        input_5d_shape = [5,9,1,1,2,4]
-        return (np.random.randn(*input_5d_shape[:ndim]).astype(dtype),)
+        return (np.random.rand(*self.input_shape).astype(self.dtype),)
 
     def create_model(self, pads):
         import torch
@@ -265,6 +264,7 @@ class TestReplicatePad1D(PytorchLayerTest):
             
         return aten_pad(pads), None, "aten::pad"
 
+    @pytest.mark.parametrize("input_shape", [(1,2),(3,4),(5,6)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
         1,
@@ -279,16 +279,15 @@ class TestReplicatePad1D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    def test_replicate_padnd(self, pads, dtype, ie_device, precision, ir_version):
-        ndim = 3
-        self._test(*self.create_model(pads), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})
+    def test_replicate_padnd(self, pads, input_shape, dtype, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        self.dtype = dtype
+        self._test(*self.create_model(pads), ie_device, precision, ir_version)
 
 class TestReplicatePad2D(PytorchLayerTest):
-    def _prepare_input(self, ndim=4, dtype="float32"):
+    def _prepare_input(self):
         import numpy as np
-        input_5d_shape = [5,9,1,1,2,4]
-        return (np.random.randn(*input_5d_shape[:ndim]).astype(dtype),)
+        return (np.random.rand(*self.input_shape).astype(self.dtype),)
 
     def create_model(self, pads):
         import torch
@@ -303,7 +302,7 @@ class TestReplicatePad2D(PytorchLayerTest):
                 return self.pad(x)
             
         return aten_pad(pads), None, "aten::pad"
-
+    @pytest.mark.parametrize("input_shape", [(1,2,3,4),(2,3,4,5),(3,4,5,6)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
         1,
@@ -318,16 +317,15 @@ class TestReplicatePad2D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    def test_replicate_padnd(self, pads, dtype, ie_device, precision, ir_version):
-        ndim = 4
-        self._test(*self.create_model(pads), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})
+    def test_replicate_padnd(self, pads, input_shape, dtype, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        self.dtype = dtype
+        self._test(*self.create_model(pads), ie_device, precision, ir_version)
     
 class TestReplicatePad3D(PytorchLayerTest):
-    def _prepare_input(self, ndim=4, dtype="float32"):
+    def _prepare_input(self):
         import numpy as np
-        input_5d_shape = [5,9,1,1,2,4]
-        return (np.random.randn(*input_5d_shape[:ndim]).astype(dtype),)
+        return (np.random.rand(*self.input_shape).astype(self.dtype),)
 
     def create_model(self, pads):
         import torch
@@ -343,6 +341,7 @@ class TestReplicatePad3D(PytorchLayerTest):
             
         return aten_pad(pads), None, "aten::pad"
 
+    @pytest.mark.parametrize("input_shape", [(1,2,3,4,5),(2,3,4,5,6),(3,4,5,6,7)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
         1,
@@ -357,8 +356,8 @@ class TestReplicatePad3D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    def test_replicate_padnd(self, pads, dtype, ie_device, precision, ir_version):
-        ndim = 5
-        self._test(*self.create_model(pads), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})
+    def test_replicate_padnd(self, pads, input_shape, dtype, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        self.dtype = dtype
+        self._test(*self.create_model(pads), ie_device, precision, ir_version)
     
