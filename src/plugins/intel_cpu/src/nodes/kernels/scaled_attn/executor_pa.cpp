@@ -2363,7 +2363,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             //    W*V aka [m, k1] * [n1, k1]', there is no tails handing for n1, so tails of v_cache need to be set to
             //    zero.
             // for second token, the kernels have tails handling logic
-            if (q_len != 1 && q_len % _helper._block_size != 0) {
+            if (q_len != 1 && kv_len % _helper._block_size != 0) {
                 // block no. which contains tails
                 auto block_number = block_indices.ptr<int32_t>()[block_number_start + kv_len / _helper._block_size];
                 // tails start position
