@@ -451,7 +451,9 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
             }
         }
         for (size_t i = 0; i < old_expr->get_output_count(); ++i) {
-            m_loop_manager->replace_loop_ports(loop_ids, old_expr->get_output_port(i), output_ports);
+            m_loop_manager->replace_loop_ports(loop_ids,
+                                               old_expr->get_output_port(i),
+                                               {new_expr_it->get()->get_output_port(i)});
         }
         erase(find(old_expr));
     }
