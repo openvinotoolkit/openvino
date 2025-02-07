@@ -66,6 +66,7 @@
 #include "interpolate_shape_inference.hpp"
 #include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
+#include "istft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "lstm_sequence_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
@@ -421,8 +422,7 @@ using ShapeInferKey = ov::NodeTypeInfo;
 using namespace ov::opset10;
 
 // Helper macros to make map entries
-#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...) \
-    { OP::get_type_info_static(), make_shape_infer<__VA_ARGS__> }
+#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...)                   {OP::get_type_info_static(), make_shape_infer<__VA_ARGS__>}
 #define _OV_OP_SHAPE_INFER_MASK_REG(OP, SHAPE_INFER, MASK)   _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER, OP, MASK)
 #define _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(OP, SHAPE_INFER) _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER)
 
@@ -436,6 +436,8 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset16
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     // opset15
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
