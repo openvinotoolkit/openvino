@@ -191,7 +191,7 @@ private:
         // (e.g. GroupNormalization, reshape)
         bool m_has_broadcast_sensitive_ops = false;
 #ifdef SNIPPETS_DEBUG_CAPS
-        DebugCapsConfig *m_debug_config;
+        std::shared_ptr<DebugCapsConfig> m_debug_config = std::make_shared<DebugCapsConfig>();
 #endif
     } config;
 
