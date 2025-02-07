@@ -40,7 +40,7 @@ public:
     // False if LIR can be built from ov::Model only. Prevents adding I/O expressions
     bool m_manual_build_support = false;
 #ifdef SNIPPETS_DEBUG_CAPS
-    DebugCapsConfig debug_config;
+    DebugCapsConfig *debug_config;
 #endif
 };
 
