@@ -735,7 +735,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge");
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
-    CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block in concat node: ", getName());
+    CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block");
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
