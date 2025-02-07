@@ -159,7 +159,7 @@ MemoryOutputBase::~MemoryOutputBase() {
 }
 
 MemoryInputBase& MemoryOutputBase::getInputNode() {
-    CPU_NODE_ASSERT(inputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
+    CPU_NODE_ASSERT(inputNode, " doesn't have sibling input");
     return *inputNode;
 }
 
@@ -202,8 +202,6 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
-                    "MemoryOutput ",
-                    getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selected_pd->getConfig();
@@ -230,7 +228,7 @@ void MemoryOutputBase::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MemoryOutputBase::assignState(const MemStatePtr& newState) {
-    CPU_NODE_ASSERT(newState, "MemoryOutput ", getName(), " got null state");
+    CPU_NODE_ASSERT(newState, " got null state");
     state = newState;
     assignExtMemory(state->output_mem(), state->internal_desc());
 }
@@ -272,8 +270,6 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
-                    "MemoryOutput ",
-                    getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
@@ -290,10 +286,10 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
 
 void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
     assignedMem = mem;
-    CPU_NODE_ASSERT(assignedMem, "MemoryOutput ", getName(), " assigned state has null memory ptr");
+    CPU_NODE_ASSERT(assignedMem, " assigned state has null memory ptr");
 
     extMemDesc = memDesc;
-    CPU_NODE_ASSERT(extMemDesc, "MemoryOutput ", getName(), " assigned state has null base mem desc ptr");
+    CPU_NODE_ASSERT(extMemDesc, " assigned state has null base mem desc ptr");
 
     if (!memBlock) {
         return;
@@ -309,7 +305,7 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
 
 void MemoryOutput::runStatic(dnnl::stream strm) {
     auto inputMem = getSrcMemoryAtPort(0);
-    CPU_NODE_ASSERT(assignedMem, "MemoryOutput ", getName(), " uninitialized assigned memory");
+    CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
     if (inputMem->getData() != assignedMem->getData()) {
         assignedMem->load(*inputMem);
@@ -320,13 +316,13 @@ void MemoryOutput::runDynamic(dnnl::stream strm) {
     // first we have to resize the output memory
     auto inputMem = getSrcMemoryAtPort(0);
 
-    CPU_NODE_ASSERT(assignedMem, "MemoryOutput ", getName(), " uninitialized assigned memory");
+    CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
     const auto& newShape = inputMem->getShape();
     const auto& stateShape = assignedMem->getShape();
 
     if (stateShape.isDynamic() || stateShape.getStaticDims() != newShape.getStaticDims()) {
-        CPU_NODE_ASSERT(extMemDesc, "MemoryOutput ", getName(), " uninitialized assigned memory");
+        CPU_NODE_ASSERT(extMemDesc, " uninitialized assigned memory");
         auto newExternDesc = extMemDesc->cloneWithNewDims(newShape.getStaticDims());
         assignedMem->redefineDesc(newExternDesc);
     }
@@ -357,8 +353,6 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
-                    "MemoryOutput ",
-                    getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
@@ -458,7 +452,7 @@ MemoryInputBase::~MemoryInputBase() {
 }
 
 MemoryOutputBase& MemoryInputBase::getOutputNode() {
-    CPU_NODE_ASSERT(outputNode, "MemoryInput ", getName(), " doesn't have sibling output");
+    CPU_NODE_ASSERT(outputNode, " doesn't have sibling output");
     return *outputNode;
 }
 
@@ -560,7 +554,7 @@ MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string&
 }
 
 void MemoryInputBase::assignState(MemStatePtr newState) {
-    CPU_NODE_ASSERT(newState, "MemoryInput ", getName(), " got null state");
+    CPU_NODE_ASSERT(newState, " got null state");
     state = newState;
     assignStateHook();
 }
@@ -668,8 +662,6 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 
     auto selectedPd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selectedPd,
-                    "MemoryInput ",
-                    getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selectedPd->getConfig();
@@ -752,9 +744,9 @@ int MemoryInput::registerToAllocationContext(int offset, AllocationContext& cont
 void MemoryInput::runDynamic(dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
-    CPU_NODE_ASSERT(assignedMem, "MemoryInput ", getName(), " assigned state has null memory ptr");
+    CPU_NODE_ASSERT(assignedMem, " assigned state has null memory ptr");
 
-    CPU_NODE_ASSERT(memBlock, "MemoryInput ", getName(), " has uninitialized memory block.");
+    CPU_NODE_ASSERT(memBlock, " has uninitialized memory block.");
 
     // check whether we can share memory block
     const auto& shape = assignedMem->getShape();
