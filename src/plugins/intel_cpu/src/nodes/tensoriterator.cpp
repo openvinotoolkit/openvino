@@ -436,29 +436,40 @@ TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphC
     }
 }
 
-void TensorIterator::getSupportedDescriptors() {
-    auto tiOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
-    if (!tiOp) {
-        THROW_CPU_NODE_ERR("cannot be cast to ov::op::util::SubGraphOp");
-    }
-    const std::shared_ptr<const ov::Model> body = tiOp->get_function();
-    sub_graph.CreateGraph(body, context);
+void TensorIterator::initSupportedPrimitiveDescriptors() {
+    auto subgraphOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
+    CPU_NODE_ASSERT(subgraphOp, "cannot be cast to ov::op::util::SubGraphOp");
 
-    for (const auto& param : tiOp->get_function()->get_parameters()) {
-        if (auto inNode = sub_graph.getInputNodeByIndex(tiOp->get_function()->get_parameter_index(param))) {
+    sub_graph.Init(subgraphOp->get_function(), context);
+
+    if (!supportedPrimitiveDescriptors.empty()) {
+        return;
+    }
+
+    supportedPrimitiveDescriptors.emplace_back(make_plain_config(ngraphOp), impl_desc_type::unknown);
+}
+
+void TensorIterator::createPrimitive() {
+    sub_graph.Activate();
+
+    auto subgraphOp = ov::as_type_ptr<const ov::op::util::SubGraphOp>(ngraphOp);
+    CPU_NODE_ASSERT(subgraphOp, "cannot be cast to ov::op::util::SubGraphOp");
+
+    for (const auto& param : subgraphOp->get_function()->get_parameters()) {
+        if (auto inNode = sub_graph.getInputNodeByIndex(subgraphOp->get_function()->get_parameter_index(param))) {
             input_mems.push_back(getToMemories(inNode.get(), 0));
         }
     }
 
-    for (const auto& out : tiOp->get_function()->get_results()) {
-        if (auto outNode = sub_graph.getOutputNodeByIndex(tiOp->get_function()->get_result_index(out))) {
+    for (const auto& out : subgraphOp->get_function()->get_results()) {
+        if (auto outNode = sub_graph.getOutputNodeByIndex(subgraphOp->get_function()->get_result_index(out))) {
             auto outMem = outNode->getSrcMemoryAtPort(0);
             output_mem.push_back(outMem);
         }
     }
 
     // Port map: outputs
-    for (const auto& desc : tiOp->get_output_descriptions()) {
+    for (const auto& desc : subgraphOp->get_output_descriptions()) {
         auto body_output_idx = desc->m_body_value_index;
 
         std::string type_name = desc->get_type_info().name;
@@ -485,12 +496,12 @@ void TensorIterator::getSupportedDescriptors() {
                                                -1,
                                                1});
         } else {
-            OPENVINO_THROW("Incorrect type of the output description.");
+            THROW_CPU_NODE_ERR("Incorrect type of the output description.");
         }
     }
 
     // Port map : inputs and back edges
-    for (const auto& desc : tiOp->get_input_descriptions()) {
+    for (const auto& desc : subgraphOp->get_input_descriptions()) {
         auto body_input_index = desc->m_body_parameter_index;
 
         if (auto slice_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::SliceInputDescription>(desc)) {
@@ -543,17 +554,7 @@ void TensorIterator::getSupportedDescriptors() {
     } else {
         THROW_CPU_NODE_ERR("isn't supported!");
     }
-}
 
-void TensorIterator::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty()) {
-        return;
-    }
-
-    supportedPrimitiveDescriptors.emplace_back(make_plain_config(ngraphOp), impl_desc_type::unknown);
-}
-
-void TensorIterator::createPrimitive() {
     if (loopBodyConditionOutputIdx == -1) {
         continue_cond_check.reset(new staticValueCheck(true));  // always true
     }
@@ -571,6 +572,10 @@ void TensorIterator::createPrimitive() {
         prepareParamsImpl(compileStage);
         updateLastInputDims();
     }
+}
+
+int TensorIterator::registerToAllocationContext(int offset, AllocationContext& context) {
+    return sub_graph.RegisterToAllocationContext(offset, context);
 }
 
 bool TensorIterator::needPrepareParams() const {

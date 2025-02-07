@@ -96,9 +96,9 @@ CPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
 * Intel® Core™ Ultra 200H processors (formerly code named Arrow Lake-H) are now fully supported.
-* Asymmetric 8bit KV Cache cache compression is now enabled on CPU by default, reducing memory
+* Asymmetric 8bit KV Cache compression is now enabled on CPU by default, reducing memory
   usage and memory bandwidth consumption for large language models and improving performance
-  for 2nd token generation. Asymmetric 4bit KV Cache cache compression on CPU is now supported
+  for 2nd token generation. Asymmetric 4bit KV Cache compression on CPU is now supported
   as an option to further reduce memory consumption.
 * Performance of models running in FP16 on 6th generation of Intel® Xeon® processors with P-core
   has been enhanced by improving utilization of the underlying AMX FP16 capabilities.
@@ -125,7 +125,7 @@ GPU Device Plugin
 NPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
-* Performance has been improved for CW symmetrically quantized LLMs, including Llama2-7B-chat,
+* Performance has been improved for Channel-Wise symmetrically quantized LLMs, including Llama2-7B-chat,
   Llama3-8B-instruct, Qwen-2-7B, Mistral-0.2-7B-Instruct, Phi-3-Mini-4K-Instruct, MiniCPM-1B
   models. The best performance is achieved using symmetrically-quantized 4-bit (INT4) quantized
   models.
@@ -164,7 +164,7 @@ TensorFlow Framework Support
 PyTorch Framework Support
 -----------------------------------------------------------------------------------------------
 
-* Preview: Introducing NPU support for torch.compile  , giving developers the ability to use
+* Preview: Introducing NPU support for torch.compile, giving developers the ability to use
   the OpenVINO backend to run the PyTorch API on NPUs. 300+ deep learning models enabled from
   the TorchVision, Timm, and TorchBench repositories.
 * Preview: Support conversion of PyTorch models with AWQ weights compression, enabling models
@@ -287,7 +287,7 @@ The following has been added:
   * Stateful decoder for WhisperPipeline. Whisper decoder models with past are deprecated.
   * Export a model with new optimum-intel to obtain stateful version.
   * Performance metrics for WhisperPipeline.
-  * initial_prompt and hotwords parameters for the Whisper pipeline allowing to guide generation.
+  * initial_prompt and hotwords parameters for WhisperPipeline allowing to guide generation.
 
 * LLMPipeline
 
@@ -331,6 +331,7 @@ Jupyter Notebooks
 * `RAG using OpenVINO GenAI and LangChain <https://openvinotoolkit.github.io/openvino_notebooks/?search=Create+a+RAG+system+using+OpenVINO+GenAI+and+LangChain>`__
 * `LLM chatbot <https://openvinotoolkit.github.io/openvino_notebooks/?search=Create+an+LLM-powered+Chatbot+using+OpenVINO+Generate+API>`__
   extended with GLM-Edge, Phi4, and Deepseek-R1 distilled models
+* `LLM reasoning with DeepSeek-R1 distilled models <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/deepseek-r1>`__
 
 
 Known Issues
@@ -340,8 +341,8 @@ Known Issues
 | ID: 160167
 | Description:
 |   TensorFlow Object Detection models converted to the IR through the OVC tool gives poor
-    performance on CPU and GPU devices. As a workaround, please use the MO tool from 2024.6 or
-    earlier to generate IRs.
+    performance on CPU, GPU, and NPU devices. As a workaround, please use the MO tool from
+    2024.6 or earlier to generate IRs.
 
 | **Component: Tokenizers**
 | ID: 159392
@@ -368,7 +369,7 @@ Known Issues
 | Description:
 |   Several models have accuracy degradation on Intel® Core™ Ultra 200V processors,
     Intel® Arc™ A-Series Graphics, and Intel® Arc™ B-Series Graphics. Please use OpenVINO 2024.6
-    to run the models. Model list: Denoise, Sharpen-Sharpen, fastseg-small, hbonet-0.5,
+    to run the models. Model list: fastseg-small, hbonet-0.5,
     modnet_photographic_portrait_matting, modnet_webcam_portrait_matting,
     mobilenet-v3-small-1.0-224, nasnet-a-mobile-224, yolo_v4, yolo_v5m, yolo_v5s, yolo_v8n,
     yolox-tiny, yolact-resnet50-fpn-pytorch.
