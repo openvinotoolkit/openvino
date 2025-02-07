@@ -40,7 +40,7 @@ public:
     ov::Tensor get(int64_t uid, const std::string& device);
 
     // Evaluate and allocate all LazyTensors in the bank
-    void evaluate_and_allocate(std::optional<std::string> weights_path);
+    void evaluate_and_allocate();
 
     bool is_remote(int64_t uid) const;
 

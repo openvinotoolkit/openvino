@@ -74,14 +74,8 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     return iter_device->second.tensor;
 }
 
-void Bank::evaluate_and_allocate(std::optional<std::string> weights_path) {
+void Bank::evaluate_and_allocate() {
     std::lock_guard<std::mutex> guard(m_mutex);
-
-    std::ifstream weights_stream;
-    if (weights_path) {
-        weights_stream = std::ifstream(*weights_path, std::ios::in | std::ios::binary);
-        NPUW_ASSERT(weights_stream && "Couldn't open .bin file with model weights!");
-    }
 
     for (auto&& bank : m_device_banks) {
         const auto& device_for_alloc = bank.first;
@@ -95,11 +89,6 @@ void Bank::evaluate_and_allocate(std::optional<std::string> weights_path) {
             // Add non-allocated tensors for furter evaluation and allocation
             if (!el.second.tensor) {
                 vec.push_back(el.second.lt);
-                if (weights_path) {
-                    // Read weights from file sequentially
-                    // FIXME: suboptimal - find a way not to read same offset + size several times
-                    vec.back().read_weight(weights_stream);
-                }
             }
         }
         storage_guard.unlock();

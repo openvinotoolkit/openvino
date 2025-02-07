@@ -11,8 +11,11 @@
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
 
@@ -70,11 +73,10 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream, bool is_weightless) const;
+    void serialize(std::ostream& stream) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      bool is_weightless,
-                                                      const std::string& weights_path);
+                                                      const ov::AnyMap& properties);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -98,7 +100,7 @@ private:
     // For weightless serialization flow
     void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
-    void finalize_weights_bank(std::optional<std::string> weights_path);
+    void finalize_weights_bank();
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
@@ -170,10 +172,9 @@ private:
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream,
-                       bool is_weightless,
-                       const std::unordered_map<const void*, std::size_t>& const_to_offset) const;
-        void deserialize(std::istream& stream, bool is_weightless, std::istream& weights_stream);
+        void serialize(std::ostream& stream, const ov::npuw::s11n::Context& ctx) const;
+        void deserialize(std::istream& stream,
+                         const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

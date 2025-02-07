@@ -7,7 +7,9 @@
 #include <memory>
 
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 namespace npuw {
@@ -46,7 +48,7 @@ public:
 
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);
-    void read_weight(std::istream& stream);
+    void read_weight(const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights);
 
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;

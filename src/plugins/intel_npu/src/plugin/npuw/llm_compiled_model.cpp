@@ -589,8 +589,8 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, is_weightless);
 
     // Serialize CompiledModels
-    m_kvcache_compiled->serialize(stream, is_weightless);
-    m_prefill_compiled->serialize(stream, is_weightless);
+    m_kvcache_compiled->serialize(stream);
+    m_prefill_compiled->serialize(stream);
 
     // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
@@ -678,38 +678,31 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     // Deserialize flow indicator
     bool is_weightless = false;
     read(stream, is_weightless);
-    std::string weights_path;
-    if (is_weightless) {
-        NPUW_ASSERT(properties.find(ov::weights_path.name()) != properties.end() &&
-                    "There is no WEIGHTS_PATH set in properties!");
-        weights_path = properties.at(ov::weights_path.name()).as<std::string>();
-    }
 
     // Deserialize CompiledModels
-    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, is_weightless, weights_path);
-    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, is_weightless, weights_path);
+    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
 
     // Deserialize weights bank name
     std::string bank_name;
     read(stream, bank_name);
 
-    if (!is_weightless) {
-        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
-
-        compiled->m_kvcache_compiled->m_weights_bank = bank;
-        compiled->m_prefill_compiled->m_weights_bank = bank;
-
-        // After bank deserialization - reconstruct NPU closures from the bank
-        compiled->m_kvcache_compiled->reconstruct_closure();
-        compiled->m_prefill_compiled->reconstruct_closure();
-    } else {
+    if (is_weightless) {
         auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
         compiled->m_kvcache_compiled->m_weights_bank = bank;
         compiled->m_prefill_compiled->m_weights_bank = bank;
 
-        compiled->m_kvcache_compiled->finalize_weights_bank(weights_path);
-        compiled->m_prefill_compiled->finalize_weights_bank(weights_path);
+        compiled->m_kvcache_compiled->finalize_weights_bank();
+        compiled->m_prefill_compiled->finalize_weights_bank();
+    } else {
+        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+
+        compiled->m_kvcache_compiled->m_weights_bank = bank;
+        compiled->m_prefill_compiled->m_weights_bank = bank;
+
+        compiled->m_kvcache_compiled->reconstruct_closure();
+        compiled->m_prefill_compiled->reconstruct_closure();
     }
 
     LOG_INFO("Done.");

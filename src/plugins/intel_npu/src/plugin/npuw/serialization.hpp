@@ -33,6 +33,9 @@ class Node;
 class Tensor;
 template <class>
 class Output;
+template <class>
+class SharedBuffer;
+class MappedMemory;
 
 // Forward declaration
 namespace op {
@@ -52,6 +55,14 @@ class LazyTensor;
 }  // namespace weights
 
 namespace s11n {
+
+struct Context {
+    explicit Context(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+        : is_weightless(_is_weightless),
+          const_to_offset(_const_to_offset) {}
+    bool is_weightless;
+    const std::unordered_map<const void*, std::size_t>& const_to_offset;
+};
 
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
@@ -78,11 +89,11 @@ void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
 
 // Weightless utils
-void write_weightless(std::ostream& stream,
-                      const std::vector<ov::Tensor>& var,
-                      const std::unordered_map<const void*, std::size_t>& const_to_offset);
+void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx);
 // No allocation needed
-void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, std::istream& weights_stream);
+void read_weightless(std::istream& stream,
+                     std::vector<ov::Tensor>& var,
+                     const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights);
 
 // Forward declaration
 template <typename T1, typename T2>

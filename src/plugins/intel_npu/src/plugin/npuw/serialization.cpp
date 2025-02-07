@@ -8,6 +8,8 @@
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
@@ -273,9 +275,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& v
 
 // Weightless
 // FIXME: all serialization needs a good rewriting
-void ov::npuw::s11n::write_weightless(std::ostream& stream,
-                                      const std::vector<ov::Tensor>& var,
-                                      const std::unordered_map<const void*, std::size_t>& const_to_offset) {
+void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx) {
     write(stream, var.size());
     for (const auto& t : var) {
         if (!t) {
@@ -285,8 +285,8 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
             write(stream, true);
         }
         auto data = t.data();
-        auto iter = const_to_offset.find(data);
-        if (iter == const_to_offset.end()) {
+        auto iter = ctx.const_to_offset.find(data);
+        if (iter == ctx.const_to_offset.end()) {
             write(stream, false);
             write(stream, t);
         } else {
@@ -299,7 +299,10 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream,
     }
 }
 
-void ov::npuw::s11n::read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, std::istream& weights_stream) {
+void ov::npuw::s11n::read_weightless(
+    std::istream& stream,
+    std::vector<ov::Tensor>& var,
+    const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights) {
     var.clear();
     std::size_t size;
     read(stream, size);
@@ -312,11 +315,7 @@ void ov::npuw::s11n::read_weightless(std::istream& stream, std::vector<ov::Tenso
         }
         bool is_weightless = false;
         read(stream, is_weightless);
-        if (!is_weightless) {
-            ov::Tensor t;
-            read(stream, t);
-            var.push_back(t);
-        } else {
+        if (is_weightless) {
             std::string type_str;
             read(stream, type_str);
             ov::element::Type type(type_str);
@@ -327,8 +326,11 @@ void ov::npuw::s11n::read_weightless(std::istream& stream, std::vector<ov::Tenso
             std::size_t offset = 0;
             read(stream, offset);
             ov::Tensor t(type, shape);
-            weights_stream.seekg(offset);
-            weights_stream.read(reinterpret_cast<char*>(t.data()), byte_size);
+            std::memcpy(t.data(), weights->get_ptr(offset), byte_size);
+            var.push_back(t);
+        } else {
+            ov::Tensor t;
+            read(stream, t);
             var.push_back(t);
         }
     }
