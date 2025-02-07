@@ -97,7 +97,6 @@ ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
     } else {
         return parent_path;
     }
-    return path.parent_path();
 }
 
 std::string ov::util::path_join(const std::vector<ov::util::Path>& paths) {
@@ -327,7 +326,7 @@ void ov::util::create_directory_recursive(const std::string& path) {
 
 bool ov::util::directory_exists(const ov::util::Path& path) {
     std::error_code ec;
-    return std::filesystem::exists(path, ec) && !ec;
+    return std::filesystem::exists(path, ec);  // && !ec;
 }
 
 namespace {
