@@ -36,7 +36,7 @@ struct CPUStreamsExecutor::Impl {
                 : custom::task_scheduler_observer(arena),
                   _mask{std::move(mask)},
                   _ncpus(ncpus),
-                  _cpu_ids(std::move(cpu_ids)) {}
+                  _cpu_ids(cpu_ids) {}
             void on_scheduler_entry(bool) override {
                 pin_thread_to_vacant_core(tbb::this_task_arena::current_thread_index(),
                                           _threadBindingStep,
