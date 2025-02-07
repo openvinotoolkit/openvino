@@ -62,9 +62,6 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     auto parent = parentEdge->getParent();
     auto parentPd = parent->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(parentPd,
-                    parent->getTypeStr(),
-                    " ",
-                    parent->getName(),
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     const auto& parentConfig = parentPd->getConfig();
@@ -72,9 +69,7 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
-                    "ShapeOf ",
-                    getName(),
-                    " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+                    "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selected_pd->getConfig();
     config.inConfs.front().setMemDesc(mem_desc);

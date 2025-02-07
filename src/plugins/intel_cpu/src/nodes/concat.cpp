@@ -726,31 +726,27 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
     auto baseDim = outputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
-                    " Concat node: ",
-                    getName(),
-                    " can't use inPlace memory with concatenation on dynamic dimension");
+                    "can't use inPlace memory with concatenation on dynamic dimension");
 
     auto edges = getChildEdgesAtPort(inplaceOutIndx);
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });
-    CPU_NODE_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: ", getName());
+    CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge for concat node: ", getName());
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
-    CPU_NODE_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
+    CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block in concat node: ", getName());
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
         auto partDim = inputShapes[i].getDims()[axis];
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
-                        " Concat node: ",
-                        getName(),
-                        " can't use inPlace memory with concatenation on dynamic dimension");
+                        "can't use inPlace memory with concatenation on dynamic dimension");
 
         auto parentEdge = getParentEdgeAt(i);
 
         CPU_NODE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
-                        " Unexpected inplace resolve call to an allocated edge: ",
+                        "Unexpected inplace resolve call to an allocated edge: ",
                         *parentEdge);
 
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();

@@ -571,25 +571,16 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
     auto baseDim = inputShapes.front().getDims()[axis];
-    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
-                    " Split node: ",
-                    getName(),
-                    " can not use inPlace memory with splitting on dynamic dimension");
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimension");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
-                        " Split node: ",
-                        getName(),
-                        " can not use inPlace memory with splitting on dynamic dimension");
+                        "can not use inPlace memory with splitting on dynamic dimension");
         const auto& childEdges = getChildEdgesAtPort(i);
         for (auto& childEdge : childEdges) {
-            CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
-                            " Unexpected edge status in node: ",
-                            getName(),
-                            " with type ",
-                            getTypeStr());
+            CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
             auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
             MemoryPtr newMem;

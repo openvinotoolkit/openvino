@@ -973,19 +973,13 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
     const auto baseDim = inputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
-                    "Gather node: ",
-                    getName(),
-                    " can not use inPlace memory with splitting on dynamic dimention");
+                    "can not use inPlace memory with splitting on dynamic dimention");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
     for (auto& childEdge : childEdges) {
-        CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
-                        " Unexpected edge status in node: ",
-                        getName(),
-                        " with type ",
-                        getTypeStr());
+        CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
         auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);
         auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memBlock);

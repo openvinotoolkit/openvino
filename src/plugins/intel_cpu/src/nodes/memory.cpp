@@ -797,9 +797,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
             CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
-                            "MemoryInput ",
-                            getName(),
-                            " has unexpected number of outputs");
+                            "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
@@ -830,21 +828,19 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 void MemoryInput::runStatic(dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
-    CPU_NODE_ASSERT(assignedMem, "MemoryInput ", getName(), " assigned state has null memory ptr");
+    CPU_NODE_ASSERT(assignedMem, "assigned state has null memory ptr");
 
     const auto& stateDims = assignedMem->getStaticDims();
     const auto& expectedDims = getBaseMemDescAtOutputPort(0)->getShape().getStaticDims();
     CPU_NODE_ASSERT(expectedDims == stateDims,
-                    "MemoryInput ",
-                    getName(),
-                    " unexpected state shape: ",
+                    "unexpected state shape: ",
                     vec2str(stateDims),
                     ", while the expected shape: ",
                     vec2str(expectedDims));
 
     auto internDesc = getBaseMemDescAtOutputPort(0);
 
-    CPU_NODE_ASSERT(memBlock, "MemoryInput ", getName(), " has uninitialized memory block.");
+    CPU_NODE_ASSERT(memBlock, "has uninitialized memory block.");
 
     if (internDesc->isCompatible(assignedMem->getDesc())) {
         memBlock->setMemBlock(assignedMem->getMemoryBlock());
@@ -859,10 +855,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
             subGraph->ResetInferCount();
             subGraph->Infer();
 
-            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
-                            "MemoryInput ",
-                            getName(),
-                            " has unexpected number of outputs");
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
         } else {
             src = getSrcMemoryAtPort(0);
@@ -884,16 +877,14 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
-                    "MemoryInput ",
-                    getName(),
-                    " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+                    "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
     memBlock = std::make_shared<ProxyMemoryBlock>();
 
     for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
         CPU_NODE_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
-                        " Unexpected inplace resolve call to an allocated edge: ",
+                        "Unexpected inplace resolve call to an allocated edge: ",
                         *edge);
 
         auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
