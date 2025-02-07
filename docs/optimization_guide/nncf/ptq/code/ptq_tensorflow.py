@@ -24,12 +24,8 @@ quantized_model = nncf.quantize(model, calibration_dataset)
 #! [inference]
 import openvino as ov
 
-# Removes auxiliary layers and operations added during the quantization process,
-# resulting in a clean, fully quantized model ready for deployment.
-stripped_model = nncf.strip(quantized_model)
-
 # convert TensorFlow model to OpenVINO model
-ov_quantized_model = ov.convert_model(stripped_model)
+ov_quantized_model = ov.convert_model(quantized_model)
 
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(ov_quantized_model)
