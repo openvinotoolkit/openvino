@@ -77,6 +77,33 @@ bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
     return true;
 }
 
+std::streampos MetadataBase::getFileSize(std::istream& stream) {
+    auto log = intel_npu::Logger::global().clone("getFileSize");
+    if (!stream) {
+        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
+    }
+
+    if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
+        return stream.rdbuf()->in_avail();
+    }
+    const std::streampos streamStart = stream.tellg();
+    stream.seekg(0, std::ios_base::end);
+    const std::streampos streamEnd = stream.tellg();
+    stream.seekg(streamStart, std::ios_base::beg);
+
+    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
+
+    if (streamEnd < streamStart) {
+        OPENVINO_THROW("Invalid stream size: streamEnd (",
+                       streamEnd,
+                       ") is not larger than streamStart (",
+                       streamStart,
+                       ")!");
+    }
+
+    return streamEnd - streamStart;
+}
+
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
@@ -121,33 +148,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
 uint64_t Metadata<METADATA_VERSION_1_0>::get_blob_size() const {
     return _blobDataSize;
-}
-
-std::streampos MetadataBase::getFileSize(std::istream& stream) {
-    auto log = intel_npu::Logger::global().clone("getFileSize");
-    if (!stream) {
-        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
-    }
-
-    if (dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
-        return stream.rdbuf()->in_avail();
-    }
-    const std::streampos streamStart = stream.tellg();
-    stream.seekg(0, std::ios_base::end);
-    const std::streampos streamEnd = stream.tellg();
-    stream.seekg(streamStart, std::ios_base::beg);
-
-    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
-
-    if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (",
-                       streamEnd,
-                       ") is not larger than streamStart (",
-                       streamStart,
-                       ")!");
-    }
-
-    return streamEnd - streamStart;
 }
 
 }  // namespace intel_npu
