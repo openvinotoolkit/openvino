@@ -1695,8 +1695,8 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    auto const_node = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
-                    funcall._lazy_closure[param_idx - function._param_offset] = LazyTensor(const_node);  // (t)/1/c
+                    funcall._lazy_closure[param_idx - function._param_offset] =
+                        LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
         }      // for(nodes)
