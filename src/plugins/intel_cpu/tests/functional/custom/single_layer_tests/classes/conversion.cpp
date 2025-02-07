@@ -188,24 +188,29 @@ void ConvertCPULayerTest::validate_out_prc() const {
 void ConvertCPULayerTest::validate() {
     if (outPrc == ov::element::nf4) {
         // Use custom bit-exact validation, because common tests infra doesn't support 4bits tensors comparision
-        auto div_up = [&](auto a, auto b) {
-            assert(b);
-            return (a + b - 1) / b;
-        };
-
         auto actualOutputs = get_plugin_outputs();
         auto expectedOutputs = calculate_refs();
         ASSERT_EQ(expectedOutputs.size(), actualOutputs.size());
         ASSERT_EQ(expectedOutputs.size(), 1);
         ASSERT_EQ(expectedOutputs[0].get_shape(), actualOutputs[0].get_shape());
+        ASSERT_EQ(expectedOutputs[0].get_element_type(), ov::element::nf4);
+        ASSERT_EQ(expectedOutputs[0].get_element_type(), actualOutputs[0].get_element_type());
 
         auto expected_data = reinterpret_cast<const uint8_t*>(expectedOutputs[0].data());
         auto actual_data = reinterpret_cast<const uint8_t*>(actualOutputs[0].data());
-        size_t shape_size_cnt = div_up(shape_size(expectedOutputs[0].get_shape()), 2);
-        for (size_t i = 0; i < shape_size_cnt; ++i) {
+        size_t byte_count = shape_size(expectedOutputs[0].get_shape()) / 2;
+        bool has_tile = shape_size(expectedOutputs[0].get_shape()) % 2 != 0;
+        for (size_t i = 0; i < byte_count; ++i) {
             uint8_t expected_value = expected_data[i];
             uint8_t actual_value = actual_data[i];
             ASSERT_EQ(expected_value, actual_value);
+        }
+
+        // Convert operation doc doesn't specify behavior for odd amount of elements: should upper 4 bits of last byte be filled with zeros or not.
+        // CPU Plugin fills these bits with zeros as it better fits optimized kernels which get NF4 inputs.
+        // In general it is considered as UB, so skip the check for last 4 bits.
+        if (has_tile) {
+            ASSERT_EQ(expected_data[byte_count] & 0x0F, actual_data[byte_count] & 0x0F);
         }
 
         return;
