@@ -65,8 +65,8 @@ void unset_env(const std::string& name) {
 struct EmptyTestConfig : public ov::PluginConfig {
     std::vector<std::string> get_supported_properties() const {
         std::vector<std::string> supported_properties;
-        for (const auto& kv : m_options_map) {
-            supported_properties.push_back(kv.first);
+        for (const auto& [name, option] : m_options_map) {
+            supported_properties.push_back(name);
         }
         return supported_properties;
     }
@@ -74,8 +74,8 @@ struct EmptyTestConfig : public ov::PluginConfig {
 
 struct NotEmptyTestConfig : public ov::PluginConfig {
     NotEmptyTestConfig() {
-    #define OV_CONFIG_LOCAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
-    #define OV_CONFIG_GLOBAL_OPTION(...) EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
+    #define OV_CONFIG_LOCAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
+    #define OV_CONFIG_GLOBAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
         OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
         OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
         OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
@@ -89,13 +89,13 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
 
     NotEmptyTestConfig(const NotEmptyTestConfig& other) : NotEmptyTestConfig() {
         m_user_properties = other.m_user_properties;
-        for (const auto& kv : other.m_options_map) {
-            m_options_map.at(kv.first)->set_any(kv.second->get_any());
+        for (const auto& [name, option] : other.m_options_map) {
+            m_options_map.at(name)->set_any(option->get_any());
         }
     }
 
-    #define OV_CONFIG_LOCAL_OPTION(...) EXPAND(OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__))  EXPAND(OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__))
-    #define OV_CONFIG_GLOBAL_OPTION(...) EXPAND(OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__))  EXPAND(OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__))
+    #define OV_CONFIG_LOCAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__))  OV_PP_EXPAND(OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__))
+    #define OV_CONFIG_GLOBAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__))  OV_PP_EXPAND(OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__))
         OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
         OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
         OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
@@ -108,8 +108,8 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
 
     std::vector<std::string> get_supported_properties() const {
         std::vector<std::string> supported_properties;
-        for (const auto& kv : m_options_map) {
-            supported_properties.push_back(kv.first);
+        for (const auto& [name, option] : m_options_map) {
+            supported_properties.push_back(name);
         }
         return supported_properties;
     }
@@ -133,7 +133,7 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
 
 #define OV_CONFIG_LOCAL_OPTION(...)
 #define OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
-    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> NotEmptyTestConfig::m_ ## PropertyVar{GET_EXCEPT_LAST(__VA_ARGS__)};
+    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> NotEmptyTestConfig::m_ ## PropertyVar{OV_PP_GET_EXCEPT_LAST(__VA_ARGS__)};
 
     OV_CONFIG_DEBUG_GLOBAL_OPTION(, debug_global_property, 4, "")
 
