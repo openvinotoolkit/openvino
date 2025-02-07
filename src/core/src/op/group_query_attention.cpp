@@ -13,8 +13,8 @@ namespace op {
 namespace v15 {
 
 GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
-                                         unsigned int num_heads,
-                                         unsigned int kv_num_heads,
+                                         int64_t num_heads,
+                                         int64_t kv_num_heads,
                                          float scale,
                                          bool do_rotary,
                                          bool rotary_interleaved)

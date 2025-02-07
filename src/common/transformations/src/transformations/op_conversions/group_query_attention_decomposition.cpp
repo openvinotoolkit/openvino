@@ -81,7 +81,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_key = node->input_value(3);
     auto past_value = node->input_value(4);
     auto seqlens_k = node->input_value(5);
-    auto total_sequence_length = node->input_value(6);  // unused, it's not always equal (seqlens_k + 1)
     auto cos_cache = node->input_value(7);
     auto sin_cache = node->input_value(8);
 

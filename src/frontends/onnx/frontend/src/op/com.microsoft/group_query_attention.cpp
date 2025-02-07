@@ -31,6 +31,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     for (const auto& input : onnx_op_inputs) {
         ov_op_inputs.push_back(ov::op::util::is_null(input) ? std::make_shared<v15::Null>() : input);
     }
+    // total_sequence_length is not used currently in OV GQA
+    ov_op_inputs[6] = std::make_shared<v15::Null>();
     return std::make_shared<v15::GroupQueryAttention>(ov_op_inputs,
                                                       num_heads,
                                                       kv_num_heads,

@@ -16,8 +16,8 @@ public:
 
     GroupQueryAttention() = default;
     GroupQueryAttention(const ov::OutputVector& args,
-                        unsigned int num_heads,
-                        unsigned int kv_num_heads,
+                        int64_t num_heads,
+                        int64_t kv_num_heads,
                         float scale,
                         bool do_rotary,
                         bool rotary_interleaved);
@@ -25,10 +25,10 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    unsigned int get_num_heads() const {
+    int64_t get_num_heads() const {
         return m_num_heads;
     }
-    unsigned int get_kv_num_heads() const {
+    int64_t get_kv_num_heads() const {
         return m_kv_num_heads;
     }
     float get_scale() const {
@@ -42,8 +42,8 @@ public:
     }
 
 private:
-    unsigned int m_num_heads;
-    unsigned int m_kv_num_heads;
+    int64_t m_num_heads;
+    int64_t m_kv_num_heads;
     float m_scale = 0;
     bool m_do_rotary = false;
     bool m_rotary_interleaved = false;
