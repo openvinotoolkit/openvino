@@ -55,6 +55,8 @@ private:
     const FCAttrs& m_attrs;
     ACLFCAttrs aclfcAttrs;
     const MemoryArgs& m_memoryArgs;
+    MemoryPtr biasMem;
+    MemoryPtr rhsPackedMem;
     MemoryCPtr packedWeights;
     int64_t M, N, K;
     int curNumaNode = -1;
