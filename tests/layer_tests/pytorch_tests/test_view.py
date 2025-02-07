@@ -184,8 +184,6 @@ class TestViewCopy(PytorchLayerTest):
 
         return aten_view_copy(self.input_data), ref_net, "aten::view_copy"
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_view_copy(self, ie_device, precision, ir_version, input_shapes):
         self.input_data = []

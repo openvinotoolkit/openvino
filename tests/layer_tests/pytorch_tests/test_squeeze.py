@@ -70,9 +70,6 @@ class TestSqueezeCopy(PytorchLayerTest):
         return aten_squeeze_copy(dim), ref_net, "aten::squeeze_copy"
 
     @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_squeeze_copy(self, dim, dynamic_shapes, ie_device, precision, ir_version):
         if PytorchLayerTest.use_torch_export() and dim is None:

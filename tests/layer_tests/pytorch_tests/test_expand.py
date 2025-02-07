@@ -62,9 +62,6 @@ class TestExpandCopy(PytorchLayerTest):
         return aten_expand_copy(dim), ref_net, f"aten::expand_copy"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_expand_copy(self, dims, ie_device, precision, ir_version):
         self._test(*self.create_model(dims), ie_device, precision, ir_version)

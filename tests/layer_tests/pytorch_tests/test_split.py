@@ -123,8 +123,6 @@ class TestSplitWithSizesCopy(PytorchLayerTest):
 
         return aten_split_with_sizes_copy(), ref_net, ["aten::split_with_sizes", "prim::ListConstruct"]
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_split_with_sizes_copy(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),

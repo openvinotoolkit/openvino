@@ -63,9 +63,6 @@ class TestPermuteCopy(PytorchLayerTest):
         return aten_permute_copy(order), ref_net, "aten::permute_copy"
 
     @pytest.mark.parametrize("order", [[0, 2, 3, 1], [0, 3, 1, 2], [0, -1, 1, -2]])
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_permute_copy(self, order, ie_device, precision, ir_version):
         self._test(*self.create_model(order), ie_device, precision, ir_version)
