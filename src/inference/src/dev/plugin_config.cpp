@@ -186,8 +186,8 @@ ov::AnyMap PluginConfig::read_config_file(std::string_view filename, std::string
     return config;
 }
 
-ov::Any PluginConfig::read_env(const std::string& option_name, const std::string& prefix, const ConfigOptionBase* option) {
-    auto var_name = prefix + option_name;
+ov::Any PluginConfig::read_env(const std::string& option_name, std::string_view prefix, const ConfigOptionBase* option) {
+    auto var_name = std::string(prefix) + option_name;
     const auto& val = ov::util::getenv_string(var_name.c_str());
 
     if (!val.empty()) {

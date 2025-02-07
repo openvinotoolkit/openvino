@@ -9,44 +9,10 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/except.hpp"
-
-#ifndef EXPAND
-    #define EXPAND(N) N
-#endif
-
-#ifndef COUNT_N
-    #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
-#endif
-
-#ifndef COUNT
-    #define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
-#endif
-
-#ifndef CAT
-    #define CAT(a, b) a ## b
-#endif
-
-#define GET_EXCEPT_LAST_IMPL(N, ...) EXPAND(CAT(GET_EXCEPT_LAST_IMPL_, N)(__VA_ARGS__))
-#define GET_EXCEPT_LAST_IMPL_2(_0, _1) _0
-#define GET_EXCEPT_LAST_IMPL_3(_0, _1, _2) _0, _1
-#define GET_EXCEPT_LAST_IMPL_4(_0, _1, _2, _3) _0, _1, _2
-#define GET_EXCEPT_LAST_IMPL_5(_0, _1, _2, _3, _4) _0, _1, _2, _3
-
-#define GET_EXCEPT_LAST(...) EXPAND(GET_EXCEPT_LAST_IMPL(COUNT(__VA_ARGS__), __VA_ARGS__))
-
-#define GET_LAST_IMPL(N, ...) EXPAND(CAT(GET_LAST_IMPL_, N)(__VA_ARGS__))
-#define GET_LAST_IMPL_0(_0, ...) _0
-#define GET_LAST_IMPL_1(_0, _1, ...) _1
-#define GET_LAST_IMPL_2(_0, _1, _2, ...) _2
-#define GET_LAST_IMPL_3(_0, _1, _2, _3, ...) _3
-#define GET_LAST_IMPL_4(_0, _1, _2, _3, _4, ...) _4
-#define GET_LAST_IMPL_5(_0, _1, _2, _3, _4, _5, ...) _5
-#define GET_LAST_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
-
-#define GET_LAST(...) GET_LAST_IMPL(COUNT(__VA_ARGS__), _, __VA_ARGS__ ,,,,,,,,,,,)
+#include "openvino/util/pp.hpp"
 
 #define OV_CONFIG_DECLARE_LOCAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
-    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{GET_EXCEPT_LAST(__VA_ARGS__)};
+    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{OV_PP_GET_EXCEPT_LAST(__VA_ARGS__)};
 #define OV_CONFIG_DECLARE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
     static ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar;
 
@@ -67,7 +33,7 @@
         m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
 
 #define OV_CONFIG_OPTION_HELP(PropertyNamespace, PropertyVar, Visibility, DefaultValue, ...) \
-        { #PropertyNamespace "::" #PropertyVar, PropertyNamespace::PropertyVar.name(), GET_LAST(__VA_ARGS__)},
+        { #PropertyNamespace "::" #PropertyVar, PropertyNamespace::PropertyVar.name(), OV_PP_GET_LAST(__VA_ARGS__)},
 
 #define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
@@ -102,18 +68,18 @@ enum class OptionVisibility : uint8_t {
 };
 
 inline OptionVisibility operator&(OptionVisibility a, OptionVisibility b) {
-    typedef std::underlying_type<OptionVisibility>::type underlying_type;
-    return static_cast<OptionVisibility>(static_cast<underlying_type>(a) & static_cast<underlying_type>(b));
+    using T = std::underlying_type_t<OptionVisibility>;
+    return static_cast<OptionVisibility>(static_cast<T>(a) & static_cast<T>(b));
 }
 
 inline OptionVisibility operator|(OptionVisibility a, OptionVisibility b) {
-    typedef std::underlying_type<OptionVisibility>::type underlying_type;
-    return static_cast<OptionVisibility>(static_cast<underlying_type>(a) | static_cast<underlying_type>(b));
+    using T = std::underlying_type_t<OptionVisibility>;
+    return static_cast<OptionVisibility>(static_cast<T>(a) | static_cast<T>(b));
 }
 
 inline OptionVisibility operator~(OptionVisibility a) {
-    typedef std::underlying_type<OptionVisibility>::type underlying_type;
-    return static_cast<OptionVisibility>(~static_cast<underlying_type>(a));
+    using T = std::underlying_type_t<OptionVisibility>;
+    return static_cast<OptionVisibility>(~static_cast<T>(a));
 }
 
 inline std::ostream& operator<<(std::ostream& os, const OptionVisibility& visibility) {
@@ -157,11 +123,10 @@ struct ConfigOption : public ConfigOptionBase {
     }
 
     bool is_valid_value(const ov::Any& val) const override {
-        try {
-            auto v = val.as<T>();
-            return validator ? validator(v) : true;
-        } catch (std::exception&) {
-            return false;
+        if (auto is_valid = val.is<T>(); is_valid){
+            return validator ? validator(val.as<T>()) : is_valid;
+        } else {
+           return is_valid;
         }
     }
 
@@ -244,7 +209,7 @@ protected:
     template<typename OptionType>
     class GlobalOptionInitializer {
     public:
-        GlobalOptionInitializer(const std::string& name, const std::string& prefix, OptionType& option) : m_option(option) {
+        GlobalOptionInitializer(const std::string& name, std::string_view prefix, OptionType& option) : m_option(option) {
             auto val = PluginConfig::read_env(name, prefix, &option);
             if (!val.empty()) {
                 std::cout << "Non default global config value for " << name << " = " << val.template as<std::string>() << std::endl;
@@ -285,7 +250,7 @@ protected:
 
     ov::AnyMap read_config_file(std::string_view filename, std::string_view target_device_name) const;
     ov::AnyMap read_env() const;
-    static ov::Any read_env(const std::string& option_name, const std::string& prefix, const ConfigOptionBase* option);
+    static ov::Any read_env(const std::string& option_name, std::string_view prefix, const ConfigOptionBase* option);
     void cleanup_unsupported(ov::AnyMap& config) const;
 
     std::map<std::string, ConfigOptionBase*> m_options_map;
@@ -302,7 +267,7 @@ protected:
 
     bool m_is_finalized = false;
 
-    inline static const std::string m_allowed_env_prefix = "OV_";
+    inline static const std::string_view m_allowed_env_prefix = "OV_";
 };
 
 template <>
