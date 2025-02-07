@@ -13,8 +13,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Result>& op) {
     validate_inputs_count(op, {1});
@@ -48,5 +47,4 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
 
 REGISTER_FACTORY_IMPL(v0, Result);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

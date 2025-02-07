@@ -57,8 +57,9 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     std::shared_ptr<BrgemmCompiledKernel> compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
-    if (config.is_empty())
+    if (config.is_empty()) {
         return compiled_kernel;
+    }
 
     create_brgemm_kernel(compiled_kernel->brgemm_kernel,
                          config.get_dt_in0(),
@@ -117,8 +118,9 @@ void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*
     for (dnnl_dim_t m = 0; m < m_config.get_M(); m++) {
         for (dnnl_dim_t n = 0; n < m_config.get_N(); n++, B++) {
             C[n] = 0;
-            for (dnnl_dim_t k = 0; k < m_config.get_K(); k++)
+            for (dnnl_dim_t k = 0; k < m_config.get_K(); k++) {
                 C[n] += A[k] * B[k * m_config.get_LDB()];
+            }
         }
         B -= m_config.get_N();
         A += m_config.get_LDA();

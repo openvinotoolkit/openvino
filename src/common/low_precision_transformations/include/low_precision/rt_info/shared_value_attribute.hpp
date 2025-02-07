@@ -15,8 +15,6 @@
 template <class T>
 class LP_TRANSFORMATIONS_API SharedAttribute : public ov::RuntimeAttribute {
 public:
-    virtual ~SharedAttribute() = default;
-
     /**
      * @ingroup ov_transformation_common_api
      * @brief SharedValueAttribute type for shared value attributes.

@@ -14,8 +14,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateEmbeddingBagOffsetsSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::EmbeddingBagOffsetsSum>& op) {
     validate_inputs_count(op, {3, 4, 5});
@@ -155,5 +154,4 @@ REGISTER_FACTORY_IMPL(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY_IMPL(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY_IMPL(v3, EmbeddingSegmentsSum);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
