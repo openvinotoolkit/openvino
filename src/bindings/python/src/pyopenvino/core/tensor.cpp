@@ -498,7 +498,7 @@ void regclass_Tensor(py::module m) {
     });
 
     cls.def("__copy__", [](const ov::Tensor& self) {
-            ov::Tensor dst = self;
+        ov::Tensor dst = self;
         return dst;
     });
 
