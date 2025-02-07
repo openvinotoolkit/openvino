@@ -16,6 +16,43 @@
 #include <fstream>
 #include <filesystem>
 
+#ifdef OV_CONFIG_DECLARE_OPTION
+#undef OV_CONFIG_DECLARE_OPTION
+#endif
+
+#ifdef OV_CONFIG_DEBUG_GLOBAL_OPTION
+#undef OV_CONFIG_DEBUG_GLOBAL_OPTION
+#endif
+
+// Same as defined in header, just make members public
+#define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
+public: \
+    const decltype(PropertyNamespace::PropertyVar)::value_type& get_ ## PropertyVar() const { \
+        if (m_is_finalized) { \
+            return m_ ## PropertyVar.value; \
+        } else { \
+            if (m_user_properties.find(PropertyNamespace::PropertyVar.name()) != m_user_properties.end()) { \
+                return m_user_properties.at(PropertyNamespace::PropertyVar.name()).as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
+            } else { \
+                return m_ ## PropertyVar.value; \
+            } \
+        } \
+    } \
+    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> \
+        m_ ## PropertyVar {this, PropertyNamespace::PropertyVar.name(), #PropertyNamespace "::" #PropertyVar, __VA_ARGS__};
+
+#define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...) \
+    public: \
+        static const decltype(PropertyNamespace::PropertyVar)::value_type& get_ ## PropertyVar() { \
+            static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
+                m_allowed_env_prefix, m_ ## PropertyVar); \
+            return init_helper.m_option.value; \
+        } \
+        static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, OptionVisibility::DEBUG_GLOBAL> \
+            m_ ## PropertyVar {nullptr, PropertyNamespace::PropertyVar.name(), #PropertyNamespace "::" #PropertyVar, __VA_ARGS__}; \
+        OptionRegistrationHelper m_ ## PropertyVar ## _rh{this, PropertyNamespace::PropertyVar.name(), &m_ ## PropertyVar};
+
+
 using namespace ::testing;
 using namespace ov;
 
@@ -72,20 +109,9 @@ struct EmptyTestConfig : public ov::PluginConfig {
     }
 };
 
+struct NotEmptyTestConfig;
 struct NotEmptyTestConfig : public ov::PluginConfig {
-    NotEmptyTestConfig() {
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_OPTION_MAPPING(__VA_ARGS__))
-        OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
-        OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
-        OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
-        OV_CONFIG_RELEASE_OPTION(, low_level_property, "", "")
-        OV_CONFIG_RELEASE_INTERNAL_OPTION(, release_internal_property, 1, "")
-        OV_CONFIG_DEBUG_OPTION(, debug_property, 2, "")
-        OV_CONFIG_DEBUG_GLOBAL_OPTION(, debug_global_property, 4, "")
-    #undef OV_CONFIG_LOCAL_OPTION
-    #undef OV_CONFIG_GLOBAL_OPTION
-    }
+    NotEmptyTestConfig() { }
 
     NotEmptyTestConfig(const NotEmptyTestConfig& other) : NotEmptyTestConfig() {
         m_user_properties = other.m_user_properties;
@@ -93,18 +119,6 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
             m_options_map.at(name)->set_any(option->get_any());
         }
     }
-
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__))  OV_PP_EXPAND(OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__))
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__))  OV_PP_EXPAND(OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__))
-        OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
-        OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
-        OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
-        OV_CONFIG_RELEASE_OPTION(, low_level_property, "", "")
-        OV_CONFIG_RELEASE_INTERNAL_OPTION(, release_internal_property, 1, "")
-        OV_CONFIG_DEBUG_OPTION(, debug_property, 2, "")
-        OV_CONFIG_DEBUG_GLOBAL_OPTION(, debug_global_property, 4, "")
-    #undef OV_CONFIG_LOCAL_OPTION
-    #undef OV_CONFIG_GLOBAL_OPTION
 
     std::vector<std::string> get_supported_properties() const {
         std::vector<std::string> supported_properties;
@@ -129,16 +143,15 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
 
     using ov::PluginConfig::get_option_ptr;
     using ov::PluginConfig::is_set_by_user;
-};
 
-#define OV_CONFIG_LOCAL_OPTION(...)
-#define OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
-    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> NotEmptyTestConfig::m_ ## PropertyVar{OV_PP_GET_EXCEPT_LAST(__VA_ARGS__)};
-
+    OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
+    OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
+    OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
+    OV_CONFIG_RELEASE_OPTION(, low_level_property, "", "")
+    OV_CONFIG_RELEASE_INTERNAL_OPTION(, release_internal_property, 1, "")
+    OV_CONFIG_DEBUG_OPTION(, debug_property, 2, "")
     OV_CONFIG_DEBUG_GLOBAL_OPTION(, debug_global_property, 4, "")
-
-#undef OV_CONFIG_LOCAL_OPTION
-#undef OV_CONFIG_GLOBAL_OPTION
+};
 
 TEST(plugin_config, can_create_empty_config) {
     ASSERT_NO_THROW(

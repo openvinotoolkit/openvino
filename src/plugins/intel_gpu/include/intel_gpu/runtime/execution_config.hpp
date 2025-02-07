@@ -31,20 +31,12 @@ struct ExecutionConfig : public ov::PluginConfig {
     void finalize(cldnn::engine& engine);
     using ov::PluginConfig::finalize;
 
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_LOCAL_GETTER(__VA_ARGS__))
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_GLOBAL_GETTER(__VA_ARGS__))
-    #include "intel_gpu/runtime/options.inl"
-
-    #undef OV_CONFIG_LOCAL_OPTION
-    #undef OV_CONFIG_GLOBAL_OPTION
-
     const ov::AnyMap& get_user_properties() const { return m_user_properties; }
 
 protected:
     void finalize_impl(const IRemoteContext* context) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
     void apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm);
-    const ov::PluginConfig::OptionsDesc& get_options_desc() const override;
 
     void apply_user_properties(const cldnn::device_info& info);
     void apply_hints(const cldnn::device_info& info);
@@ -52,11 +44,7 @@ protected:
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
 
-    #define OV_CONFIG_LOCAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_LOCAL_OPTION(__VA_ARGS__))
-    #define OV_CONFIG_GLOBAL_OPTION(...) OV_PP_EXPAND(OV_CONFIG_DECLARE_GLOBAL_OPTION(__VA_ARGS__))
     #include "intel_gpu/runtime/options.inl"
-    #undef OV_CONFIG_LOCAL_OPTION
-    #undef OV_CONFIG_GLOBAL_OPTION
 };
 
 }  // namespace ov::intel_gpu

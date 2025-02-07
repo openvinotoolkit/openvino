@@ -5,66 +5,69 @@
 #pragma once
 
 #include <map>
+#include <string_view>
+
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/util/pp.hpp"
 
-#define OV_CONFIG_DECLARE_LOCAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
-    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{OV_PP_GET_EXCEPT_LAST(__VA_ARGS__)};
-#define OV_CONFIG_DECLARE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
-    static ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar;
-
-#define OV_CONFIG_DECLARE_LOCAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
-    const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() const { \
-        if (m_is_finalized) { \
-            return m_ ## PropertyVar.value; \
-        } else { \
+#define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...)                           \
+public:                                                                                                     \
+    const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() const {                 \
+        if (m_is_finalized) {                                                                               \
+            return m_##PropertyVar.value;                                                                   \
+        } else {                                                                                            \
             if (m_user_properties.find(PropertyNamespace::PropertyVar.name()) != m_user_properties.end()) { \
-                return m_user_properties.at(PropertyNamespace::PropertyVar.name()).as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
-            } else { \
-                return m_ ## PropertyVar.value; \
-            } \
-        } \
-    }
+                return m_user_properties.at(PropertyNamespace::PropertyVar.name())                          \
+                    .as<decltype(PropertyNamespace::PropertyVar)::value_type>();                            \
+            } else {                                                                                        \
+                return m_##PropertyVar.value;                                                               \
+            }                                                                                               \
+        }                                                                                                   \
+    }                                                                                                       \
+                                                                                                            \
+private:                                                                                                    \
+    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_##PropertyVar{         \
+        this,                                                                                               \
+        PropertyNamespace::PropertyVar.name(),                                                              \
+        #PropertyNamespace "::" #PropertyVar,                                                               \
+        __VA_ARGS__};
 
-#define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
-        m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
-
-#define OV_CONFIG_OPTION_HELP(PropertyNamespace, PropertyVar, Visibility, DefaultValue, ...) \
-        { #PropertyNamespace "::" #PropertyVar, PropertyNamespace::PropertyVar.name(), OV_PP_GET_LAST(__VA_ARGS__)},
+#define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                                           \
+public:                                                                                                              \
+    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {                         \
+        static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(),              \
+                                                                 m_allowed_env_prefix,                               \
+                                                                 m_##PropertyVar);                                   \
+        return init_helper.m_option.value;                                                                           \
+    }                                                                                                                \
+                                                                                                                     \
+private:                                                                                                             \
+    static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, OptionVisibility::DEBUG_GLOBAL> \
+        m_##PropertyVar{nullptr,                                                                                     \
+                        PropertyNamespace::PropertyVar.name(),                                                       \
+                        #PropertyNamespace "::" #PropertyVar,                                                        \
+                        __VA_ARGS__};                                                                                \
+    OptionRegistrationHelper m_##PropertyVar##_rh{this, PropertyNamespace::PropertyVar.name(), &m_##PropertyVar};
 
 #define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
+    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
 
 #define OV_CONFIG_RELEASE_INTERNAL_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
+    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
 
-#ifdef ENABLE_DEBUG_CAPS
-#define OV_CONFIG_DECLARE_GLOBAL_GETTER(PropertyNamespace, PropertyVar, Visibility, ...) \
-    static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() { \
-        static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
-             m_allowed_env_prefix, m_ ## PropertyVar); \
-        return init_helper.m_option.value; \
-    }
 #define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_LOCAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
+    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
 
-#define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG_GLOBAL, __VA_ARGS__)
-#else
-#define OV_CONFIG_DEBUG_OPTION(...)
-#define OV_CONFIG_DEBUG_GLOBAL_OPTION(...)
-#define OV_CONFIG_DECLARE_GLOBAL_GETTER(...)
-#endif
 namespace ov {
 enum class OptionVisibility : uint8_t {
-    RELEASE = 1 << 0,            // Option can be set for any build type via public interface, environment and config file
-    RELEASE_INTERNAL = 1 << 1,   // Option can be set for any build type via environment and config file only
-    DEBUG = 1 << 2,              // Option can be set for debug builds only via environment and config file
-    DEBUG_GLOBAL = 1 << 3,       // Global option can be set for debug builds only via environment and config file
-    ANY = 0xFF,                  // Any visibility is valid
+    RELEASE = 1 << 0,  // Option can be set for any build type via public interface, environment and config file
+    RELEASE_INTERNAL = 1 << 1,  // Option can be set for any build type via environment and config file only
+    DEBUG = 1 << 2,             // Option can be set for debug builds only via environment and config file
+    DEBUG_GLOBAL = 1 << 3,      // Global option can be set for debug builds only via environment and config file
+    ANY = 0xFF,                 // Any visibility is valid
 };
 
 inline OptionVisibility operator&(OptionVisibility a, OptionVisibility b) {
@@ -84,77 +87,40 @@ inline OptionVisibility operator~(OptionVisibility a) {
 
 inline std::ostream& operator<<(std::ostream& os, const OptionVisibility& visibility) {
     switch (visibility) {
-    case OptionVisibility::RELEASE: os << "RELEASE"; break;
-    case OptionVisibility::RELEASE_INTERNAL: os << "RELEASE_INTERNAL"; break;
-    case OptionVisibility::DEBUG: os << "DEBUG"; break;
-    case OptionVisibility::DEBUG_GLOBAL: os << "DEBUG_GLOBAL"; break;
-    case OptionVisibility::ANY: os << "ANY"; break;
-    default: os << "UNKNOWN"; break;
+    case OptionVisibility::RELEASE:
+        os << "RELEASE";
+        break;
+    case OptionVisibility::RELEASE_INTERNAL:
+        os << "RELEASE_INTERNAL";
+        break;
+    case OptionVisibility::DEBUG:
+        os << "DEBUG";
+        break;
+    case OptionVisibility::DEBUG_GLOBAL:
+        os << "DEBUG_GLOBAL";
+        break;
+    case OptionVisibility::ANY:
+        os << "ANY";
+        break;
+    default:
+        os << "UNKNOWN";
+        break;
     }
 
     return os;
 }
 
 struct ConfigOptionBase {
-    explicit ConfigOptionBase() {}
+    ConfigOptionBase(std::string_view prop_name, std::string_view desc) : property_name(prop_name), description(desc) {}
     virtual ~ConfigOptionBase() = default;
 
     virtual void set_any(const ov::Any& any) = 0;
     virtual ov::Any get_any() const = 0;
     virtual bool is_valid_value(const ov::Any& val) const = 0;
     virtual OptionVisibility get_visibility() const = 0;
-};
 
-template <typename T, OptionVisibility visibility_ = OptionVisibility::DEBUG>
-struct ConfigOption : public ConfigOptionBase {
-    ConfigOption(const T& default_val, std::function<bool(T)> validator = nullptr)
-        : ConfigOptionBase(), value(default_val), validator(validator) {}
-    T value;
-    constexpr static const auto visibility = visibility_;
-
-    void set_any(const ov::Any& any) override {
-        if (validator)
-            OPENVINO_ASSERT(validator(any.as<T>()), "Invalid value: ", any.as<std::string>());
-        value = any.as<T>();
-    }
-
-    ov::Any get_any() const override {
-        return ov::Any(value);
-    }
-
-    bool is_valid_value(const ov::Any& val) const override {
-        if (auto is_valid = val.is<T>(); is_valid){
-            return validator ? validator(val.as<T>()) : is_valid;
-        } else {
-           return is_valid;
-        }
-    }
-
-    OptionVisibility get_visibility() const override {
-        return visibility;
-    }
-
-    operator T() const {
-        return value;
-    }
-
-    ConfigOption& operator=(const T& val) {
-        value = val;
-        return *this;
-    }
-
-    template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-    bool operator==(const U& val) const {
-        return value == static_cast<T>(val);
-    }
-
-    template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-    bool operator!=(const U& val) const {
-        return !(*this == val);
-    }
-
-private:
-    std::function<bool(T)> validator;
+    std::string_view property_name;
+    std::string_view description;
 };
 
 // Base class for configuration of plugins
@@ -187,7 +153,9 @@ public:
     PluginConfig& operator=(PluginConfig&& other) = delete;
 
     void set_property(const ov::AnyMap& properties);
-    void set_user_property(const ov::AnyMap& properties, OptionVisibility allowed_visibility = OptionVisibility::ANY, bool throw_on_error = true);
+    void set_user_property(const ov::AnyMap& properties,
+                           OptionVisibility allowed_visibility = OptionVisibility::ANY,
+                           bool throw_on_error = true);
     Any get_property(const std::string& name, OptionVisibility allowed_visibility = OptionVisibility::ANY) const;
 
     template <typename... Properties>
@@ -205,14 +173,20 @@ public:
 
     bool visit_attributes(ov::AttributeVisitor& visitor);
 
+    void register_option(const std::string& name, ConfigOptionBase* ptr) {
+        m_options_map.emplace(name, ptr);
+    }
+
 protected:
-    template<typename OptionType>
+    template <typename OptionType>
     class GlobalOptionInitializer {
     public:
-        GlobalOptionInitializer(const std::string& name, std::string_view prefix, OptionType& option) : m_option(option) {
+        GlobalOptionInitializer(const std::string& name, std::string_view prefix, OptionType& option)
+            : m_option(option) {
             auto val = PluginConfig::read_env(name, prefix, &option);
             if (!val.empty()) {
-                std::cout << "Non default global config value for " << name << " = " << val.template as<std::string>() << std::endl;
+                std::cout << "Non default global config value for " << name << " = " << val.template as<std::string>()
+                          << std::endl;
                 option.set_any(val);
             }
         }
@@ -254,15 +228,13 @@ protected:
     void cleanup_unsupported(ov::AnyMap& config) const;
 
     std::map<std::string, ConfigOptionBase*> m_options_map;
-
-    // List of properties explicitly set by user via Core::set_property() or Core::compile_model() or ov::Model's runtime info
-    ov::AnyMap m_user_properties;
     using OptionMapEntry = decltype(m_options_map)::value_type;
 
-    // property variable name, string name, default value, description
-    using OptionsDesc = std::vector<std::tuple<std::string, std::string, std::string>>;
-    virtual const OptionsDesc& get_options_desc() const { static OptionsDesc empty; return empty; }
-    const std::string get_help_message(const std::string& name = "") const;
+    // List of properties explicitly set by user via Core::set_property() or Core::compile_model() or ov::Model's
+    // runtime info
+    ov::AnyMap m_user_properties;
+
+    std::string_view get_help_message(const std::string& name = "") const;
     void print_help() const;
 
     bool m_is_finalized = false;
@@ -271,8 +243,7 @@ protected:
 };
 
 template <>
-class OPENVINO_RUNTIME_API AttributeAdapter<ConfigOptionBase*>
-    : public DirectValueAccessor<ConfigOptionBase*> {
+class OPENVINO_RUNTIME_API AttributeAdapter<ConfigOptionBase*> : public DirectValueAccessor<ConfigOptionBase*> {
 public:
     AttributeAdapter(ConfigOptionBase*& value) : DirectValueAccessor<ConfigOptionBase*>(value) {}
 
@@ -280,15 +251,14 @@ public:
 };
 
 template <>
-class OPENVINO_RUNTIME_API AttributeAdapter<ov::AnyMap>
-    : public DirectValueAccessor<ov::AnyMap> {
+class OPENVINO_RUNTIME_API AttributeAdapter<ov::AnyMap> : public DirectValueAccessor<ov::AnyMap> {
 public:
-    AttributeAdapter(ov::AnyMap& value)  : DirectValueAccessor<ov::AnyMap>(value) {}
+    AttributeAdapter(ov::AnyMap& value) : DirectValueAccessor<ov::AnyMap>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::AnyMap>");
 };
 
-template<typename OStreamType>
+template <typename OStreamType>
 class OstreamAttributeVisitor : public ov::AttributeVisitor {
     OStreamType& os;
 
@@ -314,12 +284,88 @@ public:
     }
 
     void handle_option(ConfigOptionBase* option) {
-        if (option->get_visibility() == OptionVisibility::RELEASE || option->get_visibility() == OptionVisibility::RELEASE_INTERNAL)
+        if (option->get_visibility() == OptionVisibility::RELEASE ||
+            option->get_visibility() == OptionVisibility::RELEASE_INTERNAL)
             os << option->get_any().as<std::string>();
     }
 };
 
-template<typename IStreamType>
+class OptionRegistrationHelper {
+public:
+    OptionRegistrationHelper(PluginConfig* config, std::string_view name, ConfigOptionBase* option) {
+        if (config)
+            config->register_option(std::string{name}, option);
+    }
+};
+
+template <typename T>
+struct TypedOption : public ConfigOptionBase {
+    TypedOption(const T& default_val, std::string_view prop_name, std::string_view desc)
+        : ConfigOptionBase(prop_name, desc),
+          value(default_val) {}
+    T value;
+};
+
+template <typename T, OptionVisibility visibility_>
+struct ConfigOption : public TypedOption<T> {
+    ConfigOption(PluginConfig* config,
+                 std::string_view name,
+                 std::string_view prop_name,
+                 const T& default_val,
+                 std::string_view desc,
+                 std::function<bool(T)> validator = nullptr)
+        : TypedOption<T>(default_val, prop_name, desc),
+          validator(validator) {
+        OptionRegistrationHelper option(config, name, this);
+    }
+    constexpr static const auto visibility = visibility_;
+
+    void set_any(const ov::Any& any) override {
+        if (validator)
+            OPENVINO_ASSERT(validator(any.as<T>()), "Invalid value: ", any.as<std::string>());
+        this->value = any.as<T>();
+    }
+
+    ov::Any get_any() const override {
+        return ov::Any(this->value);
+    }
+
+    bool is_valid_value(const ov::Any& val) const override {
+        if (auto is_valid = val.is<T>(); is_valid) {
+            return validator ? validator(val.as<T>()) : is_valid;
+        } else {
+            return is_valid;
+        }
+    }
+
+    OptionVisibility get_visibility() const override {
+        return visibility;
+    }
+
+    operator T() const {
+        return this->value;
+    }
+
+    ConfigOption& operator=(const T& val) {
+        this->value = val;
+        return *this;
+    }
+
+    template <typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    bool operator==(const U& val) const {
+        return this->value == static_cast<T>(val);
+    }
+
+    template <typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    bool operator!=(const U& val) const {
+        return !(*this == val);
+    }
+
+private:
+    std::function<bool(T)> validator;
+};
+
+template <typename IStreamType>
 class IstreamAttributeVisitor : public ov::AttributeVisitor {
     IStreamType& is;
 
@@ -338,7 +384,6 @@ public:
                 is >> name;
                 is >> val;
                 props[name] = val;
-
             }
             a->set(props);
         } else {
@@ -353,7 +398,8 @@ public:
     }
 
     void handle_option(ConfigOptionBase* option) {
-        if (option->get_visibility() == OptionVisibility::RELEASE || option->get_visibility() == OptionVisibility::RELEASE_INTERNAL) {
+        if (option->get_visibility() == OptionVisibility::RELEASE ||
+            option->get_visibility() == OptionVisibility::RELEASE_INTERNAL) {
             std::string s;
             is >> s;
             if (option->is_valid_value(s))
