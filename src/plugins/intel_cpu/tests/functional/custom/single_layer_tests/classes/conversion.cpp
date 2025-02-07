@@ -312,7 +312,9 @@ const std::vector<InputShape>& inShapes_4D_dynamic() {
                 {
                     {2, 4, 4, 1},
                     {2, 17, 5, 4},
-                    {1, 2, 3, 4}
+                    {1, 2, 3, 4},
+                    // odd number of elements
+                    {1, 3, 3, 3}
                 }
             },
             {

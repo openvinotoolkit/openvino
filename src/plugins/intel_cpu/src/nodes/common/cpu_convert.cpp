@@ -918,16 +918,18 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
         auto dst = static_cast<uint8_t*>(ctx.dstPtr);
         // each byte must be fully processed within same thread
-        auto work_amount = div_up(ctx.size, 2);
+        auto work_amount = ctx.size / 2;
+        auto has_tail = ctx.size % work_amount != 0;
         if (ctx.outType == ov::element::nf4) {
             parallel_for(work_amount, [&](size_t ib) {
-                for (int i = 0; i < 2; i++) {
-                    int idx = ib * 2 + i;
-                    uint8_t val = idx % 2 == 0 ? 0 : dst[idx / 2];
-                    val = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx])), idx % 2);
-                    dst[idx / 2] = val;
-                }
+               size_t idx = ib*2;
+               const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
+               dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx+1])), true);
             });
+
+            if (has_tail) {
+                dst[work_amount] = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2*work_amount])), false);
+            }
         } else {
             OPENVINO_THROW("cpu_convert doesn't support output data type: ", ctx.outType, ". Not implemented.");
         }
