@@ -29,8 +29,7 @@ endfunction()
 function(ov_build_kleidiai_static)
     set(BUILD_SHARED_LIBS OFF)
     set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    add_subdirectory(kleidiai)
-    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+    add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ov_add_onednn)
@@ -178,6 +177,7 @@ endif()
 
 if(ENABLE_KLEIDIAI_FOR_CPU)
     ov_build_kleidiai_static()
+    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
 endif()
 
 ov_add_onednn()
