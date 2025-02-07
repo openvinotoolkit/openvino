@@ -1,7 +1,7 @@
 name: ExecuTorch OpenVINO Backend
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       runner:
         description: 'Machine on which the tests would run'
