@@ -9,8 +9,8 @@
 #include <variant>
 
 #include "logging.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 
@@ -66,7 +66,8 @@ struct Const {
         return m_read_from_weights;
     }
     void read_weight(const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights) {
-        NPUW_ASSERT(!m_node && "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
+        NPUW_ASSERT(!m_node &&
+                    "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
         m_read_from_weights = ov::Tensor(m_cached_type, m_cached_shape);
         // Note: assumed to be called sequentially
         std::memcpy(m_read_from_weights.data(), weights->get_ptr(m_offset), m_byte_size);
