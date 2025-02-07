@@ -621,7 +621,7 @@ def test_tensor_keeps_memory():
 
 
 @pytest.mark.parametrize(
-    "copy_func, should_share_data", [(copy, True), (deepcopy, False)]
+    ("copy_func", "should_share_data"), [(copy, True), (deepcopy, False)]
 )
 def test_copy_and_deepcopy(copy_func, should_share_data):
     shape = (3, 4)
