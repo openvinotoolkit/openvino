@@ -920,14 +920,8 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
             }
             std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
             auto data_ptr = c->get_data_ptr();
-            auto map_iter = m_const_to_offset.find(data_ptr);
-            if (map_iter != m_const_to_offset.end()) {
-                // Already there - check that offset is the same
-                NPUW_ASSERT(map_iter->second == offset &&
-                            "Model contains two constants with same pointer and different offset!");
-            } else {
-                m_const_to_offset[data_ptr] = offset;
-            }
+            auto inserted = m_const_to_offset.insert({data_ptr, offset});
+            NPUW_ASSERT(inserted.second && "Model contains two constants with same pointer and different offset!");
         }
     }
 }

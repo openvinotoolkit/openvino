@@ -281,9 +281,8 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
         if (!t) {
             write(stream, false);
             continue;
-        } else {
-            write(stream, true);
         }
+        write(stream, true);
         auto data = t.data();
         auto iter = ctx.const_to_offset.find(data);
         if (iter == ctx.const_to_offset.end()) {
