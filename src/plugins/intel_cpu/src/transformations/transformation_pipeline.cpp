@@ -1077,7 +1077,7 @@ void Transformations::MainSnippets(void) {
         const auto is_bf16 = (in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
-        const auto is_int8 = in_type0 == ov::element::i8;
+        const auto is_int8 = (in_type0 == element::i8 || in_type0 == element::u8) && (in_type1 == element::i8);
         if (matmul->get_transpose_a()) {
             return false;
         }
@@ -1096,7 +1096,7 @@ void Transformations::MainSnippets(void) {
         if (is_fp16) {
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
         }
-        return true;
+        return false;
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
