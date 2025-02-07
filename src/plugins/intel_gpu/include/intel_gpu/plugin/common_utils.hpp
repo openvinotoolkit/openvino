@@ -8,7 +8,7 @@
 #include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
+
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"

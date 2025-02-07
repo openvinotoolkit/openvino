@@ -12,8 +12,6 @@
 #include "shape_inference/shape_inference.hpp"
 #include "utils/bfloat16.hpp"
 
-#define THROW_ERROR(...) OPENVINO_THROW(NameFromType(getType()), " node with name '", getName(), "' ", __VA_ARGS__)
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -31,22 +29,8 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-namespace {
-class EyeShapeInferFactory : public ShapeInferFactory {
-public:
-    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return (m_op->get_input_size() == 4) ? make_shape_inference(m_op)
-                                             : make_shape_inference(m_op, PortMask(Eye::ROWS_NUM, Eye::COLS_NUM));
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-}  // namespace
-
 Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, EyeShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -59,10 +43,12 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 }
 
 void Eye::getSupportedDescriptors() {
-    if (!one_of(getParentEdges().size(), 3u, 4u))
+    if (!one_of(getParentEdges().size(), 3u, 4u)) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 }
 
 template <typename T>
@@ -86,14 +72,16 @@ void Eye::execute(const dnnl::stream& strm) {
 }
 
 void Eye::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     std::vector<PortConfigurator> inDataConf;
     std::vector<PortConfigurator> outDataConf;
 
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
+    }
     outDataConf.reserve(1);
     outDataConf.emplace_back(LayoutType::ncsp, outType);
 
@@ -106,8 +94,9 @@ void Eye::executeSpecified() {
     const size_t colNum = getColNum();
     const int64_t shift = getDiagIndex();
     auto outPtr = getDstMemoryAtPort(0);
-    if (!outPtr || !outPtr->isDefined())
+    if (!outPtr || !outPtr->isDefined()) {
         THROW_CPU_NODE_ERR("Destination memory is undefined.");
+    }
     T* dst = outPtr->getDataAs<T>();
 
     const size_t batchVolume = getBatchVolume(getBatchShape());
@@ -116,10 +105,11 @@ void Eye::executeSpecified() {
     const size_t l2CacheSize = dnnl::utils::get_cache_size(2, true);
     const size_t elementsCount = colNum * rowNum * batchVolume;
 
-    const int64_t countByColumns = std::max(int64_t(colNum) - std::abs(shift), int64_t(0));
-    const int64_t countByRows = std::max(int64_t(rowNum) - std::abs(shift), int64_t(0));
-    const size_t onesPerBatchNum = static_cast<size_t>(shift > 0 ? std::min(countByColumns, int64_t(rowNum))
-                                                                 : std::min(countByRows, int64_t(colNum)));
+    const int64_t countByColumns = std::max(static_cast<int64_t>(colNum) - std::abs(shift), static_cast<int64_t>(0));
+    const int64_t countByRows = std::max(static_cast<int64_t>(rowNum) - std::abs(shift), static_cast<int64_t>(0));
+    const size_t onesPerBatchNum =
+        static_cast<size_t>(shift > 0 ? std::min(countByColumns, static_cast<int64_t>(rowNum))
+                                      : std::min(countByRows, static_cast<int64_t>(colNum)));
     const size_t dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
 
     if (spatialSize >= l2CacheSize) {
@@ -128,8 +118,9 @@ void Eye::executeSpecified() {
             splitter(elementsCount, nthr, ithr, start, end);
             memset(dst + start, 0, (end - start) * sizeof(T));
         });
-        if (onesPerBatchNum == 0)
+        if (onesPerBatchNum == 0) {
             return;
+        }
         for (size_t bShift = 0; bShift < batchVolume * spatialCount; bShift += spatialCount) {
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
                 size_t start = 0, end = 0;
@@ -144,8 +135,9 @@ void Eye::executeSpecified() {
             size_t start = 0, end = 0;
             splitter(batchVolume, nthr, ithr, start, end);
             memset(dst + start * spatialCount, 0, (end - start) * spatialSize);
-            if (onesPerBatchNum == 0)
+            if (onesPerBatchNum == 0) {
                 return;
+            }
             for (size_t spShift = start * spatialCount; spShift < end * spatialCount; spShift += spatialCount) {
                 for (size_t j = 0; j < onesPerBatchNum; j++) {
                     dst[dataShift + j * (colNum + 1) + spShift] = static_cast<T>(1);

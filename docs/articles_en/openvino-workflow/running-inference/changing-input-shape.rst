@@ -21,7 +21,7 @@ The reshape method
 ########################
 
 The reshape method is used as ``ov::Model::reshape`` in C++ and
-`Model.reshape <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__
+`Model.reshape <https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__
 in Python. The method updates input shapes and propagates them down to the outputs
 of the model through all intermediate layers. The code below is an example of how
 to set a new batch size with the ``reshape`` method:
@@ -151,7 +151,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
 
 You can find the usage scenarios of the ``reshape`` method in
-:doc:`Hello Reshape SSD Samples <../../learn-openvino/openvino-samples/hello-reshape-ssd>`.
+:doc:`Hello Reshape SSD Samples <../../get-started/learn-openvino/openvino-samples/hello-reshape-ssd>`.
 
 .. note::
 
@@ -206,9 +206,9 @@ Additional Resources
 ####################
 
 * :doc:`Extensibility documentation <../../documentation/openvino-extensibility>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
-* `ov::Model::reshape <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__model__c__api.html#_CPPv416ov_model_reshapePK10ov_model_tPPKcPK18ov_partial_shape_t6size_t>`__ - in OpenVINO Runtime C++ API
-* `Model.reshape <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
+* `ov::Model::reshape <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__model__c__api.html#_CPPv416ov_model_reshapePK10ov_model_tPPKcPK18ov_partial_shape_t6size_t>`__ - in OpenVINO Runtime C++ API
+* `Model.reshape <https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <dynamic-shapes>`
-* :doc:`OpenVINO samples <../../learn-openvino/openvino-samples>`
+* :doc:`OpenVINO samples <../../get-started/learn-openvino/openvino-samples>`
 * :doc:`Preprocessing API <optimize-inference/optimize-preprocessing>`
 

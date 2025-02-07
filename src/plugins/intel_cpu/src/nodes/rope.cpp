@@ -45,24 +45,29 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const jit_rotary_c
         bool flag = true;
         if (check_vec_size2) {
             auto vec_size = jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>::vec_size;
-            if (param.rotary_ndims % (vec_size * 2) != 0)
+            if (param.rotary_ndims % (vec_size * 2) != 0) {
                 flag = false;
+            }
         }
-        if (flag)
+        if (flag) {
             res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
+        }
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         bool flag = true;
         if (check_vec_size2) {
             auto vec_size = jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>::vec_size;
-            if (param.rotary_ndims % (vec_size * 2) != 0)
+            if (param.rotary_ndims % (vec_size * 2) != 0) {
                 flag = false;
+            }
         }
-        if (flag)
+        if (flag) {
             res = std::make_shared<jit_rotary_kernel<dnnl::impl::cpu::x64::avx2>>(param);
+        }
     }
 
-    if (res)
+    if (res) {
         res->create_kernel();
+    }
 
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -144,10 +149,11 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;
             if (gather) {
-                if (gather.m_rank == 4)
+                if (gather.m_rank == 4) {
                     cos_pos = gather.at<int32_t>({b, h, p, 0}, true);
-                else
+                } else {
                     cos_pos = gather.at<int32_t>({b, p}, true);
+                }
             }
             auto* src = t_src.ptr<T>(b, h, p);
             auto* cos = &t_cos.at<float>({b, h, cos_pos, 0}, true);
@@ -207,7 +213,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
             auto* x = t_src.ptr<T>(b, p, h);
             float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
             float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
-            auto* dst = t_dst.ptr<T>(b, h, p);
+            auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
 
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, x, dst, cos, sin);
@@ -371,8 +377,9 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
 };
 
 void RoPE::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto srcPrecision = getOriginalInputPrecisionAtPort(0);
 
     auto rtPrecision = srcPrecision;
@@ -397,8 +404,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-    } else if (m_config.is_interleaved && m_config.output_trans0213) {
-        OPENVINO_ASSERT(m_config.input_trans0213 == false);
+    } else if (m_config.is_interleaved) {
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);
         OPENVINO_ASSERT(m_config.gather_position_arg_id == 0);
@@ -420,8 +426,9 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-        if (m_config.slice_stop - m_config.slice_start > 0 || m_config.input_trans0213)
+        if (m_config.slice_stop - m_config.slice_start > 0 || m_config.input_trans0213) {
             can_inplace = false;
+        }
     }
 
     // initialize input ports

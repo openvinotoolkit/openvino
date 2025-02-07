@@ -169,7 +169,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
             if (DEBUG_ENABLE_NAME) {                                                                               \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
-                ostream << ss___.str() << std::endl;                                                               \
+                ostream << ss___.str() << '\n';                                                                    \
                 DEBUG_ENABLE_NAME.break_at(ss___.str());                                                           \
             }                                                                                                      \
         } while (0)
@@ -180,6 +180,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 #    define ERROR_LOG(...) DEBUG_LOG_EXT(nullptr, std::cerr, "[ ERROR ] ", __VA_ARGS__)
 
 #    define CREATE_DEBUG_TIMER(x) PrintableTimer x
+
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
 
 /*
  * important debugging tools for accuracy issues
@@ -224,23 +226,23 @@ struct EnforceInferPrcDebug {
     ~EnforceInferPrcDebug() {
         if (pattern_verbose) {
             if (str_pos_pattern)
-                std::cout << "OV_CPU_INFER_PRC_POS_PATTERN=\"" << str_pos_pattern << "\"" << std::endl;
+                std::cout << "OV_CPU_INFER_PRC_POS_PATTERN=\"" << str_pos_pattern << "\"" << '\n';
             if (str_neg_pattern)
-                std::cout << "OV_CPU_INFER_PRC_NEG_PATTERN=\"" << str_neg_pattern << "\"" << std::endl;
+                std::cout << "OV_CPU_INFER_PRC_NEG_PATTERN=\"" << str_neg_pattern << "\"" << '\n';
             std::cout << "infer precision enforced Types: ";
             size_t total_cnt = 0;
             for (auto& ent : all_enabled_nodes) {
                 std::cout << ent.first << ",";
                 total_cnt += ent.second.size();
             }
-            std::cout << "  total number of nodes: " << total_cnt << std::endl;
+            std::cout << "  total number of nodes: " << total_cnt << '\n';
             for (auto& ent : all_enabled_nodes) {
-                std::cout << ent.first << " : " << std::endl;
+                std::cout << ent.first << " : " << '\n';
                 for (auto& name : ent.second) {
-                    std::cout << "\t" << name << std::endl;
+                    std::cout << "\t" << name << '\n';
                 }
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
     }
 
@@ -285,6 +287,8 @@ bool getEnvBool(const char* name);
 #    define DEBUG_LOG_EXT(name, ...)
 
 #    define CREATE_DEBUG_TIMER(x)
+
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
 

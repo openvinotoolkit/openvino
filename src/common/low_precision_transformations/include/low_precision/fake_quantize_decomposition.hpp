@@ -25,7 +25,7 @@ class LP_TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public La
 public:
     OPENVINO_RTTI("FakeQuantizeDecompositionTransformation", "0", LayerTransformation);
     FakeQuantizeDecompositionTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
