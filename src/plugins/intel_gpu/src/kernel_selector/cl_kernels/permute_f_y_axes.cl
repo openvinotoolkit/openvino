@@ -169,7 +169,7 @@ KERNEL (permute_f_y_axes)(
         const int f = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         const int y_idx = y_begin + bf_local;
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
-        WRITE_VEC(READ_VEC(0, &transpose_buf[bf_local][j_vec]), 0, &output[output_idx]);
+        WRITE_VEC(TO_OUT_VEC_TYPE(READ_VEC(0, &transpose_buf[bf_local][j_vec])), 0, &output[output_idx]);
     }
 #endif
 
