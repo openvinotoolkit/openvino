@@ -357,7 +357,8 @@ jobs:
   ExecuTorch_OpenVINO_Backend:
     name: ExecuTorch OpenVINO Backend Tests
     #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    #if: true
+    #needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_executorch_backend.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
