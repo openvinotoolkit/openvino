@@ -98,6 +98,7 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
 
     enum class NormEpsMode { ADD, MAX };
