@@ -736,15 +736,10 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
                 const auto& iview = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
                                                          param.dim, offset,
                                                          spatial.nway);
-                // FIXME: Eliminate copy once strided tensors are back
-                iview->copy_to(r->get_tensor(iport)._ptr);
-                // What it should be:
-                // r->set_tensor(iport, iview);
+                r->set_tensor(iport, iview);
             }  // for(params)
 
-            // Now set the spatial outputs.
-            // FIXME: Bring back with strided tensors
-            #if 0
+            // Now set the spatial outputs
             for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
                 const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
                 r->set_tensor(oport,
@@ -753,20 +748,9 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
                                                    offset,
                                                    spatial.nway));
             }  // for(outputs)
-            #endif
 
             // Now run the part
             r->infer();
-
-            // FIXME: Remove this copy after strided tensors are back
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-                const auto& oview = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                                         spatial.out_dim,
-                                                         offset,
-                                                         spatial.nway);
-                r->get_tensor(oport)->copy_to(oview._ptr);
-            }  // for(outputs)
         }  // for(full_nway_times)
 
         // Now process the tail, if required
