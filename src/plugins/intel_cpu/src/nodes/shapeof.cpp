@@ -61,7 +61,7 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
     auto parentPd = parent->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(parentPd,
+    CPU_NODE_ASSERT(parentPd,
                     parent->getTypeStr(),
                     " ",
                     parent->getName(),
@@ -71,7 +71,7 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selected_pd,
+    CPU_NODE_ASSERT(selected_pd,
                     "ShapeOf ",
                     getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");

@@ -159,7 +159,7 @@ MemoryOutputBase::~MemoryOutputBase() {
 }
 
 MemoryInputBase& MemoryOutputBase::getInputNode() {
-    OPENVINO_ASSERT(inputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
+    CPU_NODE_ASSERT(inputNode, "MemoryOutput ", getName(), " doesn't have sibling input");
     return *inputNode;
 }
 
@@ -191,7 +191,7 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
     auto parentPd = parent->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(parentPd,
+    CPU_NODE_ASSERT(parentPd,
                     parent->getTypeStr(),
                     " ",
                     parent->getName(),
@@ -201,7 +201,7 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selected_pd,
+    CPU_NODE_ASSERT(selected_pd,
                     "MemoryOutput ",
                     getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
@@ -230,7 +230,7 @@ void MemoryOutputBase::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MemoryOutputBase::assignState(const MemStatePtr& newState) {
-    OPENVINO_ASSERT(newState, "MemoryOutput ", getName(), " got null state");
+    CPU_NODE_ASSERT(newState, "MemoryOutput ", getName(), " got null state");
     state = newState;
     assignExtMemory(state->output_mem(), state->internal_desc());
 }
@@ -271,14 +271,14 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
     }
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selected_pd,
+    CPU_NODE_ASSERT(selected_pd,
                     "MemoryOutput ",
                     getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
 
-    OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+    CPU_NODE_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                     " Unexpected inplace resolve call to an allocated edge: ",
                     *parentEdge);
 
@@ -290,10 +290,10 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
 
 void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) {
     assignedMem = mem;
-    OPENVINO_ASSERT(assignedMem, "MemoryOutput ", getName(), " assigned state has null memory ptr");
+    CPU_NODE_ASSERT(assignedMem, "MemoryOutput ", getName(), " assigned state has null memory ptr");
 
     extMemDesc = memDesc;
-    OPENVINO_ASSERT(extMemDesc, "MemoryOutput ", getName(), " assigned state has null base mem desc ptr");
+    CPU_NODE_ASSERT(extMemDesc, "MemoryOutput ", getName(), " assigned state has null base mem desc ptr");
 
     if (!memBlock) {
         return;
@@ -309,7 +309,7 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
 
 void MemoryOutput::runStatic(dnnl::stream strm) {
     auto inputMem = getSrcMemoryAtPort(0);
-    OPENVINO_ASSERT(assignedMem, "MemoryOutput ", getName(), " uninitialized assigned memory");
+    CPU_NODE_ASSERT(assignedMem, "MemoryOutput ", getName(), " uninitialized assigned memory");
 
     if (inputMem->getData() != assignedMem->getData()) {
         assignedMem->load(*inputMem);
@@ -320,13 +320,13 @@ void MemoryOutput::runDynamic(dnnl::stream strm) {
     // first we have to resize the output memory
     auto inputMem = getSrcMemoryAtPort(0);
 
-    OPENVINO_ASSERT(assignedMem, "MemoryOutput ", getName(), " uninitialized assigned memory");
+    CPU_NODE_ASSERT(assignedMem, "MemoryOutput ", getName(), " uninitialized assigned memory");
 
     const auto& newShape = inputMem->getShape();
     const auto& stateShape = assignedMem->getShape();
 
     if (stateShape.isDynamic() || stateShape.getStaticDims() != newShape.getStaticDims()) {
-        OPENVINO_ASSERT(extMemDesc, "MemoryOutput ", getName(), " uninitialized assigned memory");
+        CPU_NODE_ASSERT(extMemDesc, "MemoryOutput ", getName(), " uninitialized assigned memory");
         auto newExternDesc = extMemDesc->cloneWithNewDims(newShape.getStaticDims());
         assignedMem->redefineDesc(newExternDesc);
     }
@@ -356,14 +356,14 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
     }
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selected_pd,
+    CPU_NODE_ASSERT(selected_pd,
                     "MemoryOutput ",
                     getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
 
-    OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+    CPU_NODE_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                     " Unexpected inplace resolve call to an allocated edge: ",
                     *parentEdge);
 
@@ -458,7 +458,7 @@ MemoryInputBase::~MemoryInputBase() {
 }
 
 MemoryOutputBase& MemoryInputBase::getOutputNode() {
-    OPENVINO_ASSERT(outputNode, "MemoryInput ", getName(), " doesn't have sibling output");
+    CPU_NODE_ASSERT(outputNode, "MemoryInput ", getName(), " doesn't have sibling output");
     return *outputNode;
 }
 
@@ -560,7 +560,7 @@ MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string&
 }
 
 void MemoryInputBase::assignState(MemStatePtr newState) {
-    OPENVINO_ASSERT(newState, "MemoryInput ", getName(), " got null state");
+    CPU_NODE_ASSERT(newState, "MemoryInput ", getName(), " got null state");
     state = newState;
     assignStateHook();
 }
@@ -657,7 +657,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 
     auto child = childEdge->getChild();
     auto childPd = child->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(childPd,
+    CPU_NODE_ASSERT(childPd,
                     child->getTypeStr(),
                     " ",
                     child->getName(),
@@ -667,7 +667,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
 
     auto selectedPd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selectedPd,
+    CPU_NODE_ASSERT(selectedPd,
                     "MemoryInput ",
                     getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
@@ -752,9 +752,9 @@ int MemoryInput::registerToAllocationContext(int offset, AllocationContext& cont
 void MemoryInput::runDynamic(dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
-    OPENVINO_ASSERT(assignedMem, "MemoryInput ", getName(), " assigned state has null memory ptr");
+    CPU_NODE_ASSERT(assignedMem, "MemoryInput ", getName(), " assigned state has null memory ptr");
 
-    OPENVINO_ASSERT(memBlock, "MemoryInput ", getName(), " has uninitialized memory block.");
+    CPU_NODE_ASSERT(memBlock, "MemoryInput ", getName(), " has uninitialized memory block.");
 
     // check whether we can share memory block
     const auto& shape = assignedMem->getShape();
@@ -796,7 +796,10 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
-            OPENVINO_ASSERT(subGraph->outputsNumber() == 1);
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
+                            "MemoryInput ",
+                            getName(),
+                            " has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
@@ -827,11 +830,11 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 void MemoryInput::runStatic(dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
-    OPENVINO_ASSERT(assignedMem, "MemoryInput ", getName(), " assigned state has null memory ptr");
+    CPU_NODE_ASSERT(assignedMem, "MemoryInput ", getName(), " assigned state has null memory ptr");
 
     const auto& stateDims = assignedMem->getStaticDims();
     const auto& expectedDims = getBaseMemDescAtOutputPort(0)->getShape().getStaticDims();
-    OPENVINO_ASSERT(expectedDims == stateDims,
+    CPU_NODE_ASSERT(expectedDims == stateDims,
                     "MemoryInput ",
                     getName(),
                     " unexpected state shape: ",
@@ -841,7 +844,7 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 
     auto internDesc = getBaseMemDescAtOutputPort(0);
 
-    OPENVINO_ASSERT(memBlock, "MemoryInput ", getName(), " has uninitialized memory block.");
+    CPU_NODE_ASSERT(memBlock, "MemoryInput ", getName(), " has uninitialized memory block.");
 
     if (internDesc->isCompatible(assignedMem->getDesc())) {
         memBlock->setMemBlock(assignedMem->getMemoryBlock());
@@ -856,7 +859,10 @@ void MemoryInput::runStatic(dnnl::stream strm) {
             subGraph->ResetInferCount();
             subGraph->Infer();
 
-            OPENVINO_ASSERT(subGraph->outputsNumber() == 1);
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
+                            "MemoryInput ",
+                            getName(),
+                            " has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
         } else {
             src = getSrcMemoryAtPort(0);
@@ -877,7 +883,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     }
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(selected_pd,
+    CPU_NODE_ASSERT(selected_pd,
                     "MemoryInput ",
                     getName(),
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
@@ -886,7 +892,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     memBlock = std::make_shared<ProxyMemoryBlock>();
 
     for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
-        OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+        CPU_NODE_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                         " Unexpected inplace resolve call to an allocated edge: ",
                         *edge);
 
@@ -949,15 +955,15 @@ void MemoryInputSDPA::createPrimitive() {
             break;
         }
     }
-    OPENVINO_ASSERT(m_child_port_idx != -1, getName(), " should be connected to SDPA node.");
+    CPU_NODE_ASSERT(m_child_port_idx != -1, getName(), " should be connected to SDPA node.");
 }
 
 void MemoryInputSDPA::assignStateHook() {
     auto currentState = getAssignedState();
     auto sdpaNode = m_sdpaNode.lock();
-    OPENVINO_ASSERT(sdpaNode);
+    CPU_NODE_ASSERT(sdpaNode, "SDPA node is not available");
     auto sdpaState = std::dynamic_pointer_cast<VariableStateKVcache>(currentState);
-    OPENVINO_ASSERT(sdpaState);
+    CPU_NODE_ASSERT(sdpaState, "Unexpected state type: ", currentState->get_name());
     sdpaNode->assignState(sdpaState, m_child_port_idx);
 }
 
@@ -978,7 +984,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 
     auto node = m_sdpaNode.lock();
     // retrieve the internal precision and axis order from the SDPA node
-    OPENVINO_ASSERT(node);
+    CPU_NODE_ASSERT(node, "SDPA node is not available");
     auto kv_precision = node->getKVCachePrecision();
     VectorDims order = {2, 0, 1, 3};
     if (!node->getKVCacheOrder().empty()) {
@@ -1006,7 +1012,7 @@ void MemoryInputSDPA::runDynamic(dnnl::stream strm) {
         }
     } else {
         auto stateMem = currentState->input_mem();
-        OPENVINO_ASSERT(stateMem,
+        CPU_NODE_ASSERT(stateMem,
                         "Internal state mem id: ",
                         currentState->get_name(),
                         " is empty, node name: ",
@@ -1022,7 +1028,7 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     } else {
         auto memDesc = getBaseMemDescAtOutputPort(0);
         for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
-            OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+            CPU_NODE_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                             " Unexpected inplace resolve call to an allocated edge: ",
                             *edge);
 

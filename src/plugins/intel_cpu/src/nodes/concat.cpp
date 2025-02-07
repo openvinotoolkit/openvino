@@ -725,7 +725,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     size_t numberOfInputs = config.inConfs.size();
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
     auto baseDim = outputShapes.front().getDims()[axis];
-    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     " Concat node: ",
                     getName(),
                     " can't use inPlace memory with concatenation on dynamic dimension");
@@ -734,22 +734,22 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });
-    OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: ", getName());
+    CPU_NODE_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: ", getName());
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
-    OPENVINO_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
+    CPU_NODE_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
         auto partDim = inputShapes[i].getDims()[axis];
-        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
+        CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         " Concat node: ",
                         getName(),
                         " can't use inPlace memory with concatenation on dynamic dimension");
 
         auto parentEdge = getParentEdgeAt(i);
 
-        OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
+        CPU_NODE_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
                         " Unexpected inplace resolve call to an allocated edge: ",
                         *parentEdge);
 

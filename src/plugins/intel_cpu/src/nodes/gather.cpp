@@ -972,7 +972,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     auto& config = selected_pd->getConfig();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
     const auto baseDim = inputShapes.front().getDims()[axis];
-    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     "Gather node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimention");
@@ -981,7 +981,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
     for (auto& childEdge : childEdges) {
-        OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
+        CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                         " Unexpected edge status in node: ",
                         getName(),
                         " with type ",

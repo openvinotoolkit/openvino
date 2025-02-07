@@ -318,7 +318,7 @@ void Split::execute(const dnnl::stream& strm) {
     }
 
     uint8_t* srcData = srcMem.getDataAs<uint8_t>();
-    OPENVINO_ASSERT(execPtr != nullptr);
+    CPU_NODE_ASSERT(execPtr != nullptr, "Split executor is not initialized");
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
@@ -335,7 +335,7 @@ void Split::initOptimalPrimitiveDescriptor() {
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
-    OPENVINO_ASSERT(config.inConfs.size() > 0);
+    CPU_NODE_ASSERT(config.inConfs.size() > 0, "Incorrect number of input configurations");
     const auto inConfDesc = config.inConfs[0].getMemDesc();
     if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
@@ -571,7 +571,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
     auto baseDim = inputShapes.front().getDims()[axis];
-    OPENVINO_ASSERT(baseDim != Shape::UNDEFINED_DIM,
+    CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     " Split node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimension");
@@ -579,13 +579,13 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
-        OPENVINO_ASSERT(partDim != Shape::UNDEFINED_DIM,
+        CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         " Split node: ",
                         getName(),
                         " can not use inPlace memory with splitting on dynamic dimension");
         const auto& childEdges = getChildEdgesAtPort(i);
         for (auto& childEdge : childEdges) {
-            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
+            CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                             " Unexpected edge status in node: ",
                             getName(),
                             " with type ",
