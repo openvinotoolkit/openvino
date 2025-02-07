@@ -732,7 +732,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });
-    CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge for concat node: ", getName());
+    CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge");
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
     CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block in concat node: ", getName());
