@@ -46,6 +46,7 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
+#include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -2400,29 +2401,13 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
                                               _node.get_preferred_impl_type() == impl_types::cpu;
 
+    auto total_output_bytes = layout.bytes_count();
     auto use_lockable_memory =
-        is_output_buffer || is_cpu ||
-        has_any_cpu_user_not_shape_of(_node.get_users()) ||
+        (is_output_buffer && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) ||
+        is_cpu || has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
-
-    auto total_output_bytes = layout.bytes_count();
-    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
-    if (use_lockable_memory) {
-        if (is_output_buffer) {
-            if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-                (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
-                (device_info.dev_type == cldnn::device_type::discrete_gpu &&
-                 total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
-                // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel
-                // access to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy
-                // engine Driver tickets with additional details: 6155, 10054
-                GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
-                use_lockable_memory = false;
-            }
-        }
-    }
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
