@@ -365,6 +365,7 @@ Subgraph::convert_body_to_linear_ir(size_t min_parallel_work_amount, size_t min_
     lowering_config.m_min_kernel_work_amount = min_kernel_work_amount;
 #ifdef SNIPPETS_DEBUG_CAPS
     lowering_config.debug_config = config.m_debug_config;
+    OPENVINO_ASSERT(lowering_config.debug_config, "Debug config is not initialized");
 #endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
