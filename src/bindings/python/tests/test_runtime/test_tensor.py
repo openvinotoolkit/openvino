@@ -630,7 +630,7 @@ def test_deepcopy():
 
 def test_copy():
     tensor = ov.Tensor(np.ones([1, 3, 32, 32]))
-    tensor_deepcopy = copy(tensor)
-    assert np.array_equal(tensor_deepcopy.data, tensor.data)
-    assert tensor_deepcopy is not tensor
-    assert tensor_deepcopy.data is tensor.data
+    tensor_copy = copy(tensor)
+    assert np.array_equal(tensor_copy.data, tensor.data)
+    assert tensor_copy is not tensor
+    assert tensor_copy.data is tensor.data
