@@ -11,7 +11,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/pp.hpp"
 
 #define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...)                           \
 public:                                                                                                     \
@@ -63,7 +62,7 @@ private:                                                                        
 
 namespace ov {
 enum class OptionVisibility : uint8_t {
-    RELEASE = 1 << 0,  // Option can be set for any build type via public interface, environment and config file
+    RELEASE = 1 << 0,           // Option can be set for any build type via public interface, environment and config file
     RELEASE_INTERNAL = 1 << 1,  // Option can be set for any build type via environment and config file only
     DEBUG = 1 << 2,             // Option can be set for debug builds only via environment and config file
     DEBUG_GLOBAL = 1 << 3,      // Global option can be set for debug builds only via environment and config file
@@ -331,10 +330,11 @@ struct ConfigOption : public TypedOption<T> {
     }
 
     bool is_valid_value(const ov::Any& val) const override {
-        if (auto is_valid = val.is<T>(); is_valid) {
-            return validator ? validator(val.as<T>()) : is_valid;
-        } else {
-            return is_valid;
+        try {
+            auto v = val.as<T>();
+            return validator ? validator(v) : true;
+        } catch (std::exception&) {
+            return false;
         }
     }
 

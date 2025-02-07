@@ -52,31 +52,6 @@
 // Ignores inputs
 #define OV_PP_IGNORE(...)
 
-// Returns number of arguments of the variadic macro
-#define OV_PP_COUNT_N(_1, _2, _3, _4, _5, N, ...) N
-#define OV_PP_COUNT(...) OV_PP_EXPAND(OV_PP_COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
-
-#define OV_PP_GET_EXCEPT_LAST_IMPL(N, ...) OV_PP_EXPAND(OV_PP_CAT(OV_PP_GET_EXCEPT_LAST_IMPL_, N)(__VA_ARGS__))
-#define OV_PP_GET_EXCEPT_LAST_IMPL_2(_0, _1) _0
-#define OV_PP_GET_EXCEPT_LAST_IMPL_3(_0, _1, _2) _0, _1
-#define OV_PP_GET_EXCEPT_LAST_IMPL_4(_0, _1, _2, _3) _0, _1, _2
-#define OV_PP_GET_EXCEPT_LAST_IMPL_5(_0, _1, _2, _3, _4) _0, _1, _2, _3
-
-// Returns all arguments of the variadic macro, except last
-#define OV_PP_GET_EXCEPT_LAST(...) OV_PP_EXPAND(OV_PP_GET_EXCEPT_LAST_IMPL(OV_PP_COUNT(__VA_ARGS__), __VA_ARGS__))
-
-#define OV_PP_GET_LAST_IMPL(N, ...) OV_PP_EXPAND(OV_PP_CAT(OV_PP_GET_LAST_IMPL_, N)(__VA_ARGS__))
-#define OV_PP_GET_LAST_IMPL_0(_0, ...) _0
-#define OV_PP_GET_LAST_IMPL_1(_0, _1, ...) _1
-#define OV_PP_GET_LAST_IMPL_2(_0, _1, _2, ...) _2
-#define OV_PP_GET_LAST_IMPL_3(_0, _1, _2, _3, ...) _3
-#define OV_PP_GET_LAST_IMPL_4(_0, _1, _2, _3, _4, ...) _4
-#define OV_PP_GET_LAST_IMPL_5(_0, _1, _2, _3, _4, _5, ...) _5
-#define OV_PP_GET_LAST_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
-
-// Returns last arguments of the variadic macro
-#define OV_PP_GET_LAST(...) OV_PP_GET_LAST_IMPL(OV_PP_COUNT(__VA_ARGS__), _, __VA_ARGS__ ,,,,,,,,,,,)
-
 /* This macro is intended to fix C++20 [=] lambda
 warning. Although C++20 identifier is 202002L,
 some compilers supporting C++20, or their drafts like
