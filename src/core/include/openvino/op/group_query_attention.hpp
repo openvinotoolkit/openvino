@@ -12,7 +12,7 @@ namespace v15 {
 // This is an experimental operation that is implemented in the plugins.
 class OPENVINO_API GroupQueryAttention : public Op {
 public:
-    OPENVINO_OP("GroupQueryAttention", "opset15", op::Op);
+    OPENVINO_OP("GroupQueryAttention", "opset15");
 
     GroupQueryAttention() = default;
     GroupQueryAttention(const ov::OutputVector& args,
