@@ -16,6 +16,14 @@ const std::vector<ov::element::Type> precisions = {
 std::vector<MatMulTransformationTestValues> testValues = {
     {
         { 12, 2 },
+        { 256ul, ov::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
+        { 2, 12 },
+        { 256ul, ov::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        "matMul_original",
+        "u8"
+    },
+    {
+        { 12, 2 },
         { 256ul, ov::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         { 2, 12 },
         { 256ul, ov::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },

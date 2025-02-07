@@ -309,6 +309,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*LSTMCellFusion/LSTMCellFusionWithSplitWeights.SubgraphFusedToLSTMCell/(1|8|15))");
         // Ticket: 131541
         retVector.emplace_back(R"(.*smoke_MulticlassNmsLayerTest_dynamic2.*_outType=i32_.*)");
+        // u8 is not supported on arm platform
+        retVector.emplace_back(R"(smoke_LPT.*u8.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
