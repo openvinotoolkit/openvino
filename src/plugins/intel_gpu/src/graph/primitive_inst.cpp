@@ -2376,10 +2376,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         return a;
     };
 
+    const auto& device_info = _engine.get_device_info();
     auto layout = out_layout.clone_with_other_shape(out_layout.get_partial_shape().get_max_shape());
     bool usm_device_allocatable = true;
     const auto& total_device_input_mem_size = std::accumulate(impl_params.input_layouts.begin(), impl_params.input_layouts.end(), (uint64_t)0, device_mem_acc);
-    if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
+    if (total_device_input_mem_size > device_info.max_global_mem_size)
         usm_device_allocatable = false;
 
     bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
@@ -2398,12 +2399,30 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
                                               _node.get_preferred_impl_type() == impl_types::cpu;
+
     auto use_lockable_memory =
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
-        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+        (_node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
+
+    auto total_output_bytes = layout.bytes_count();
+    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
+    if (use_lockable_memory) {
+        if (is_output_buffer) {
+            if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
+                (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
+                (device_info.dev_type == cldnn::device_type::discrete_gpu &&
+                 total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
+                // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel
+                // access to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy
+                // engine Driver tickets with additional details: 6155, 10054
+                GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
+                use_lockable_memory = false;
+            }
+        }
+    }
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
