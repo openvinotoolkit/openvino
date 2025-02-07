@@ -354,15 +354,15 @@ jobs:
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       python-version: '3.11'
 
-#  ExecuTorch_OpenVINO_Backend:
-#    name: ExecuTorch OpenVINO Backend Tests
-#    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
-#    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-#    uses: ./.github/workflows/job_executorch_backend.yml
-#    with:
-#      runner: 'aks-linux-4-cores-16gb'
-#      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
-#      python-version: '3.11'
+  ExecuTorch_OpenVINO_Backend:
+    name: ExecuTorch OpenVINO Backend Tests
+    #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_executorch_backend.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      python-version: '3.11'
 
   CPU_Functional_Tests:
     name: CPU functional tests
