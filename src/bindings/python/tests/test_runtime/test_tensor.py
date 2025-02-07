@@ -620,17 +620,23 @@ def test_tensor_keeps_memory():
     assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
 
 
-def test_deepcopy():
-    tensor = ov.Tensor(np.ones([1, 3, 32, 32]))
-    tensor_deepcopy = deepcopy(tensor)
-    assert np.array_equal(tensor_deepcopy.data, tensor.data)
-    assert tensor_deepcopy is not tensor
-    assert tensor_deepcopy.data is not tensor.data
+@pytest.mark.parametrize(
+    "copy_func, should_share_data", [(copy, True), (deepcopy, False)]
+)
+def test_copy_and_deepcopy(copy_func, should_share_data):
+    shape = (3, 4)
+    value, outlier = 7, 100
+    tensor_data = np.full(shape, value)
+    tensor = ov.Tensor(tensor_data)
+    tensor_copy = copy_func(tensor)
 
-
-def test_copy():
-    tensor = ov.Tensor(np.ones([1, 3, 32, 32]))
-    tensor_copy = copy(tensor)
     assert np.array_equal(tensor_copy.data, tensor.data)
     assert tensor_copy is not tensor
-    assert tensor_copy.data is tensor.data
+    # Update value of the original tensor
+    tensor.data[0, 0] = outlier
+    assert tensor.data[0, 0] == outlier
+
+    if should_share_data:
+        assert tensor_copy.data[0, 0] == outlier
+    else:
+        assert tensor_copy.data[0, 0] == value
