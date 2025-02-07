@@ -44,8 +44,6 @@ public:
     std::size_t get_hash() const;
     void detach();
 
-    void set_const_offset(std::size_t offset);
-
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);
     void read_weight(const std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>& weights);

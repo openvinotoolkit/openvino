@@ -15,7 +15,6 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/weights_path.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 

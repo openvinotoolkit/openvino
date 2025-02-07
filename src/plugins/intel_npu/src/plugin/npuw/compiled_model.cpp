@@ -626,16 +626,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
         read_weightless(stream, cpu_closures, weights);
         std::size_t tidx = 0;
         for (const auto& idx : cpu_closure_ids) {
-            ov::Tensor t = cpu_closures[tidx];
-            closure[idx] = ov::Tensor(t.get_element_type(), t.get_shape());
-            // FIXME: get rid of this copy
-            t.copy_to(closure[idx]);
-            tidx++;
+            closure[idx] = std::move(cpu_closures[tidx++]);
         }
         read(stream, non_cpu_tensors);
         std::size_t ltidx = 0;
         for (const auto& idx : non_cpu_tensors_ids) {
-            lazy_closure[idx] = non_cpu_tensors[ltidx++];
+            lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
         }
 
         // Also read weights into LazyTensors

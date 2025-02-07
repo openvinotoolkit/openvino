@@ -117,7 +117,6 @@ void Bank::evaluate_and_allocate() {
                 return;
             }
 
-            // FIXME: ideally we would want to allocate memory sequentially - in order of UID
             ov::SoPtr<ov::ITensor> remote_tensor;
             ov::Tensor allocated_tensor;
 

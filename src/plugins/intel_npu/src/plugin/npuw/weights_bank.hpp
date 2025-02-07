@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <tuple>
 #include <unordered_map>
 

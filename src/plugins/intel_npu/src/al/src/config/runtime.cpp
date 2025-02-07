@@ -26,7 +26,6 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<ENABLE_CPU_PINNING>();
     desc.add<WORKLOAD_TYPE>();
     desc.add<TURBO>();
-    desc.add<WEIGHTS_PATH>();
     desc.add<BYPASS_UMD_CACHING>();
     desc.add<RUN_INFERENCES_SEQUENTIALLY>();
 }
