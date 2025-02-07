@@ -226,6 +226,10 @@ void MultiClassNms::prepareParams() {
     m_numBoxOffset.resize(m_numBatches);
 }
 
+bool MultiClassNms::neverExecute() const {
+    return !isDynamicNode() && Node::neverExecute();
+}
+
 bool MultiClassNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }

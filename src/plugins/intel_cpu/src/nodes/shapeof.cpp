@@ -82,10 +82,6 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     selected_pd->setConfig(config);
 }
 
-bool ShapeOf::isExecutable() const {
-    return true;
-}
-
 void ShapeOf::execute(const dnnl::stream& strm) {
     auto inPtr = getSrcMemoryAtPort(0);
     auto outPtr = getDstMemoryAtPort(0);
