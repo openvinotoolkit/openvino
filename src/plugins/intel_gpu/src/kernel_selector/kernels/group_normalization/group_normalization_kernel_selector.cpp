@@ -10,8 +10,8 @@ namespace kernel_selector {
 
 group_normalization_kernel_selector::group_normalization_kernel_selector() {
     Attach<GroupNormalizationKernelRef>();
-    Attach<GroupNormalizationKernelBfyx>();
-    Attach<GroupNormalizationKernel_b_fs_yx_fsv16>();
+    // Attach<GroupNormalizationKernelBfyx>();
+    // Attach<GroupNormalizationKernel_b_fs_yx_fsv16>();
 }
 
 KernelsData group_normalization_kernel_selector::GetBestKernels(const Params &params) const {
