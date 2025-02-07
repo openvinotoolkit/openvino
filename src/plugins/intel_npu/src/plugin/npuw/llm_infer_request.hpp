@@ -41,6 +41,12 @@ private:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
+    void update_ids_state(ov::SoPtr<ov::ITensor> input_ids,
+                          ov::SoPtr<ov::ITensor> position_ids);
+
+    void update_mask_state(ov::SoPtr<ov::ITensor> atten_mask,
+                           bool accumulate);
+
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
@@ -53,8 +59,9 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
 
     bool m_is_chat_conversation = false;
-    // TokensHistory m_tokens_history;
-    ov::SoPtr<ov::IVariableState> m_tokens_history;
+    ov::SoPtr<ov::IVariableState> m_input_ids_history;
+    ov::SoPtr<ov::IVariableState> m_atten_mask_history;
+    ov::SoPtr<ov::IVariableState> m_position_ids_history;
 };
 
 }  // namespace npuw

@@ -100,22 +100,6 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
         std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
     }
 }
-
-int64_t get_token_from_logits(const ov::SoPtr<ov::ITensor>& logits, const size_t batch_idx) {
-    if (logits->get_shape()[0] <= batch_idx) {
-        OPENVINO_THROW("logits batch size doesn't match the number of beams");
-    }
-
-    size_t vocab_size = logits->get_shape().back();
-    size_t batch_offset = batch_idx * logits->get_shape()[1] * vocab_size;
-    size_t sequence_offset = (logits->get_shape()[1] - 1) * vocab_size;
-    const float* logits_data = logits->data<const float>() + batch_offset + sequence_offset;
-
-    int64_t out_token = std::max_element(logits_data, logits_data + vocab_size) - logits_data;
-    float max_logit = logits_data[out_token];
-
-    return out_token;
-}
 }  // anonymous namespace
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
@@ -137,6 +121,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
+
+    m_input_ids_history->set_state(ov::make_tensor(ov::element::i64, {1, 0}));
+    m_atten_mask_history->set_state(ov::make_tensor(ov::element::i64, {1, 0}));
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
@@ -287,38 +274,60 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
+    // NOTE: For chat mode, only new chat-templated input will be sent
+    if (m_is_chat_conversation) {
+        update_ids_state(input_ids, position_ids);
+    }
+
     if (input_ids->get_size() != 1) {
         if (m_is_chat_conversation) {
-            auto state_tensor = m_tokens_history->get_state();
-            auto new_state_tensor = ov::make_tensor(input_ids->get_element_type(),
-                {1, input_ids->get_shape().at(1)},
-                input_ids->data<int64_t>());
-            m_tokens_history->set_state(state_tensor);
+            update_mask_state(attention_mask, true);
+            input_ids = m_input_ids_history->get_state();
+            attention_mask = m_atten_mask_history->get_state();
+            position_ids = m_position_ids_history->get_state();  
         }
         infer_prefill(input_ids, attention_mask, position_ids);
+    } else {
         if (m_is_chat_conversation) {
-            auto state_tensor = m_tokens_history->get_state();
-            auto state_tensor_shape = state_tensor->get_shape();
-            ++state_tensor_shape[1];
-            state_tensor->set_shape(state_tensor_shape);
-            state_tensor->data<int64_t>()[state_tensor_shape[1] - 1] = get_token_from_logits(m_logits, 0);
+            update_mask_state(attention_mask, false);
+        }
+        infer_generate(input_ids, attention_mask, position_ids);
+    }
+}
+
+void ov::npuw::LLMInferRequest::update_ids_state(ov::SoPtr<ov::ITensor> input_ids,
+                                                 ov::SoPtr<ov::ITensor> position_ids) {
+    auto input_ids_state = m_input_ids_history->get_state();
+    auto input_ids_state_shape = input_ids_state->get_shape();
+    input_ids_state_shape[1] += input_ids->get_size();
+    input_ids_state->set_shape(input_ids_state_shape);
+    for (std::size_t i = input_ids->get_size() - 1; i >= 0; --i) {
+        input_ids_state->data<int64_t>()[input_ids_state_shape[1] - i] = input_ids->data<int64_t>()[input_ids->get_size() - i];
+    }
+
+    auto position_ids_state = m_position_ids_history->get_state();
+    auto position_ids_state_shape = position_ids_state->get_shape();
+    position_ids_state_shape[1] += position_ids->get_size();
+    position_ids_state->set_shape(position_ids_state_shape);
+    for (std::size_t i = position_ids->get_size() - 1; i >= 0; --i) {
+        position_ids_state->data<int64_t>()[position_ids_state_shape[1] - i] = position_ids->data<int64_t>()[position_ids->get_size() - i];
+    }
+}
+
+// Need to fix to accept attention_mask on 1 greater
+void ov::npuw::LLMInferRequest::update_mask_state(ov::SoPtr<ov::ITensor> atten_mask,
+                                                  bool accumulate) {
+    auto atten_mask_state = m_atten_mask_history->get_state();
+    if (accumulate) {
+        auto atten_mask_state_shape = atten_mask_state->get_shape();
+        atten_mask_state_shape[1] += atten_mask->get_size();
+        atten_mask_state->set_shape(atten_mask_state_shape);
+        for (std::size_t i = atten_mask->get_size() - 1; i >= 0; --i) {
+            atten_mask_state->data<int64_t>()[atten_mask_state_shape[1] - i] = atten_mask->data<int64_t>()[atten_mask->get_size() - i];
         }
     } else {
-        infer_generate(input_ids, attention_mask, position_ids);
-        if (m_is_chat_conversation) {
-            auto state_tensor = m_tokens_history->get_state();
-            auto state_tensor_shape = state_tensor->get_shape();
-            ++state_tensor_shape[1];
-            state_tensor->set_shape(state_tensor_shape);
-            state_tensor->data<int64_t>()[state_tensor_shape[1] - 1] = get_token_from_logits(m_logits, 0);
-        }
+        m_atten_mask_history->set_state(atten_mask);
     }
-    // assistant?
-    // we should somehow separate answer and prompt. prompt goes as user, but result.
-    // There should be tokens before answer. <assistant>
-    // might be we shouldn't preserve prompt and only answer?
-    // so when prefill is called
-    // WE SHOULD THINK HOW THIS CAN BE DONE.
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -330,5 +339,14 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
-    return {m_tokens_history};
+    return {m_input_ids_history, m_atten_mask_history, m_position_ids_history};
 }
+
+// in chat_mode we need to: in the next prefill call apply prevous kvcache
+// however:how can we? prefill won't use it.
+// call only kvcache model to re-use cache. No extra steps are needed!
+//
+// or save all tokens.
+// this is bad practice only for the last token. But we don't need it.
+
+// GenAI rules everything other
