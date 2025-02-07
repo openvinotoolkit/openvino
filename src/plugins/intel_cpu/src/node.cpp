@@ -41,8 +41,7 @@ using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 Node::NodesFactory& Node::factory() {
     static NodesFactory factoryInstance;
@@ -2289,5 +2288,4 @@ std::ostream& operator<<(std::ostream& out, const Node* node) {
 }
 #endif
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -11,10 +11,7 @@
 #include "transformations/tpp/x64/op/modifiers.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace pass {
+namespace ov::intel_cpu::tpp::pass {
 
 ScalarToScalarTPP::ScalarToScalarTPP() {
     MATCHER_SCOPE(ScalarToScalarTPP);
@@ -51,7 +48,4 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(snippets_scalar, matcher_name);
     register_matcher(m, callback);
 }
-}  // namespace pass
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::pass

@@ -15,8 +15,8 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64::matmul;
 
 #define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -452,5 +452,4 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
