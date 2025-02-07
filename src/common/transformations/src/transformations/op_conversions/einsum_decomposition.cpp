@@ -795,7 +795,7 @@ void unsqueeze_ellipses_to_same_rank(ov::OutputVector& inputs,
     constexpr char ellipsis[] = "...";
     const auto& input1 = inputs[input_ind1];
     const auto& input2 = inputs[input_ind2];
-    OPENVINO_ASSERT(input1.get_partial_shape().is_static() && input2.get_partial_shape().is_static());
+    OPENVINO_ASSERT(input1.get_partial_shape().rank().is_static() && input2.get_partial_shape().rank().is_static());
     auto label_to_dim_map1 = compute_label_dim_map(input1.get_partial_shape().size(), input_subscripts[input_ind1]);
     auto label_to_dim_map2 = compute_label_dim_map(input2.get_partial_shape().size(), input_subscripts[input_ind2]);
     if (label_to_dim_map1.find(ellipsis) != label_to_dim_map1.end() &&
