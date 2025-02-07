@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from copy import deepcopy, copy
 import os
 import subprocess
 import sys
@@ -617,3 +618,19 @@ def test_tensor_keeps_memory():
 
     tensor = get_tensor()
     assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
+
+
+def test_deepcopy():
+    tensor = ov.Tensor(np.ones([1, 3, 32, 32]))
+    tensor_deepcopy = deepcopy(tensor)
+    assert np.array_equal(tensor_deepcopy.data, tensor.data)
+    assert tensor_deepcopy is not tensor
+    assert tensor_deepcopy.data is not tensor.data
+
+
+def test_copy():
+    tensor = ov.Tensor(np.ones([1, 3, 32, 32]))
+    tensor_deepcopy = copy(tensor)
+    assert np.array_equal(tensor_deepcopy.data, tensor.data)
+    assert tensor_deepcopy is not tensor
+    assert tensor_deepcopy.data is tensor.data
