@@ -191,7 +191,7 @@ ov::Any PluginConfig::read_env(const std::string& option_name, std::string_view 
     const auto& val = ov::util::getenv_string(var_name.c_str());
 
     if (!val.empty()) {
-        if (dynamic_cast<const ConfigOption<bool>*>(option) != nullptr) {
+        if (dynamic_cast<const TypedOption<bool>*>(option) != nullptr) {
             constexpr std::array<std::string_view, 4> off = {"0", "false", "off", "no"};
             constexpr std::array<std::string_view, 4> on = {"1", "true", "on", "yes"};
             const auto& val_lower = util::to_lower(val);
@@ -254,8 +254,8 @@ std::string PluginConfig::to_string() const {
 }
 
 void PluginConfig::print_help() const {
-    auto format_text = [](const std::string& cpp_name, const std::string& str_name, const std::string& desc, size_t max_name_width, size_t max_width) {
-        std::istringstream words(desc);
+    auto format_text = [](const std::string& cpp_name, std::string_view str_name, std::string_view desc, size_t max_name_width, size_t max_width) {
+        std::istringstream words(std::string{desc});
         std::ostringstream formatted_text;
         std::string word;
         std::vector<std::string> words_vec;
@@ -292,32 +292,25 @@ void PluginConfig::print_help() const {
         return formatted_text.str();
     };
 
-    const auto& options_desc = get_options_desc();
     std::stringstream ss;
-    auto max_name_length_item = std::max_element(options_desc.begin(), options_desc.end(),
-        [](const OptionsDesc::value_type& a, const OptionsDesc::value_type& b){
+    auto max_name_length_item = std::max_element(m_options_map.begin(), m_options_map.end(),
+        [](const OptionMapEntry& a, const OptionMapEntry& b){
             return std::get<0>(a).size() < std::get<0>(b).size();
     });
 
-    const size_t max_name_width = static_cast<int>(std::get<0>(*max_name_length_item).size() + std::get<1>(*max_name_length_item).size());
+    const size_t max_name_width = std::max(max_name_length_item->first.size(), max_name_length_item->second->property_name.size()) + 4;
     const size_t terminal_width = get_terminal_width();
     ss << std::left << std::setw(max_name_width) << "Option name" << " | " << " Description " << "\n";
     ss << std::left << std::setw(terminal_width) << std::setfill('-') << "" << "\n";
-    for (auto& kv : options_desc) {
-        ss << format_text(std::get<0>(kv), std::get<1>(kv), std::get<2>(kv), max_name_width, terminal_width) << "\n";
+    for (auto& [name, option] : m_options_map) {
+        ss << format_text(name, option->property_name, option->description, max_name_width, terminal_width) << "\n";
     }
 
     std::cout << ss.str();
 }
 
-const std::string PluginConfig::get_help_message(const std::string& name) const {
-    const auto& options_desc = get_options_desc();
-    auto it = std::find_if(options_desc.begin(), options_desc.end(), [&](const OptionsDesc::value_type& v) { return std::get<1>(v) == name; });
-    if (it != options_desc.end()) {
-        return std::get<2>(*it);
-    }
-
-    return "";
+std::string_view PluginConfig::get_help_message(const std::string& name) const {
+    return get_option_ptr(name)->description;
 }
 
 }  // namespace ov
