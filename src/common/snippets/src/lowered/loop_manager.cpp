@@ -358,15 +358,6 @@ size_t LinearIR::LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
         replace_loop_id(*expr_it, old_id, loop_id);
     }
-
-    const auto old_loop_info = this->get_loop_info(old_id);
-    const auto old_loop_begin_pos = linear_ir.find(old_loop_info->get_entry_points().front().expr_port->get_expr());
-    const auto old_loop_end_pos = linear_ir.find(old_loop_info->get_exit_points().back().expr_port->get_expr());
-    // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
-    // In this case old loop info must be completely removed from loop manager
-    if (loop_begin_pos == old_loop_begin_pos && loop_end_pos == old_loop_end_pos) {
-        this->remove_loop_info(old_id);
-    }
     return loop_id;
 }
 
