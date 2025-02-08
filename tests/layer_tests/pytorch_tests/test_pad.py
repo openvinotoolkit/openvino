@@ -257,14 +257,14 @@ class TestReplicatePad1D(PytorchLayerTest):
         class aten_pad(torch.nn.Module):
             def __init__(self, pads):
                 super().__init__()
-                self.pad = torch.nn.ReplicationPad1d(pads)
+                self.pads = pads
 
             def forward(self, x):
-                return self.pad(x)
+                return torch.ops.aten.replication_pad1d(x,self.pads)
             
-        return aten_pad(pads), None, "aten::pad"
+        return aten_pad(pads), None, "aten::replication_pad1d"
 
-    @pytest.mark.parametrize("input_shape", [(1,2),(3,4),(5,6)])
+    @pytest.mark.parametrize("input_shape", [(1,2,3),(3,4,5),(5,6,7)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
         1,
@@ -296,12 +296,12 @@ class TestReplicatePad2D(PytorchLayerTest):
         class aten_pad(torch.nn.Module):
             def __init__(self, pads):
                 super().__init__()
-                self.pad = torch.nn.ReplicationPad2d(pads)
+                self.pads = pads
 
             def forward(self, x):
-                return self.pad(x)
+                return torch.ops.aten.replication_pad2d(x,self.pads)
             
-        return aten_pad(pads), None, "aten::pad"
+        return aten_pad(pads), None, "aten::replication_pad2d"
     @pytest.mark.parametrize("input_shape", [(1,2,3,4),(2,3,4,5),(3,4,5,6)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
     @pytest.mark.parametrize("pads", [
@@ -334,12 +334,12 @@ class TestReplicatePad3D(PytorchLayerTest):
         class aten_pad(torch.nn.Module):
             def __init__(self, pads):
                 super().__init__()
-                self.pad = torch.nn.ReplicationPad3d(pads)
+                self.pads = pads
 
             def forward(self, x):
-                return self.pad(x)
+                return torch.ops.aten.replication_pad3d(x,self.pads)
             
-        return aten_pad(pads), None, "aten::pad"
+        return aten_pad(pads), None, "aten::replication_pad3d"
 
     @pytest.mark.parametrize("input_shape", [(1,2,3,4,5),(2,3,4,5,6),(3,4,5,6,7)])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32"])
