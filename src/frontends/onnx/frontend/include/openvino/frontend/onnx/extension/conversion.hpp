@@ -13,6 +13,7 @@ namespace frontend {
 namespace onnx {
 class ONNX_FRONTEND_API ConversionExtension : public ConversionExtensionBase {
 public:
+    OPENVINO_RTTI("frontend::onnx::ConversionExtension", "", ConversionExtensionBase);
     using Ptr = std::shared_ptr<ConversionExtension>;
 
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)

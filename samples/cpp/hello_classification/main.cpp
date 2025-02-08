@@ -18,6 +18,7 @@
 #include "format_reader_ptr.h"
 // clang-format on
 
+#if 0
 /**
  * @brief Main with support Unicode paths, wide strings
  */
@@ -117,4 +118,11 @@ int tmain(int argc, tchar* argv[]) {
     }
 
     return EXIT_SUCCESS;
+}
+#endif
+
+int tmain(int argc, tchar* argv[]) {
+    ov::Core core;
+    core.add_extension("/home/tj/ov/bin/intel64/Debug/libopenvino_tokenizers.so");
+    core.read_model("/home/tj/tmp/model-test.onnx");
 }
