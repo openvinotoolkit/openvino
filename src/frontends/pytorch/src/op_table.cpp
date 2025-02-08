@@ -52,6 +52,8 @@ OP_CONVERTER(translate_bernoulli);
 OP_CONVERTER(translate_bitwise_and);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_bitwise_or);
+OP_CONVERTER(translate_lshift);
+OP_CONVERTER(translate_rshift);
 OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_bucketize);
 OP_CONVERTER(translate_cat);
@@ -343,6 +345,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_bitwise_and},
         {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
+        {"aten::__lshift__", op::translate_lshift},
+        {"aten::__rshift__", op::translate_rshift},
+        {"aten::bitwise_left_shift", op::translate_lshift},
+        {"aten::bitwise_right_shift", op::translate_rshift},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
