@@ -77,11 +77,18 @@ private:
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
+namespace frontend {
+class ConversionExtensionBase;
+} // frontend
+
+template <typename T>
+constexpr bool use_ov_dynamic_cast() {
 #if defined(__ANDROID__) || defined(ANDROID)
-inline constexpr auto use_ov_dynamic_cast = true;
+    return true;
 #else
-inline constexpr auto use_ov_dynamic_cast = false;
+    return std::is_base_of_v<ov::frontend::ConversionExtensionBase, T>;
 #endif
+}
 
 /// \brief Tests whether pointer can be static casted to a To*/shared_ptr<To>
 template <typename To, typename From>
@@ -116,11 +123,10 @@ template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<decltype(static_cast<Type*>(std::declval<Value>())), Type*>::value,
                         Type*>::type
 as_type(Value value) {
-    if constexpr (use_ov_dynamic_cast) {
-        return ov::is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
-    } else {
+    if constexpr (use_ov_dynamic_cast<Type>())
+        return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
+    else
         return dynamic_cast<Type*>(value);
-    }
 }
 
 namespace util {
@@ -136,14 +142,14 @@ struct AsTypePtr<std::shared_ptr<In>> {
 };
 }  // namespace util
 
-/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type Type, nullptr otherwise
-template <typename To, typename From>
-auto as_type_ptr(const From& value) -> decltype(::ov::util::AsTypePtr<From>::template call<To>(value)) {
-    if constexpr (use_ov_dynamic_cast) {
-        return ::ov::util::AsTypePtr<From>::template call<To>(value);
-    } else {
-        return std::dynamic_pointer_cast<To>(value);
-    }
+/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
+/// Type, nullptr otherwise
+template <typename Type, typename Value>
+auto as_type_ptr(const Value& value) -> decltype(::ov::util::AsTypePtr<Value>::template call<Type>(value)) {
+    if constexpr (use_ov_dynamic_cast<Type>())
+        return ::ov::util::AsTypePtr<Value>::template call<Type>(value);
+    else
+        return std::dynamic_pointer_cast<Type>(value);
 }
 }  // namespace ov
 
