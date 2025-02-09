@@ -890,6 +890,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseMish, jit_mish_emitter),
               OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
               OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
+              OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
               OV_CASE(Algorithm::EltwiseRoundHalfAwayFromZero, jit_round_half_away_from_zero_emitter),
