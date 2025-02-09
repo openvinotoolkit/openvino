@@ -7,10 +7,10 @@ namespace {
 using namespace ov::test::behavior;
 
 const std::vector<ov::AnyMap> configEmpty = {{}};
-const std::vector<ov::AnyMap> configOvCache = {{ov::cache_dir.name(), "./testCacheDir"}};
-const std::vector<ov::AnyMap> configBypass = {{ov::intel_npu::bypass_umd_caching.name(), true}};
+const std::vector<ov::AnyMap> configOvCache = {{{ov::cache_dir.name(), "./testCacheDir"},}};
+const std::vector<ov::AnyMap> configBypass = {{{ov::intel_npu::bypass_umd_caching.name(), true},}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests_EmptyConfig,
                          CompileAndDriverCaching,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configEmpty)),
@@ -18,14 +18,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests,
 
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests_OVCachedirConifg,
                          CompileAndDriverCaching,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configOvCache)),
                          ov::test::utils::appendPlatformTypeTestName<CompileAndDriverCaching>);
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_DriverCaching_BehaviorTests_BypassConfig,
                          CompileAndDriverCaching,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configBypass)),

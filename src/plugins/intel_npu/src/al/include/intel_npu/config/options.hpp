@@ -1407,4 +1407,30 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>>
     }
 };
 
+//
+// STORE_LOGGER_LOG
+//
+struct STORE_LOGGER_LOG final : OptionBase<STORE_LOGGER_LOG, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::store_logger_log.name();
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_STORE_LOGGER_LOG";
+    }
+#endif
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
 }  // namespace intel_npu

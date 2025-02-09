@@ -303,17 +303,18 @@ TEST_P(CompileAndDriverCaching, CompilationCache) {
     std::cout << "-N1-before ze_graph_properties_3_t init-------start-------------- " << desc.flags << std::endl;
     printGraphProperties(graphProperties);
     std::cout << "-N2-before ze_graph_properties_3_t init-------end-------------- " << desc.flags << std::endl;
-    auto result2 = m_initStruct->getGraphDdiTable().pfnGetProperties3(graphHandle, &graphProperties);
+    auto result1 = m_initStruct->getGraphDdiTable().pfnGetProperties3(graphHandle, &graphProperties);
+    std::cout << "   0) result of _zerom_initStruct->getGraphDdiTable().pfnGetProperties3 is " << uint64_t(result1) << std::endl;
     std::cout << "-N3-before ze_graph_properties_3_t init-------start-------------- " << desc.flags << std::endl;
     printGraphProperties(graphProperties);
     std::cout << "-N4-before ze_graph_properties_3_t init-------end-------------- " << desc.flags << std::endl;
-        std::cout << "   1) graphProperties.flags is " << graphProperties.flags << std::endl;
+    std::cout << "   1) graphProperties.flags is " << graphProperties.flags << std::endl;
 
     std::cout << "------------------------------------------------------" << std::endl;
 
 
-    auto result = _zerom_initStruct->getGraphDdiTable().pfnCreate3(zerom_initStruct->getContext(),
-                                                        zerom_initStruct->getDevice(),
+    auto result = m_initStruct->getGraphDdiTable().pfnCreate3(m_initStruct->getContext(),
+                                                        m_initStruct->getDevice(),
                                                         &desc,
                                                         &graphHandle,
                                                         &graphBuildLogHandle);
@@ -328,7 +329,7 @@ TEST_P(CompileAndDriverCaching, CompilationCache) {
 
 
 
-    _std::cout << "   3) result of _zerom_initStruct->getGraphDdiTable().pfnGetProperties3 is %lld...", uint64_t(result2));
+    std::cout << "   3) result of _zerom_initStruct->getGraphDdiTable().pfnGetProperties3 is " << uint64_t(result2) << std::endl;
     //    ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE = ZE_BIT(0),       ///< graph object is loaded from driver cache
     //    #define ZE_BIT( _i )  ( 1 << _i )
 

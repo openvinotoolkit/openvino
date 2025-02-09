@@ -415,6 +415,7 @@ private:
 template <class Opt>
 void OptionsDesc::add() {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
+
     _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
