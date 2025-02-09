@@ -147,7 +147,7 @@ void GatherElements::execute(const dnnl::stream& strm) {
     case sizeof(element_type_traits<ov::element::i8>::value_type):
         return directExecution<element_type_traits<ov::element::i8>::value_type>();
     default:
-        OPENVINO_THROW("Unsupported data type size");
+        THROW_CPU_NODE_ERR("Unsupported data type size");
     }
 }
 

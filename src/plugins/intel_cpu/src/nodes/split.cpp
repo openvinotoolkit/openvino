@@ -293,6 +293,10 @@ void Split::prepareParams() {
     }
 }
 
+bool Split::neverExecute() const {
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }
@@ -561,7 +565,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
     }
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();

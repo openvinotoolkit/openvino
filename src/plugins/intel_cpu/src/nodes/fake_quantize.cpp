@@ -1327,13 +1327,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
                     std::isinf(ih)) {
-                    OPENVINO_THROW("Quantize layer with name '",
-                                   getName(),
-                                   "' has invalid input quantize ranges: ",
-                                   "inputLow = ",
-                                   il,
-                                   ", inputHigh = ",
-                                   ih);
+                    THROW_CPU_NODE_ERR("has invalid input quantize ranges: ", "inputLow = ", il, ", inputHigh = ", ih);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1351,13 +1345,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                    OPENVINO_THROW("Quantize layer with name '",
-                                   getName(),
-                                   "' has wrong output quantize ranges: ",
-                                   "outputLow = ",
-                                   ol,
-                                   ", outputHigh = ",
-                                   oh);
+                    THROW_CPU_NODE_ERR("has wrong output quantize ranges: ", "outputLow = ", ol, ", outputHigh = ", oh);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1553,7 +1541,7 @@ bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
         auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
         if (!selectedPrimitiveDescriptor) {
-            OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
+            THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
         }
 
         if (internalBlobMemory.empty() ||
@@ -1630,7 +1618,7 @@ void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor) {
-        OPENVINO_THROW("CPU quantize node with name '", getName(), "' doesn't have primitive descriptors.");
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();

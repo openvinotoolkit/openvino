@@ -36,13 +36,12 @@ EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     _reduction = Reduction::SUM;
-    std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
-        OPENVINO_THROW(errPrefix, "has indices data with invalid rank: ", getInputShapeAtPort(INDICES_IDX).getRank());
+        THROW_CPU_NODE_ERR("has indices data with invalid rank: ", getInputShapeAtPort(INDICES_IDX).getRank());
     }
 
     if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1ul) {
-        OPENVINO_THROW(errPrefix, "has invalid segmentID data rank: ", getInputShapeAtPort(SEGMENT_ID_IDX).getRank());
+        THROW_CPU_NODE_ERR("has invalid segmentID data rank: ", getInputShapeAtPort(SEGMENT_ID_IDX).getRank());
     }
 }
 
@@ -51,7 +50,6 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
     static const std::set<ov::element::Type> supportedPrecisions = {ov::element::f32,
                                                                     ov::element::i8,
                                                                     ov::element::u8,
@@ -63,7 +61,7 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
     }
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
@@ -71,7 +69,7 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
                                                                                ov::element::u8,
                                                                                ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
+            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     }
 
@@ -111,7 +109,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex,
                                       int& weightsIdx,
                                       bool& withWeight) {
     if (embIndex >= static_cast<size_t>(lastNumSegments_)) {
-        OPENVINO_THROW("Invalid embedding bag index.");
+        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
 
     indices = nullptr;
@@ -157,6 +155,10 @@ bool EmbeddingSegmentsSum::needShapeInfer() const {
 
 void EmbeddingSegmentsSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
+}
+
+bool EmbeddingSegmentsSum::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 
 bool EmbeddingSegmentsSum::isExecutable() const {
