@@ -98,17 +98,18 @@ std::set<std::vector<element::Type>> jit_mul_emitter::get_supported_precisions(c
 }
 
 /// ReLU ///
-jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {}
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, float alpha)
+    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)), alpha(alpha) {}
 
-jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc)
-    : jit_emitter(host, exec_prc) {}
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc, float alpha)
+    : jit_emitter(host, exec_prc), alpha(alpha) {}
 
 size_t jit_relu_emitter::get_inputs_num() const {
     return 1;
 }
 
 size_t jit_relu_emitter::aux_vecs_count() const {
+    // for zero vector register
     return 1;
 }
 
@@ -117,12 +118,34 @@ void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const s
     VReg dst = VReg(out_vec_idxs[0]);
     VReg zeros = VReg(aux_vec_idxs[0]);
 
+    if (alpha == 0) {
+        h->vmv_v_i(zeros, 0);
+        h->vfmax_vv(dst, src, zeros);
+        return;
+    }
+
+    if (src.getIdx() != dst.getIdx())
+        h->vmv_v_v(dst, src);
+
     h->vmv_v_i(zeros, 0);
-    h->vfmax_vv(dst, src, zeros);
+    h->vmflt_vv(mask_vreg(), dst, zeros);
+
+    FReg f0;
+    h->flw(f0, p_table);
+    h->vfmul_vf(dst, dst, f0, VM::masked);
 }
 
 std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
+}
+
+bool jit_relu_emitter::need_table() const {
+    return alpha != 0;
+}
+
+const void* jit_relu_emitter::get_table() const {
+    static float values[1] = { alpha };
+    return values;
 }
 
 /// SUB ///

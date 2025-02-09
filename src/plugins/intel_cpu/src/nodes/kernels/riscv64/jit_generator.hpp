@@ -97,7 +97,7 @@ public:
                                                           Xbyak_riscv::a4, Xbyak_riscv::a5, Xbyak_riscv::a6, Xbyak_riscv::a7};
 
     // load size_t value to GPR safely
-    void lqw(const Xbyak_riscv::Reg& rd, size_t value);
+    void uni_li(const Xbyak_riscv::Reg& rd, size_t value);
 
 protected:
     virtual void generate() = 0;

@@ -45,14 +45,60 @@ void jit_generator::postamble() {
     ret();
 }
 
-void jit_generator::lqw(const Reg& rd, size_t value) {
-    const uint32_t uppper_32bits = static_cast<uint32_t>(value >> 32);
-    uint32_t lower_32bits = static_cast<uint32_t>(value & 0xFFFFFFFF);
-    if (uppper_32bits != 0) {
-        li(rd, static_cast<int>(uppper_32bits));
-        slli(rd, rd, 32);
+void jit_generator::uni_li(const Reg& rd, size_t value) {
+    // Check that value is 32-bit value
+    if (static_cast<uint64_t>(static_cast<int64_t>(value << 32) >> 32) == value) {
+        const uint32_t value32 = static_cast<uint32_t>(value);
+        if (value32 == 0) {
+            mv(rd, zero);
+            return;
+        }
+
+        // Add 0x800 to cancel out the signed extension of ADDIW.
+        const auto upper_20 = (value32 + 0x800) >> 12 & 0xFFFFF;
+        int32_t lower_12 = static_cast<int32_t>(value32) & 0xFFF;
+        // Convert to signed 12-bit
+        if (lower_12 > 2047) lower_12 -= 4096;
+        if (lower_12 < -2048) lower_12 += 4096;
+    
+        if (upper_20 != 0) {
+            lui(rd, upper_20);
+        }
+
+        if (lower_12 != 0) {
+            auto src = upper_20 == 0 ? zero : rd;
+            addi(rd, src, lower_12);
+        }
+
+        return;
     }
-    li(rd, static_cast<int>(lower_32bits));
+
+    auto trailing_zero = [](uint64_t value) {
+        uint32_t bits = 0;
+        if (value == 0)
+            return bits;
+        while ((value & 1) == 0) {
+            bits++;
+            value >>= 1;
+        }
+        return bits;
+    };
+
+    int32_t lower_12 = static_cast<int32_t>(static_cast<int64_t>(value << 52) >> 52);
+    // Convert to signed 12-bit
+    if (lower_12 > 2047) lower_12 -= 4096;
+    if (lower_12 < -2048) lower_12 += 4096;
+
+    // Add 0x800 to cancel out the signed extension of ADDI.
+    uint64_t upper_52 = (value + 0x800) >> 12;
+    const uint32_t shift = 12 + trailing_zero(upper_52);
+    upper_52 = static_cast<uint64_t>((static_cast<int64_t>(upper_52 >> (shift - 12)) << shift) >> shift);
+
+    uni_li(rd, upper_52);
+    slli(rd, rd, shift);
+    if (lower_12 != 0) {
+        addi(rd, rd, lower_12);
+    }
 }
 
 Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) const {

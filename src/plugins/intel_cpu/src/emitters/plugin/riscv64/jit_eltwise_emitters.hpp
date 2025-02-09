@@ -54,8 +54,8 @@ private:
 
 class jit_relu_emitter : public jit_emitter {
 public:
-    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32, float alpha = 0);
+    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, float alpha = 0);
 
     size_t get_inputs_num() const override;
     size_t aux_vecs_count() const override;
@@ -65,6 +65,10 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    bool need_table() const override;
+    const void* get_table() const override;
+
+    float alpha = 0;
 };
 
 class jit_sub_emitter : public jit_emitter {
