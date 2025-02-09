@@ -217,7 +217,6 @@ void regclass_Core(py::module m) {
            const py::object& weight_buffer,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
-
             py::buffer_info info;
             if (!py::isinstance<py::none>(weight_buffer)) {
                 auto p = weight_buffer.cast<py::bytes>();
@@ -456,14 +455,6 @@ void regclass_Core(py::module m) {
                 model_path.attr("seek")(0);  // Always rewind stream!
                 py::buffer_info buffer_info = model_path.attr("getbuffer")().cast<py::buffer>().request();
 
-                // py::buffer_info info;
-                
-                // info = py::buffer(model_stream.attr("getbuffer")()).request();
-
-                
-                // Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
-                // std::istream stream(&mb);
-
                 py::buffer_info info;
                 if (!py::isinstance<py::none>(weights_path)) {
                     py::object buffer = weights_path.attr("getbuffer")();
@@ -491,7 +482,7 @@ void regclass_Core(py::module m) {
             }
 
             throw py::type_error("Provided python object type " + (std::string)(py::str(model_path.get_type())) +
-                        " isn't supported as 'model' argument.");
+                                 " isn't supported as 'model' argument.");
         },
         py::arg("model"),
         py::arg("weights") = py::none(),

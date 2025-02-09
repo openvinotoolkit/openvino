@@ -90,7 +90,6 @@ def test_export_import_advanced(device):
 
     compiled_model.export_model(user_stream)
 
-    print(user_stream.getvalue())
     new_compiled = core.import_model(user_stream, device)
 
     img = generate_image()

@@ -32,73 +32,81 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
-class MemoryBuffer : public std::streambuf {
+
+class OutPyBuffer : public std::streambuf {
 public:
-    MemoryBuffer(char* data, std::size_t size) {
-        setg(data, data, data + size);
-        setp(data, data + size);
-    }
+    OutPyBuffer(py::object bytes_io_stream) : m_py_stream{std::move(bytes_io_stream)} {}
 
-    std::size_t written_size() const {
-        return pptr() - pbase();
-    }
-
+    // TODO: Flush underlying steam in ~OutPyBuffer() ???
 protected:
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
-        if (which == std::ios_base::in) {
-            switch (dir) {
-            case std::ios_base::beg:
-                setg(eback(), eback() + off, egptr());
-                break;
-            case std::ios_base::end:
-                setg(eback(), egptr() + off, egptr());
-                break;
-            case std::ios_base::cur:
-                setg(eback(), gptr() + off, egptr());
-                break;
-            default:
-                return pos_type(off_type(-1));
-            }
-            return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
-        } else if (which == std::ios_base::out) {
-            switch (dir) {
-            case std::ios_base::beg:
-                setp(pbase(), pbase() + off);
-                break;
-            case std::ios_base::end:
-                setp(pbase(), epptr() + off);
-                break;
-            case std::ios_base::cur:
-                setp(pbase(), pptr() + off);
-                break;
-            default:
-                return pos_type(off_type(-1));
-            }
-            return (pptr() < pbase() || pptr() > epptr()) ? pos_type(off_type(-1)) : pos_type(pptr() - pbase());
+    std::streamsize xsputn(const char_type* s, std::streamsize n) override {
+        return m_py_stream.attr("write")(py::bytes(s, n)).cast<std::streamsize>();
+    }
+
+    int_type overflow(int_type c) override {
+        char as_char = c;
+        if (m_py_stream.attr("write")(py::bytes(&as_char, 1)).cast<int>() != 1) {
+            return traits_type::eof();
         }
-        return pos_type(off_type(-1));
+        return c;
+    }
+
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        const int python_direction = [&]{
+            switch (dir) {
+                case std::ios_base::beg:
+                    return 0;
+                case std::ios_base::cur:
+                    return 1;
+                case std::ios_base::end:
+                    return 2;
+                default:
+                    return -1;
+            }
+        }();
+        if (python_direction == -1) {
+            return pos_type(off_type(-1));
+        }
+        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int>();
+        return pos_type(abs_pos);
     }
 
     pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
         return seekoff(pos, std::ios_base::beg, which);
     }
+    
+private:
+    py::object m_py_stream;
+};
 
-    int_type underflow() override {
-        if (gptr() < egptr()) {
-            return traits_type::to_int_type(*gptr());
-        }
-        return traits_type::eof();
+class MemoryBuffer : public std::streambuf {
+public:
+    MemoryBuffer(char* data, std::size_t size) {
+        setg(data, data, data + size);
     }
 
-    int_type overflow(int_type ch) override {
-        if (ch != traits_type::eof()) {
-            if (pptr() < epptr()) {
-                *pptr() = ch;
-                pbump(1);
-                return ch;
-            }
-        }
-        return traits_type::eof();
+protected:
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
+        switch (dir) {
+        case std::ios_base::beg:
+            setg(eback(), eback() + off, egptr());
+            break;
+        case std::ios_base::end:
+            setg(eback(), egptr() + off, egptr());
+            break;
+        case std::ios_base::cur:
+            setg(eback(), gptr() + off, egptr());
+            break;
+        default:
+            return pos_type(off_type(-1));
+    }
+        return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
     }
 
 };
