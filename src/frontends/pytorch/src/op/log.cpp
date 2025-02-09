@@ -14,6 +14,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -96,11 +97,14 @@ OutputVector translate_logsumexp(const NodeContext& context) {
     // ln (e^x1 + ... +e^xn) = ln (e^k (e^(x1-k) + ... +e^(xn-k))) =
     // = k + ln (e^(x1-k) + ... +e^(xn-k)), where k = max (x1, ..., xn)
     // by this trick, we reach exponent degree <= 0
-    auto k = context.mark_node(std::make_shared<v1::ReduceSum>(input, dim, true));
+    auto k = context.mark_node(std::make_shared<v1::ReduceMax>(input, dim, true));
     auto input_minus_k = context.mark_node(std::make_shared<v1::Subtract>(input, k));
     auto exp = context.mark_node(std::make_shared<v0::Exp>(input_minus_k));
     auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, keepdim));
     auto log = context.mark_node(std::make_shared<v0::Log>(sum));
+    if (!keepdim) {
+        k = context.mark_node(std::make_shared<v0::Squeeze>(k, dim));
+    }
     auto logsumexp = context.mark_node(std::make_shared<v1::Add>(k, log));
     return {logsumexp};
 };
