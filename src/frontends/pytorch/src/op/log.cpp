@@ -11,8 +11,11 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -89,20 +92,39 @@ OutputVector translate_logsumexp(const NodeContext& context) {
     if (!context.input_is_none(2)) {
         keepdim = context.const_input<bool>(2);
     }
-    auto exp = context.mark_node(std::make_shared<v0::Exp>(input));
+    // for numerical stability and avoiding exponent explosion,
+    // apply the following formula:
+    // ln (e^x1 + ... +e^xn) = ln (e^k (e^(x1-k) + ... +e^(xn-k))) =
+    // = k + ln (e^(x1-k) + ... +e^(xn-k)), where k = max (x1, ..., xn)
+    // by this trick, we reach exponent degree <= 0
+    auto k = context.mark_node(std::make_shared<v1::ReduceSum>(input, dim, true));
+    auto input_minus_k = context.mark_node(std::make_shared<v1::Subtract>(input, k));
+    auto exp = context.mark_node(std::make_shared<v0::Exp>(input_minus_k));
     auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(exp, dim, keepdim));
     auto log = context.mark_node(std::make_shared<v0::Log>(sum));
-    return {log};
+    auto logsumexp = context.mark_node(std::make_shared<v1::Add>(k, log));
+    return {logsumexp};
 };
 
 OutputVector translate_log1p(const NodeContext& context) {
     // torch.log1p returns a tensor with the natural logarithm of the elements of input + 1.
+    // for numerical stability and avoiding exponent explosion,
+    // apply the following formula:
+    // ln (e^x + 1) = ln (e^k (e^(x-k) + e^(0-k))) =
+    // = k + ln (e^(x-k) + e^(0-k)), where k = max (x, 0)
+    // by this trick, we reach exponent degree <= 0
     num_inputs_check(context, 1, 2);
     auto x = get_input_with_floating_type(context, 0);
-    auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}))->output(0);
-    one = context.mark_node(std::make_shared<v1::ConvertLike>(one, x));
-    auto x_plus_one = context.mark_node(std::make_shared<v1::Add>(x, one));
-    auto log = context.mark_node(std::make_shared<v0::Log>(x_plus_one));
+    auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, 0))->output(0);
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+    auto k = context.mark_node(std::make_shared<v1::Maximum>(zero, x));
+    auto x_minus_k = context.mark_node(std::make_shared<v1::Subtract>(x, k));
+    auto zero_minus_k = context.mark_node(std::make_shared<v1::Subtract>(zero, k));
+    auto exp1 = context.mark_node(std::make_shared<v0::Exp>(x_minus_k));
+    auto exp2 = context.mark_node(std::make_shared<v0::Exp>(zero_minus_k));
+    auto exp = context.mark_node(std::make_shared<v1::Add>(exp1, exp2));
+    auto log = context.mark_node(std::make_shared<v0::Log>(exp));
+    auto log1p = context.mark_node(std::make_shared<v1::Add>(log, k));
     return {log};
 };
 
