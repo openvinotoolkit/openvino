@@ -17,7 +17,7 @@ class Node;
 class AttributeVisitor;
 class Any;
 
-class OPENVINO_API RuntimeAttribute {
+class OPENVINO_API RuntimeAttribute : public IRtti {
 public:
     OPENVINO_RTTI_BASE("RuntimeAttribute")
 
