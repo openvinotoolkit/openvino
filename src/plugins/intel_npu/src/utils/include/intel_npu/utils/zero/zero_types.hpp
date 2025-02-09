@@ -185,6 +185,28 @@ public:
         throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
         return _impl->pfnCompilerIsOptionSupported(hDevice, type, pOption, pValue);
     }
+
+
+    // version 1.12
+    ze_result_t ZE_APICALL pfnGetProperties3(ze_graph_handle_t hGraph, ze_graph_properties_3_t* pGraphProperties) {
+        throwWhenUnsupported("ze_pfnGraphGetProperties_ext_2_t", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnGetProperties3(hGraph, pGraphProperties);
+    }
+
+    ze_result_t ZE_APICALL pfnBuildLogGetString2(ze_graph_build_log_handle_t buildLogHandle, uint32_t* pSize, char* pBuildLog) {
+        throwWhenUnsupported("pfnBuildLogGetString2", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnBuildLogGetString2(buildLogHandle, pSize, pBuildLog);
+    }
+
+
+    ze_result_t ZE_APICALL pfnCreate3(ze_context_handle_t hContext,
+                                        ze_device_handle_t hDevice,
+                                        const ze_graph_desc_2_t* desc,
+                                        ze_graph_handle_t* phGraph,
+                                        ze_graph_build_log_handle_t* phGraphBuildLog) {
+        throwWhenUnsupported("pfnCreate3", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnCreate3(hContext, hDevice, desc, phGraph, phGraphBuildLog);
+    }
 };
 
 /**
