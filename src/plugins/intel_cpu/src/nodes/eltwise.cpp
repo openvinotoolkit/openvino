@@ -799,11 +799,6 @@ public:
             return false;
         }
 
-        // TODO: Support LeakyRelu
-        if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
-            return false;
-        }
-
         const std::set<ov::element::Type> supported_precisions = {ov::element::f32,
                                                                   ov::element::i32,
                                                                   ov::element::i8,

@@ -34,7 +34,7 @@ size_t jit_emitter::aux_vecs_count() const {
 
 size_t jit_emitter::aux_gprs_count() const {
     // We need one gpr to load table address
-    return entry_map_.empty() ? 0 : 1;
+    return need_table() ? 1 : 0;
 }
 
 size_t jit_emitter::aux_fp_gprs_count() const {
@@ -64,22 +64,6 @@ size_t jit_emitter::get_fp_gpr_length() const {
 size_t jit_emitter::get_vec_length() const {
     return vlen;
 }
-
-void jit_emitter::prepare_table() {
-    register_table_entries();
-
-    // Now that we registered the entries, we set the offsets.  No
-    // entries should be registered after this point.  This allows to
-    // expect the same order when injecting the table entries in
-    // prepare_table.
-    size_t off = 0;
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        auto& te = (*it).second;
-        te.off = off;
-        off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
-    }
-}
-
 
 void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& out_idxs,
@@ -162,16 +146,16 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
     OPENVINO_ASSERT(aux_gprs_count() <= aux_gpr_idxs.size(), "Failed to allocate required number of general-purpose registers");
 
-    //if (!entry_map_.empty()) {
-    //    // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
-    //    p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
-    //    aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
-    //}
+    if (need_table()) {
+        // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
+        p_table = Reg(aux_gpr_idxs[aux_gprs_count() - 1]);
+        aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
+    }
 
     store_context(preserved_gpr_idxs, preserved_vec_idxs);
 
-    if (!entry_map_.empty()) {
-        load_table_addr();
+    if (need_table()) {
+        load_table_addr(get_table());
     }
 }
 
