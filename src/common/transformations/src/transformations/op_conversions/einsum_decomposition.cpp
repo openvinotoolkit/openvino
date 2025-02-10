@@ -1293,7 +1293,6 @@ void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
 /// 9. Replace the original Einsum node with the last node from the decomposed sub-graph,
 ///    preserving the original node's name and runtime information.
 ov::pass::EinsumDecomposition::EinsumDecomposition() {
-
     MATCHER_SCOPE(EinsumDecomposition);
     auto einsum = ov::pass::pattern::wrap_type<ov::op::v7::Einsum>();
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
@@ -1342,7 +1341,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         OPENVINO_ASSERT(input_nodes.size() == 1);
 
         // extract diagonal for the single operand
-        extract_diagonal(this, input_nodes, input_subscripts, 0, subgraph_nodes);
+        extract_diagonal(input_nodes, input_subscripts, 0, subgraph_nodes);
         // reduce dimensions for the remained input node
         reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
         // transpose dimensions to layout required by the output subscript
