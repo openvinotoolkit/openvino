@@ -47,63 +47,11 @@ void set_rt_info(const PatternValueMap& pt_map,
     }
 };
 
-bool can_swap(const PatternValueMap& pt_map,
-              const std::shared_ptr<Node>& first_pattern,
-              const std::shared_ptr<Node>& second_pattern) {
-    if (pt_map.count(first_pattern) && pt_map.count(second_pattern)) {
-        auto first_node = pt_map.at(first_pattern).get_node_shared_ptr();
-        auto second_node = pt_map.at(second_pattern).get_node_shared_ptr();
-
-        if (first_pattern->output(0).get_target_inputs().size() == 1)
-            return true;
-
-        auto target_inputs = first_node->output(0).get_target_inputs();
-
-        if (target_inputs.begin()->get_node()->get_output_partial_shape(0).is_static()) {
-            auto first_shape = target_inputs.begin()->get_node()->output(0).get_shape();
-
-            // Step 1
-            if (std::all_of(std::next(target_inputs.begin()), target_inputs.end(),
-                            [&](const ov::Input<ov::Node>& input) {
-                                return input.get_node()->get_output_partial_shape(0).is_static() &&
-                                       input.get_node()->get_shape() == first_shape;
-                            })) {
-                                return true;
-            } else if (second_node->get_output_partial_shape(0).is_static() &&
-                       first_node->get_output_shape(0) == second_node->get_output_shape(0)) {
-            // Step 2
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    return false;
-}
-
-bool swap_nodes(const PatternValueMap& pt_map,
-                const std::shared_ptr<Node>& first,
-                const std::shared_ptr<Node>& second) {
-    if (can_swap(pt_map, first, second)) {
-        auto first_node = pt_map.at(first).get_node_shared_ptr();
-        auto second_node = pt_map.at(second).get_node_shared_ptr();
-        auto target_inputs = second_node->output(0).get_target_inputs();
-        second_node->input(0).replace_source_output(first_node->input_value(0));
-        first_node->input(0).replace_source_output(second_node->output(0));
-        for (const auto& in : target_inputs) {
-            in.replace_source_output(first_node->output(0));
-        }
-        first_node->validate_and_infer_types();
-        second_node->validate_and_infer_types();
-        return true;
-    }
-    return false;
-}
-
 /*
 In some cases we cannot swap Convert and Reshape because it would
-lead to incorrect shapes.
-If we have a following graph with Convert working for several Zero-Point Subgraphs
+lead to incorrect shapes: e.g.
+If we have a following graph with Convert working for several Zero-Point Subgraphs,
+we cannot perform swapping as this would break another part of the graph.
 
                                ZP Const
                                   │
@@ -137,7 +85,7 @@ Though, we can perform swapping if the shapes are same for all branches: e.g.
            ▼      ▼                               ▼      ▼
            Multiply                               Multiply
 
-Step 1: the left part of the graph would be matched transforming the graph into the following form:
+Step 1: the left part of the graph would be matched transforming the graph above into the following form:
 
                       ZP Const
                          │
@@ -158,7 +106,7 @@ Scale       Convert   Convert          Input
                                          ▼      ▼
                                          Multiply                               
     
-Step 2: the right part of the graph would be matched transforming the graph into the final form:
+Step 2: the right part of the graph would be matched transforming the graph above into the final form:
 
                         ZP Const
                            │
@@ -179,8 +127,65 @@ Scale      Convert      Convert      Convert      Scale
           ▼      ▼                   ▼      ▼
           Multiply                   Multiply
 
-The double Reshapes are going to be foled in the next ConstantFolding
+The double Reshapes are going to be folded in the next ConstantFolding
+
+If there were 3 or even more branches with the same shapes, the process
+will be the same: forthe first branch step 1 is applied, for all the
+remainings step 2.
 */
+
+bool can_swap(const PatternValueMap& pt_map,
+              const std::shared_ptr<Node>& first_pattern,
+              const std::shared_ptr<Node>& second_pattern) {
+    if (pt_map.count(first_pattern) && pt_map.count(second_pattern)) {
+        auto first_node = pt_map.at(first_pattern).get_node_shared_ptr();
+        auto second_node = pt_map.at(second_pattern).get_node_shared_ptr();
+
+        if (first_pattern->output(0).get_target_inputs().size() == 1)
+            return true;
+
+        auto target_inputs = first_node->output(0).get_target_inputs();
+
+        if (target_inputs.begin()->get_node()->get_output_partial_shape(0).is_static()) {
+            auto first_shape = target_inputs.begin()->get_node()->output(0).get_shape();
+
+            // Step 1 (see steps description in the comments above)
+            if (std::all_of(std::next(target_inputs.begin()), target_inputs.end(),
+                            [&](const ov::Input<ov::Node>& input) {
+                                return input.get_node()->get_output_partial_shape(0).is_static() &&
+                                       input.get_node()->get_shape() == first_shape;
+                            })) {
+                                return true;
+            } else if (first_node->get_output_partial_shape(0).is_static() &&
+                       second_node->get_output_partial_shape(0).is_static() &&
+                       first_node->get_output_shape(0) == second_node->get_output_shape(0)) {
+            // Step 2
+                    return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool swap_nodes(const PatternValueMap& pt_map,
+                const std::shared_ptr<Node>& first,
+                const std::shared_ptr<Node>& second) {
+    if (can_swap(pt_map, first, second)) {
+        auto first_node = pt_map.at(first).get_node_shared_ptr();
+        auto second_node = pt_map.at(second).get_node_shared_ptr();
+        auto target_inputs = second_node->output(0).get_target_inputs();
+        second_node->input(0).replace_source_output(first_node->input_value(0));
+        first_node->input(0).replace_source_output(second_node->output(0));
+        for (const auto& in : target_inputs) {
+            in.replace_source_output(first_node->output(0));
+        }
+        first_node->validate_and_infer_types();
+        second_node->validate_and_infer_types();
+        return true;
+    }
+    return false;
+}
 
 }  // namespace
 
