@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 namespace frontend {
 class ConversionExtensionBase;
-} // frontend
+}  // namespace frontend
 
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {
@@ -96,10 +96,11 @@ typename std::enable_if_t<
     std::is_convertible_v<decltype(std::declval<From>().get_type_info().is_castable(To::get_type_info_static())), bool>,
     bool>
 is_type(From* ptr) {
-    if constexpr (use_ov_dynamic_cast) {
+    if constexpr (use_ov_dynamic_cast<From>()) {
         return ptr && ptr->get_type_info().is_castable(To::get_type_info_static());
     } else {
-        return dynamic_cast<std::remove_cv_t<To>*>(const_cast<std::remove_cv_t<From>*>(ptr)) != nullptr;
+        static_assert(!std::is_volatile_v<To> && !std::is_volatile_v<From>, "is_type does not support volatile types");
+        return dynamic_cast<std::add_const_t<To>*>(ptr) != nullptr;
     }
 }
 
@@ -111,10 +112,11 @@ typename std::enable_if_t<
         bool>,
     bool>
 is_type(std::shared_ptr<From> ptr) {
-    if constexpr (use_ov_dynamic_cast) {
+    if constexpr (use_ov_dynamic_cast<From>()) {
         return ptr && ptr->get_type_info().is_castable(To::get_type_info_static());
     } else {
-        return dynamic_cast<std::remove_cv_t<To>*>(const_cast<std::remove_cv_t<From>*>(ptr.get())) != nullptr;
+        static_assert(!std::is_volatile_v<To> && !std::is_volatile_v<From>, "is_type does not support volatile types");
+        return dynamic_cast<std::add_const_t<To>*>(ptr.get()) != nullptr;
     }
 }
 
