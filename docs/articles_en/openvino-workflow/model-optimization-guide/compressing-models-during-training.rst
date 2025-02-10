@@ -45,8 +45,7 @@ quantization errors part of the overall training loss and tries to minimize thei
 
 To learn more, see:
 
-* guide on quantization for :doc:`PyTorch <./compressing-models-during-training/quantization-aware-training-pytorch>`.
-* guide on quantization for :doc:`Tensorflow <./compressing-models-during-training/quantization-aware-training-tensorflow>`.
+* guide on quantization for :doc:`PyTorch and TensorFlow <./compressing-models-during-training/quantization-aware-training>`.
 * Jupyter notebook on `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
 * Jupyter notebook on `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
 
