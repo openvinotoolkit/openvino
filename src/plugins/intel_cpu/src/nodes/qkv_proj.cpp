@@ -373,7 +373,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
+    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
                     "Unexpected rtPrecision:",
                     rtPrecision);
 
