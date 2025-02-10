@@ -57,10 +57,12 @@ public:
     }
 
     void execute(const MemoryArgs& memory) override {
-        if (resetSrcMemoryDataHandle)
+        if (resetSrcMemoryDataHandle) {
             m_primArgs[DNNL_ARG_SRC].set_data_handle(memory.at(ARG_SRC)->getData());
-        if (resetDstMemoryDataHandle)
+        }
+        if (resetDstMemoryDataHandle) {
             m_primArgs[DNNL_ARG_DST].set_data_handle(memory.at(ARG_DST)->getData());
+        }
 
         m_primitive->execute(m_primArgs);
     }
@@ -121,8 +123,9 @@ private:
                              const PrimitivePtr newPrimitive,
                              const MemoryPtr& memory) {
         const auto newPrimMemDesc = newPrimitive->weightsDesc();
-        if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc))
+        if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc)) {
             return;
+        }
 
         originalMemDesc =
             Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
@@ -138,8 +141,9 @@ private:
     void updateScratchPadMem(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive) {
         const auto newPrimMemDesc = newPrimitive->scratchPadDesc();
         // @todo should we compare dnnl::memory::desc directly to avoid any overhead?
-        if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
+        if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc)) {
             return;
+        }
 
         m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();

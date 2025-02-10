@@ -22,7 +22,7 @@ To learn more about dynamic shapes in runtime, refer to the
 you can visit `Hugging Face <https://huggingface.co/models>`__.
 
 The OpenVINO Runtime API may present certain limitations in inferring models with undefined
-dimensions on some hardware. See the :doc:`Feature support matrix <../../about-openvino/compatibility-and-support/supported-devices>`
+dimensions on some hardware. See the :doc:`Feature support matrix <../../documentation/compatibility-and-support/supported-devices>`
 for reference. In this case, the ``input`` parameter and the
 :doc:`reshape method <../running-inference/changing-input-shape>` can help to resolve undefined
 dimensions.

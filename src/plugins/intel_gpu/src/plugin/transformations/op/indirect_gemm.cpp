@@ -5,9 +5,7 @@
 #include "intel_gpu/op/indirect_gemm.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 IndirectGemm::IndirectGemm(const ov::Output<Node>& A,
                            const ov::Output<Node>& B,
@@ -69,6 +67,4 @@ bool IndirectGemm::visit_attributes(ov::AttributeVisitor &visitor) {
     return true;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

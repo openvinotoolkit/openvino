@@ -182,8 +182,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         this->postamble();
 
         emit_emitters_data();
-        for (auto& inj : eltwise_injectors)
+        for (auto& inj : eltwise_injectors) {
             inj->prepare_table();
+        }
         if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
             prepare_cubic_planar_table();
         }
@@ -283,8 +284,9 @@ private:
 
     void emit_emitters_data() {
         for (const auto& emitter : emitters) {
-            if (emitter.second)
+            if (emitter.second) {
                 emitter.second->emit_data();
+            }
         }
     }
 
@@ -535,8 +537,9 @@ private:
                 uni_vmovdqu(vmm_index, ptr[reg_index]);
                 uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
                 vgatherdps(vmm_val, ptr[reg_src_h + vmm_index], vmm_mask);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 1);
+                }
                 store(vmm_val, reg_dst, vector_step);
 
                 add(reg_dst, vector_step * jcp_.dst_data_size);
@@ -557,8 +560,9 @@ private:
                 add(reg_src_aux, reg_index_offset);
 
                 load(reg_src_aux, vmm_val, scalar_step);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 1);
+                }
                 store(vmm_val, reg_dst, scalar_step);
 
                 add(reg_dst, scalar_step * jcp_.dst_data_size);
@@ -591,8 +595,9 @@ private:
             add(reg_src_aux, reg_index_offset);
 
             load(reg_src_aux, vmm_val, vector_step);
-            if (attr_.post_ops_.len() != 0)
+            if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_prc, 0);
+            }
             store(vmm_val, reg_dst, vector_step);
             add(reg_dst, vector_step * jcp_.dst_data_size);
 
@@ -651,8 +656,9 @@ private:
             add(reg_src_aux, reg_index_offset);
 
             mov(reg_work_amount, reg_work_amount_bk);
-            if (attr_.post_ops_.len() != 0)
+            if (attr_.post_ops_.len() != 0) {
                 mov(reg_oc_off, reg_oc_off_bk);
+            }
 
             L(nn_loop_label);
             {
@@ -660,8 +666,9 @@ private:
                 jl(nn_loop_end_label, T_NEAR);
 
                 load(reg_src_aux, vmm_val, vector_step);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 0);
+                }
                 store(vmm_val, reg_dst, vector_step);
 
                 add(reg_dst, vector_step * jcp_.dst_data_size);
@@ -675,8 +682,9 @@ private:
 
             if (tail_step != 0) {
                 load(reg_src_aux, vmm_val, tail_step);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     apply_post_ops(jcp_.dst_prc, 0);
+                }
                 store(vmm_val, reg_dst, tail_step);
 
                 // check to remove below
@@ -1658,35 +1666,49 @@ size_t InterpolateKey::hash() const {
 }
 
 bool InterpolateKey::operator==(const InterpolateKey& rhs) const {
-    if (nodeAttrs.mode != rhs.nodeAttrs.mode)
+    if (nodeAttrs.mode != rhs.nodeAttrs.mode) {
         return false;
-    if (nodeAttrs.coordTransMode != rhs.nodeAttrs.coordTransMode)
+    }
+    if (nodeAttrs.coordTransMode != rhs.nodeAttrs.coordTransMode) {
         return false;
-    if (nodeAttrs.nearestMode != rhs.nodeAttrs.nearestMode)
+    }
+    if (nodeAttrs.nearestMode != rhs.nodeAttrs.nearestMode) {
         return false;
-    if (nodeAttrs.layout != rhs.nodeAttrs.layout)
+    }
+    if (nodeAttrs.layout != rhs.nodeAttrs.layout) {
         return false;
-    if (nodeAttrs.antialias != rhs.nodeAttrs.antialias)
+    }
+    if (nodeAttrs.antialias != rhs.nodeAttrs.antialias) {
         return false;
-    if (nodeAttrs.cubeCoeff != rhs.nodeAttrs.cubeCoeff)
+    }
+    if (nodeAttrs.cubeCoeff != rhs.nodeAttrs.cubeCoeff) {
         return false;
-    if (nodeAttrs.padBegin != rhs.nodeAttrs.padBegin)
+    }
+    if (nodeAttrs.padBegin != rhs.nodeAttrs.padBegin) {
         return false;
-    if (nodeAttrs.padEnd != rhs.nodeAttrs.padEnd)
+    }
+    if (nodeAttrs.padEnd != rhs.nodeAttrs.padEnd) {
         return false;
-    if (nodeAttrs.inPrc != rhs.nodeAttrs.inPrc)
+    }
+    if (nodeAttrs.inPrc != rhs.nodeAttrs.inPrc) {
         return false;
-    if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc)
+    }
+    if (nodeAttrs.outPrc != rhs.nodeAttrs.outPrc) {
         return false;
+    }
 
-    if (srcDims != rhs.srcDims)
+    if (srcDims != rhs.srcDims) {
         return false;
-    if (dstDims != rhs.dstDims)
+    }
+    if (dstDims != rhs.dstDims) {
         return false;
-    if (dataScales != rhs.dataScales)
+    }
+    if (dataScales != rhs.dataScales) {
         return false;
-    if (!(*attr.get() == *rhs.attr.get()))
+    }
+    if (!(*attr.get() == *rhs.attr.get())) {
         return false;
+    }
 
     return true;
 }
@@ -1881,10 +1903,12 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         if (const auto interp = ov::as_type_ptr<const ov::opset4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
-            if (numInputs != 3 && numInputs != 4)
+            if (numInputs != 3 && numInputs != 4) {
                 THROW_CPU_NODE_ERR("has incorrect number of input edges");
-            if (outputShapes.size() != 1)
+            }
+            if (outputShapes.size() != 1) {
                 THROW_CPU_NODE_ERR("has incorrect number of output edges");
+            }
             isAxesSpecified = numInputs != 3;
 
             const auto& interpAttr = interp->get_attrs();
@@ -1954,16 +1978,18 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 interpAttrs.padBegin.resize(dataRank, 0);
             } else {
                 interpAttrs.padBegin.resize(interpAttr.pads_begin.size());
-                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++) {
                     interpAttrs.padBegin[i] = static_cast<int>(interpAttr.pads_begin[i]);
+                }
             }
 
             if (interpAttr.pads_end.empty()) {
                 interpAttrs.padEnd.resize(dataRank, 0);
             } else {
                 interpAttrs.padEnd.resize(interpAttr.pads_end.size());
-                for (size_t i = 0; i < interpAttr.pads_end.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_end.size(); i++) {
                     interpAttrs.padEnd[i] = static_cast<int>(interpAttr.pads_end[i]);
+                }
             }
 
             const auto scalesNode =
@@ -1985,10 +2011,12 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
             is_version11 = true;
             const auto numInputs = inputShapes.size();
-            if (numInputs != 2 && numInputs != 3)
+            if (numInputs != 2 && numInputs != 3) {
                 THROW_CPU_NODE_ERR("has incorrect number of input edges");
-            if (outputShapes.size() != 1)
+            }
+            if (outputShapes.size() != 1) {
                 THROW_CPU_NODE_ERR("has incorrect number of output edges");
+            }
             isAxesSpecified = numInputs != 2;
 
             const auto& interpAttr = interp->get_attrs();
@@ -2025,16 +2053,18 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 interpAttrs.padBegin.resize(dataRank, 0);
             } else {
                 interpAttrs.padBegin.resize(interpAttr.pads_begin.size());
-                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_begin.size(); i++) {
                     interpAttrs.padBegin[i] = static_cast<int>(interpAttr.pads_begin[i]);
+                }
             }
 
             if (interpAttr.pads_end.empty()) {
                 interpAttrs.padEnd.resize(dataRank, 0);
             } else {
                 interpAttrs.padEnd.resize(interpAttr.pads_end.size());
-                for (size_t i = 0; i < interpAttr.pads_end.size(); i++)
+                for (size_t i = 0; i < interpAttr.pads_end.size(); i++) {
                     interpAttrs.padEnd[i] = static_cast<int>(interpAttr.pads_end[i]);
+                }
             }
 
             if (isAxesSpecified) {
@@ -2058,12 +2088,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 }
 
 void Interpolate::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4)
+    if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4) {
         // v4: data, target_shape, scale, axis(optional).
         // v11: data, size_or_scale, axis(optional)
         THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges");
+    }
 
     // get pad
     for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
@@ -2102,8 +2134,9 @@ void Interpolate::getSupportedDescriptors() {
 }
 
 void Interpolate::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
 
@@ -2116,8 +2149,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         inputPrecision = ov::element::f32;
     }
 
-    if (!hasHardwareSupport(inputPrecision))
+    if (!hasHardwareSupport(inputPrecision)) {
         inputPrecision = ov::element::f32;
+    }
 
     // support input with rank<=3 only with float precision and planar layout.
     // Jit for avx2(gather is available) and ref for no-avx2 machine.
@@ -2173,9 +2207,10 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                         ->createSharedDesc(scalesType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
             }
 
-            if (isAxesSpecified)
+            if (isAxesSpecified) {
                 config.inConfs[AXES_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID_V11)));
+            }
         } else {
             config.inConfs[TARGET_SHAPE_ID].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)
@@ -2183,9 +2218,10 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             config.inConfs[get_scale_id()].setMemDesc(
                 creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(get_scale_id())));
 
-            if (isAxesSpecified)
+            if (isAxesSpecified) {
                 config.inConfs[get_axis_id()].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(get_axis_id())));
+            }
         }
 
         config.outConfs[0].setMemDesc(
@@ -2227,20 +2263,23 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (dataRank == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
-                if (NCHWAsNHWC)
+                if (NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx512, true);
-                else
+                } else {
                     pushDesc(LayoutType::nspc, jit_avx512, true);
+                }
             } else if (mayiuse(cpu::x64::avx2)) {
-                if (NCHWAsNHWC)
+                if (NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx2, true);
-                else
+                } else {
                     pushDesc(LayoutType::nspc, jit_avx2, true);
+                }
             } else if (mayiuse(cpu::x64::sse41)) {
-                if (NCHWAsNHWC)
+                if (NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_sse42, true);
-                else
+                } else {
                     pushDesc(LayoutType::nspc, jit_sse42, true);
+                }
             }
         }
         pushDesc(LayoutType::ncsp, ref, true);
@@ -2266,16 +2305,19 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (mayiuse(cpu::x64::avx512_core)) {
                     pushDesc(LayoutType::nspc, jit_avx512, false);
-                    if (isBlkApplied)
+                    if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp16c, jit_avx512, false);
+                    }
                 } else if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(LayoutType::nspc, jit_avx2, false);
-                    if (isBlkApplied)
+                    if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_avx2, false);
+                    }
                 } else {
                     pushDesc(LayoutType::nspc, jit_sse42, false);
-                    if (isBlkApplied)
+                    if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_sse42, false);
+                    }
                 }
             }
 
@@ -2283,10 +2325,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             // 1.ref on machine w/o avx2(no fuse)
             // 2.JIT kernel for avx2(gatherps is available).(with fuse)
             if (inputPrecision == ov::element::f32) {
-                if (mayiuse(cpu::x64::avx2))
+                if (mayiuse(cpu::x64::avx2)) {
                     pushDesc(LayoutType::ncsp, jit_avx2, false);
-                else
+                } else {
                     pushDesc(LayoutType::ncsp, ref, false);
+                }
             }
         }
     }
@@ -2339,52 +2382,58 @@ bool Interpolate::needPrepareParams() const {
 }
 
 inline int Interpolate::get_scale_id() const {
-    if (is_version11)
+    if (is_version11) {
         return SIZE_OR_SCALE_ID_V11;
-    else
+    } else {
         return SCALES_ID;
+    }
 }
 inline int Interpolate::get_axis_id() const {
-    if (is_version11)
+    if (is_version11) {
         return AXES_ID_V11;
-    else
+    } else {
         return AXES_ID;
+    }
 }
 
 void Interpolate::prepareParams() {
     if (!shapesDefined()) {
-        OPENVINO_THROW("Can't prepare params for Interpolate node with name: ",
-                       getName(),
-                       ", because input/output dims aren't defined");
+        THROW_CPU_NODE_ERR("input/output dims aren't defined");
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined destination memory");
+    }
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isDefined())
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("has undefined input memory");
+    }
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isDefined())
+        if (!tsMemPtr || !tsMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined target shape memory");
+        }
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isDefined())
+        if (!scaleMemPtr || !scaleMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined scales memory");
+        }
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isDefined())
+        if (!axesMemPtr || !axesMemPtr->isDefined()) {
             THROW_CPU_NODE_ERR("has undefined axes memory");
+        }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
+    }
 
     const auto& srcDimsOrign = srcMemPtr->getStaticDims();
     const auto& dstDimsOrign = dstMemPtr->getStaticDims();
@@ -2416,7 +2465,7 @@ void Interpolate::prepareParams() {
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
-        OPENVINO_THROW("Interpolate layer only supports resize on spatial dimensions(depth, height and width)");
+        THROW_CPU_NODE_ERR("only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
@@ -2478,10 +2527,12 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr)
+    if (!srcMemPtr) {
         THROW_CPU_NODE_ERR("has null input memory");
-    if (!dstMemPtr)
+    }
+    if (!dstMemPtr) {
         THROW_CPU_NODE_ERR("has null destination memory");
+    }
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2496,8 +2547,9 @@ void Interpolate::createPrimitive() {
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
 
     if (shapesDefined() && isExecutable()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -2527,11 +2579,11 @@ void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims)
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -2638,9 +2690,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
                 uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
                 if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                    OPENVINO_THROW("Interpolate layer with name '",
-                                   getName(),
-                                   "' does not support padding on batch and channel dimensions");
+                    THROW_CPU_NODE_ERR("does not support padding on batch and channel dimensions");
                 }
                 parallel_for5d(srcDim5d[0],
                                CB,
@@ -2674,7 +2724,7 @@ void Interpolate::execute(const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -3088,10 +3138,11 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
         break;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return (outCoord + 0.5f) / scale - 0.5f;
-        else
+        } else {
             return 0;
+        }
         break;
     }
     case InterpolateCoordTransMode::asymmetric: {
@@ -3103,10 +3154,11 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
         break;
     }
     case InterpolateCoordTransMode::align_corners: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
-        else
+        } else {
             return 0;
+        }
         break;
     }
     default: {
@@ -3121,10 +3173,11 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
                                                        InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
-        if (originCoord == (static_cast<int>(originCoord) + 0.5f))
+        if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
             return static_cast<int>(std::floor(originCoord));
-        else
+        } else {
             return static_cast<int>(std::round(originCoord));
+        }
         break;
     }
     case InterpolateNearestMode::round_prefer_ceil: {
@@ -3140,10 +3193,11 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
         break;
     }
     case InterpolateNearestMode::simple: {
-        if (isDownsample)
+        if (isDownsample) {
             return static_cast<int>(std::ceil(originCoord));
-        else
+        } else {
             return static_cast<int>(originCoord);
+        }
     }
     default: {
         OPENVINO_THROW("does not support specified nearest round mode");
@@ -3451,21 +3505,26 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
 }
 
 float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
-    if (m < 0.0f)
+    if (m < 0.0f) {
         m = -m;
-    if (m < 1.0)
+    }
+    if (m < 1.0) {
         return 1.0f - m;
+    }
     return 0.0f;
 }
 
 float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     float a = -0.5f;
-    if (m < 0.0f)
+    if (m < 0.0f) {
         m = -m;
-    if (m < 1.0)
+    }
+    if (m < 1.0) {
         return ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
-    if (m < 2.0f)
+    }
+    if (m < 2.0f) {
         return (((m - 5) * m + 8) * m - 4) * a;
+    }
     return 0.0f;
 }
 
@@ -3554,8 +3613,9 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
             }
 
             // filterlen is maximum possible len, set others to 0 for possible uniform process(vector)
-            for (; ix < args.filterLen; ix++)
+            for (; ix < args.filterLen; ix++) {
                 weightTbl[offset + ix] = 0.f;
+            }
         }
     };
 
@@ -3887,8 +3947,9 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                     //}
 
                     for (int iz = 0; iz < diaOD; iz++) {
-                        if (weightOD[oz * diaOD + iz] == 0.f)
+                        if (weightOD[oz * diaOD + iz] == 0.f) {
                             continue;
+                        }
                         for (int iy = 0; iy < diaOH; iy++) {
                             if (weightOH[oy * diaOH + iy] == 0.f) {
                                 continue;
@@ -4032,8 +4093,9 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
 }
 
 void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
-    if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
+    if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4]) {
         return;
+    }
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize;  // IH * OW
     m_threads_num = parallel_get_max_threads();
     if (layout == InterpolateLayoutType::planar) {

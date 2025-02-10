@@ -26,8 +26,9 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
 
         auto shape_node = ov::as_type_ptr<ov::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
         auto axes_node = ov::as_type_ptr<ov::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
-        if (!shape_node || !axes_node)
+        if (!shape_node || !axes_node) {
             return false;
+        }
 
         auto output_shape = shape_node->cast_vector<int64_t>();
         auto input_shape = data_node.get_shape();

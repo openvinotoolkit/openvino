@@ -43,15 +43,18 @@ NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1)
+    if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (!getChildEdges().size())
+    }
+    if (!getChildEdges().size()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     const auto& inPrc = getOriginalInputPrecisionAtPort(0);
     if (!one_of(inPrc,
@@ -63,11 +66,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                 ov::element::u32,
                 ov::element::i8,
                 ov::element::u8)) {
-        OPENVINO_THROW("Can't create primitive descriptor for NonZero layer with name: ",
-                       getName(),
-                       " doesn't support ",
-                       inPrc.get_type_name(),
-                       " precision on 0 port");
+        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
@@ -88,8 +87,9 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount))
+        if (inSize < static_cast<size_t>(blockSize * threadsCount)) {
             threadsCount = 1;
+        }
 
         counts.resize(threadsCount);
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
@@ -159,8 +159,9 @@ void NonZero::executeSpecified() {
         redefineOutputMemory({newDims});
     }
     int* dst = dstMemPtr->getDataAs<int>();
-    if (totalNonZeroCount == 0)
+    if (totalNonZeroCount == 0) {
         return;
+    }
 
     std::vector<int> srcDims(inRank);
     std::transform(inShape.getDims().begin(), inShape.getDims().end(), srcDims.begin(), [](size_t x) {

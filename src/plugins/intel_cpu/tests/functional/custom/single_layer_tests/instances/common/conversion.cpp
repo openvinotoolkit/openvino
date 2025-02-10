@@ -64,6 +64,15 @@ const std::vector<ov::element::Type> float_precisions = {
     ov::element::bf16,
 };
 
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_float_to_nf4, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_dynamic()),
+                                ::testing::ValuesIn(float_precisions),
+                                ::testing::Values(ov::element::nf4),
+                                ::testing::Values(ov::test::SpecialValue::none),
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {"ref"}))),
+                        ConvertCPULayerTest::getTestCaseName);
+
 const std::vector<ov::element::Type> f8_precisions = {
     ov::element::f8e4m3,
     ov::element::f8e5m2,

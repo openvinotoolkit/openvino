@@ -78,7 +78,12 @@ Prerequisites
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("modelscope-to-openvino.ipynb")
 
 Convert models from ModelScope using OpenVINO Model Conversion API
 ------------------------------------------------------------------

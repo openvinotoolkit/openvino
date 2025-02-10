@@ -72,13 +72,6 @@ Preparations
     %pip install -q "openvino>=2024.0.0" torch torchvision tqdm --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.9.0"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Imports
 ~~~~~~~
 
@@ -103,18 +96,24 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file, device_widget
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("pytorch-post-training-quantization-nncf.ipynb")
 
 
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
+    
 
 Settings
 ~~~~~~~~
@@ -139,27 +138,22 @@ Settings
     fp32_ir_path = OUTPUT_DIR / Path(BASE_MODEL_NAME + "_fp32").with_suffix(".xml")
     int8_ir_path = OUTPUT_DIR / Path(BASE_MODEL_NAME + "_int8").with_suffix(".xml")
     
-    
-    fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/304_resnet50_fp32.pth"
-    download_file(fp32_pth_url, directory=MODEL_DIR, filename=fp32_checkpoint_filename)
+    if not (MODEL_DIR / fp32_checkpoint_filename).exists():
+        fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/304_resnet50_fp32.pth"
+        download_file(fp32_pth_url, directory=MODEL_DIR, filename=fp32_checkpoint_filename)
 
 
 .. parsed-literal::
 
     Using cpu device
+    'model/resnet50_fp32.pth' already exists.
+    
 
 
 
 .. parsed-literal::
 
-    resnet50_fp32.pth:   0%|          | 0.00/91.5M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
+    PosixPath('/home/ea/work/openvino_notebooks/notebooks/pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
 
 
 
@@ -212,18 +206,6 @@ Download and Prepare Tiny ImageNet dataset
     if not DATASET_DIR.exists():
         download_tiny_imagenet_200(OUTPUT_DIR)
         create_validation_dir(DATASET_DIR)
-
-
-
-.. parsed-literal::
-
-    tiny-imagenet-200.zip:   0%|          | 0.00/237M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    Successfully downloaded and extracted dataset to: output
-
 
 Helpers classes and functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -379,13 +361,6 @@ values.
     
     model = create_model(MODEL_DIR / fp32_checkpoint_filename)
 
-
-.. parsed-literal::
-
-    /tmp/ipykernel_2225253/3583373930.py:9: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      checkpoint = torch.load(str(model_path), map_location="cpu")
-
-
 Create train and validation DataLoaders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -456,17 +431,17 @@ I. Evaluate the loaded model
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.259 (0.259)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.219 (0.225)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-    Test: [20/79]	Time 0.218 (0.223)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.222 (0.222)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.296 (0.236)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.224 (0.238)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.216 (0.237)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.243 (0.235)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 18.274
+    Test: [ 0/79]	Time 0.317 (0.317)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.391 (0.324)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.284 (0.315)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [30/79]	Time 0.291 (0.310)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.278 (0.306)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.269 (0.298)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.242 (0.290)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.264 (0.285)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 22.199
     Test accuracy of FP32 model: 60.740
-
+    
 
 II. Create and initialize quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -507,42 +482,24 @@ Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/
 
 .. parsed-literal::
 
-    2024-12-10 03:52:12.457107: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-12-10 03:52:12.480915: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-09-12 22:52:13.498264: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-12 22:52:13.533056: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
+    2023-09-12 22:52:14.234552: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    
 
 .. parsed-literal::
 
+    INFO:nncf:Collecting tensor statistics |█████           | 1 / 3
+    INFO:nncf:Collecting tensor statistics |██████████      | 2 / 3
+    INFO:nncf:Collecting tensor statistics |████████████████| 3 / 3
     INFO:nncf:Compiling and loading torch extension: quantized_functions_cpu...
     INFO:nncf:Finished loading torch extension: quantized_functions_cpu
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
+    INFO:nncf:BatchNorm statistics adaptation |█████           | 1 / 3
+    INFO:nncf:BatchNorm statistics adaptation |██████████      | 2 / 3
+    INFO:nncf:BatchNorm statistics adaptation |████████████████| 3 / 3
+    
 
 3. Evaluate the new model on the validation set after initialization of
    quantization. The accuracy should be close to the accuracy of the
@@ -557,17 +514,17 @@ Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.444 (0.444)	Acc@1 81.25 (81.25)	Acc@5 91.41 (91.41)
-    Test: [10/79]	Time 0.418 (0.420)	Acc@1 53.91 (66.55)	Acc@5 86.72 (87.78)
-    Test: [20/79]	Time 0.419 (0.420)	Acc@1 69.53 (63.99)	Acc@5 85.16 (87.28)
-    Test: [30/79]	Time 0.419 (0.420)	Acc@1 50.78 (62.30)	Acc@5 75.78 (85.26)
-    Test: [40/79]	Time 0.419 (0.420)	Acc@1 68.75 (60.90)	Acc@5 89.84 (84.32)
-    Test: [50/79]	Time 0.509 (0.424)	Acc@1 59.38 (60.75)	Acc@5 87.50 (84.13)
-    Test: [60/79]	Time 0.418 (0.430)	Acc@1 65.62 (60.50)	Acc@5 85.16 (83.48)
-    Test: [70/79]	Time 0.422 (0.428)	Acc@1 52.34 (60.18)	Acc@5 79.69 (83.11)
-     * Acc@1 60.660 Acc@5 83.710 Total time: 33.511
-    Accuracy of initialized INT8 model: 60.660
-
+    Test: [ 0/79]	Time 0.469 (0.469)	Acc@1 82.03 (82.03)	Acc@5 92.97 (92.97)
+    Test: [10/79]	Time 0.463 (0.489)	Acc@1 60.16 (67.26)	Acc@5 86.72 (87.78)
+    Test: [20/79]	Time 0.487 (0.488)	Acc@1 67.19 (64.47)	Acc@5 85.94 (87.69)
+    Test: [30/79]	Time 0.456 (0.497)	Acc@1 53.12 (62.63)	Acc@5 76.56 (85.48)
+    Test: [40/79]	Time 0.416 (0.495)	Acc@1 67.97 (61.11)	Acc@5 89.84 (84.58)
+    Test: [50/79]	Time 0.515 (0.491)	Acc@1 62.50 (60.94)	Acc@5 85.94 (84.50)
+    Test: [60/79]	Time 0.534 (0.493)	Acc@1 65.62 (60.50)	Acc@5 86.72 (83.86)
+    Test: [70/79]	Time 0.517 (0.495)	Acc@1 53.91 (60.28)	Acc@5 79.69 (83.41)
+     * Acc@1 60.880 Acc@5 84.050 Total time: 38.752
+    Accuracy of initialized INT8 model: 60.880
+    
 
 It should be noted that the inference time for the quantized PyTorch
 model is longer than that of the original model, as fake quantizers are
@@ -599,12 +556,12 @@ For more information about model conversion, refer to this
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
+    
 
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-
+    
 
 .. code:: ipython3
 
@@ -615,18 +572,18 @@ For more information about model conversion, refer to this
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:340: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:336: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:348: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:344: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1303: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    /home/ea/work/ov_venv/lib/python3.8/site-packages/torch/jit/_trace.py:1084: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
     
-    Mismatched elements: 25564 / 25600 (99.9%)
-    Greatest absolute difference: 0.18935883045196533 at index (76, 149) (up to 1e-05 allowed)
-    Greatest relative difference: 31.012773856527517 at index (104, 168) (up to 1e-05 allowed)
+    Mismatched elements: 23985 / 25600 (93.7%)
+    Greatest absolute difference: 0.36202991008758545 at index (90, 14) (up to 1e-05 allowed)
+    Greatest relative difference: 1153.8073089700997 at index (116, 158) (up to 1e-05 allowed)
       _check_trace(
-
+    
 
 Select inference device for OpenVINO
 
@@ -641,7 +598,7 @@ Select inference device for OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -657,17 +614,17 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.170 (0.170)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-    Test: [10/79]	Time 0.141 (0.143)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-    Test: [20/79]	Time 0.141 (0.142)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-    Test: [30/79]	Time 0.141 (0.141)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-    Test: [40/79]	Time 0.142 (0.141)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-    Test: [50/79]	Time 0.141 (0.141)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-    Test: [60/79]	Time 0.142 (0.141)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-    Test: [70/79]	Time 0.141 (0.141)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-     * Acc@1 60.740 Acc@5 83.960 Total time: 11.015
+    Test: [ 0/79]	Time 0.166 (0.166)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.123 (0.128)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.121 (0.126)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [30/79]	Time 0.121 (0.125)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.123 (0.125)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.122 (0.125)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.124 (0.125)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.129 (0.125)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 9.788
     Accuracy of FP32 IR model: 60.740
-
+    
 
 .. code:: ipython3
 
@@ -678,17 +635,17 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.110 (0.110)	Acc@1 81.25 (81.25)	Acc@5 91.41 (91.41)
-    Test: [10/79]	Time 0.080 (0.083)	Acc@1 52.34 (66.62)	Acc@5 86.72 (87.93)
-    Test: [20/79]	Time 0.080 (0.081)	Acc@1 69.53 (64.14)	Acc@5 85.16 (87.31)
-    Test: [30/79]	Time 0.081 (0.081)	Acc@1 50.78 (62.37)	Acc@5 73.44 (85.23)
-    Test: [40/79]	Time 0.080 (0.081)	Acc@1 68.75 (60.90)	Acc@5 89.84 (84.34)
-    Test: [50/79]	Time 0.080 (0.081)	Acc@1 60.16 (60.77)	Acc@5 87.50 (84.22)
-    Test: [60/79]	Time 0.081 (0.081)	Acc@1 64.84 (60.41)	Acc@5 85.94 (83.63)
-    Test: [70/79]	Time 0.081 (0.081)	Acc@1 52.34 (60.13)	Acc@5 79.69 (83.24)
-     * Acc@1 60.620 Acc@5 83.830 Total time: 6.305
-    Accuracy of INT8 IR model: 60.620
-
+    Test: [ 0/79]	Time 0.115 (0.115)	Acc@1 82.81 (82.81)	Acc@5 92.97 (92.97)
+    Test: [10/79]	Time 0.072 (0.077)	Acc@1 60.16 (67.83)	Acc@5 86.72 (87.93)
+    Test: [20/79]	Time 0.073 (0.075)	Acc@1 69.53 (64.43)	Acc@5 83.59 (87.43)
+    Test: [30/79]	Time 0.067 (0.074)	Acc@1 53.12 (62.63)	Acc@5 75.00 (85.26)
+    Test: [40/79]	Time 0.072 (0.074)	Acc@1 66.41 (61.13)	Acc@5 89.06 (84.41)
+    Test: [50/79]	Time 0.075 (0.074)	Acc@1 60.16 (60.92)	Acc@5 88.28 (84.33)
+    Test: [60/79]	Time 0.073 (0.074)	Acc@1 66.41 (60.57)	Acc@5 87.50 (83.67)
+    Test: [70/79]	Time 0.072 (0.074)	Acc@1 53.91 (60.29)	Acc@5 80.47 (83.30)
+     * Acc@1 60.920 Acc@5 83.970 Total time: 5.761
+    Accuracy of INT8 IR model: 60.920
+    
 
 IV. Compare performance of INT8 model and FP32 model in OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -720,7 +677,7 @@ throughput (frames per second) values.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
 
 
 
@@ -752,14 +709,14 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (OpenVINO IR)
-    [ INFO ] Throughput:   37.05 FPS
+    [ INFO ] Throughput:   51.11 FPS
     Benchmark INT8 model (OpenVINO IR)
-    [ INFO ] Throughput:   148.48 FPS
+    [ INFO ] Throughput:   196.85 FPS
     Benchmark FP32 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   39.43 FPS
+    [ INFO ] Throughput:   36.68 FPS
     Benchmark INT8 model (OpenVINO IR) synchronously
-    [ INFO ] Throughput:   137.60 FPS
-
+    [ INFO ] Throughput:   128.84 FPS
+    
 
 Show device Information for reference:
 
@@ -778,5 +735,6 @@ Show device Information for reference:
 
 .. parsed-literal::
 
-    CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
-
+    CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz
+    GPU: NVIDIA GeForce GTX 1080 Ti (dGPU)
+    

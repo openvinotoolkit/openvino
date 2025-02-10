@@ -29,23 +29,27 @@ ShapeOf::ShapeOf(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     : Node(op, context, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        if (op->get_input_partial_shape(0).size() == 0)
+        if (op->get_input_partial_shape(0).size() == 0) {
             THROW_CPU_NODE_ERR("gets unsupported input 0D tensor (scalar)");
+        }
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 }
 
 void ShapeOf::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1)
+    if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 }
 
 void ShapeOf::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
@@ -78,17 +82,14 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     selected_pd->setConfig(config);
 }
 
-bool ShapeOf::isExecutable() const {
-    return true;
-}
-
 void ShapeOf::execute(const dnnl::stream& strm) {
     auto inPtr = getSrcMemoryAtPort(0);
     auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
-    if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0])
+    if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0]) {
         THROW_CPU_NODE_ERR("has inconsistent input shape and output size");
+    }
 
     auto* dst = outPtr->getDataAs<int>();
 
