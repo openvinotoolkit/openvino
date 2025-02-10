@@ -171,6 +171,16 @@ void update_operands(ov::OutputVector& input_nodes,
 }
 using LabelDimMap = std::unordered_map<std::string, std::vector<size_t>>;
 
+/// \brief Computes a mapping from labels to dimensions based on the input rank and subscript.
+///
+/// This function processes the input subscript to extract labels and maps them to the corresponding
+/// dimensions of the input tensor. The function also considers the presence of ellipsis ("...") in
+/// the labels and adjusts the dimension map accordingly.
+///
+/// \param input_rank The rank of the input tensor. It can be static or dynamic.
+/// \param input_subscript The subscript string representing the labels of the input tensor dimensions.
+/// \return A map where the keys are labels (strings) and the values are vectors of dimension indices.
+///
 LabelDimMap compute_label_dim_map(const ov::Rank& input_rank, const std::string& input_subscript) {
     static const std::string ellipsis = "...";
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
@@ -204,6 +214,26 @@ LabelDimMap compute_label_dim_map(const ov::Rank& input_rank, const std::string&
     return resulted_map;
 }
 
+/// \brief Computes the ranges for common, separated, and reduced labels in the input subscript.
+///
+/// This function calculates the start and end indices for common, separated, and reduced labels
+/// based on the input rank and subscript. It also considers the presence of ellipsis ("...") in
+/// the labels and adjusts the ranks accordingly.
+///
+/// \param input_rank The rank of the input tensor.
+/// \param input_subscript The subscript string representing the input tensor dimensions.
+/// \param common_labels A vector of strings representing the common labels.
+/// \param sep_labels A vector of strings representing the separated labels.
+/// \param reduced_labels A vector of strings representing the reduced labels.
+/// \param common_begin Reference to a size_t variable to store the beginning index of common labels.
+/// \param common_end Reference to a size_t variable to store the ending index of common labels.
+/// \param sep_begin Reference to a size_t variable to store the beginning index of separated labels.
+/// \param sep_end Reference to a size_t variable to store the ending index of separated labels.
+/// \param reduced_begin Reference to a size_t variable to store the beginning index of reduced labels.
+/// \param reduced_end Reference to a size_t variable to store the ending index of reduced labels.
+/// \param is_separated_first Boolean flag indicating whether the separated labels should come before the reduced
+/// labels.
+///
 void compute_ranges(const ov::Rank& input_rank,
                     const std::string& input_subscript,
                     const std::vector<std::string>& common_labels,
@@ -319,6 +349,19 @@ ov::Output<ov::Node> unsqueeze_input(const ov::Output<ov::Node>& input_node,
     return unsqueeze->output(0);
 }
 
+/// \brief Broadcasts and merges two shapes using specified broadcasting rules.
+///
+/// This function takes two  shapes (shapes_lhs and shapes_rhs) and attempts to broadcast
+/// and merge them into a single shape using NumPy and bidirectional broadcasting rules. The resulting
+/// broadcasted shape is returned as an OutputVector. If one of the input vectors is empty, the other
+/// vector is returned as is.
+///
+/// \param shapes_lhs A single element vector containing the left-hand side shape to be broadcasted or empty.
+/// \param shapes_rhs A single element vector containing the right-hand side shape to be broadcasted or empty.
+/// \param subgraph_nodes A vector to which the nodes created during the broadcasting process are added.
+/// \return An OutputVector containing the broadcasted and merged shape. If one of the input vectors is empty,
+///         the other vector is returned.
+///
 ov::OutputVector broadcast_merge_shapes(ov::OutputVector& shapes_lhs,
                                         ov::OutputVector& shapes_rhs,
                                         ov::NodeVector& subgraph_nodes) {
@@ -607,10 +650,23 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     subgraph_nodes.insert(subgraph_nodes.end(), {axes_const, reduce_sum});
 }
 
+/// \brief      Builds an n-dimensional identity tensor based on the input node and repeated label dimensions.
+///
+/// This function constructs an identity tenosor matching number of dimensions of the number of repeats for a single
+/// label.
+///
+/// \param      input_node          The input node for which the identity tensor is to be built.
+/// \param      repeated_label_dims A vector containing the dimensions of the repeated label.
+/// \param      subgraph_nodes      A vector of operation nodes that is included into
+///                                 a sub-graph decomposing Einsum that is needed for copy_runtime_info
+///
+/// \return     The final node representing the identity tensor, reshaped to match input rank and correct dimensions
+/// with repeated labels.
 ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                                     const std::vector<size_t>& repeated_label_dims,
                                     ov::NodeVector& subgraph_nodes) {
     OPENVINO_ASSERT(repeated_label_dims.size() > 1);
+    // Create flattened (repeated_label_dims.size())-dimensional eye tensor with 1s on the diagonal.
     const auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
     const auto repeated_label_indices =
         ov::op::v0::Constant::create(ov::element::i64, {repeated_label_dims.size()}, repeated_label_dims);
@@ -634,6 +690,7 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
     const auto eye_flattened =
         std::make_shared<ov::op::v3::ScatterElementsUpdate>(zeros, eye_flattened_indices, ones, const_0);
 
+    // Prepare target shape for identity tensor for specified repeated label dimensions.
     const auto identity_rank = std::make_shared<ov::op::v0::ShapeOf>(input_shape);
     const auto ones_of_input_shape_rank = std::make_shared<ov::op::v1::Broadcast>(const_1, identity_rank);
     const auto identity_shape = std::make_shared<ov::op::v3::ScatterElementsUpdate>(ones_of_input_shape_rank,
@@ -641,6 +698,7 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                                                                                     repeated_dimensions,
                                                                                     const_0);
 
+    // Reshape the flattened identity tensor to the target shape.
     const auto identity = std::make_shared<ov::op::v1::Reshape>(eye_flattened, identity_shape, false);
     const auto identity_cvt = std::make_shared<ov::op::v0::Convert>(identity, input_node.get_element_type());
     subgraph_nodes.insert(subgraph_nodes.end(),
@@ -671,8 +729,20 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
     return subgraph_nodes.back();
 }
 
-ov::Output<ov::Node> build_multi_identity(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
-                                          const ov::Output<ov::Node>& input_node,
+/// \brief Builds a multi-identity node by multiplying identity nodes for each repeated label.
+///
+/// This function constructs a multi-identity node by iteratively multiplying identity nodes
+/// corresponding to each repeated label. The identity nodes are built using the provided
+/// input node and label dimension map.
+///
+/// \param input_node The input node for which the identity nodes are to be built.
+/// \param repeated_labels A vector of repeated labels for which identity nodes are to be created.
+/// \param label_dim_map A map from labels to their corresponding dimensions.
+/// \param subgraph_nodes A vector of operation nodes that is included into
+///                       a sub-graph decomposing Einsum that is needed for copy_runtime_info
+/// \return The final multi-identity node after multiplying all identity nodes.
+///
+ov::Output<ov::Node> build_multi_identity(const ov::Output<ov::Node>& input_node,
                                           const std::vector<std::string>& repeated_labels,
                                           const LabelDimMap& label_dim_map,
                                           ov::NodeVector& subgraph_nodes) {
@@ -696,8 +766,16 @@ ov::Output<ov::Node> build_multi_identity(ov::pass::EinsumDecomposition* einsum_
     return subgraph_nodes.back();
 }
 
-/// \brief      Helper function to fill in the data needed for diagonal extraction  - result shape
-/// and subscript, repeated labels, axes to reduce.
+/// \brief Prepares data for diagonal extraction in Einsum operation.
+///
+/// This function processes the input subscript and label-dimension map to identify repeated labels,
+/// update the resultant subscript, and determine the axes to be reduced.
+///
+/// \param input_subscript The input subscript string representing the Einsum equation.
+/// \param label_dim_map A map from labels to their corresponding dimensions.
+/// \param resultant_subscript A reference to the resultant subscript string to be updated.
+/// \param repeated_labels A reference to a vector of strings to store repeated labels found in the input subscript.
+/// \param reduced_axes A reference to an AxisSet to store the axes that need to be reduced.
 ///
 void prepare_diagonal_extraction_data(const std::string& input_subscript,
                                       const LabelDimMap& label_dim_map,
@@ -732,8 +810,20 @@ void prepare_diagonal_extraction_data(const std::string& input_subscript,
     }
 }
 
-void extract_diagonal(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
-                      ov::OutputVector& inputs,
+///
+/// \brief Extracts the diagonal elements from the input tensor based on the provided subscripts.
+///
+/// This function modifies the input tensor by extracting its diagonal elements for repeated lables and updating the
+/// corresponding subscript. The diagonal extraction is performed by multiplying the input tensor with a
+/// multi-identity.
+///
+/// \param inputs A vector of input tensors.
+/// \param input_subscripts A vector of subscripts corresponding to each input tensor.
+/// \param input_ind The index of the input tensor to be processed.
+/// \param subgraph_nodes      A vector of operation nodes that is included into
+///                            a sub-graph decomposing Einsum that is needed for copy_runtime_info
+///
+void extract_diagonal(ov::OutputVector& inputs,
                       std::vector<std::string>& input_subscripts,
                       size_t input_ind,
                       ov::NodeVector& subgraph_nodes) {
@@ -758,8 +848,7 @@ void extract_diagonal(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     if (repeated_labels.size() == 0) {
         return;
     }
-    const auto multi_identity =
-        build_multi_identity(einsum_decompose_ptr, input_node, repeated_labels, label_dim_map, subgraph_nodes);
+    const auto multi_identity = build_multi_identity(input_node, repeated_labels, label_dim_map, subgraph_nodes);
 
     // multiply both operands with broadcasting
     const auto mul =
@@ -858,8 +947,8 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     unsqueeze_ellipses_to_same_rank(input_nodes, input_subscripts, input_ind1, input_ind2, subgraph_nodes);
 
     // extract diagonals in case repeated labels in the corresponding input subscripts
-    extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind1, subgraph_nodes);
-    extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind2, subgraph_nodes);
+    extract_diagonal(input_nodes, input_subscripts, input_ind1, subgraph_nodes);
+    extract_diagonal(input_nodes, input_subscripts, input_ind2, subgraph_nodes);
 
     // reduce dimensions for input operands if possible
     reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
@@ -1186,12 +1275,25 @@ void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
 }
 }  // namespace
 
+/// \brief Constructor for the EinsumDecomposition transformation pass.
+///
+/// This transformation decomposes the Einsum operation into a sequence of more basic operations.
+/// It matches the Einsum operation and replaces it with a sub-graph of operations that perform
+/// the same computation.
+///
+/// The transformation follows these steps:
+/// 1. Parse the Einsum equation to extract input and output subscripts.
+/// 2. Check if the transformation is applicable by ensuring all input nodes have static ranks.
+/// 3. Compute the optimal path for contracting pairs of operands.
+/// 4. Fix inputs where ellipsis does not contain any dimensions.
+/// 5. Contract inputs by Einsum until only one input remains.
+/// 6. Extract the diagonal for the single remaining operand.
+/// 7. Reduce dimensions for the remaining input node.
+/// 8. Transpose dimensions to match the layout required by the output subscript.
+/// 9. Replace the original Einsum node with the last node from the decomposed sub-graph,
+///    preserving the original node's name and runtime information.
 ov::pass::EinsumDecomposition::EinsumDecomposition() {
-    // NOTE: The transformation is applicable if Einsum equation does not contain ellipsis label
-    // and does not contain subscripts with repeated labels.
-    // For example, the transformation is applicable to Einsum with equation="abc,bd->ad"
-    // but not applicable to a case with equation="aabc,bd->ad" due to repeated labels
-    // in the first input subscript.
+
     MATCHER_SCOPE(EinsumDecomposition);
     auto einsum = ov::pass::pattern::wrap_type<ov::op::v7::Einsum>();
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
@@ -1200,6 +1302,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
             return false;
         }
 
+        // Parse the Einsum equation to get input and output subscripts
         auto equation = einsum_node->get_equation();
         std::vector<std::string> input_subscripts;
         std::string output_subscript;
@@ -1209,7 +1312,8 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         // and a vector of sub-graph nodes for copy_runtime_info
         ov::OutputVector input_nodes = einsum_node->input_values();
         ov::NodeVector subgraph_nodes;
-        // check that the transformation is applicable
+
+        // Check if the transformation is applicable by ensuring all input nodes have static ranks
         if (std::any_of(input_nodes.cbegin(), input_nodes.cend(), [](ov::Output<Node> node) {
                 return node.get_partial_shape().rank().is_dynamic();
             })) {
@@ -1234,6 +1338,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
                                 subgraph_nodes);
         }
 
+        // Ensure only one input node remains after contraction
         OPENVINO_ASSERT(input_nodes.size() == 1);
 
         // extract diagonal for the single operand
