@@ -325,4 +325,4 @@ jobs:
           storage_root: ${{ env.ARTIFACTS_SHARE }}
         env:
           STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
-          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API }}
