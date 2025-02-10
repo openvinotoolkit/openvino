@@ -14,7 +14,7 @@ class TestNode : public ov::Node {
 public:
     TestNode() : Node() {}
 
-    OPENVINO_RTTI_BASE("TestNode", "")
+    OPENVINO_RTTI_BASE("TestNode")
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector&) const override {
         return std::make_shared<TestNode>();
