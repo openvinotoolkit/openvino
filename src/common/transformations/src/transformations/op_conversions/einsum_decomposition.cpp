@@ -585,7 +585,6 @@ void transpose_input(ov::OutputVector& input_nodes,
 /// \brief      Find labels (in a given input subscript) that are met once in the equation
 /// and reduce dimensions corresponding to such labels
 ///
-/// \param      einsum_decompose_ptr    A pointer to Einsum decomposing pass
 /// \param      input_nodes             A vector of input nodes to Einsum operation
 /// \param      input_subscripts        A vector of corresponding subscripts for the input nodes
 /// \param      output_subscript        The output subscript
@@ -594,8 +593,7 @@ void transpose_input(ov::OutputVector& input_nodes,
 /// \param      subgraph_nodes          A vector of operation nodes that is included into
 /// a sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
-void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
-                  ov::OutputVector& input_nodes,
+void reduce_input(ov::OutputVector& input_nodes,
                   std::vector<std::string>& input_subscripts,
                   const std::string& output_subscript,
                   size_t input_ind,
@@ -639,9 +637,7 @@ void reduce_input(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     const std::vector<int64_t> reduced_axes_vec{reduced_axes.cbegin(), reduced_axes.cend()};
     const auto axes_const =
         ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{reduced_axes.size()}, reduced_axes_vec);
-    const auto reduce_sum =
-        einsum_decompose_ptr->register_new_node<ov::op::v1::ReduceSum>(input_node, axes_const, false);
-
+    const auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(input_node, axes_const, false);
     // update a vector of inputs and input subscripts
     input_nodes[input_ind] = reduce_sum->output(0);
     input_subscripts[input_ind] = new_input_subscript;
@@ -914,7 +910,6 @@ void unsqueeze_ellipses_to_same_rank(ov::OutputVector& inputs,
 /// The input nodes for these two operands are removed from input_nodes along with their input
 /// subscripts
 ///
-/// \param      einsum_decompose_ptr    A pointer to Einsum decomposing pass
 /// \param      input_nodes             A vector of input nodes to Einsum operation
 /// \param      input_subscripts        A vector of corresponding subscripts for the input nodes
 /// \param      output_subscript        The output subscript
@@ -923,8 +918,7 @@ void unsqueeze_ellipses_to_same_rank(ov::OutputVector& inputs,
 /// \param      subgraph_nodes          A vector of operation nodes that is included into a
 /// sub-graph decomposing Einsum that is needed for copy_runtime_info
 ///
-void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
-                         ov::OutputVector& input_nodes,
+void contract_two_inputs(ov::OutputVector& input_nodes,
                          std::vector<std::string>& input_subscripts,
                          const std::string& output_subscript,
                          size_t input_ind1,
@@ -951,8 +945,8 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     extract_diagonal(input_nodes, input_subscripts, input_ind2, subgraph_nodes);
 
     // reduce dimensions for input operands if possible
-    reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
-    reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind2, subgraph_nodes);
+    reduce_input(input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
+    reduce_input(input_nodes, input_subscripts, output_subscript, input_ind2, subgraph_nodes);
 
     // step 0. split dimensions of both operands into three groups:
     // 1. dimension indices with the same labels (in both subscripts) that are NOT reduced -
@@ -1328,8 +1322,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
 
         // contract inputs by Einsum until just one is remained
         for (auto const& inds_pair : einsum_path) {
-            contract_two_inputs(this,
-                                input_nodes,
+            contract_two_inputs(input_nodes,
                                 input_subscripts,
                                 output_subscript,
                                 inds_pair.first,
@@ -1343,7 +1336,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         // extract diagonal for the single operand
         extract_diagonal(input_nodes, input_subscripts, 0, subgraph_nodes);
         // reduce dimensions for the remained input node
-        reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
+        reduce_input(input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
         // transpose dimensions to layout required by the output subscript
         transpose_input(input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
         // replace the original Einsum node with the last node from decomposing sub-graph
