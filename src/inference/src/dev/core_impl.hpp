@@ -232,10 +232,9 @@ private:
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    template <typename C, typename = ov::util::enableIfSupportedChar<C>>
-    void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
+    void try_to_register_plugin_extensions(const ov::util::Path& path) const {
         try {
-            auto plugin_extensions = ov::detail::load_extensions(path);
+            auto plugin_extensions = ov::detail::load_extensions(path.native());
             add_extensions_unsafe(plugin_extensions);
         } catch (const std::runtime_error&) {
             // in case of shared library is not opened

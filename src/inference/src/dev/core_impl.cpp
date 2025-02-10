@@ -630,7 +630,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !ov::is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(deviceName.find(plugin_name) != std::string::npos,
-                                desc.libraryLocation.string(),
+                                desc.libraryLocation,
                                 " is used for ",
                                 deviceName,
                                 " , while it contains implementation for ",
@@ -743,13 +743,13 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            try_to_register_plugin_extensions(desc.libraryLocation.native());
+            try_to_register_plugin_extensions(desc.libraryLocation);
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
     } catch (const ov::Exception& ex) {
         OPENVINO_THROW("Failed to create plugin ",
-                       desc.libraryLocation.string(),
+                       desc.libraryLocation,
                        " for device ",
                        deviceName,
                        "\n",
