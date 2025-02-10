@@ -472,7 +472,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
             ? true
             : false;
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
-    auto_s_context->m_model = if_model_cloned ? model->clone() : std::const_pointer_cast<ov::Model>(model);
+    auto_s_context->m_model =
+        model_path.empty() && if_model_cloned ? model->clone() : std::const_pointer_cast<ov::Model>(model);
     auto_s_context->m_model_path = model_path;
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
