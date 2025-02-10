@@ -64,8 +64,9 @@ forward and backward passes.
          :fragment: [tune_model]
 
 .. note::
-   The precision of weights transitions to INT8 only after converting the model to OpenVINO Intermediate Representation.
-   You can expect a reduction in model footprint only for that format.
+   The precision of weight transitions to INT8 only after converting the model to OpenVINO
+   Intermediate Representation. You can expect a reduction in the model footprint only for
+   that format.
 
 These steps outline the basics of applying the QAT method from the NNCF. However, in some cases, it is required to save/load model
 checkpoints during training. Since NNCF wraps the original model with its own object, it provides an API for these needs.
