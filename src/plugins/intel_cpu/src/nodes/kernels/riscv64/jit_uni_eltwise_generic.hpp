@@ -92,6 +92,11 @@ private:
         OPENVINO_THROW("Cannot allocate aux register for emitter!");
     }
 
+    inline Xbyak_riscv::FReg aux_fp_gpr(const int idx) const {
+        OPENVINO_ASSERT(idx >= 0 && idx < static_cast<int>(fp_gpr_count), "Cannot allocate aux fp register for emitter!");
+        return Xbyak_riscv::FReg(idx);
+    }
+
     inline Xbyak_riscv::VReg mask_vec() const {
         return Xbyak_riscv::VReg(0);
     }
@@ -120,6 +125,10 @@ private:
         OPENVINO_ASSERT(static_cast<size_t>(vec_idx) < (vec_count - lmul_v + 1),
                         "aux vector reg " + std::to_string(vec_idx) + " is not supported");
         return Xbyak_riscv::VReg(vec_idx);
+    }
+
+    inline size_t get_max_aux_fp_gpr_count() const {
+        return fp_gpr_count;
     }
 
     inline size_t get_max_aux_gpr_count() const {
@@ -167,7 +176,6 @@ private:
 
     void compute_eltwise_op();
     void apply_post_ops();
-    void emit_data() const;
 
     const std::vector<EltwiseData> eltwise_data_;
     const std::vector<ov::intel_cpu::Type> ops_list_;

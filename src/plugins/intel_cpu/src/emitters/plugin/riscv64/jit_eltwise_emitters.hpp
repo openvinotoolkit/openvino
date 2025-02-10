@@ -30,6 +30,7 @@ public:
     jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
@@ -65,6 +66,7 @@ public:
     size_t get_inputs_num() const override;
     size_t aux_gprs_count() const override;
     size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
@@ -95,6 +97,7 @@ public:
     jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
@@ -109,6 +112,7 @@ public:
     jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);

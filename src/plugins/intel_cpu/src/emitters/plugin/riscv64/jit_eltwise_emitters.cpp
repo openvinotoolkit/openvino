@@ -72,10 +72,14 @@ size_t jit_clamp_emitter::get_inputs_num() const {
     return 1;
 }
 
+size_t jit_clamp_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
 void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
-    FReg fmin = f0, fmax = f0;
+    FReg fmin = FReg(aux_fp_gpr_idxs[0]), fmax = FReg(aux_fp_gpr_idxs[0]);
 
     h->flw(fmin, p_table, 0);
     h->vfmax_vf(dst, src, fmin);
@@ -141,6 +145,10 @@ size_t jit_exp_emitter::aux_vecs_count() const {
     return 3;
 }
 
+size_t jit_exp_emitter::aux_fp_gprs_count() const {
+    return 2;
+}
+
 void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
@@ -152,11 +160,11 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     h->vmv_v_v(aux2, src);
 
     // get mask of values lower than log(FLT_MIN) to zero them in the output
-    FReg ln_flt_min_f = f1;
+    FReg ln_flt_min_f = FReg(aux_fp_gpr_idxs[0]);
     h->flw(ln_flt_min_f, p_table, 10 * sizeof(uint32_t));
     h->vfmax_vf(dst, src, ln_flt_min_f);
 
-    FReg ln_flt_max_f = f0;
+    FReg ln_flt_max_f = FReg(aux_fp_gpr_idxs[1]);
     h->flw(ln_flt_max_f, p_table, 9 * sizeof(uint32_t));
     h->vfmin_vf(dst, dst, ln_flt_max_f);
 
@@ -165,10 +173,10 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
     // calculate exp(x)
     // fx = x * log2ef + 0.5
-    FReg log2ef = f0;
+    FReg log2ef = FReg(aux_fp_gpr_idxs[1]);
     h->flw(log2ef, p_table, 8 * sizeof(uint32_t));
     h->vfmul_vf(dst, dst, log2ef);
-    FReg half = f0;
+    FReg half = FReg(aux_fp_gpr_idxs[1]);
     h->flw(half, p_table, 6 * sizeof(uint32_t));
     h->vfadd_vf(dst, dst, log2ef);
 
@@ -176,7 +184,7 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     h->vfcvt_x_f_v(aux1, dst); // fp32 -> int32
     h->vfcvt_f_x_v(aux1, aux1); // int32 -> fp32
     h->vmfgt_vv(mask_vreg(), aux1, dst);
-    FReg one = f0;
+    FReg one = FReg(aux_fp_gpr_idxs[1]);
     h->flw(one, p_table, 5 * sizeof(uint32_t)); // one
     h->vfsub_vf(aux1, aux1, one, VM::masked);
 
@@ -184,7 +192,7 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     h->vmv_v_v(dst, aux1);
 
     // x = x - fx * ln2
-    FReg ln2 = f0;
+    FReg ln2 = FReg(aux_fp_gpr_idxs[1]);
     h->flw(ln2, p_table, 7 * sizeof(uint32_t));
     h->vfnmsac_vf(aux0, ln2, aux1);
 
@@ -202,7 +210,7 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     h->vand_vx(aux1, aux1, zero, VM::masked);
 
     // compute polynomial
-    FReg pol = f0;
+    FReg pol = FReg(aux_fp_gpr_idxs[1]);
     h->flw(pol, p_table, 4 * sizeof(uint32_t)); // pol5
     h->vfmv_v_f(dst, pol);
 
@@ -290,11 +298,15 @@ size_t jit_prelu_emitter::get_inputs_num() const {
     return 2;
 }
 
+size_t jit_prelu_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
 void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
-    FReg fzero = f0;
+    FReg fzero = FReg(aux_fp_gpr_idxs[0]);
 
     if (src0.getIdx() != dst.getIdx())
         h->vmv_v_v(dst, src0);
@@ -328,11 +340,14 @@ size_t jit_relu_emitter::get_inputs_num() const {
     return 1;
 }
 
+size_t jit_relu_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
 void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
-    FReg fzero = f0;
-
+    FReg fzero = FReg(aux_fp_gpr_idxs[0]);
     h->fmv_w_x(fzero, zero);
 
     if (alpha == 0) {
