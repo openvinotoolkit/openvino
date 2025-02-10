@@ -19,7 +19,9 @@ namespace intel_npu::driver_compiler_utils {
 
 class IRSerializer {
 public:
-    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+    IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
+                 const uint32_t supportedOpset = 11,
+                 const bool commonPassesApplied = false);
 
     size_t getXmlSize() const {
         return _xmlSize;
@@ -50,6 +52,13 @@ private:
     uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
+
+    /**
+     * @brief Indicates whether or not the OV common passes have already been applied on the model.
+     * @details This attribute will be stored inside model's runtime information in order to be sent to the compiler.
+     * The compiler will thus know if applying the same passes on its end is required.
+     */
+    bool _commonPassesApplied;
 };
 
 }  // namespace intel_npu::driver_compiler_utils
