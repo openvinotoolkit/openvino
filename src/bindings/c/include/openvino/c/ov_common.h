@@ -33,7 +33,7 @@
 #ifdef __cplusplus
 #    define OPENVINO_C_API_EXTERN extern "C"
 #else
-#    define OPENVINO_C_API_EXTERN
+#    define OPENVINO_C_API_EXTERN extern
 #endif
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
