@@ -157,6 +157,8 @@ T object_from_data(D& data, bool shared_memory) {
     return create_copied<T>(data);
 }
 
+ov::Tensor tensor_from_pointer(int64_t data_ptr, const ov::Shape& shape, const ov::element::Type& ov_type);
+
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Output<const ov::Node>& port);

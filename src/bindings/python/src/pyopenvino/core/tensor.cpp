@@ -37,6 +37,38 @@ void regclass_Tensor(py::module m) {
                 :type shared_memory: bool
             )");
 
+    cls.def(py::init([](int64_t data_ptr, const ov::Shape& shape, const ov::element::Type& ov_type) {
+                return Common::tensor_from_pointer(data_ptr, shape, ov_type);
+            }),
+            py::arg("data_ptr"),
+            py::arg("shape"),
+            py::arg("type") = ov::element::undefined,
+            R"(
+                Tensor's special constructor .
+                Represents an array in the memory with given shape and element type.
+                It's recommended to use this constructor when initializing Tensor
+                with data stored in non-RAM memory (for example GPU memory). It creates
+                an OpenVINO Tensor without the need for additional data copies.
+                :param data_ptr: Pointer to a C_CONTIGUOUS array which will be wrapped in
+                                 openvino.runtime.Tensor with given parameters (shape
+                                 and element_type). Array's memory is being shared with
+                                 a host, that means the responsibility of keeping host memory is
+                                 on the side of a user. Any action performed on the host
+                                 memory will be reflected on this Tensor's memory!
+                :type data_ptr: int
+                :param shape: Shape of the new tensor.
+                :type shape: openvino.runtime.Shape
+                :param type: Element type
+                :type type: openvino.runtime.Type
+                :Example:
+                .. code-block:: python
+                    from openvino import Tensor, Shape, Type
+                    import torch
+                    arr = torch.rand(128).to(torch.device("xpu"))
+                    data_ptr = arr.detach().data_ptr()
+                    t = Tensor(data_ptr, Shape(arr.shape), Type.f32)
+            )");
+
     cls.def(py::init([](py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type) {
                 return Common::tensor_from_pointer(array, shape, ov_type);
             }),
