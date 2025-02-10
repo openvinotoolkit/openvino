@@ -70,6 +70,10 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
+bool ScatterUpdate::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(DATA_ID);
+}
+
 bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }
@@ -562,7 +566,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     if (axis < 0) {
         axis += updates_rank;
     }
-    OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
     const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -678,7 +682,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                                           int axis,
                                           const scatter_reductions::ReduceMean& kernel) {
     using namespace scatter_elements_update;
-    OPENVINO_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
+    CPU_NODE_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
     DataType* dataPtr = mem_data->getDataAs<DataType>();
     DataType* updatePtr = mem_updates->getDataAs<DataType>();
     uint8_t* indicesPtr = mem_indices->getDataAs<uint8_t>();
@@ -690,7 +694,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     if (axis < 0) {
         axis += updates_rank;
     }
-    OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
     const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -1075,7 +1079,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
                                     const KernelType& kernel) {
-    OPENVINO_ASSERT(reduction_type != ScatterUpdate::Reduction::NONE, "The reduction should not be NONE.");
+    CPU_NODE_ASSERT(reduction_type != ScatterUpdate::Reduction::NONE, "The reduction should not be NONE.");
     uint8_t* indices = mem_indices->getDataAs<uint8_t>();
     DataType* update = mem_updates->getDataAs<DataType>();
     DataType* dstData = mem_data->getDataAs<DataType>();

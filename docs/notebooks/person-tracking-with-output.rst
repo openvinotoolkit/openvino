@@ -131,13 +131,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     %pip install -q "openvino>=2024.0.0"
     %pip install -q opencv-python requests scipy tqdm "matplotlib>=3.4"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 Imports
 -------
 
@@ -158,10 +151,10 @@ Imports
 .. code:: ipython3
 
     # Import local modules
+    import requests
     
     if not Path("./notebook_utils.py").exists():
         # Fetch `notebook_utils` module
-        import requests
     
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
@@ -179,6 +172,11 @@ Imports
         xywh_to_tlwh,
         tlwh_to_xyxy,
     )
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("person-tracking.ipynb")
 
 Download the Model
 ------------------
@@ -206,31 +204,21 @@ by the cosine distance.
     precision = "FP16"
     # The name of the model from Open Model Zoo
     detection_model_name = "person-detection-0202"
-    
-    
     download_det_model_url = (
         f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{detection_model_name}/{precision}/{detection_model_name}.xml"
     )
+    detection_model_path = Path(base_model_dir) / detection_model_name / precision / f"{detection_model_name}.xml"
     
-    detection_model_path = download_ir_model(download_det_model_url, Path(base_model_dir) / detection_model_name / precision)
+    if not detection_model_path.exists():
+    
+        download_ir_model(download_det_model_url, Path(base_model_dir) / detection_model_name / precision)
     
     reidentification_model_name = "person-reidentification-retail-0287"
     download_reid_model_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{reidentification_model_name}/{precision}/{reidentification_model_name}.xml"
+    reidentification_model_path = Path(base_model_dir) / reidentification_model_name / precision / f"{reidentification_model_name}.xml"
     
-    reidentification_model_path = download_ir_model(download_reid_model_url, Path(base_model_dir) / reidentification_model_name / precision)
-
-
-
-.. parsed-literal::
-
-    person-detection-0202.bin:   0%|          | 0.00/3.47M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    person-reidentification-retail-0287.bin:   0%|          | 0.00/1.13M [00:00<?, ?B/s]
-
+    if not reidentification_model_path.exists():
+        download_ir_model(download_reid_model_url, Path(base_model_dir) / reidentification_model_name / precision)
 
 Load model
 ----------
@@ -308,15 +296,6 @@ select device from dropdown list for running inference using OpenVINO
     device = utils.device_widget()
     
     device
-
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
 
 .. code:: ipython3
 
@@ -464,7 +443,9 @@ Visualize data
 
     base_file_link = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/person_"
     image_indices = ["1_1.png", "1_2.png", "2_1.png"]
-    image_paths = [utils.download_file(base_file_link + image_index, directory="data") for image_index in image_indices]
+    image_paths = [
+        utils.download_file(base_file_link + image_index, directory="data") for image_index in image_indices if not (Path("data") / image_index).exists()
+    ]
     image1, image2, image3 = [cv2.cvtColor(cv2.imread(str(image_path)), cv2.COLOR_BGR2RGB) for image_path in image_paths]
     
     # Define titles with images.
@@ -481,29 +462,6 @@ Visualize data
     
     # Display an image.
     plt.show(fig)
-
-
-
-.. parsed-literal::
-
-    person_1_1.png:   0%|          | 0.00/68.3k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    person_1_2.png:   0%|          | 0.00/68.9k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    person_2_1.png:   0%|          | 0.00/70.3k [00:00<?, ?B/s]
-
-
-
-.. image:: person-tracking-with-output_files/person-tracking-with-output_17_3.png
-
 
 Compare two persons
 ~~~~~~~~~~~~~~~~~~~
@@ -522,12 +480,6 @@ Compare two persons
         print(f"Same person (confidence: {sim})")
     else:
         print(f"Different person (confidence: {sim})")
-
-
-.. parsed-literal::
-
-    Different person (confidence: 0.02726624347269535)
-
 
 Main Processing Function
 ------------------------
@@ -725,17 +677,11 @@ will work.
     USE_WEBCAM = False
     
     cam_id = 0
-    video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+    video_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+    video_file = Path("people.mp4")
     source = cam_id if USE_WEBCAM else video_file
     
+    if not USE_WEBCAM and not video_file.exists():
+        utils.download_file(video_url)
+    
     run_person_tracking(source=source, flip=USE_WEBCAM, use_popup=False)
-
-
-
-.. image:: person-tracking-with-output_files/person-tracking-with-output_25_0.png
-
-
-.. parsed-literal::
-
-    Source ended
-

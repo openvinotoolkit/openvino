@@ -4,7 +4,6 @@ action-recognition-webcam
 async-api
 auto-device
 convert-to-openvino
-cross-lingual-books-alignment
 depth-anything
 detectron2-to-openvino
 fast-segment-anything

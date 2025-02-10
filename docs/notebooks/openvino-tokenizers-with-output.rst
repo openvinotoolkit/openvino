@@ -111,6 +111,22 @@ use ``pip install openvino-tokenizers[transformers]``.
 
 .. code:: ipython3
 
+    import requests
+    from pathlib import Path
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("openvino-tokenizers.ipynb")
+
+.. code:: ipython3
+
     from pathlib import Path
     
     
@@ -132,7 +148,8 @@ constructor.
 
 .. code:: ipython3
 
-    !convert_tokenizer $model_id --with-detokenizer -o $tokenizer_dir
+    if not tokenizer_dir.exists():
+        !convert_tokenizer $model_id --with-detokenizer -o $tokenizer_dir
 
 
 .. parsed-literal::
@@ -482,7 +499,7 @@ model has only one input for text input prompt.
     model_dir = Path(Path(model_id).name)
     
     if not model_dir.exists():
-        %pip install -qU git+https://github.com/huggingface/optimum-intel.git "onnx<1.16.2"
+        %pip install -qU git+https://github.com/huggingface/optimum-intel.git
         !optimum-cli export openvino --model $model_id --task text-classification $model_dir
 
 .. code:: ipython3
@@ -548,6 +565,6 @@ Links
    Types <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#supported-tokenizer-types>`__
 -  `OpenVINO.GenAI repository with the C++ example of OpenVINO
    Tokenizers
-   usage <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation>`__
+   usage <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__
 -  `HuggingFace Tokenizers Comparison
    Table <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#output-match-by-model>`__
