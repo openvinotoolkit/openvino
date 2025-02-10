@@ -59,7 +59,7 @@ files inside src/frontends/tensorflow:
 changed_component_names: {'TF_FE'}  # TF_FE is an alias we chose for TensorFlow Frontend component
 affected_components={
     "TF_FE": {"test": true, "build": true},
-    "MO": {"test": true, "build": true},
+    "OVC": {"test": true, "build": true},
     "CPU": {"build": true},
     "Python_API": {"build": true},
     ...
@@ -115,7 +115,7 @@ This file describes the relationships between components, for example:
 ```yaml
 PyTorch_FE:       # Component name
   revalidate:     # Defines the list of components to revalidate (build + test) if the component above was changed
-    - MO          # This component depends on PyTorch_FE and requires full revalidation
+    - OVC         # This component depends on PyTorch_FE and requires full revalidation
   build:          # Defines the list of components to build if the PyTorch_FE was changed (test runs for them are skipped)
     - CPU         # This component and the component below must be built if PyTorch_FE was changed
     - Python_API
@@ -124,8 +124,8 @@ For the example above, the following pipeline will be executed on changes applie
 
 * Build for PyTorch_FE
 * Tests for PyTorch_FE
-* Build for MO
-* Tests for MO
+* Build for OVC
+* Tests for OVC
 * Build for CPU
 * Build for Python_API
 

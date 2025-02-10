@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,7 +125,7 @@ private:
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<convolution_onednn>(*this);
+        return std::make_unique<convolution_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
@@ -358,7 +358,7 @@ public:
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 
-        auto conv_onednn_impl = cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
+        auto conv_onednn_impl = std::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
 
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -13,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class PYTORCH_API AtenIndexPutReplacer : public ov::pass::MatcherPass {
+class AtenIndexPutReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::AtenIndexPutReplacer");
     AtenIndexPutReplacer();

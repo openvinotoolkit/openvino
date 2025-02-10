@@ -2,7 +2,7 @@
 
 The TensorFlow Frontend (TF FE) is a C++ based OpenVINO Frontend component that is responsible for reading and converting a TensorFlow model to an `ov::Model` object
 that further can be serialized into the Intermediate Representation (IR) format.
-This is an internal API for OpenVINO that is used to implement user-facing API such as MO tool, Model Conversion API, and OpenVINO Runtime `read_model` function
+This is an internal API for OpenVINO that is used to implement user-facing API such as OVC tool, Model Conversion API, and OpenVINO Runtime `read_model` function
 for reading TensorFlow models of the original format in run-time. Also, OpenVINO Model Server uses the frontend for serving models.
 Regular users should not use the frontend directly.
 
@@ -21,16 +21,16 @@ flowchart BT
     tf_fe(TensorFlow Frontend)
     style tf_fe fill:#ee9a4d
     fem(Frontend Manager)
-    mo(Model Optimizer)
+    ovc(OpenVINO Model Converter)
     ov_runtime(OpenVINO Runtime)
-    model --> mo --> fem --> tf_fe
+    model --> ovc --> fem --> tf_fe
     model2 --> ov_runtime --> fem
     model3 --> ovms --> ov_runtime
     tf_fe --> ov_model
     click ovms "https://github.com/openvinotoolkit/model_server"
 ```
 
-The MO tool and model conversion API now use the TensorFlow Frontend as the default path for conversion to IR.
+The OVC tool and model conversion API now use the TensorFlow Frontend as the default path for conversion to IR.
 
 ## Key contacts
 
@@ -139,15 +139,15 @@ The main rules for loaders implementation:
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
 In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
-The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__ops__cpp__api.html) operations.
+The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__ops__cpp__api.html) operations.
 
 Here is an example of an implementation for the internal operation `SparseFillEmptyRows` used to convert Wide and Deep models.
 
 https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
-For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformation-api.html)
-and [OpenVINO Matcher Pass](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformation-api/matcher-pass.html) documentation.
+For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api.html)
+and [OpenVINO Matcher Pass](https://docs.openvino.ai/2025/documentation/openvino-extensibility/transformation-api/matcher-pass.html) documentation.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.

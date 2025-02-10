@@ -97,7 +97,7 @@ inference in the existing PyTorch application to OpenVINO and how to get value f
    category_name = weights.meta["categories"][class_id]
    print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
-Check out more examples in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples in :doc:`interactive Python tutorials <../../get-started/learn-openvino/interactive-tutorials-python>`.
 
 .. note::
 
@@ -179,7 +179,7 @@ It is recommended to address model outputs by the index rather then the name.
 Support for torch.export
 ########################
 
-`torch.export <https://pytorch.org/docs/2.2/export.html>`__ is the current way to get a graph
+`torch.export <https://pytorch.org/docs/stable/export.html>`__ is the current way to get a graph
 representation of a model (since PyTorch 2.1). It produces ``ExportedProgram`` which includes
 the graph representation in the FX format. To see why it has an advantage over the TorchScript
 representation, refer to `PyTorch documentation <https://pytorch.org/docs/stable/fx.html>`__.
@@ -198,22 +198,19 @@ Here is an example of how to convert a model obtained with ``torch.export``:
    exported_model = export(model, (torch.randn(1, 3, 224, 224),))
    ov_model = convert_model(exported_model)
 
-.. note::
-
-   This is an experimental feature. Use it only if you know that you need to. PyTorch version 2.2
-   is recommended. Dynamic shapes are not supported yet.
-
 Converting a PyTorch Model from Disk
 ####################################
 
-PyTorch provides the capability to save models in two distinct formats: ``torch.jit.ScriptModule`` and ``torch.export.ExportedProgram``.
-Both formats can be saved to disk as standalone files, enabling them to be reloaded independently of the original Python code.
+PyTorch can save models in two formats: ``torch.jit.ScriptModule`` and ``torch.export.ExportedProgram``.
+Both formats may be saved to drive as standalone files and reloaded later, independently of the
+original Python code.
 
 ExportedProgram Format
 ++++++++++++++++++++++
 
-The ``ExportedProgram`` format is saved on disk using `torch.export.save() <https://pytorch.org/docs/stable/export.html#serialization>`__.
-Below is an example of how to convert an ``ExportedProgram`` from disk:
+You can save the ``ExportedProgram`` format using
+`torch.export.save() <https://pytorch.org/docs/stable/export.html#serialization>`__.
+Here is an example of how to convert it:
 
 .. tab-set::
 
@@ -236,8 +233,9 @@ Below is an example of how to convert an ``ExportedProgram`` from disk:
 ScriptModule Format
 +++++++++++++++++++
 
-`torch.jit.save() <https://pytorch.org/docs/stable/generated/torch.jit.save.html>`__ serializes ``ScriptModule`` object on disk.
-To convert the serialized ``ScriptModule`` format, run ``convert_model`` function with ``example_input`` parameter as follows:
+`torch.jit.save() <https://pytorch.org/docs/stable/generated/torch.jit.save.html>`__ serializes
+the ``ScriptModule`` object on a drive. To convert the serialized ``ScriptModule`` format, run
+the ``convert_model`` function with ``example_input`` parameter as follows:
 
 .. code-block:: py
    :force:
@@ -252,15 +250,15 @@ To convert the serialized ``ScriptModule`` format, run ``convert_model`` functio
 Exporting a PyTorch Model to ONNX Format
 ########################################
 
-An alternative method of converting PyTorch models is exporting a PyTorch model to ONNX with
-``torch.onnx.export`` first and then converting the resulting ``.onnx`` file to OpenVINO Model
-with ``openvino.convert_model``. It can be considered as a backup solution if a model cannot be
-converted directly from PyTorch to OpenVINO as described in the above chapters. Converting through
-ONNX can be more expensive in terms of code, conversion time, and allocated memory.
+An alternative method of converting a PyTorch models is to export it to ONNX first
+(with ``torch.onnx.export``) and then convert the resulting ``.onnx`` file to the OpenVINO IR
+model (with ``openvino.convert_model``). It should be considered a backup solution, if a model
+cannot be converted directly, as described previously. Converting through ONNX can be more
+expensive in terms of code overhead, conversion time, and allocated memory.
 
 1. Refer to the `Exporting PyTorch models to ONNX format <https://pytorch.org/docs/stable/onnx.html>`__
    guide to learn how to export models from PyTorch to ONNX.
-2. Follow :doc:`Convert an ONNX model <convert-model-onnx>` chapter to produce OpenVINO model.
+2. Follow the :doc:`Convert an ONNX model <convert-model-onnx>` guide to produce OpenVINO IR.
 
 Here is an illustration of using these two steps together:
 

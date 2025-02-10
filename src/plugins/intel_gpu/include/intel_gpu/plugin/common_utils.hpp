@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,9 @@
 
 #include <ostream>
 #include <tuple>
-#include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
+
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
@@ -102,26 +101,6 @@ inline ov::Shape predict_shape(const std::string& name, const cldnn::layout layo
     }
 
     return layout.get_shape();
-}
-
-inline cldnn::memory::ptr allocate_memory_evenif_zero_bytes(cldnn::engine& _engine,
-                                                            const cldnn::layout& layout,
-                                                            cldnn::allocation_type type,
-                                                            bool reset = true) {
-    if (layout.bytes_count() == 0) {
-        auto non_zero_layout = cldnn::layout({1}, layout.data_type, layout.format);
-        auto res = _engine.allocate_memory(non_zero_layout, type, false);
-        return _engine.reinterpret_buffer(*res, layout);
-    } else {
-        return _engine.allocate_memory(layout, type, reset);
-    }
-}
-
-inline cldnn::memory::ptr allocate_memory_evenif_zero_bytes(cldnn::engine& _engine,
-                                                            const cldnn::layout& layout,
-                                                            bool reset = true) {
-    cldnn::allocation_type type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
-    return allocate_memory_evenif_zero_bytes(_engine, layout, type, reset);
 }
 
 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.

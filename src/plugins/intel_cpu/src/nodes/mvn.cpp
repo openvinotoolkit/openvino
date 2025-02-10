@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,23 +174,26 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             };
             worker_tails(reg_rt_shape, tails_func);
             // hsum+store
-            if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
+            if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc)) {
                 uni_vcvtdq2ps(vmm_sum, vmm_sum);
+            }
             Vmm vmm_dst = jcp_.normalize_variance ? vmm_variance : vmm_sum;
             reduce_sum_store_vmm(vmm_dst.getIdx());
         } else if (jcp_.layout == MVNLayoutType::mvn_by_channel) {
-            if (jcp_.across_channels)
+            if (jcp_.across_channels) {
                 nspc_ac_ker();
-            else
+            } else {
                 nspc_pc_ker();
+            }
         } else {
             block_ker();
         }
 
         this->postamble();
 
-        for (size_t i = 0; i < LOAD_EMITTERS_NUM; i++)
+        for (size_t i = 0; i < LOAD_EMITTERS_NUM; i++) {
             load_emitter[i]->emit_data();
+        }
 
         prepare_table();
     }
@@ -230,7 +233,18 @@ private:
 
     size_t src_stride = 0;
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, TAIL8_FILL, TAIL4_FILL, TAIL2_FILL, TAIL1_FILL, LOAD_EMITTERS_NUM };
+    enum : uint8_t {
+        VECTOR,
+        TAIL8,
+        TAIL4,
+        TAIL2,
+        TAIL1,
+        TAIL8_FILL,
+        TAIL4_FILL,
+        TAIL2_FILL,
+        TAIL1_FILL,
+        LOAD_EMITTERS_NUM
+    };
     std::unique_ptr<jit_load_emitter> load_emitter[LOAD_EMITTERS_NUM];
     std::vector<size_t> load_pool_gpr_idxs;
 
@@ -259,8 +273,9 @@ private:
         };
         worker_tails(reg_work_amount, tails_func);
 
-        if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
+        if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc)) {
             uni_vcvtdq2ps(vmm_sum, vmm_sum);
+        }
         Vmm vmm_dst = jcp_.normalize_variance ? vmm_variance : vmm_sum;
         reduce_sum_store_vmm(vmm_dst.getIdx());
     }
@@ -327,8 +342,9 @@ private:
         int ur_base = 4;
         auto init = [&](int vmm_id) {
             uni_vpxor(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
-            if (jcp_.normalize_variance)
+            if (jcp_.normalize_variance) {
                 uni_vmovups(Vmm(ur_base + 8 + vmm_id), ptr[reg_mean + vmm_id * vlen]);
+            }
         };
         auto load_src = [&](int vmm_id) {
             load_emitter[VECTOR]->emit_code({static_cast<size_t>(reg_src_aux.getIdx())},
@@ -345,23 +361,25 @@ private:
                 uni_vsubps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 8 + vmm_id));
                 uni_vfmadd231ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
             } else {
-                if (!isFloatCompatible(jcp_.src_prc))
+                if (!isFloatCompatible(jcp_.src_prc)) {
                     uni_vpaddd(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
-                else
+                } else {
                     uni_vaddps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
+                }
             }
         };
         auto store = [&](int vmm_id) {
             if (jcp_.normalize_variance) {
                 uni_vmovups(ptr[reg_variance + vmm_id * vector_step * sizeof(float)], Vmm(ur_base + 4 + vmm_id));
             } else {
-                if (!isFloatCompatible(jcp_.src_prc))
+                if (!isFloatCompatible(jcp_.src_prc)) {
                     uni_vcvtdq2ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
+                }
                 uni_vmovups(ptr[reg_sum + vmm_id * vector_step * sizeof(float)], Vmm(ur_base + 4 + vmm_id));
             }
         };
 
-        auto vector_worker = [&](std::function<void(int)> func) {
+        auto vector_worker = [&](const std::function<void(int)>& func) {
             Xbyak::Label label_end;
             func(0);
             cmp(reg_unroll_size, 1);
@@ -485,10 +503,11 @@ private:
                 uni_vsubps(Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + 8 + vmm_id));
                 uni_vfmadd231ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id), Vmm(ur_base + vmm_id));
             } else {
-                if (!isFloatCompatible(jcp_.src_prc))
+                if (!isFloatCompatible(jcp_.src_prc)) {
                     uni_vpaddd(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
-                else
+                } else {
                     uni_vaddps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + vmm_id));
+                }
             }
         };
         auto store_tails = [&](size_t step) {
@@ -497,8 +516,9 @@ private:
                 uni_vmovups(ptr[reg_variance], Vmm(ur_base + 4 + vmm_id));
                 add(reg_variance, step * sizeof(float));
             } else {
-                if (!isFloatCompatible(jcp_.src_prc))
+                if (!isFloatCompatible(jcp_.src_prc)) {
                     uni_vcvtdq2ps(Vmm(ur_base + 4 + vmm_id), Vmm(ur_base + 4 + vmm_id));
+                }
                 uni_vmovups(ptr[reg_sum], Vmm(ur_base + 4 + vmm_id));
                 add(reg_sum, step * sizeof(float));
             }
@@ -579,8 +599,9 @@ private:
                 uni_vmovups(ptr[reg_variance], vmm_variance);
             } else {
                 if (!isFloatCompatible(
-                        jcp_.src_prc))  // add with int for int-family data type, other compute go with float
+                        jcp_.src_prc)) {  // add with int for int-family data type, other compute go with float
                     uni_vcvtdq2ps(vmm_sum, vmm_sum);
+                }
 
                 if (!jcp_.across_channels) {
                     uni_vmovups(vmm_val, ptr[reg_sum]);
@@ -735,21 +756,23 @@ private:
 
         if (jcp_.normalize_variance) {
             // all with float
-            if (!isFloatCompatible(jcp_.src_prc))
+            if (!isFloatCompatible(jcp_.src_prc)) {
                 uni_vcvtdq2ps(vmm_val, vmm_val);
+            }
 
             uni_vsubps(vmm_val, vmm_val, vmm_mean);
             uni_vfmadd231ps(vmm_variance, vmm_val, vmm_val);
         } else {
             // for sum, int execute prc for int-family data type
-            if (!isFloatCompatible(jcp_.src_prc))
+            if (!isFloatCompatible(jcp_.src_prc)) {
                 uni_vpaddd(vmm_sum, vmm_sum, vmm_val);
-            else
+            } else {
                 uni_vaddps(vmm_sum, vmm_sum, vmm_val);
+            }
         }
     }
 
-    inline void worker_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
+    inline void worker_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
         int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
@@ -826,8 +849,9 @@ private:
             }
         }
         if (jcp_.normalize_variance) {
-            if (!isFloatCompatible(jcp_.src_prc))
+            if (!isFloatCompatible(jcp_.src_prc)) {
                 uni_vcvtdq2ps(vmm_val, vmm_val);
+            }
             uni_vsubps(vmm_val, vmm_val, vmm_mean);
             if (is_zero_pad) {
                 uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -849,10 +873,11 @@ private:
             }
             uni_vfmadd231ps(vmm_variance, vmm_val, vmm_val);
         } else {
-            if (!isFloatCompatible(jcp_.src_prc))
+            if (!isFloatCompatible(jcp_.src_prc)) {
                 uni_vpaddd(vmm_sum, vmm_sum, vmm_val);
-            else
+            } else {
                 uni_vaddps(vmm_sum, vmm_sum, vmm_val);
+            }
         }
     }
 
@@ -949,11 +974,12 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this,
-                                                                                                post_op.eltwise.alg,
-                                                                                                post_op.eltwise.alpha,
-                                                                                                post_op.eltwise.beta,
-                                                                                                post_op.eltwise.scale));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                                            post_op.eltwise.alg,
+                                                                                            post_op.eltwise.alpha,
+                                                                                            post_op.eltwise.beta,
+                                                                                            post_op.eltwise.scale,
+                                                                                            data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -992,8 +1018,9 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_mean, ptr[reg_params + GET_OFF(mean)]);
-        if (jcp_.normalize_variance)
+        if (jcp_.normalize_variance) {
             mov(reg_variance_inv, ptr[reg_params + GET_OFF(variance)]);
+        }
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
         mov(reg_rt_shape, ptr[reg_params + GET_OFF(rt_shape_size)]);
@@ -1006,12 +1033,14 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         if (jcp_.layout == MVNLayoutType::mvn_planar || jcp_.across_channels) {
             uni_vbroadcastss(vmm_mean, ptr[reg_mean]);
-            if (jcp_.normalize_variance)
+            if (jcp_.normalize_variance) {
                 uni_vbroadcastss(vmm_variance_inv, ptr[reg_variance_inv]);
+            }
         } else {
             uni_vmovups(vmm_mean, ptr[reg_mean]);
-            if (jcp_.normalize_variance)
+            if (jcp_.normalize_variance) {
                 uni_vmovups(vmm_variance_inv, ptr[reg_variance_inv]);
+            }
         }
 
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
@@ -1031,23 +1060,27 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
             };
             worker_mvn_tails(reg_rt_shape, tails_func);
         } else if (jcp_.layout == MVNLayoutType::mvn_by_channel) {
-            if (jcp_.across_channels)
+            if (jcp_.across_channels) {
                 norm_nspc_ac_ker();
-            else
+            } else {
                 norm_nspc_pc_ker();
+            }
         } else {
             norm_block_ker();
         }
 
         this->postamble();
 
-        for (size_t i = 0; i < EMITTERS_NUM; i++)
+        for (size_t i = 0; i < EMITTERS_NUM; i++) {
             load_emitter[i]->emit_data();
-        for (size_t i = 0; i < EMITTERS_NUM; i++)
+        }
+        for (size_t i = 0; i < EMITTERS_NUM; i++) {
             store_emitter[i]->emit_data();
+        }
 
-        for (auto& inj : eltwise_injectors)
+        for (auto& inj : eltwise_injectors) {
             inj->prepare_table();
+        }
     }
 
 private:
@@ -1084,7 +1117,7 @@ private:
     Vmm vmm_d_weights = Vmm(0);
     Vmm vmm_d_bias = Vmm(1);
 
-    enum { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
+    enum : uint8_t { VECTOR, TAIL8, TAIL4, TAIL2, TAIL1, EMITTERS_NUM };
     std::unique_ptr<jit_load_emitter> load_emitter[EMITTERS_NUM];
     std::unique_ptr<jit_store_emitter> store_emitter[EMITTERS_NUM];
     std::vector<size_t> store_pool_gpr_idxs;
@@ -1093,7 +1126,7 @@ private:
 
     const int tile_size[kTileNum] = {8, 4, 2, 1};
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
@@ -1313,7 +1346,7 @@ private:
             add(reg_dst_aux, step * jcp_.dst_data_size);
         };
 
-        auto vector_worker = [&](std::function<void(int, int)> func) {
+        auto vector_worker = [&](const std::function<void(int, int)>& func) {
             Xbyak::Label label_end;
             func(0, vector_step);
             cmp(addr_unroll_size, 1);
@@ -1603,8 +1636,9 @@ private:
                 worker_mvn_block(tile_size);
                 add(reg_src, tile_size * jcp_.src_data_size);
                 add(reg_dst, tile_size * jcp_.dst_data_size);
-                if (attr_.post_ops_.len() != 0)
+                if (attr_.post_ops_.len() != 0) {
                     add(reg_oc_off, tile_size * sizeof(float));
+                }
             };
             worker_mvn_tails(reg_rt_shape, tails_func);
 
@@ -1630,8 +1664,9 @@ private:
 
             add(reg_src, src_stride);
             add(reg_dst, dst_stride);
-            if (jcp_.layout == MVNLayoutType::mvn_by_channel && attr_.post_ops_.len() != 0)
+            if (jcp_.layout == MVNLayoutType::mvn_by_channel && attr_.post_ops_.len() != 0) {
                 add(reg_oc_off, vector_step * sizeof(float));
+            }
 
             sub(reg_work_amount, step_sub);
 
@@ -1647,8 +1682,9 @@ private:
                                         {load_pool_gpr_idxs});
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
-        if (jcp_.normalize_variance)
+        if (jcp_.normalize_variance) {
             uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
+        }
 
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
@@ -1658,7 +1694,7 @@ private:
                                          {store_pool_gpr_idxs});
     }
 
-    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, std::function<void(int)> func) {
+    inline void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
         int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
@@ -1704,8 +1740,9 @@ private:
         }
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
-        if (jcp_.normalize_variance)
+        if (jcp_.normalize_variance) {
             uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
+        }
 
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
@@ -1835,8 +1872,9 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             // 4D: axes: [1,2,3], [2,3]
             // 5D: axes: [1,2,3,4], [2,3,4]
             auto axesVal = axesOp->cast_vector<int>();
-            for (int& axe : axesVal)
+            for (int& axe : axesVal) {
                 axe = axe < 0 ? axe + inDataRank : axe;
+            }
             std::sort(axesVal.begin(), axesVal.end());
             if (inDataRank == 1) {
                 if (axesVal.size() != 1 || axesVal[0] != 0) {
@@ -1868,7 +1906,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -1885,8 +1923,9 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
 
         mvnAttrs.initAcrossChannels_ = false;
         const auto& inDataShapeSize = getInputShapeAtPort(0).getRank();
-        if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
+        if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1) {
             mvnAttrs.initAcrossChannels_ = true;
+        }
     } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = mvnOp->get_eps();
@@ -1920,13 +1959,15 @@ static inline bool isUnaryEltwise(const NodePtr& node) {
 }
 
 void MVN::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!hasHardwareSupport(outputPrecision))
+    if (!hasHardwareSupport(outputPrecision)) {
         outputPrecision = ov::element::f32;
+    }
 
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
@@ -2037,8 +2078,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
     }
 
     // planar
-    if (canBeInplace)
+    if (canBeInplace) {
         config.inConfs[0].inPlace(0);
+    }
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -2086,12 +2128,15 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, const dnnl::primit
         OPENVINO_THROW("Can't create jit MVN kernel");
     }
 #endif  // OPENVINO_ARCH_X86_64
-    if (mvn_kernel)
+    if (mvn_kernel) {
         mvn_kernel->create_ker();
-    if (mvn_mean_kernel)
+    }
+    if (mvn_mean_kernel) {
         mvn_mean_kernel->create_ker();
-    if (mvn_variance_kernel)
+    }
+    if (mvn_variance_kernel) {
         mvn_variance_kernel->create_ker();
+    }
 }
 
 void MVN::MVNJitExecutor::exec(const uint8_t* src_data,
@@ -2122,12 +2167,15 @@ void MVN::MVNRefExecutor::exec(const uint8_t* src_data,
 void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW("Destination memory is undefined.");
-    if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW("Input memory is undefined.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+    }
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+    }
 
     const VectorDims in_dims = srcMemPtr->getStaticDims();
     transformTo5DCase(in_dims);
@@ -2227,7 +2275,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         break;
     }
     default: {
-        OPENVINO_THROW("MVN layer with name '", getName(), "' doesn't support planar layout with rank: ", shape.size());
+        THROW_CPU_NODE_ERR("doesn't support planar layout with rank: ", shape.size());
     }
     }
 }
@@ -2247,20 +2295,20 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
             eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs);
             continue;
         }
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
     attr.set_post_ops(ops);
 }
 
-void MVN::executeDynamicImpl(dnnl::stream strm) {
+void MVN::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MVN::execute(dnnl::stream strm) {
+void MVN::execute(const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
 
@@ -2271,7 +2319,7 @@ void MVN::execute(dnnl::stream strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
     } else {
-        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -2339,10 +2387,11 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                 });
 
                 float variance = 1.f;
-                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                     variance /= sqrtf(variance_temp * C3inv + mvnAttrs.epsValue_);
-                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                     variance /= sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_;
+                }
 
                 // mvn for one instance in batch
                 parallel_for(C, [&](int c) {
@@ -2402,10 +2451,11 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                 arg.variance = static_cast<float*>(&variance);
                 (*mvn_variance_kernel)(&arg);
 
-                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                     variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
-                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                     variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
+                }
 
                 // mvn for this channel
                 (*mvn_kernel)(&arg);
@@ -2462,10 +2512,11 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
                 });
 
                 float variance = 1.f;
-                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                     variance = 1.f / sqrtf(variance_temp * C3inv + mvnAttrs.epsValue_);
-                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                     variance = 1.f / (sqrtf(variance_temp * C3inv) + mvnAttrs.epsValue_);
+                }
 
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -2499,10 +2550,11 @@ void MVN::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, co
                         variance += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
                     }
 
-                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                         variance = 1.f / sqrtf(variance * C2inv + mvnAttrs.epsValue_);
-                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                         variance = 1.f / (sqrtf(variance * C2inv) + mvnAttrs.epsValue_);
+                    }
 
                     // mvn for this channel
                     for (size_t sp = 0lu; sp < C2; sp++) {
@@ -2564,8 +2616,9 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
                 } else if (2 == kernel_type) {
                     arg.dst = dst_data + (b_offset + (start * C)) * dst_data_size;
                     arg.mean = &mean_buffer[0];
-                    if (mvnAttrs.normalizeVariance_)
+                    if (mvnAttrs.normalizeVariance_) {
                         arg.variance = &variance_buffer[0];
+                    }
                     arg.oc_off = 0;
                     arg.post_op_data = post_ops_data_;
                 }
@@ -2603,32 +2656,37 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
                 for (size_t i = 1; i < threads_num; i++) {
                     variance_buffer[0] += variance_buffer[i];
                 }
-                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                     variance_buffer[0] = 1.f / sqrtf(variance_buffer[0] * size_inv + mvnAttrs.epsValue_);
-                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                     variance_buffer[0] = 1.f / (sqrtf(variance_buffer[0] * size_inv) + mvnAttrs.epsValue_);
+                }
             }
             worker(true, 2);
         } else {  // for per_channel
             float size_inv = 1.f / static_cast<float>(D * H * W);
             worker(false, 0);
             for (size_t i = 1; i < threads_num; i++) {
-                for (size_t c = 0; c < C; c++)
+                for (size_t c = 0; c < C; c++) {
                     mean_buffer[c] += mean_buffer[c + aux_buffer_size * i];
+                }
             }
-            for (size_t c = 0; c < C; c++)
+            for (size_t c = 0; c < C; c++) {
                 mean_buffer[c] *= size_inv;
+            }
             if (mvnAttrs.normalizeVariance_) {
                 worker(false, 1);
                 for (size_t i = 1; i < threads_num; i++) {
-                    for (size_t c = 0; c < C; c++)
+                    for (size_t c = 0; c < C; c++) {
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
+                    }
                 }
                 for (size_t c = 0; c < C; c++) {
-                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                         variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + mvnAttrs.epsValue_);
-                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
+                    }
                 }
             }
             worker(false, 2);
@@ -2695,8 +2753,9 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     return mean_internal;
                 }
                 auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
-                for (size_t i = 0; i < blk_size; i++)
+                for (size_t i = 0; i < blk_size; i++) {
                     mean_buffer_ptr[i] = 0.f;
+                }
 
                 auto arg = jit_mvn_call_args();
                 arg.src = src_data + src_offset * src_data_size;
@@ -2708,8 +2767,9 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 (*mvn_mean_kernel)(&arg);                                         // for W * blk
 
                 size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                for (size_t i = 0; i < min_cb; i++)
+                for (size_t i = 0; i < min_cb; i++) {
                     mean_internal += mean_buffer_ptr[i];
+                }
                 return mean_internal;
             });
             float mean = mean_temp * C5inv;
@@ -2723,8 +2783,9 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     float variance_internal = 0.0f;
                     auto variance_buffer_ptr =
                         &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
-                    for (size_t i = 0; i < blk_size; i++)
+                    for (size_t i = 0; i < blk_size; i++) {
                         variance_buffer_ptr[i] = 0.f;
+                    }
 
                     auto arg = jit_mvn_call_args();
                     arg.src = src_data + src_offset * src_data_size;
@@ -2737,16 +2798,18 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     (*mvn_variance_kernel)(&arg);
 
                     size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                    for (size_t i = 0; i < min_cb; i++)
+                    for (size_t i = 0; i < min_cb; i++) {
                         variance_internal += variance_buffer_ptr[i];
+                    }
                     return variance_internal;
                 });
 
                 float variance = 1.f;
-                if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                     variance /= sqrtf(variance_temp * C5inv + mvnAttrs.epsValue_);
-                else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                     variance /= sqrtf(variance_temp * C5inv) + mvnAttrs.epsValue_;
+                }
 
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
@@ -2779,8 +2842,9 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             }
         } else {  // for per_channel
             float size_inv = 1.f / static_cast<float>(D * H * W);
-            for (size_t i = 0; i < mean_buffer.size(); i++)
+            for (size_t i = 0; i < mean_buffer.size(); i++) {
                 mean_buffer[i] = 0.f;
+            }
 
             // one thread for one C*W size(the same H) to get C size result for the same H, added to last group result
             // keep the compute order the same as planar
@@ -2805,15 +2869,18 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
             });
 
             for (size_t i = 1; i < threads_num; i++) {
-                for (size_t c = 0; c < C; c++)
+                for (size_t c = 0; c < C; c++) {
                     mean_buffer[c] += mean_buffer[c + aux_buffer_size * i];
+                }
             }
-            for (size_t c = 0; c < C; c++)
+            for (size_t c = 0; c < C; c++) {
                 mean_buffer[c] *= size_inv;
+            }
 
             if (mvnAttrs.normalizeVariance_) {
-                for (size_t i = 0; i < variance_buffer.size(); i++)
+                for (size_t i = 0; i < variance_buffer.size(); i++) {
                     variance_buffer[i] = 0.f;
+                }
 
                 auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
@@ -2838,14 +2905,16 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 });
 
                 for (size_t i = 1; i < threads_num; i++) {
-                    for (size_t c = 0; c < C; c++)
+                    for (size_t c = 0; c < C; c++) {
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
+                    }
                 }
                 for (size_t c = 0; c < C; c++) {
-                    if (mvnAttrs.epsMode_ == INSIDE_SQRT)
+                    if (mvnAttrs.epsMode_ == INSIDE_SQRT) {
                         variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + mvnAttrs.epsValue_);
-                    else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT)
+                    } else if (mvnAttrs.epsMode_ == OUTSIDE_SQRT) {
                         variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + mvnAttrs.epsValue_);
+                    }
                 }
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {

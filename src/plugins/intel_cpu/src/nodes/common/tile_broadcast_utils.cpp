@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,8 +65,10 @@ bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims
                                                        VectorDims blockedRepeats,
                                                        const size_t elemsInBlock) {
     if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0lu ||
-        srcBlockedDims[1] == Shape::UNDEFINED_DIM || (blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0))
+        srcBlockedDims[1] == Shape::UNDEFINED_DIM ||
+        (blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0)) {
         return false;
+    }
 
     srcBlockedDims[1] = div_up(srcBlockedDims[1], elemsInBlock);
     srcBlockedDims.push_back(elemsInBlock);
@@ -102,7 +104,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
     size_t outDataShapeRank = node->getOutputShapeAtPort(0).getRank();
 
     NodeConfig config;
-    if (repeats.size() != outDataShapeRank && !repeats.empty())
+    if (repeats.size() != outDataShapeRank && !repeats.empty()) {
         OPENVINO_THROW(node->getTypeStr(),
                        " node with name ",
                        node->getName(),
@@ -111,6 +113,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
                        repeats.size(),
                        ", output shape rank: ",
                        outDataShapeRank);
+    }
 
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
@@ -206,8 +209,9 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node* node,
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
     constexpr size_t maxNDims = 6lu;
-    if (optimizedDims.size() > maxNDims)
+    if (optimizedDims.size() > maxNDims) {
         return false;
+    }
 
     while (optimizedDims.size() < maxNDims) {
         optimizedDims.insert(optimizedDims.begin(), 1);

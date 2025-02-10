@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <utility>
 
 #include "executor.hpp"
 #include "executor_config.hpp"
@@ -25,11 +27,11 @@ public:
     VariableExecutor(const MemoryArgs& memory,
                      const Attrs& attrs,
                      const PostOps& postOps,
-                     const ExecutorContext::CPtr context,
+                     ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations)
         : m_attrs(attrs),
           m_postOps(postOps),
-          m_context(context),
+          m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_implementationRequiresFallback(
               cacheFallbackStatus(m_suitableImplementations,

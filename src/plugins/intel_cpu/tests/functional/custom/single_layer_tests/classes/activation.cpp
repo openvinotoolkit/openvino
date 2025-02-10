@@ -183,6 +183,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
         (activation_type == utils::ActivationTypes::Ceiling) ||
+        (activation_type == utils::ActivationTypes::Negative) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
@@ -197,7 +198,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Sqrt) ||
         (activation_type == utils::ActivationTypes::Swish) ||
         (activation_type == utils::ActivationTypes::LogicalNot) ||
-        (activation_type == utils::ActivationTypes::Tanh))) {
+        (activation_type == utils::ActivationTypes::Tanh) ||
+        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+        (activation_type == utils::ActivationTypes::RoundHalfToEven))) {
         return "jit";
     }
 
@@ -208,8 +211,11 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #endif
     if ((activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
+       (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
-       (activation_type == utils::ActivationTypes::IsFinite)) {
+       (activation_type == utils::ActivationTypes::IsFinite) ||
+       (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+       (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
         return "ref";
     }
     return "acl";
@@ -249,6 +255,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Elu,         {{0.1f}}},
         {Floor,       {{}}},
         {Ceiling,     {{}}},
+        {Negative,    {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
@@ -265,22 +272,26 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
 
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesSnippets() {
     static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
-        {Abs,         {{}}},
-        {Exp,         {{}}},
-        {Ceiling,     {{}}},
-        {Clamp,       {{-2.0f, 2.0f}}},
-        {Elu,         {{0.1f}}},
-        {Floor,       {{}}},
-        {GeluErf,     {{}}},
-        {GeluTanh,    {{}}},
-        {Relu,        {{}}},
-        {HSwish,      {{}}},
+        {Abs,                   {{}}},
+        {Exp,                   {{}}},
+        {Ceiling,               {{}}},
+        {Clamp,                 {{-2.0f, 2.0f}}},
+        {Elu,                   {{0.1f}}},
+        {Floor,                 {{}}},
+        {GeluErf,               {{}}},
+        {GeluTanh,              {{}}},
+        {Relu,                  {{}}},
+        {HSwish,                {{}}},
+        {PReLu,                 {{-0.01f}}},
+        {Sqrt,                  {{}}},
+        {RoundHalfToEven,       {{}}},
+        {RoundHalfAwayFromZero, {{}}},
 #if defined(OPENVINO_ARCH_ARM64)
-        {Mish,        {{}}},
+        {Mish,                  {{}}},
 #endif
-        {Sigmoid,     {{}}},
-        {Swish,       {{0.1f}}},
-        {Tanh,        {{}}},
+        {Sigmoid,               {{}}},
+        {Swish,                 {{0.1f}}},
+        {Tanh,                  {{}}},
     };
 
     return activationTypes;

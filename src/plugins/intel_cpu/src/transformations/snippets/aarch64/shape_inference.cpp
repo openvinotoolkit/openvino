@@ -15,8 +15,9 @@ using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
                                                                         const std::shared_ptr<ov::Node>& op) const {
     const auto& maker_iter = specific_ops_registry.find(key);
-    if (maker_iter != specific_ops_registry.end())
+    if (maker_iter != specific_ops_registry.end()) {
         return maker_iter->second(op);
+    }
     return {};
 }
 

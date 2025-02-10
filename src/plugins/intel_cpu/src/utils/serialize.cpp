@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "serialize.hpp"
+
+#include <utility>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/parallel.hpp"
@@ -39,7 +41,7 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
     : m_istream(model_stream),
       m_model_builder(std::move(fn)),
       m_decript_from_string(decript_from_string),
-      m_model_buffer(model_buffer) {
+      m_model_buffer(std::move(model_buffer)) {
     if (m_decript_from_string) {
         m_cache_decrypt.m_decrypt_str = decrypt_fn.m_decrypt_str;
     } else {

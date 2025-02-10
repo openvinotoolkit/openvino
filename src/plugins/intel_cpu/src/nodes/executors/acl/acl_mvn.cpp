@@ -9,7 +9,7 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-AclMVNExecutor::AclMVNExecutor(const ExecutorContext::CPtr context) : MVNExecutor(context) {}
+AclMVNExecutor::AclMVNExecutor(ExecutorContext::CPtr context) : MVNExecutor(std::move(context)) {}
 
 bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
@@ -55,8 +55,9 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                                           precisionToAclDataType(dstDescs[0]->getPrecision()),
                                           getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
-    if (!arm_compute::NEMeanStdDevNormalizationLayer::validate(&srcTensorInfo, &dstTensorInfo, mvnAttrs.epsValue_))
+    if (!arm_compute::NEMeanStdDevNormalizationLayer::validate(&srcTensorInfo, &dstTensorInfo, mvnAttrs.epsValue_)) {
         return false;
+    }
 
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);

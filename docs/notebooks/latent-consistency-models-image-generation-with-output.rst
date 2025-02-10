@@ -105,6 +105,11 @@ Prerequisites
             r = requests.get(base_utils_url + utility_file.name)
             with utility_file.open("w") as f:
                 f.write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("latent-consistency-models-image-generation.ipynb")
 
 Convert models to OpenVINO format
 ---------------------------------

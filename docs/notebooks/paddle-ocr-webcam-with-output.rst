@@ -69,22 +69,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
         %pip install -q "paddlepaddle>=2.5.1,<2.6.0"
     else:
         %pip install -q "paddlepaddle>=2.5.1"
-    %pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1" opencv-python tqdm
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    tensorflow 2.12.0 requires keras<2.13,>=2.12.0, but you have keras 2.13.1 which is incompatible.
-    tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
-    tensorflow 2.12.0 requires tensorboard<2.13,>=2.12, but you have tensorboard 2.13.0 which is incompatible.
-    tensorflow 2.12.0 requires tensorflow-estimator<2.13,>=2.12.0, but you have tensorflow-estimator 2.13.0 which is incompatible.
-    tensorflow-cpu 2.13.1 requires numpy<=1.24.3,>=1.22, but you have numpy 1.24.4 which is incompatible.
-    tensorflow-cpu 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "pyclipper>=1.2.1" "shapely>=1.7.1" opencv-python tqdm "Pillow>=11.0"
 
 Imports
 -------
@@ -122,6 +107,11 @@ Imports
         open("notebook_utils.py", "w").write(r.text)
     import notebook_utils as utils
     import pre_post_processing as processing
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("paddle-ocr-webcam.ipynb")
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -141,7 +131,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -209,19 +199,19 @@ Download the Model for Text **Detection**
 .. parsed-literal::
 
     Downloading the pre-trained model... May take a while...
-
+    
 
 
 .. parsed-literal::
 
-    ch_PP-OCRv3_det_infer.tar:   0%|          | 0.00/3.65M [00:00<?, ?B/s]
+    /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/paddle-ocr-webcam/model/ch_PP-OCRv3_de…
 
 
 .. parsed-literal::
 
     Model Downloaded
     Model Extracted to model/ch_PP-OCRv3_det_infer/inference.pdmodel.
-
+    
 
 Load the Model for Text **Detection**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -255,19 +245,19 @@ Download the Model for Text **Recognition**
 .. parsed-literal::
 
     Downloading the pre-trained model... May take a while...
-
+    
 
 
 .. parsed-literal::
 
-    ch_PP-OCRv3_rec_infer.tar:   0%|          | 0.00/11.4M [00:00<?, ?B/s]
+    /home/ea/work/openvino_notebooks_new_clone/openvino_notebooks/notebooks/paddle-ocr-webcam/model/ch_PP-OCRv3_re…
 
 
 .. parsed-literal::
 
     Model Downloaded
     Model Extracted to model/ch_PP-OCRv3_rec_infer/inference.pdmodel.
-
+    
 
 Load the Model for Text **Recognition** with Dynamic Shape
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -476,26 +466,31 @@ video file. See the list of procedures below:
 .. code:: ipython3
 
     # Download font and a character dictionary for printing OCR results.
-    font_path = utils.download_file(
-        url="https://raw.githubusercontent.com/Halfish/lstm-ctc-ocr/master/fonts/simfang.ttf",
-        directory="fonts",
-    )
-    character_dictionary_path = utils.download_file(
-        url="https://raw.githubusercontent.com/WenmuZhou/PytorchOCR/master/torchocr/datasets/alphabets/ppocr_keys_v1.txt",
-        directory="fonts",
-    )
+    font_path = Path("fonts/simfang.ttf")
+    character_dictionary_path = Path("fonts/ppocr_keys_v1.txt")
+    
+    if not font_path.exists():
+        utils.download_file(
+            url="https://raw.githubusercontent.com/Halfish/lstm-ctc-ocr/master/fonts/simfang.ttf",
+            directory="fonts",
+        )
+    if not character_dictionary_path.exists():
+        utils.download_file(
+            url="https://raw.githubusercontent.com/WenmuZhou/PytorchOCR/master/torchocr/datasets/alphabets/ppocr_keys_v1.txt",
+            directory="fonts",
+        )
 
 
 
 .. parsed-literal::
 
-    simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
+    fonts/simfang.ttf:   0%|          | 0.00/10.1M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
+    fonts/ppocr_keys_v1.txt:   0%|          | 0.00/17.3k [00:00<?, ?B/s]
 
 
 .. code:: ipython3
@@ -663,18 +658,11 @@ Run live PaddleOCR:
     USE_WEBCAM = False
     
     cam_id = 0
-    video_file = "https://raw.githubusercontent.com/yoyowz/classification/master/images/test.mp4"
+    video_file = Path("test.mp4")
+    
+    if not USE_WEBCAM and not video_file.exists():
+        utils.download_file("https://raw.githubusercontent.com/yoyowz/classification/master/images/test.mp4")
     
     source = cam_id if USE_WEBCAM else video_file
     
     run_paddle_ocr(source, flip=False, use_popup=False)
-
-
-
-.. image:: paddle-ocr-webcam-with-output_files/paddle-ocr-webcam-with-output_30_0.png
-
-
-.. parsed-literal::
-
-    Source ended
-

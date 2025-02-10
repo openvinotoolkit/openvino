@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,7 @@ private:
     Dim OC;
     int wei_scale_mask = -1;
     std::vector<float> wei_scale_values;
-    float dst_scale_val;
+    float dst_scale_val = 0.0f;
     dnnl::post_ops ops;
 
     void updateWeiScales();

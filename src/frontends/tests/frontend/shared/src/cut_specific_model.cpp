@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -240,7 +240,7 @@ TEST_P(FrontEndCutModelTest, testSetTensorValue) {
         return node->get_friendly_name().find(const_name) != std::string::npos;
     });
     ASSERT_TRUE(const_node_it != ops.end()) << "Name shall exist:" << const_name;
-    auto data = std::dynamic_pointer_cast<ov::op::v0::Constant>(*const_node_it)->get_vector<float>();
+    auto data = ov::as_type_ptr<ov::op::v0::Constant>(*const_node_it)->get_vector<float>();
     EXPECT_EQ(data.size(), m_param.m_tensorValue.size()) << "Data size must be equal to expected size";
     EXPECT_TRUE(std::equal(data.begin(), data.end(), m_param.m_tensorValue.begin())) << "Data must be equal";
 }

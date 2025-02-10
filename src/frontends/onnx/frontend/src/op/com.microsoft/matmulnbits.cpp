@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
     // in documentation: ...Input B is a 2D constant Matrix.
     CHECK_VALID_NODE(node,
-                     dynamic_cast<v0::Constant*>(b_quantized.get_node()) != nullptr,
+                     ov::as_type<v0::Constant>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
     CHECK_VALID_NODE(node,
                      b_quantized.get_partial_shape().rank() == 3,
@@ -112,7 +112,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     }
 
     {
-        const auto b_const = std::dynamic_pointer_cast<v0::Constant>(b_quantized.get_node_shared_ptr());
+        const auto b_const = ov::as_type_ptr<v0::Constant>(b_quantized.get_node_shared_ptr());
 
         ov::Output<ov::Node> casted_b;
         ov::Shape casted_b_shape;

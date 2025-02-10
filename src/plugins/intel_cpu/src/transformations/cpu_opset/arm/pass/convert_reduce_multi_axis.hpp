@@ -58,25 +58,25 @@ public:
 
 class ConvertReduceProd : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceProd", "0");
+    OPENVINO_RTTI("ConvertReduceProd", "0", ConvertReduceMultiAxisBase);
     ConvertReduceProd();
 };
 
 class ConvertReduceMin : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMin", "0");
+    OPENVINO_RTTI("ConvertReduceMin", "0", ConvertReduceMultiAxisBase);
     ConvertReduceMin();
 };
 
 class ConvertReduceMax : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMax", "0");
+    OPENVINO_RTTI("ConvertReduceMax", "0", ConvertReduceMultiAxisBase);
     ConvertReduceMax();
 };
 
 class ConvertReduceSum : public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSum", "0");
+    OPENVINO_RTTI("ConvertReduceSum", "0", ConvertReduceMultiAxisBase);
     ConvertReduceSum();
 };
 

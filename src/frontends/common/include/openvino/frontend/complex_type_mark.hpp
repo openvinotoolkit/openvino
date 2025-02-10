@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
 namespace ov {
@@ -17,7 +18,7 @@ namespace frontend {
 // into a floating-point tensor [N1, N2, ..., Nk, 2]
 // where a slice with index [..., 0] represents a real part and
 // a slice with index [..., 1] represents a imaginary part.
-class ComplexTypeMark : public ov::op::util::FrameworkNode {
+class FRONTEND_API ComplexTypeMark : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("ComplexTypeMark", "util", ov::op::util::FrameworkNode);
 
@@ -26,6 +27,8 @@ public:
           m_complex_part_type(complex_part_type) {
         validate_and_infer_types();
     }
+
+    ~ComplexTypeMark() override;
 
     void validate_and_infer_types() override {
         set_output_type(0, ov::element::dynamic, PartialShape::dynamic());

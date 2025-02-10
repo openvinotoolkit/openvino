@@ -71,6 +71,20 @@ Prerequisites
 
     from diffusers import StableDiffusionPipeline
 
+    import requests
+    from pathlib import Path
+
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+
+    collect_telemetry("stable-diffusion-torchdynamo-backend.ipynb")
+
 Stable Diffusion with Diffusers library
 ---------------------------------------
 
@@ -114,18 +128,15 @@ script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
 torch.compile it goes through the following steps:
 
-1. Graph acquisition
-   - the model is rewritten as blocks of subgraphs that are either:
+1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
 
    - compiled by TorchDynamo and “flattened”,
-   - falling back to the
-     eager-mode, due to unsupported Python constructs (like control-flow
+   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow
      code).
 
 2. Graph lowering - all PyTorch operations are decomposed into
    their constituent kernels specific to the chosen backend.
-3. Graph
-   compilation - the kernels call their corresponding low-level
+3. Graph compilation - the kernels call their corresponding low-level
    device-specific operations.
 
 Select device for inference and enable or disable saving the optimized
@@ -136,13 +147,6 @@ Variables
 options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#options>`__
 
 .. code:: ipython3
-
-    import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
 
     from notebook_utils import device_widget
 
