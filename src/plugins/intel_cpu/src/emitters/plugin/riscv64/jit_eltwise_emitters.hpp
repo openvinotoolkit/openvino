@@ -37,8 +37,8 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
-    bool need_table() const override;
-    const void* get_table() const override;
+    void register_table_entries() override;
+    const table_entry_val_t* get_table() const override;
 
     float min = 0.f;
     float max = 0.f;
@@ -73,8 +73,8 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
-    bool need_table() const override;
-    const void* get_table() const override;
+    void register_table_entries() override;
+    const table_entry_val_t* get_table() const override;
 };
 
 class jit_mul_emitter : public jit_emitter {
@@ -119,8 +119,9 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
-    bool need_table() const override;
-    const void* get_table() const override;
+
+    void register_table_entries() override;
+    const table_entry_val_t* get_table() const override;
 
     float alpha = 0.f;
 };

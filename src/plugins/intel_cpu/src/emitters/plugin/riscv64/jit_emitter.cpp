@@ -38,7 +38,7 @@ size_t jit_emitter::aux_vecs_count() const {
 
 size_t jit_emitter::aux_gprs_count() const {
     // We need one gpr to load table address
-    return need_table() ? 1 : 0;
+    return entry_map_.empty() ? 0 : 1;
 }
 
 size_t jit_emitter::aux_fp_gprs_count() const {
@@ -169,7 +169,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
     OPENVINO_ASSERT(aux_gprs_count() <= aux_gpr_idxs.size(), "Failed to allocate required number of general-purpose registers");
 
-    if (need_table()) {
+    if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
         p_table = Reg(aux_gpr_idxs[aux_gprs_count() - 1]);
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
@@ -177,8 +177,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     store_context(preserved_gpr_idxs, preserved_fp_gpr_idxs, preserved_vec_idxs);
 
-    if (need_table()) {
-        load_table_addr(get_table());
+    if (!entry_map_.empty()) {
+        load_table_addr();
     }
 }
 
@@ -277,6 +277,31 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
             h->addi(sp, sp, step);
             h->vle32_v(VReg(vec_idx), sp);
         }
+    }
+}
+
+void jit_emitter::prepare_table() {
+    register_table_entries();
+
+    // Now that we registered the entries, we set the offsets.  No
+    // entries should be registered after this point.  This allows to
+    // expect the same order when injecting the table entries in
+    // prepare_table.
+    size_t off = 0;
+    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
+        auto& te = (*it).second;
+        te.off = off;
+        off += sizeof(table_entry_val_t);
+    }
+}
+
+void jit_emitter::fill_table(table_entry_val_t* tbl, size_t size) const {
+    OPENVINO_ASSERT(entry_map_.size() == size, "Incorrect table size for filling");
+    for (const auto& te : entry_map_) {
+        const auto& elem = te.second;
+        const auto idx = elem.off / sizeof(table_entry_val_t);
+        OPENVINO_ASSERT(idx < size, "Incorrect index of table");
+        tbl[idx] = elem.val;
     }
 }
 
