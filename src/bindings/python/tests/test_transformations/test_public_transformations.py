@@ -117,7 +117,7 @@ def test_low_latency2():
     manager = Manager()
     manager.register_pass(LowLatency2())
     manager.run_passes(model)
-
+    LowLatency2().run_on_model(model)
     # TODO: create TI which will be transformed by LowLatency2
     assert count_ops(model, "TensorIterator") == [1]
 

@@ -74,5 +74,7 @@ class MyModelPass(ModelPass):
 
     def run_on_model(self, model):
         for op in model.get_ops():
+            print("kek")
             if op.get_type_info().name == "Relu":
+                print("lol")
                 self.model_changed = True
