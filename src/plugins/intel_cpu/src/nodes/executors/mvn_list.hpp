@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ public:
     MVNExecutorFactory(const MVNAttrs& mvnAttrs,
                        const std::vector<MemoryDescPtr>& srcDescs,
                        const std::vector<MemoryDescPtr>& dstDescs,
-                       const ExecutorContext::CPtr context)
+                       const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getMVNExecutorsList()) {
             if (desc.builder->isSupported(mvnAttrs, srcDescs, dstDescs)) {

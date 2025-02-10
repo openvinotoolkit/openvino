@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,16 +25,16 @@ FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformati
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseSubtractToFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
-    if (!canBeTransformed(context, subtract)) {
+    if (!canBeTransformed(subtract)) {
         return false;
     }
 
@@ -81,7 +81,7 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     replace_node(subtract, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
 
-    updateOutput(context, newFakeQuantize, subtract);
+    updateOutput(newFakeQuantize, subtract);
     return true;
 }
 

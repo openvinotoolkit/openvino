@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,7 @@ struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<deconvolution_onednn>(*this);
+        return std::make_unique<deconvolution_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(deconvolution_inst& instance) const override {
@@ -218,7 +218,7 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_deconvolution_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
+        return std::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 

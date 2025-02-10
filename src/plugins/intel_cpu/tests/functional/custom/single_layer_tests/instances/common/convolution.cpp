@@ -106,7 +106,6 @@ INSTANTIATE_TEST_SUITE_P(Conv_2D_FP32_dilated_empty_fusing, ConvolutionLayerCPUT
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
-        conv_sse42_plain_to_blocked_2D,
         conv_avx2_plain_to_blocked_2D,
         conv_avx512_plain_to_blocked_2D,
 };

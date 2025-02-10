@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <float.h>
@@ -83,8 +83,9 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
     size_t block_size = past_k_output.m_dims[2];
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0)
+        if (slot < 0) {
             return;
+        }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
         attn_copy(past_k_output.ptr<T2>(block_number, h, block_offset, 0), k_input.ptr<T>(b, h, m, 0), S);
@@ -102,8 +103,9 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
     size_t block_size = past_k_output.m_dims[2];
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0)
+        if (slot < 0) {
             return;
+        }
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
         std::memcpy(past_k_output.ptr_v(block_number, h, block_offset, 0),

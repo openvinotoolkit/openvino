@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct STFT_impl : typed_primitive_impl_ocl<STFT> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::STFT_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<STFT_impl>(*this);
+        return std::make_unique<STFT_impl>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {

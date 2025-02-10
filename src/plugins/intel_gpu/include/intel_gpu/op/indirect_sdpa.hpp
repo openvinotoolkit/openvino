@@ -9,13 +9,11 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class IndirectSDPA : public ov::intel_gpu::op::SDPA {
 public:
-    OPENVINO_OP("IndirectSDPA", "gpu_opset");
+    OPENVINO_OP("IndirectSDPA", "gpu_opset", ov::intel_gpu::op::SDPA);
 
     IndirectSDPA() = default;
 
@@ -55,6 +53,4 @@ protected:
     int64_t m_indirect_axis = -1;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,9 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         exp_injector.reset(
             new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
 
-        if (mayiuse(avx512_core))
+        if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        }
 
         this->preamble();
 
@@ -101,8 +102,9 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
         this->postamble();
 
-        if (uni_vcvtneps2bf16)
+        if (uni_vcvtneps2bf16) {
             uni_vcvtneps2bf16->emit_data();
+        }
 
         exp_injector->prepare_table();
 
@@ -243,7 +245,7 @@ private:
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
+        const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
         if (!regionYolo) {
             errorMessage = "Only opset1 RegionYolo operation is supported";
             return false;
@@ -258,18 +260,18 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = std::string(op->get_type_name()) + " node with name '" + op->get_friendly_name() + "'";
-    if (op->get_input_size() != 1 || op->get_output_size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+    if (op->get_input_size() != 1 || op->get_output_size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
-    const auto regionYolo = std::dynamic_pointer_cast<const ov::opset1::RegionYolo>(op);
+    const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
@@ -279,8 +281,9 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void RegionYolo::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     input_prec = getOriginalInputPrecisionAtPort(0);
     output_prec = getOriginalOutputPrecisionAtPort(0);
@@ -335,8 +338,9 @@ void RegionYolo::createPrimitive() {
         block_size = 4;
     }
 
-    if (logistic_kernel)
+    if (logistic_kernel) {
         logistic_kernel->create_ker();
+    }
 #endif
     softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
 }
@@ -345,14 +349,16 @@ inline float RegionYolo::logistic_scalar(float src) {
     U aux2;
     aux2.as_float_value = src;
     int sign = aux2.as_int_value >> 31;
-    if (sign == 0)
+    if (sign == 0) {
         src *= -1;
+    }
 
     src = std::exp(src);
 
     src = src / (src + 1);
-    if (sign == 0)
+    if (sign == 0) {
         src = 1 - src;
+    }
 
     return src;
 }
@@ -383,12 +389,12 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            OPENVINO_THROW("Unsupported precision configuration outPrc=", output_prec.get_type_name());
+            THROW_CPU_NODE_ERR("Unsupported precision configuration outPrc=", output_prec.get_type_name());
         }
     }
 }
 
-void RegionYolo::execute(dnnl::stream strm) {
+void RegionYolo::execute(const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;
@@ -412,11 +418,12 @@ void RegionYolo::execute(dnnl::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount())
-        OPENVINO_THROW("Incorrect layer configuration or output dimensions. ",
-                       output_size,
-                       " != ",
-                       getDstMemoryAtPort(0)->getShape().getElementsCount());
+    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount()) {
+        THROW_CPU_NODE_ERR("Incorrect layer configuration or output dimensions. ",
+                           output_size,
+                           " != ",
+                           getDstMemoryAtPort(0)->getShape().getElementsCount());
+    }
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;

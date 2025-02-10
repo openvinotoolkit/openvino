@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,13 +22,15 @@ namespace ov {
 
 bool util::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
-#if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
+#if (defined(__ANDROID__) || defined(__APPLE__) || defined(__CHROMIUMOS__)) && defined(__clang__)
     if (!result) {
         result = std::strcmp(lhs.name(), rhs.name()) == 0;
     }
 #endif
     return result;
 }
+
+Any::Base::~Base() = default;
 
 bool Any::Base::is(const std::type_info& other) const {
     return util::equal(type_info(), other);

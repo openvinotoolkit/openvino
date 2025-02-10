@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,12 @@ void llm_mlp_quantize_to_i8(T* psrc,
                             bool asym) {
     auto clamp_i8 = [](float x) {
         auto v = static_cast<int>(std::round(x));
-        if (v < -128)
+        if (v < -128) {
             return -128;
-        if (v > 127)
+        }
+        if (v > 127) {
             return 127;
+        }
         return v;
     };
 

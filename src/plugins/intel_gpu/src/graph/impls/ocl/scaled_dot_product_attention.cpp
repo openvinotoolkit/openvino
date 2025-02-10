@@ -249,12 +249,12 @@ protected:
         const auto value_shape = transpose_pshape(impl_param.get_input_layout(2).get_partial_shape(), desc->input_v_transpose_order);
 
         OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
-        for (size_t i = 0; i < query_shape.size(); ++i) {
-            if (query_shape[i].is_static() && key_shape[i].is_static() && value_shape[i].is_static()) {
-                if (query_shape[i].get_length() > key_shape[i].get_length()) {
-                    config.broadcast_axis = desc->input_k_transpose_order[i];
-                    config.group_size = query_shape[i].get_length() / key_shape[i].get_length();
-                }
+
+        const auto num_heads_dim = 1;
+        if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
+            if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
+                config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
+                config.group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
             }
         }
 
@@ -287,7 +287,7 @@ public:
         if (has_indirect_inputs(impl_param))
             data_inputs_num--;
 
-        auto has_zp_input_buffers = false;
+        auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
         if (desc->is_kv_compressed) {
             data_inputs_num -= 2; // key and value compression scales are handled separately
 
@@ -369,7 +369,7 @@ public:
             kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
         }
 
-        return cldnn::make_unique<scaled_dot_product_attention_impl>(kernels_data);
+        return std::make_unique<scaled_dot_product_attention_impl>(kernels_data);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {

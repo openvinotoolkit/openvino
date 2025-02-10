@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ const std::string& get_pytorch_prefix();
         OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), get_pytorch_prefix(), __VA_ARGS__)
 #endif
 
-void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
+void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs, bool allow_complex = false);
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
@@ -125,8 +125,6 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& mask,
                          const Output<Node>& value);
 
-Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end);
-
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
@@ -137,6 +135,8 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                           const ov::Rank& rank,
                           Output<Node>& new_output,
                           bool& use_input_as_output);
+
+Output<Node> get_complex_shape(const NodeContext& context, const Output<Node>& complex_input);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
@@ -310,11 +310,11 @@ public:
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
         FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
     }
-    bool is_input_inlined(size_t index) const override {
+    virtual bool is_input_inlined(size_t index) const override {
         FRONT_END_NOT_IMPLEMENTED(is_input_inlined);
     }
-    virtual OutputVector inlined_input(size_t index) const override {
-        FRONT_END_NOT_IMPLEMENTED(inlined_input);
+    virtual std::shared_ptr<TorchDecoder> get_inlined_input_decoder(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_inlined_input_decoder);
     }
     virtual ov::Any get_attribute(const std::string& name) const override {
         FRONT_END_NOT_IMPLEMENTED(get_attribute);

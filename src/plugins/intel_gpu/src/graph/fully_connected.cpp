@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -270,8 +270,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
             auto is_extra_alignment_needed = batch_size >= 256;
-            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+            fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
         }
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);

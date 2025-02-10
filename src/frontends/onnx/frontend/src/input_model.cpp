@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -531,13 +531,6 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
         // multiple graph cuts might have removed some parts of the model which initially required additional names
         if (it != model_inputs.end()) {
             it->add_names(tensor_names.second);
-        }
-    }
-
-    // Set model output names
-    for (auto&& result : model->get_results()) {
-        if (!is_type<op::v0::Parameter>(result->get_input_source_output(0).get_node())) {
-            result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
         }
     }
 }

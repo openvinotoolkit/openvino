@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto multinomial_op = as_type_ptr<op::v13::Multinomial>(op);
@@ -116,6 +116,11 @@ void Multinomial::prepareParams() {
     m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
 }
 
+bool Multinomial::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(PROBS_PORT) ||
+           getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT);
+}
+
 bool Multinomial::isExecutable() const {
     return !isInputTensorAtPortEmpty(PROBS_PORT) && !isInputTensorAtPortEmpty(NUM_SAMPLES_PORT);
 }
@@ -124,7 +129,7 @@ bool Multinomial::created() const {
     return getType() == Type::Multinomial;
 }
 
-void Multinomial::execute(dnnl::stream strm) {
+void Multinomial::execute(const dnnl::stream& strm) {
     switch (m_probs_precision) {
     case ov::element::f32:
         return execute_probs_type<float>();
@@ -137,7 +142,7 @@ void Multinomial::execute(dnnl::stream strm) {
     }
 }
 
-void Multinomial::executeDynamicImpl(dnnl::stream strm) {
+void Multinomial::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

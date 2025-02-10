@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ struct rnn_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::rnn_seq_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<rnn_seq_impl>(*this);
+        return std::make_unique<rnn_seq_impl>(*this);
     }
 
 protected:

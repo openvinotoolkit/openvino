@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ public:
     std::shared_ptr<ZeroRemoteTensor> get_impl() const;
 
 private:
-    std::shared_ptr<ZeroRemoteTensor> m_impl;
+    std::shared_ptr<ZeroRemoteTensor> _impl;
 };
 
 }  // namespace intel_npu

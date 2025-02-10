@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +160,7 @@ void jit_rms_kernel<isa>::generate() {
     reduce_vmm_to_scalar(vmm_rsqrt, vmm_sum0, vmm_sum1, vmm_sum3, vec_size);
 
     // mean(x^2)
+    OPENVINO_ASSERT(m_jcp.data_size != 0);
     mov(reg_tmp.cvt32(), float2int(1.0f / m_jcp.data_size));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
@@ -216,8 +217,9 @@ void jit_rms_kernel<isa>::generate() {
 
     this->postamble();
     for (const auto& emitter : emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 

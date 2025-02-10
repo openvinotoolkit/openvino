@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -42,6 +42,8 @@ ov_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitiz
 
 ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
 
+ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
+
 # Defines CPU capabilities
 
 ov_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
@@ -75,6 +77,8 @@ ov_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ${STYLE_CHECK
 ov_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
 ov_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
+
+ov_option (ENABLE_CLANG_TIDY "Enable clang-tidy checks during the build" ${STYLE_CHECKS_DEFAULT})
 
 ov_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 

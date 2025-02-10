@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,15 +12,15 @@ namespace node {
 
 class Roll : public Node {
 public:
-    Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -47,8 +47,6 @@ private:
 
     using ExecutorPtr = std::shared_ptr<RollExecutor>;
     ExecutorPtr execPtr = nullptr;
-
-    std::string layerErrorPrefix;
 
     static constexpr std::array<size_t, 3> supportedPrecisionSizes{1, 2, 4};
     static constexpr size_t DATA_INDEX = 0ul;

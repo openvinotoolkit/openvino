@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -11,7 +11,7 @@ from contextlib import nullcontext as does_not_raise
 from copy import copy
 import tempfile
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Core,
     Model,
@@ -26,8 +26,8 @@ from openvino import (
     serialize,
     save_model,
 )
-from openvino.runtime import Output
-from openvino.runtime.op.util import VariableInfo, Variable
+from openvino import Output
+from openvino.op.util import VariableInfo, Variable
 
 from tests.utils.helpers import (
     generate_add_model,
@@ -213,7 +213,7 @@ def test_get_sink_index(device):
     relu1.get_output_tensor(0).set_names({"relu_t1"})
     model = Model(relu1, [param], "TestModel")
 
-    # test get_sink_index with openvino.runtime.Node argument
+    # test get_sink_index with openvino.Node argument
     assign = ops.assign()
     assign2 = ops.assign()
     assign3 = ops.assign()
@@ -222,7 +222,7 @@ def test_get_sink_index(device):
     assert model.get_sink_index(assign_nodes[2]) == 2
     assert model.get_sink_index(relu1) == -1
 
-    # test get_sink_index with openvino.runtime.Output argument
+    # test get_sink_index with openvino.Output argument
     assign4 = ops.assign(relu1, "assign4")
     model.add_sinks([assign4])
     assert model.get_sink_index(assign4.output(0)) == 3
@@ -507,14 +507,14 @@ def test_reshape_with_python_types():
         model.reshape({model.input().node: shape10})
     assert (
         "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, "
-        "expected keys as openvino.runtime.Output, int or str." in str(e.value)
+        "expected keys as openvino.Output, int or str." in str(e.value)
     )
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
 
@@ -593,7 +593,7 @@ def test_reshape_with_python_types_for_variable():
         model.reshape({0: shape10}, {var_id: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
 
@@ -812,7 +812,7 @@ def test_copy_failed():
     model = generate_add_model()
     with pytest.raises(TypeError) as e:
         copy(model)
-    assert "Cannot copy 'openvino.runtime.Model'. Please, use deepcopy instead." in str(e.value)
+    assert "Cannot copy 'openvino.Model'. Please, use deepcopy instead." in str(e.value)
 
 
 def test_model_attr_not_found():
@@ -849,3 +849,11 @@ def test_tempdir_save_load_error():
         with tempfile.TemporaryDirectory() as model_save_dir:
             save_model(mem_model, f"{model_save_dir}/model.xml")
             _ = Core().read_model(f"{model_save_dir}/model.xml")
+
+
+def test_model_dir():
+    model = generate_add_model()
+    num_of_attrs = 83
+
+    assert type(dir(model)) == list
+    assert len(dir(model)) >= num_of_attrs

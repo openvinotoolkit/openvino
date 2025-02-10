@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,7 +105,7 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
-        auto pad = std::dynamic_pointer_cast<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
+        auto pad = ov::as_type_ptr<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
@@ -205,7 +205,7 @@ pass::PadFusionConvolution::PadFusionConvolution() {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
+        auto pad = ov::as_type_ptr<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
@@ -250,7 +250,7 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
+        auto pad = ov::as_type_ptr<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
@@ -306,7 +306,7 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
+        auto pad = ov::as_type_ptr<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
@@ -352,7 +352,7 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
+        auto pad = ov::as_type_ptr<op::util::PadBase>(pattern_map[pad_node_pattern].get_node_shared_ptr());
         auto pad_value = pattern_map[pad_value_pattern].get_node_shared_ptr();
         auto pads_begin = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
         auto pads_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());

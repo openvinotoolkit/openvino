@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,19 +41,19 @@ std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) 
     return std::make_shared<Load>(new_args.at(0), get_count(), get_offset());
 }
 
-LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
+LoadReorder::LoadReorder(const Output<ov::Node>& x, const size_t count, const size_t offset, std::vector<size_t> order)
                             : Load(x, count, offset), m_order(std::move(order)) {
     const auto& in_shape = x.get_partial_shape();
     const auto in_shape_size = in_shape.size();
-    OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReshape got new_order of invalid size");
+    OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReorder got new_order of invalid size");
     OPENVINO_ASSERT(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
-                    *std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReshape detected invalid values in new_order");
+                    *std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReorder detected invalid values in new_order");
     const std::set<size_t> unique_dims(order.begin(), order.end());
-    OPENVINO_ASSERT(unique_dims.size() == order.size(), "LoadReshape order must not contain repeated elements");
+    OPENVINO_ASSERT(unique_dims.size() == order.size(), "LoadReorder order must not contain repeated elements");
     constructor_validate_and_infer_types();
 }
 
-void LoadReshape::validate_and_infer_types() {
+void LoadReorder::validate_and_infer_types() {
     validate_memory_access_params();
     const auto& old_shape = get_input_partial_shape(0);
     ov::PartialShape new_shape;
@@ -62,23 +62,23 @@ void LoadReshape::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), new_shape);
 }
 
-bool LoadReshape::visit_attributes(AttributeVisitor& visitor) {
+bool LoadReorder::visit_attributes(AttributeVisitor& visitor) {
     MemoryAccess::visit_attributes(visitor);
     visitor.on_attribute("order", m_order);
     return true;
 }
 
-std::shared_ptr<Node> LoadReshape::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(LoadReshape);
+std::shared_ptr<Node> LoadReorder::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(LoadReorder);
     check_new_args_count(this, new_args);
-    return std::make_shared<LoadReshape>(new_args.at(0), get_count(), get_offset(), m_order);
+    return std::make_shared<LoadReorder>(new_args.at(0), get_count(), get_offset(), m_order);
 }
-LoadReshape::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
-    const auto& loadReshape = ov::as_type_ptr<LoadReshape>(n);
-    OPENVINO_ASSERT(loadReshape, "Got invalid node in LoadReshape::ShapeInfer");
-    m_order = loadReshape->m_order;
+LoadReorder::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
+    const auto& loadReorder = ov::as_type_ptr<LoadReorder>(n);
+    OPENVINO_ASSERT(loadReorder, "Got invalid node in LoadReorder::ShapeInfer");
+    m_order = loadReorder->m_order;
 }
-IShapeInferSnippets::Result LoadReshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+IShapeInferSnippets::Result LoadReorder::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     return {{utils::get_planar_vdims(input_shapes[0], m_order)}, ShapeInferStatus::success};
 }

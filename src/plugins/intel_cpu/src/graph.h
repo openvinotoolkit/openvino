@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "config.h"
 #include "cpu_memory.h"
 #include "edge.h"
@@ -17,7 +18,6 @@
 #include "memory_state.h"
 #include "node.h"
 #include "nodes/input.h"
-#include "openvino/core/node_vector.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_blk.h"
@@ -32,7 +32,8 @@ class MemoryStateNode;
 
 class Graph {
 public:
-    typedef std::shared_ptr<Graph> Ptr;
+    using Ptr = std::shared_ptr<Graph>;
+    using OutputMemoryBlocks = std::unordered_map<std::size_t, ProxyMemoryBlockPtr>;
 
     enum class Status {
         NotReady = 0,
@@ -64,12 +65,26 @@ public:
         return m_context->getConfig();
     }
 
+    /**
+     * Obsolete way of creating graph
+     * To enable layout propagation and global memory reuse
+     * two-stage creation should be used instead:
+     * - Init()
+     * - Activate()
+     */
     template <typename NET>
-    void CreateGraph(NET& model, const GraphContext::CPtr context);
+    void CreateGraph(NET& model, const GraphContext::CPtr& context);
 
+    /**
+     * Obsolete way of creating graph
+     * To enable layout propagation and global memory reuse
+     * two-stage creation should be used instead:
+     * - Init()
+     * - Activate()
+     */
     void CreateGraph(const std::vector<NodePtr>& graphNodes,
                      const std::vector<EdgePtr>& graphEdges,
-                     const GraphContext::CPtr context,
+                     const GraphContext::CPtr& context,
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
@@ -141,7 +156,7 @@ public:
     void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
-    void AddNode(NodePtr node);
+    void AddNode(const NodePtr& node);
     void DropNode(const NodePtr& node);
     void DropDWConvNode(const NodePtr& node);
 
@@ -166,8 +181,8 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    NodePtr InsertReorder(EdgePtr edge,
-                          std::string layerName,
+    NodePtr InsertReorder(const EdgePtr& edge,
+                          const std::string& layerName,
                           const MemoryDesc& inDesc,
                           const MemoryDesc& outDesc,
                           bool isOptimized = false,
@@ -186,7 +201,7 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(EdgePtr edge, NodePtr node, bool initNode = false);
+    bool InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode = false);
 
     /**
      * @brief Insert Node between two specified nodes.
@@ -206,7 +221,12 @@ public:
      * parameter that determines whether the node needs to be initialized
      * @return true in case of success, false otherwise.
      */
-    bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
+    bool InsertNode(const NodePtr& parent,
+                    const NodePtr& child,
+                    const NodePtr& node,
+                    int parentPort,
+                    int childPort,
+                    bool initNode = false);
 
     std::shared_ptr<ov::Model> dump() const;
 
@@ -220,22 +240,45 @@ public:
         return graphHasDynamicInput;
     }
 
+    void Init(const std::vector<NodePtr>& graphNodes,
+              const std::vector<EdgePtr>& graphEdges,
+              const GraphContext::CPtr& context,
+              std::string name);
+
     /**
      * Init graph using \p model, \p context, \p inputConfigs and \p outputConfigs
      */
     void Init(const std::shared_ptr<const ov::Model>& model,
-              const GraphContext::CPtr context,
+              const GraphContext::CPtr& context,
               const std::vector<node::Input::InputConfig>& inputConfigs = {},
               const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
     /**
-     * Activate execution graph using \p externalInputMemory and \p externalOutputMemory
+     * Activate execution graph
      */
-    void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
-                  const std::vector<MemoryPtr>& externalOutputMemory = {});
+    void Activate();
 
-    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() {
-        return outputNodesMemBlocksMap;
+    /**
+     * Register the graph in the global allocation context by transforming
+     * local execution data into the global one:
+     * 1) Local execution indices are transformed into global ones, represented by input and output execution index
+     *    where output execution index is an index of the last node of the inner graph
+     * 2) Local sync node indices are transformed into global ones using global input execution index
+     * 3) Local edges are added to the global list of edges
+     *
+     * Example graph with subgraphs:
+     * 0 -> 1 -> 2 -> 3 [0 -> 1 -> 2] -> 4 [0 -> 1] -> 5
+     *
+     * Virtually flatten:
+     * 0(0) -> 1(1) -> 2(2) -> 3(5) [3 -> 4 -> 5] -> 6(7) [6 -> 7] -> 8
+     *
+     * This is basically an equivalent to the actually flatten graph:
+     * 0 -> 1 -> 2 -> [3 -> 4 -> 5] -> [6 -> 7] -> 8
+     */
+    int RegisterToAllocationContext(int offset, AllocationContext& context);
+
+    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
+        return m_outputNodesMemBlocks;
     }
 
 protected:
@@ -266,6 +309,7 @@ protected:
                    const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
     void Configure(bool optimize = true);
+    void Allocate();
 
     void InitNodes();
     void InitDescriptors();
@@ -273,10 +317,10 @@ protected:
     void InitOptimalPrimitiveDescriptors();
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
-    bool ProcessDynNodes();
-    void Allocate(const std::vector<size_t>& syncNodesInds);
-    void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
+    bool ProcessDynNodes() const;
+    void AllocateWithReuse(const std::vector<size_t>& syncNodesInds, GlobalExecutionIndex globalExecIndex);
     void CreatePrimitivesAndExecConstants() const;
+    std::vector<size_t> CreateExecutionGraph();
 
     /**
      * Execute a given \p node within \p request using \p numaId
@@ -317,7 +361,7 @@ private:
     std::map<std::size_t, NodePtr> inputNodesMap;
     std::map<std::size_t, NodePtr> outputNodesMap;
 
-    std::unordered_map<std::size_t, ProxyMemoryBlockPtr> outputNodesMemBlocksMap;
+    OutputMemoryBlocks m_outputNodesMemBlocks;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
@@ -327,8 +371,6 @@ private:
 
     GraphContext::CPtr m_context;
     dnnl::stream m_stream;
-
-    MemoryControl* m_pMemoryControl = nullptr;
 };
 
 using GraphPtr = std::shared_ptr<Graph>;

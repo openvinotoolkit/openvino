@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,8 +37,9 @@ struct is_any_of<T, U, Rest...>
  * @return normalized vector
  */
 inline std::vector<size_t> getNormalizedDimsBySize(const VectorDims& dims, size_t ndims) {
-    if (dims.size() >= ndims)
+    if (dims.size() >= ndims) {
         return dims;
+    }
 
     std::vector<size_t> normalizedDims = dims;
     for (size_t i = 0; i < (ndims - dims.size()); i++) {
@@ -63,23 +64,30 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
                                                  bool weakComparison = false) {
     bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak)
                                                        : static_cast<bool (*)(size_t, size_t)>(dimsEqualStrong);
-    if (secondInputDims.size() > firstInputDims.size())
+    if (secondInputDims.size() > firstInputDims.size()) {
         return false;
-    if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), size_t(1), std::multiplies<size_t>()) == 1)
+    }
+    if (std::accumulate(secondInputDims.begin(),
+                        secondInputDims.end(),
+                        static_cast<size_t>(1),
+                        std::multiplies<size_t>()) == 1) {
         return true;
+    }
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     if (channelAxis >= 0) {
         for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
             if ((i == static_cast<size_t>(channelAxis) &&
                  !dimsEqual(normalizedSecondInputDims[i], firstInputDims[i])) ||
-                (i != static_cast<size_t>(channelAxis) && normalizedSecondInputDims[i] != 1))
+                (i != static_cast<size_t>(channelAxis) && normalizedSecondInputDims[i] != 1)) {
                 return false;
+            }
         }
     } else {
         for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-            if (normalizedSecondInputDims[i] != 1)
+            if (normalizedSecondInputDims[i] != 1) {
                 return false;
+            }
         }
     }
     return true;
@@ -95,8 +103,9 @@ inline ov::element::Type normalizeToSupportedPrecision(ov::element::Type precisi
     switch (precision) {
     case ov::element::bf16:
     case ov::element::f16: {
-        if (!hasHardwareSupport(precision))
+        if (!hasHardwareSupport(precision)) {
             precision = ov::element::f32;
+        }
     }
     case ov::element::u8:
     case ov::element::i8:

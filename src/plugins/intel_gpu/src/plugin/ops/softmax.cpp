@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,7 @@
 #include "openvino/op/log_softmax.hpp"
 #include "openvino/op/softmax.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Softmax>& op) {
     validate_inputs_count(op, {1});
@@ -58,5 +57,4 @@ REGISTER_FACTORY_IMPL(v1, Softmax);
 REGISTER_FACTORY_IMPL(v8, Softmax);
 REGISTER_FACTORY_IMPL(v5, LogSoftmax);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
