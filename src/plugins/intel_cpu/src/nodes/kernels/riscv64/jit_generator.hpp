@@ -106,6 +106,8 @@ protected:
 
     // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
     const size_t sp_aligment = 16;
+    // FP GP register count
+    const size_t fp_gpr_count = 32;
     // GP register count
     const size_t gpr_count = 32;
     // Vector register count

@@ -35,11 +35,17 @@ public:
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec);
 
+    // We have to define two "emit_code" to pass FP registers because
+    // the base class method doesn't support them for code emission
     void emit_code(const std::vector<size_t>& in_idxs,
                    const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
-    void emit_data() const override;
+                   const std::vector<size_t>& pool_vec_idxs,
+                   const std::vector<size_t>& pool_gpr_idxs,
+                   const std::vector<size_t>& pool_fp_gpr_idxs) const;
+    void emit_code(const std::vector<size_t>& in_idxs,
+                   const std::vector<size_t>& out_idxs,
+                   const std::vector<size_t>& pool_vec_idxs,
+                   const std::vector<size_t>& pool_gpr_idxs) const override;
 
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
@@ -56,7 +62,10 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
-    size_t get_max_vecs_count() const;
+    size_t get_max_gpr_count() const { return 32; }
+    size_t get_max_fp_gpr_count() const { return 32; }
+    size_t get_max_vecs_count() const { return 32; }
+
     size_t get_gpr_length() const;
     size_t get_fp_gpr_length() const;
     size_t get_vec_length() const;
@@ -75,13 +84,16 @@ protected:
     virtual void emitter_preamble(const std::vector<size_t>& in_idxs,
                                   const std::vector<size_t>& out_idxs,
                                   const std::vector<size_t>& pool_vec_idxs,
-                                  const std::vector<size_t>& pool_gpr_idxs) const;
+                                  const std::vector<size_t>& pool_gpr_idxs,
+                                  const std::vector<size_t>& pool_fp_gpr_idxs) const;
     virtual void emitter_postamble() const;
 
     void store_context(const std::vector<size_t>& gpr_regs,
+                       const std::vector<size_t>& fp_gpr_regs,
                        const std::vector<size_t>& vec_regs,
                        const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
     void restore_context(const std::vector<size_t>& gpr_regs,
+                         const std::vector<size_t>& fp_gpr_regs,
                          const std::vector<size_t>& vec_regs,
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 
@@ -99,12 +111,14 @@ protected:
     mutable std::shared_ptr<Xbyak_riscv::Label> l_table;
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;
+    mutable std::vector<size_t> aux_fp_gpr_idxs;
 
     emitter_in_out_map in_out_type_;
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
     mutable std::vector<size_t> preserved_gpr_idxs;
+    mutable std::vector<size_t> preserved_fp_gpr_idxs;
 
     // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
     const size_t sp_aligment = 16;
