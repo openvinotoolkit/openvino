@@ -69,7 +69,12 @@ public:
     const std::vector<ExpressionPtr>& get_parameters() const { return m_parameter_expressions; }
     const std::vector<ExpressionPtr>& get_results() const { return m_result_expressions; }
     const std::vector<BufferExpressionPtr>& get_buffers() const { return m_buffer_expressions; }
-    const Config& get_config() const { return m_config; }
+    const Config& get_config() const {
+#ifdef SNIPPETS_DEBUG_CAPS
+        OPENVINO_ASSERT(m_config.debug_config, "Debug config is not initialized");
+#endif  // SNIPPETS_DEBUG_CAPS
+        return m_config;
+    }
     size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
 
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
