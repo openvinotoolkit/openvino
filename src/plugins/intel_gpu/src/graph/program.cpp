@@ -155,15 +155,21 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
+    std::cout << __FILE__ << ":" << __LINE__ << " init_primitives" << std::endl;
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
+    std::cout << __FILE__ << ":" << __LINE__ << " init_program" << std::endl;
     init_program();
+    std::cout << __FILE__ << ":" << __LINE__ << " prepare_nodes" << std::endl;
     prepare_nodes(topology);
+    std::cout << __FILE__ << ":" << __LINE__ << " init_primitives" << std::endl;
     program_node::reset_unique_id();
     if (no_optimizations) {
+        std::cout << __FILE__ << ":" << __LINE__ << " init_graph" << std::endl;
         init_graph();
         _config.apply_user_properties(_engine.get_device_info());
     } else {
+        std::cout << __FILE__ << ":" << __LINE__ << " build_program" << std::endl;
         build_program(is_internal);
         if (_is_body_program) {
             // To skip empty if (condition) subgraph
@@ -185,6 +191,7 @@ program::program(engine& engine_ref,
             this->_can_be_optimized = can_be_optimized;
         }
     }
+    std::cout << __FILE__ << ":" << __LINE__ << " complete creating program" << std::endl;
 }
 
 program::program(engine& engine_ref,
@@ -510,6 +517,7 @@ void program::build_program(bool is_internal) {
     {
 #endif
         prepare_memory_dependencies();
+        std::cout << __FILE__ << ":" << __LINE__ << " >>> build_implementations" << std::endl;
         apply_opt_pass<build_implementations>();
     }
 
@@ -518,6 +526,7 @@ void program::build_program(bool is_internal) {
         if (get_engine().get_device_info().has_separate_cache)
             transfer_memory_to_device();
     }
+    std::cout << __FILE__ << ":" << __LINE__ << " >>> complete build" << std::endl;
 }
 
 void program::init_graph() {
