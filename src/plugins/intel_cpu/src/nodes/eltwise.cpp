@@ -793,6 +793,7 @@ public:
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
+                    Algorithm::EltwiseExp,
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
