@@ -41,6 +41,7 @@ public: \
     ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> \
         m_ ## PropertyVar {this, PropertyNamespace::PropertyVar.name(), #PropertyNamespace "::" #PropertyVar, __VA_ARGS__};
 
+#ifdef ENABLE_DEBUG_CAPS
 #define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...) \
     public: \
         static const decltype(PropertyNamespace::PropertyVar)::value_type& get_ ## PropertyVar() { \
@@ -51,7 +52,9 @@ public: \
         static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, OptionVisibility::DEBUG_GLOBAL> \
             m_ ## PropertyVar {nullptr, PropertyNamespace::PropertyVar.name(), #PropertyNamespace "::" #PropertyVar, __VA_ARGS__}; \
         OptionRegistrationHelper m_ ## PropertyVar ## _rh{this, PropertyNamespace::PropertyVar.name(), &m_ ## PropertyVar};
-
+#else
+#define OV_CONFIG_DEBUG_GLOBAL_OPTION(...)
+#endif
 
 using namespace ::testing;
 using namespace ov;
