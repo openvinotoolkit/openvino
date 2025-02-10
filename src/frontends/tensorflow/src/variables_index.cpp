@@ -224,7 +224,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring
         swprintf_s(suffix.data(), suffix.size(), L"data-%05d-of-%05d", shard, m_total_shards);
         std::wstring fullPath;
         if (is_saved_model) {
-            fullPath = ov::util::path_join_w({path, L"variables", std::wstring(L"variables.") + suffix.data()});
+            fullPath = ov::util::path_join({path, L"variables", std::wstring(L"variables.") + suffix.data()}).wstring();
         } else {
             fullPath = path + L"." + suffix.data();
         }

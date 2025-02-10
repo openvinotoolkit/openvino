@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -215,7 +216,19 @@ inline bool file_exists(const std::string& path) {
 
 std::string get_file_ext(const std::string& path);
 ov::util::Path get_directory(const ov::util::Path& path);
-std::string path_join(const std::vector<ov::util::Path>& paths);
+
+// TODO: Remove string() casts on function call site
+template <class Container = std::initializer_list<ov::util::Path>>
+ov::util::Path path_join(Container&& paths) {
+    ov::util::Path joined_path{};
+
+    for (auto&& path : paths) {
+        if (!path.empty()) {
+            joined_path /= path;
+        }
+    }
+    return joined_path;
+}
 
 void iterate_files(const std::string& path,
                    const std::function<void(const std::string& file, bool is_dir)>& func,
@@ -226,15 +239,15 @@ void convert_path_win_style(std::string& path);
 
 std::string get_ov_lib_path();
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-std::wstring path_join_w(const std::vector<ov::util::Path>& paths);
-#endif
-
+// TODO: remove this using. replace with Path.
 using FilePath = ov::util::Path::string_type;
+
+// TODO: remove this function after get_plugin_path using Path
 inline std::string from_file_path(const ov::util::Path& path) {
     return path.string();
 }
 
+// TODO: remove this function after all calls use Path
 inline FilePath to_file_path(const ov::util::Path& path) {
     return path.native();
 }
