@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API TSForwardBase;
  */
 class ov::pass::transpose_sinking::TSForwardBase : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSForwardBase", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSForwardBase");
     TSForwardBase() = default;
 
     template <class... Types>

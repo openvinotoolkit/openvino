@@ -9,6 +9,7 @@
 
 #include "pa_sdpa_kernel_opt.h"
 #include "pa_kv_cache_update_kernel_ref.h"
+#include "pa_kv_cache_rotate_kernel_ref.h"
 
 namespace kernel_selector {
 
@@ -30,6 +31,14 @@ kv_cache_update_kernel_selector::kv_cache_update_kernel_selector() {
 
 KernelsData kv_cache_update_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::PA_KV_CACHE_UPDATE);
+}
+
+kv_cache_rotate_kernel_selector::kv_cache_rotate_kernel_selector() {
+    Attach<KVCacheRotateKernelRef>();
+}
+
+KernelsData kv_cache_rotate_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::PA_KV_CACHE_ROTATE);
 }
 
 pa_sdpa_kernel_selector::pa_sdpa_kernel_selector() {

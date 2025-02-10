@@ -104,10 +104,10 @@ If the image build is successful, it will return the list of packages as below:
 Additional Resources
 ####################
 
-- :doc:`Troubleshooting Guide <../troubleshooting-install-config>`
+- :doc:`Troubleshooting Guide <./configurations/troubleshooting-install-config>`
 - `Official Yocto Project documentation <https://docs.yoctoproject.org/>`__
 - `BitBake Tool <https://docs.yoctoproject.org/bitbake/>`__
 - `Poky <https://git.yoctoproject.org/poky>`__
 - `Meta-intel <https://git.yoctoproject.org/meta-intel/tree/README.md>`__
-- `Meta-openembedded <http://cgit.openembedded.org/meta-openembedded/tree/README.md>`__
+- `Meta-openembedded <https://cgit.openembedded.org/meta-openembedded/tree/README.md>`__
 - `Meta-clang <https://github.com/kraj/meta-clang/tree/master/#readme>`__

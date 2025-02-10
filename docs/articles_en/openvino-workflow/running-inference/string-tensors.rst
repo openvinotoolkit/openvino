@@ -12,7 +12,7 @@ Such a tensor is called a string tensor and can be passed as input or retrieved 
 
 While this section describes basic API to handle string tensors, more practical examples that leverage both
 string tensors and OpenVINO tokenizer can be found in
-`GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__.
+`GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation>`__.
 
 
 Representation
@@ -203,4 +203,4 @@ Additional Resources
 
 * Use `OpenVINO tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/releases/2024/0/modules/custom_operations/user_ie_extensions/tokenizer/python>`__ to produce models that use string tensors to work with textual information as pre- and post-processing for the large language models.
 
-* Check out `GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__ to see how string tensors are used in real-life applications.
+* Check out `GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation>`__ to see how string tensors are used in real-life applications.

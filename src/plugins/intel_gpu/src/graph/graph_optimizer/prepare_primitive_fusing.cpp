@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -16,6 +16,7 @@
 #include "gemm_inst.h"
 #include "lrn_inst.h"
 #include "mvn_inst.h"
+#include "rms_inst.h"
 #include "pooling_inst.h"
 #include "normalize_inst.h"
 #include "permute_inst.h"
@@ -398,7 +399,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      desc->padding_begin,
                                                                      desc->padding_end,
                                                                      desc->grouped_weights_shape,
-                                                                     conv.get_output_layout().data_type);
+                                                                     conv.get_output_layout().data_type,
+                                                                     desc->auto_pad);
 
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
             conv_with_bias_prim->transposed = desc->transposed;
@@ -764,6 +766,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<mvn>();
 
+            should_fuse |= input.is_type<rms>();
+
             should_fuse |= input.is_type<group_normalization>();
 
             should_fuse |= input.is_type<normalize>() && data_type_traits::is_i8_u8(input.get_input_layout(0).data_type);
@@ -964,6 +968,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>())) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
+                                      (parents[i].first->is_type<rms>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||

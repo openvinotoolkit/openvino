@@ -147,9 +147,7 @@ inline void (FUNC_NAME)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        #if DECOMPRESSION_SCALE_POST_OP
-            ACCUMULATOR_VEC_TYPE acc_tmp[FORCED_TILE_B] = { };
-        #endif
+        ACCUMULATOR_VEC_TYPE acc_tmp[FORCED_TILE_B] = { };
 
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
             #if COMPRESSED_WEIGHTS_INT4
@@ -201,11 +199,7 @@ inline void (FUNC_NAME)(
                 unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-#if DECOMPRESSION_SCALE_POST_OP
                         ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-#else
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
-#endif
                     }
                 }
             }
@@ -240,9 +234,20 @@ inline void (FUNC_NAME)(
                     ACCUMULATOR_TYPE ds = d_scales[fi % DECOMPRESSION_SCALE_LENGTH];
                 #endif
                 ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                acc_tmp[bi][fi] = 0;
             }
         }
 #endif
+
+#if !DECOMPRESSION_SCALE_POST_OP
+        unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
+            }
+        }
+#endif
+
+
     }
     // =====================================================================================================================================
     // Leftovers

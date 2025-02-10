@@ -6,14 +6,12 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class GroupNormComposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GroupNormComposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GroupNormComposition");
     GroupNormComposition();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

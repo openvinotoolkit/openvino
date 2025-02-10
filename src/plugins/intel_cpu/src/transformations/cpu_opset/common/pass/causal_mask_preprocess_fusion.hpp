@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class CausalMaskPreprocessFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("CausalMaskPreprocessFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("CausalMaskPreprocessFusion");
     CausalMaskPreprocessFusion();
 };
 

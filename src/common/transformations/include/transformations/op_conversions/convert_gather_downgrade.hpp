@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertGather8ToGather7;
  */
 class ov::pass::ConvertGather7ToGather1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGather7ToGather1", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGather7ToGather1");
     ConvertGather7ToGather1();
 };
 
@@ -32,6 +32,6 @@ public:
  */
 class ov::pass::ConvertGather8ToGather7 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGather8ToGather7", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGather8ToGather7");
     ConvertGather8ToGather7();
 };

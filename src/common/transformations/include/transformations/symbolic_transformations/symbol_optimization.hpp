@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API OptimizeSymbolsUsedAsValues;
  */
 class ov::pass::ApplySymbolEquivalence : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ApplySymbolEquivalence", "0");
+    OPENVINO_MODEL_PASS_RTTI("ApplySymbolEquivalence");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -32,6 +32,6 @@ public:
  */
 class ov::pass::OptimizeSymbolsUsedAsValues : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("OptimizeSymbolsUsedAsValues", "0");
+    OPENVINO_MODEL_PASS_RTTI("OptimizeSymbolsUsedAsValues");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

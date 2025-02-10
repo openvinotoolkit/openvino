@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
@@ -219,18 +220,20 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }  // namespace
 #endif
 
-Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
                 op::v0::Parameter::get_type_info_static(),
                 op::v0::Constant::get_type_info_static(),
                 op::v0::Result::get_type_info_static(),
                 op::v3::ReadValue::get_type_info_static(),
-                op::v6::ReadValue::get_type_info_static()))
+                op::v6::ReadValue::get_type_info_static(),
+                ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",
                                        op->get_friendly_name());
+    }
     if (auto constOp = ov::as_type_ptr<op::v0::Constant>(op)) {
         constant = ConstantType::Const;
         m_constOp = constOp;
@@ -314,8 +317,9 @@ void Input::cloneBlobIfRequired() {
         if (prec == ov::element::f32) {
             uint32_t const* u32data = m_constOp->get_data_ptr<uint32_t>();
 
-            if (!size)
+            if (!size) {
                 return false;
+            }
 
 #if defined(OPENVINO_ARCH_X86_64)
             if (auto fn = jit_has_subnormals_function()) {
@@ -326,14 +330,16 @@ void Input::cloneBlobIfRequired() {
 
                 parallel_for(iterations_num, [&](int n) {
                     auto ptr = u32data + n * batch_size;
-                    const jit_has_subnormals_base::args_t args = {reinterpret_cast<float const*>(ptr),
-                                                                  std::min(batch_size, (size_t)(u32data + size - ptr)),
-                                                                  false};
+                    const jit_has_subnormals_base::args_t args = {
+                        reinterpret_cast<float const*>(ptr),
+                        std::min(batch_size, static_cast<size_t>(u32data + size - ptr)),
+                        false};
 
                     fn(&args);
 
-                    if (args.hasSubnormals)
+                    if (args.hasSubnormals) {
                         has_subnormals = true;
+                    }
                 });
 
                 return has_subnormals;
@@ -375,26 +381,30 @@ void Input::cloneBlobIfRequired() {
 }
 
 static std::vector<Shape> createInputShapes(const Shape& shape, const Type type) {
-    if (type == Type::Output)
+    if (type == Type::Output) {
         return {shape};
+    }
     return {};
 }
 
 static std::vector<Shape> createOutputShapes(const Shape& shape, const Type type) {
-    if (type == Type::Input)
+    if (type == Type::Input) {
         return {shape};
+    }
     return {};
 }
 
 static std::vector<ov::element::Type> createInputPrecisions(const ov::element::Type& prc, const Type type) {
-    if (type == Type::Output)
+    if (type == Type::Output) {
         return {prc};
+    }
     return {};
 }
 
 static std::vector<ov::element::Type> createOutputPrecisions(const ov::element::Type& prc, const Type type) {
-    if (type == Type::Input)
+    if (type == Type::Input) {
         return {prc};
+    }
     return {};
 }
 
@@ -402,7 +412,7 @@ Input::Input(const Shape& shape,
              const ov::element::Type& prc,
              const std::string& name,
              const std::string& type,
-             const GraphContext::CPtr context)
+             const GraphContext::CPtr& context)
     : Node(type,
            createInputShapes(shape, TypeFromName(type)),
            createOutputShapes(shape, TypeFromName(type)),
@@ -417,22 +427,26 @@ Input::Input(const Shape& shape,
     }
 }
 
-Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context)
+Input::Input(const MemoryDescPtr& memDesc,
+             const std::string& name,
+             const std::string& type,
+             const GraphContext::CPtr& context)
     : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
-    extMemDesc = memDesc;
+    extMemDesc = memDesc;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
 }
 
-Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, InputConfig config)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;
-    m_isInPlace = config.inPlace;
+    extMemDesc = config.desc;      // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
 }
 
-Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, OutputConfig config)
+Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const OutputConfig& config)
     : Input(op, context) {
-    extMemDesc = config.desc;
-    m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
-    m_isInPlace = config.inPlace;
+    extMemDesc = config.desc;         // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    m_useParentMemoryDescForOutput =  // NOLINT(cppcoreguidelines-prefer-member-initializer)
+        config.useParentMemoryDescForOutput;
+    m_isInPlace = config.inPlace;  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
 }
 
 MemoryCPtr Input::getMemoryPtr() const {
@@ -441,21 +455,26 @@ MemoryCPtr Input::getMemoryPtr() const {
 
 void Input::getSupportedDescriptors() {
     if (getType() == Type::Input) {
-        if (!getParentEdges().empty())
+        if (!getParentEdges().empty()) {
             THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        if (getChildEdges().empty())
+        }
+        if (getChildEdges().empty()) {
             THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        }
     } else if (getType() == Type::Output) {
-        if (getParentEdges().size() != 1)
+        if (getParentEdges().size() != 1) {
             THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        if (!getChildEdges().empty())
+        }
+        if (!getChildEdges().empty()) {
             THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        }
     }
 }
 
 void Input::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     if (extMemDesc) {
         initSupportedPdFromMemDesc();
@@ -465,21 +484,29 @@ void Input::initSupportedPrimitiveDescriptors() {
 }
 
 void Input::initOptimalPrimitiveDescriptor() {
-    if (m_useParentMemoryDescForOutput || extMemDesc)
+    if (m_useParentMemoryDescForOutput || extMemDesc) {
         return;
+    }
 
     Node::initOptimalPrimitiveDescriptor();
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output))
+    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output)) {
         return Node::selectOptimalPrimitiveDescriptor();
+    }
 
     // ignore previous configuration
     supportedPrimitiveDescriptors.clear();
 
+    const int inPlacePort = m_isInPlace ? 0 : -1;
     // and just use parent memory descriptor for Output node to avoid reorders insertion
-    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, 0)}, {});
+    std::vector<PortConfig> inConfs;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        inConfs.push_back(
+            {PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, inPlacePort)});
+    }
+    NodeConfig config(inConfs, {});
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     selectPrimitiveDescriptorByIndex(0);
@@ -488,26 +515,29 @@ void Input::selectOptimalPrimitiveDescriptor() {
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
-        if (!dstMemPtr)
+        if (!dstMemPtr) {
             THROW_CPU_NODE_ERR("has null memory object at port ",
                                i,
                                " to node ",
                                getChildEdgeAt(i)->getChild()->getName(),
                                ".");
+        }
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getSrcMemoryAtPort(i);
-        if (!srcMemPtr)
+        if (!srcMemPtr) {
             THROW_CPU_NODE_ERR("has null memory object at port ",
                                i,
                                " from node ",
                                getParentEdgeAt(i)->getParent()->getName(),
                                ".");
+        }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
+    if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("doesn't have selected primitive descriptor.");
+    }
 }
 
 bool Input::created() const {
@@ -545,6 +575,38 @@ void Input::initSupportedPdFromMemDesc() {
     }
 
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
+}
+
+void Input::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!m_isInPlace) {
+        return Node::resolveInPlaceEdges(look);
+    }
+
+    if (look & Edge::LOOK_UP) {
+        auto edges = getChildEdgesAtPort(0);
+        for (const auto& edge : edges) {
+            EdgePtr sharedEdge = edge;
+
+            while (sharedEdge->getSharedEdge(std::nothrow)) {
+                sharedEdge = sharedEdge->getSharedEdge(std::nothrow);
+            }
+
+            edge->reuse(sharedEdge->getMemoryPtr());
+        }
+    }
+
+    if (look & Edge::LOOK_DOWN) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto edge = getParentEdgeAt(i);
+            EdgePtr sharedEdge = edge;
+
+            while (sharedEdge->getSharedEdge(std::nothrow)) {
+                sharedEdge = sharedEdge->getSharedEdge(std::nothrow);
+            }
+
+            edge->reuse(sharedEdge->getMemoryPtr());
+        }
+    }
 }
 
 }  // namespace node

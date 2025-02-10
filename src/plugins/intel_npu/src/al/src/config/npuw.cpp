@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,8 +57,10 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
 
 void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM>();
-    desc.add<NPUW_LLM_MODEL_DESC>();
+    desc.add<NPUW_LLM_BATCH_DIM>();
+    desc.add<NPUW_LLM_SEQ_LEN_DIM>();
     desc.add<NPUW_LLM_MAX_PROMPT_LEN>();
     desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
+    desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,11 +70,11 @@ enum class Type_t {
 /// \ingroup ov_element_cpp_api
 class OPENVINO_API Type {
 public:
-    Type() = default;
-    Type(const Type&) = default;
+    constexpr Type() = default;
+    constexpr Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
     explicit Type(const std::string& type);
-    Type& operator=(const Type&) = default;
+    constexpr Type& operator=(const Type&) = default;
     std::string c_type_string() const;
     size_t size() const;
     size_t hash() const;
@@ -95,6 +95,8 @@ public:
     // The name of this type, the enum name of this type
     std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
+
+    OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2026.0.")
     static std::vector<const Type*> get_known_types();
 
     /// \brief Checks whether this element type is merge-compatible with `t`.
@@ -137,129 +139,131 @@ using TypeVector = std::vector<Type>;
 
 /// \brief undefined element type
 /// \ingroup ov_element_cpp_api
-constexpr Type undefined(Type_t::undefined);
+inline constexpr Type undefined(Type_t::undefined);
 /// \brief dynamic element type
 /// \ingroup ov_element_cpp_api
-constexpr Type dynamic(Type_t::dynamic);
+inline constexpr Type dynamic(Type_t::dynamic);
 /// \brief boolean element type
 /// \ingroup ov_element_cpp_api
-constexpr Type boolean(Type_t::boolean);
+inline constexpr Type boolean(Type_t::boolean);
 /// \brief bf16 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type bf16(Type_t::bf16);
+inline constexpr Type bf16(Type_t::bf16);
 /// \brief f16 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f16(Type_t::f16);
+inline constexpr Type f16(Type_t::f16);
 /// \brief f32 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f32(Type_t::f32);
+inline constexpr Type f32(Type_t::f32);
 /// \brief f64 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f64(Type_t::f64);
+inline constexpr Type f64(Type_t::f64);
 /// \brief i4 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type i4(Type_t::i4);
+inline constexpr Type i4(Type_t::i4);
 /// \brief i8 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type i8(Type_t::i8);
+inline constexpr Type i8(Type_t::i8);
 /// \brief i16 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type i16(Type_t::i16);
+inline constexpr Type i16(Type_t::i16);
 /// \brief i32 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type i32(Type_t::i32);
+inline constexpr Type i32(Type_t::i32);
 /// \brief i64 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type i64(Type_t::i64);
+inline constexpr Type i64(Type_t::i64);
 /// \brief binary element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u1(Type_t::u1);
+inline constexpr Type u1(Type_t::u1);
 /// \brief u2 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u2(Type_t::u2);
+inline constexpr Type u2(Type_t::u2);
 /// \brief u3 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u3(Type_t::u3);
+inline constexpr Type u3(Type_t::u3);
 /// \brief u4 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u4(Type_t::u4);
+inline constexpr Type u4(Type_t::u4);
 /// \brief u6 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u6(Type_t::u6);
+inline constexpr Type u6(Type_t::u6);
 /// \brief u8 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u8(Type_t::u8);
+inline constexpr Type u8(Type_t::u8);
 /// \brief u16 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u16(Type_t::u16);
+inline constexpr Type u16(Type_t::u16);
 /// \brief u32 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u32(Type_t::u32);
+inline constexpr Type u32(Type_t::u32);
 /// \brief u64 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type u64(Type_t::u64);
+inline constexpr Type u64(Type_t::u64);
 /// \brief nf4 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type nf4(Type_t::nf4);
+inline constexpr Type nf4(Type_t::nf4);
 /// \brief f8e4m3 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f8e4m3(Type_t::f8e4m3);
+inline constexpr Type f8e4m3(Type_t::f8e4m3);
 /// \brief f8e4m3 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f8e5m2(Type_t::f8e5m2);
+inline constexpr Type f8e5m2(Type_t::f8e5m2);
 /// \brief string element type
 /// \ingroup ov_element_cpp_api
-constexpr Type string(Type_t::string);
+inline constexpr Type string(Type_t::string);
 /// \brief f4e2m1 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f4e2m1(Type_t::f4e2m1);
+inline constexpr Type f4e2m1(Type_t::f4e2m1);
 /// \brief f8e8m0 element type
 /// \ingroup ov_element_cpp_api
-constexpr Type f8e8m0(Type_t::f8e8m0);
+inline constexpr Type f8e8m0(Type_t::f8e8m0);
 
-template <typename T>
-Type from() {
-    OPENVINO_THROW("Unknown type");
+template <class T>
+constexpr Type from() {
+    if constexpr (std::is_same_v<T, char> || std::is_same_v<T, bool>) {
+        return boolean;
+    } else if constexpr (std::is_same_v<T, ov::float16>) {
+        return f16;
+    } else if constexpr (std::is_same_v<T, float>) {
+        return f32;
+    } else if constexpr (std::is_same_v<T, double>) {
+        return f64;
+    } else if constexpr (std::is_same_v<T, int8_t>) {
+        return i8;
+    } else if constexpr (std::is_same_v<T, int16_t>) {
+        return i16;
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+        return i32;
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+        return i64;
+    } else if constexpr (std::is_same_v<T, uint8_t>) {
+        return u8;
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+        return u16;
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+        return u32;
+    } else if constexpr (std::is_same_v<T, uint64_t>) {
+        return u64;
+    } else if constexpr (std::is_same_v<T, ov::bfloat16>) {
+        return bf16;
+    } else if constexpr (std::is_same_v<T, ov::float8_e4m3>) {
+        return f8e4m3;
+    } else if constexpr (std::is_same_v<T, ov::float8_e5m2>) {
+        return f8e5m2;
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        return string;
+    } else if constexpr (std::is_same_v<T, ov::float4_e2m1>) {
+        return f4e2m1;
+    } else if constexpr (std::is_same_v<T, ov::float8_e8m0>) {
+        return f8e8m0;
+    } else {
+        OPENVINO_THROW("Unknown type");
+    }
 }
-template <>
-OPENVINO_API Type from<char>();
-template <>
-OPENVINO_API Type from<bool>();
-template <>
-OPENVINO_API Type from<float>();
-template <>
-OPENVINO_API Type from<double>();
-template <>
-OPENVINO_API Type from<int8_t>();
-template <>
-OPENVINO_API Type from<int16_t>();
-template <>
-OPENVINO_API Type from<int32_t>();
-template <>
-OPENVINO_API Type from<int64_t>();
-template <>
-OPENVINO_API Type from<uint8_t>();
-template <>
-OPENVINO_API Type from<uint16_t>();
-template <>
-OPENVINO_API Type from<uint32_t>();
-template <>
-OPENVINO_API Type from<uint64_t>();
-template <>
-OPENVINO_API Type from<ov::bfloat16>();
-template <>
-OPENVINO_API Type from<ov::float16>();
-template <>
-OPENVINO_API Type from<ov::float8_e4m3>();
-template <>
-OPENVINO_API Type from<ov::float8_e5m2>();
-template <>
-OPENVINO_API Type from<std::string>();
-template <>
-OPENVINO_API Type from<ov::float4_e2m1>();
-template <>
-OPENVINO_API Type from<ov::float8_e8m0>();
 
+OPENVINO_DEPRECATED(
+    "This function is deprecated and will be removed in 2026.0. Use ov::fundamental_type_for<Type> instead")
 OPENVINO_API Type fundamental_type_for(const Type& type);
 
 OPENVINO_API
@@ -281,12 +285,12 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<std::string> {
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
-    AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
+    constexpr AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
 
-    operator ov::element::Type&() {
+    constexpr operator ov::element::Type&() {
         return m_ref;
     }
 

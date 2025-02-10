@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertMaxPool14ToMaxPool8;
  */
 class ov::pass::ConvertMaxPool8ToMaxPool1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMaxPool8ToMaxPool1");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMaxPool8ToMaxPool1");
     ConvertMaxPool8ToMaxPool1();
 };
 
@@ -32,6 +32,6 @@ public:
  */
 class ov::pass::ConvertMaxPool14ToMaxPool8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMaxPool14ToMaxPool8", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMaxPool14ToMaxPool8");
     ConvertMaxPool14ToMaxPool8();
 };

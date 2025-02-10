@@ -56,12 +56,6 @@ The easiest way to obtain a model is to download it from an online database, suc
 
 .. note::
 
-   Model conversion API prior to OpenVINO 2023.1 is considered deprecated. Existing and new
-   projects are recommended to transition to the new solutions, keeping in mind that they are
-   not fully backwards compatible with ``openvino.tools.mo.convert_model`` or the ``mo``
-   CLI tool. For more details, see the
-   :doc:`Model Conversion API Transition Guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
-
    For PyTorch and JAX/Flax models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
    conversion option.
 
@@ -298,15 +292,4 @@ follow:
 * :doc:`Post-training optimization <model-optimization-guide/quantizing-models-post-training>`
 * :doc:`Model inference in OpenVINO Runtime <running-inference>`
 
-If you are still using the legacy conversion API (``mo`` or ``openvino.tools.mo.convert_model``),
-refer to the following materials:
-
-* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <../documentation/legacy-features/transition-legacy-conversion-api>`
-* :doc:`Legacy Model Conversion API <../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-
-
-
-
 .. need to investigate python api article generation - api/ie_python_api/_autosummary/openvino.Model.html does not exist, api/ie_python_api/_autosummary/openvino.runtime.Model.html does.
-
-

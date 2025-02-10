@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -297,6 +297,7 @@ std::string CompileModelLoadFromFileTestBase::getTestCaseName(testing::TestParam
 }
 
 void CompileModelLoadFromFileTestBase::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ovModelWithName funcPair;
     std::tie(targetDevice, configuration) = GetParam();
     target_device = targetDevice;

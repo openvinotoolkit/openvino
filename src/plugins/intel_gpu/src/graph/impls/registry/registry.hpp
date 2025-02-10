@@ -19,6 +19,7 @@
 #define OV_GPU_WITH_OCL 1
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
+#define OV_GPU_WITH_CM 1
 
 #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
 #define COUNT(...) EXPAND(COUNT_N(__VA_ARGS__, 5, 4, 3, 2, 1))
@@ -63,6 +64,12 @@
 #    define OV_GPU_CREATE_INSTANCE_SYCL(...)
 #endif
 
+#if OV_GPU_WITH_CM
+#    define OV_GPU_CREATE_INSTANCE_CM(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
+#else
+#    define OV_GPU_CREATE_INSTANCE_CM(...)
+#endif
+
 #if OV_GPU_WITH_OCL
 #    define OV_GPU_CREATE_INSTANCE_OCL(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
 #    define OV_GPU_GET_INSTANCE_OCL(prim, ...) EXPAND(SELECT(COUNT(__VA_ARGS__), prim, impl_types::ocl, __VA_ARGS__))
@@ -100,8 +107,7 @@
         static const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& get_implementations(); \
     }
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 // Global list of implementations for given primitive type
 // List must be sorted by priority of implementations
@@ -114,8 +120,7 @@ struct Registry {
     }
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 REGISTER_IMPLS(activation);
 REGISTER_IMPLS(arg_max_min);
@@ -145,6 +150,7 @@ REGISTER_IMPLS(scatter_elements_update);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
+REGISTER_IMPLS(fake_convert);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
@@ -216,3 +222,4 @@ REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(scaled_dot_product_attention, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(rope, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
+REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);

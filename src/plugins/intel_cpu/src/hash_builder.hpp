@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,9 @@ size_t combine(size_t seed, const T& v) {
 
 template <typename T>
 size_t combine(size_t seed, const std::vector<T>& v) {
-    for (const auto& elem : v)
+    for (const auto& elem : v) {
         seed = combine(seed, elem);
+    }
     return seed;
 }
 

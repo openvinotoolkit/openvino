@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,22 +12,23 @@ namespace node {
 
 class Pad : public Node {
 public:
-    Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     void prepareParams() override;
     bool needShapeInfer() const override;
+    bool neverExecute() const override;
     bool isExecutable() const override;
     bool needPrepareParams() const override;
 
 protected:
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
     using VectorIdxs = std::vector<int32_t>;
@@ -48,8 +49,7 @@ private:
     struct PadExecutor {
         PadExecutor(const PadAttrs& attrs,
                     const std::vector<MemoryCPtr>& srcMemory,
-                    const std::vector<MemoryCPtr>& dstMemory,
-                    const std::string& errorPrefix);
+                    const std::vector<MemoryCPtr>& dstMemory);
         void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
@@ -106,7 +106,6 @@ private:
             size_t innerEndPadCount = 0lu;
             PadMode padMode;
         } params;
-        const std::string errorPrefix;
     };
 
     static constexpr size_t DATA_ID = 0lu;
@@ -120,7 +119,6 @@ private:
     executorPtr execPtr = nullptr;
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
-    std::string errorPrefix;
     bool shapeHasDataDependency = false;
 };
 

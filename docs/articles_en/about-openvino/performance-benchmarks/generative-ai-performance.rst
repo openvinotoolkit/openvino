@@ -9,36 +9,38 @@ The tables below list the key performance indicators for inference on built-in G
 
 
 
-.. raw:: html
-
-   <label><link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css"></label>
-
-
 .. tab-set::
 
    .. tab-item:: 9-288V
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V1
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_9-288V.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
+         :data-page-length: 10
 
    .. tab-item:: 7-268V
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V2
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
 
    .. tab-item:: 7-155H
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V3
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-155H.csv
+         :data-column-hidden: [3,4,6]
+         :data-order: [[ 0, "asc" ]]
 
 
 .. grid:: 1 1 2 2
@@ -54,7 +56,7 @@ The tables below list the key performance indicators for inference on built-in G
 
    .. grid-item::
 
-      .. button-link:: https://docs.openvino.ai/2024/_static/benchmarks_files/llm_models_platform_list_.pdf
+      .. button-link:: https://docs.openvino.ai/2025/_static/download/benchmarking_genai_platform_list.pdf
          :color: primary
          :outline:
          :expand:

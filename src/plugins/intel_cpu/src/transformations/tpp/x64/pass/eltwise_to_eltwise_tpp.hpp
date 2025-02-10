@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,11 @@ namespace pass {
  * @brief Converts elementwise operations supported by the TPP backend to the dedicated TPP opset
  * @ingroup snippets
  */
-class EltwiseToEltwiseTPP: public ov::pass::MatcherPass {
+class EltwiseToEltwiseTPP : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EltwiseToEltwiseTPP", "0");
+    OPENVINO_MATCHER_PASS_RTTI("EltwiseToEltwiseTPP");
     EltwiseToEltwiseTPP();
 };
-
 
 }  // namespace pass
 }  // namespace tpp

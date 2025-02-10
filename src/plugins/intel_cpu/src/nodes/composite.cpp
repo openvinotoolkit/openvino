@@ -43,16 +43,15 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     std::vector<PortConfig> inConfs;
     std::vector<Input::InputConfig> graphInputConfig;
 
+    constexpr bool isInPlace = true;
+
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
         inConfs.emplace_back(desc);
-        graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        graphInputConfig.emplace_back(node::Input::InputConfig{std::move(desc), isInPlace});
     }
 
-    std::vector<Input::OutputConfig> graphOutputConfig;
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
-    }
+    std::vector<Input::OutputConfig> graphOutputConfig(outputShapes.size(), node::Input::OutputConfig{true, isInPlace});
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);
@@ -65,7 +64,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
         outConfs.emplace_back(desc);
     }
 
-    const NodeConfig config(inConfs, outConfs);
+    const NodeConfig config(std::move(inConfs), std::move(outConfs));
 
     supportedPrimitiveDescriptors.clear();
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
@@ -75,30 +74,44 @@ void Composite::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagramm for memory mapping / reuse
 void Composite::createPrimitive() {
-    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
-                    "Number of node inputs must be equal the number of inner graph's inputs");
-
-    std::vector<MemoryPtr> inputMemory;
-    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        inputMemory.emplace_back(getSrcMemoryAtPort(i));
-    }
-
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
-                    "Number of node outputs must be equal the number of inner graph's outputs");
-
-    std::vector<MemoryPtr> outputMemory;
-    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        outputMemory.emplace_back(getDstMemoryAtPort(i));
-    }
-
-    m_graph.Activate(inputMemory, outputMemory);
+    m_graph.Activate();
 }
 
-void Composite::execute(dnnl::stream) {
+int Composite::registerToAllocationContext(int offset, AllocationContext& context) {
+    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
+                    "Number of node inputs must be equal the number of inner graph's inputs");
+
+    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        auto inputEdges = m_graph.getInputNodeByIndex(i)->getChildEdgesAtPort(0);
+        for (const auto& inputEdge : inputEdges) {
+            OPENVINO_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+                            "Expected Uninitialized state for edge: ",
+                            *this);
+            inputEdge->sharedMemFrom(parentEdge);
+        }
+    }
+
+    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
+                    "Number of node outputs must be equal the number of inner graph's outputs");
+
+    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+        auto childEdge = getChildEdgeAt(i);
+        auto outputEdge = m_graph.getOutputNodeByIndex(i)->getParentEdgeAt(0);
+        OPENVINO_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
+                        "Expected Uninitialized state for edge: ",
+                        *outputEdge);
+        outputEdge->sharedMemFrom(childEdge);
+    }
+
+    return m_graph.RegisterToAllocationContext(offset, context);
+}
+
+void Composite::execute(const dnnl::stream&) {
     m_graph.Infer();
 }
 
-void Composite::executeDynamicImpl(dnnl::stream strm) {
+void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 
     // since the shape inference is not performed for the composite node

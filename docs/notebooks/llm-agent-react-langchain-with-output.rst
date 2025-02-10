@@ -71,23 +71,20 @@ Prerequisites
     import requests
     from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
     
     if not Path("cmd_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
         open("cmd_helper.py", "w", encoding="utf-8").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    1491
-
-
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("llm-agent-react-langchain.ipynb")
 
 .. code:: ipython3
 
@@ -103,20 +100,10 @@ Prerequisites
     "datasets" \
     "accelerate" \
     "pydantic<2.10.0" \
-    "gradio>=4.19"
+    "gradio>=4.19" \
+    "huggingface-hub>=0.26.5"
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git" \
     "git+https://github.com/openvinotoolkit/nncf.git"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Create a tools
 --------------
@@ -348,8 +335,43 @@ folder.
     
     if not Path(llm_model_path).exists():
         optimum_cli(
-            llm_model_id.value, llm_model_path, additional_args={"task": "text-generation-with-past", "weight-format": "int4", "group-size": "128", "ratio": "1.0"}
+            llm_model_id.value,
+            llm_model_path,
+            additional_args={"task": "text-generation-with-past", "weight-format": "int4", "group-size": "128", "ratio": "1.0", "sym": ""},
         )
+
+
+
+**Export command:**
+
+
+
+``optimum-cli export openvino --model Qwen/Qwen2.5-7B-Instruct Qwen2.5-7B-Instruct --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 1.0 --sym``
+
+
+.. parsed-literal::
+
+    Downloading shards: 100%|██████████| 4/4 [06:03<00:00, 90.89s/it]
+    Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.20it/s]
+    We detected that you are passing `past_key_values` as a tuple and this is deprecated and will be removed in v4.43. Please use an appropriate `Cache` class (https://huggingface.co/docs/transformers/v4.41.3/en/internal/generation_utils#transformers.Cache)
+    /home2/ethan/intel/openvino_notebooks/openvino_venv/lib/python3.10/site-packages/optimum/exporters/openvino/model_patcher.py:506: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if sequence_length != 1:
+    /home2/ethan/intel/openvino_notebooks/openvino_venv/lib/python3.10/site-packages/transformers/models/qwen2/modeling_qwen2.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │ Weight compression mode   │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │ int8_asym                 │ 14% (2 / 198)               │ 0% (0 / 196)                           │
+    ├───────────────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │ int4_sym                  │ 86% (196 / 198)             │ 100% (196 / 196)                       │
+    ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% • 0:04:25 • 0:00:00;0;104;181m0:00:01181m0:00:11
+    
 
 Select inference device for LLM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -388,6 +410,11 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
     import openvino.properties.hint as hints
     import openvino.properties.streams as streams
     
+    import torch
+    
+    if hasattr(torch, "mps") and torch.mps.is_available:
+        torch.mps.is_available = lambda: False
+    
     
     class StopSequenceCriteria(StoppingCriteria):
         """
@@ -412,7 +439,7 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
     
     
     ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
-    stop_tokens = ["Observation:"]
+    stop_tokens = ["Observation:", "Observation:\n"]
     
     ov_llm = HuggingFacePipeline.from_model_id(
         model_id=llm_model_path,
@@ -434,7 +461,10 @@ information <https://python.langchain.com/docs/integrations/llms/openvino/>`__.
     from langchain_huggingface import ChatHuggingFace
     
     ov_chat = ChatHuggingFace(llm=ov_llm, verbose=True)
-    ov_chat = ov_chat.bind(skip_prompt=True, stop=["Observation:"])
+    ov_chat = ov_chat.bind(skip_prompt=True, stop=["Observation:", "Observation:\n"])
+    
+    if llm_model_id.value == "meta-llama/Meta-Llama-3.1-8B-Instruct":
+        ov_chat.llm.pipeline.tokenizer.pad_token_id = ov_chat.llm.pipeline.tokenizer.eos_token_id
 
 You can get additional inference speed improvement with `Dynamic
 Quantization of activations and KV-cache quantization on
@@ -497,7 +527,7 @@ prompt template.
     
     
     > Entering new AgentExecutor chain...
-    Thought: First, we need to take 3 to the fifth power. Then we will find the sum of twelve and three. After that, we multiply the first result by the second result. Finally, we'll square the whole result.
+    Thought: First, I need to calculate 3 raised to the fifth power. Then, I will find the sum of twelve and three. After that, I will multiply the first result by the second result, and finally, I will square the entire result.
     
     Action:
     ```
@@ -511,7 +541,7 @@ prompt template.
     ```
     Observation:
     Observation: 243
-    Thought:Next, let's find the sum of twelve and three.
+    Thought:Next, I need to find the sum of twelve and three.
     
     Action:
     ```
@@ -525,7 +555,7 @@ prompt template.
     ```
     Observation:
     Observation: 15
-    Thought:Now, we will multiply the result of \(3^5\) (which is 243) by the sum of 12 and 3 (which is 15).
+    Thought:Now, I will multiply the result of \(3^5\) (which is 243) by the sum of twelve and three (which is 15). After that, I will square the entire result.
     
     Action:
     ```
@@ -539,7 +569,7 @@ prompt template.
     ```
     Observation:
     Observation: 3645
-    Thought:Thought: Now, we need to square the result of the multiplication (3645). 
+    Thought:Thought: Now I need to square the result of the multiplication, which is 3645.
     
     Action:
     ```
@@ -551,6 +581,7 @@ prompt template.
       }
     }
     ```
+    Observation:
     Observation: 13286025
     Thought:Thought: I know what to respond
     
@@ -783,7 +814,15 @@ Create AI agent demo with Gradio UI
     
     from gradio_helper import make_demo
     
-    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel)
+    examples = [
+        ["Based on current weather in London, show me a picture of Big Ben through its URL"],
+        ["What is OpenVINO ?"],
+        ["Create an image of pink cat and return its URL"],
+        ["How many people live in Canada ?"],
+        ["What is the weather like in New York now ?"],
+    ]
+    
+    demo = make_demo(run_fn=run_chatbot, stop_fn=request_cancel, examples=examples)
     
     try:
         demo.launch()

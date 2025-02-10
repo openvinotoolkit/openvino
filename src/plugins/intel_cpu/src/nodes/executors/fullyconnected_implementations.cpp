@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
@@ -31,6 +32,7 @@
 
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_fullyconnected.hpp"
+#    include "nodes/executors/acl/acl_lowp_fullyconnected.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
@@ -89,6 +91,11 @@ static const TypeMapping aclFCTypeMapping {
     {{_any, _any, _any, _any},               pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())}
 };
 
+static const TypeMapping aclLowpFCTypeMapping {
+    // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
+    {{_i8, _i8, _any, _f32},                 pt(bypass(), bypass(), use<3>(), bypass())}
+};
+
 static const MappingNotation dnnlConvolutionMappingNotation {
     ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST
 };
@@ -126,6 +133,8 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // quantization configuration
     {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_undefined, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
     {{_u8 | _i8, _i8, _any, _any},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
+    // compresses int weights
+    {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            pt(bypass(), bypass(), use<0>(), use<0>())},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -140,14 +149,17 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
         const auto& type = typeConfig[i];
         const auto& desc = currentDescriptors.at(notation[i]);
 
-        if (desc->empty())
+        if (desc->empty()) {
             continue;
+        }
 
-        if (desc->getPrecision() != type)
+        if (desc->getPrecision() != type) {
             return false;  // type mismatch
+        }
 
-        if (!desc->hasLayoutType(layoutConfig[i]))
+        if (!desc->hasLayoutType(layoutConfig[i])) {
             return false;  // layout mismatch
+        }
     }
 
     return true;
@@ -166,8 +178,9 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
         const auto& type = typeConfig[i];
         const auto& layout = layoutConfig[i];
 
-        if (desc->empty())
+        if (desc->empty()) {
             continue;
+        }
 
         if (descType == type && desc->hasLayoutType(layout)) {
             continue;
@@ -245,7 +258,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<MlasGemmExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_X64(
@@ -313,13 +326,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
+               const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
                 struct ConvolutionInstantiator {
                     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
                         const MemoryArgs& memory,
                         const FCAttrs& attrs,
-                        const ExecutorContext::CPtr context,
-                        std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
+                        const ExecutorContext::CPtr& context,
+                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
                         ConvAttrs convAttrs{attrs.withBias};
                         auto primitive =
                             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
@@ -371,8 +384,40 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<ACLFullyConnectedExecutor>(attrs, postOps, memory, context);
+            })
+        OV_CPU_INSTANCE_ACL(
+            "fullyconnected_acl_lowp",
+            ExecutorType::Acl,
+            OperationType::FullyConnected,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                return ACLLowpFullyConnectedExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return requiresFallbackCommon(config,
+                                              aclLowpFCTypeMapping,
+                                              aclFCLayoutConfig,
+                                              aclFullyConnectedMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                const auto dequantizationScales = getDeQuantizedScales(memory);
+                bool isPerChannelQuantization = dequantizationScales.size() > 1;
+                // per-channel quantization is not unsupported by ACL
+                return !isPerChannelQuantization;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr& context) {
+                return std::make_shared<ACLLowpFullyConnectedExecutor>(attrs, postOps, memory, context);
             })
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
@@ -400,11 +445,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr context) {
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<ShlFCExecutor>(attrs, postOps, memory, context);
             }
         )
-        OV_CPU_INSTANCE_X64(
+        OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
             ExecutorType::Dnnl,
             OperationType::MatMul,
@@ -415,7 +460,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 CPU_DEBUG_CAP_ENABLE(
                     if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                        VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                         return true;
                     })
                 return false;
@@ -435,13 +479,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
+               const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
                 struct MatMulInstantiator {
                     std::shared_ptr<DnnlMatMulPrimitive> operator()(
                         const MemoryArgs& memory,
                         const FCAttrs& attrs,
-                        const ExecutorContext::CPtr context,
-                        std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
+                        const ExecutorContext::CPtr& context,
+                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
                         MatMulAttrs matMulAttrs{false,
                                                 false};
                         auto primitive =
@@ -483,7 +527,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // create
-            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr& context) {
                 return std::make_shared<DnnlFCExecutor<DnnlFCPrimitive, FCAttrs, DnnlShapeAgnosticData>>(attrs,
                                                                                                          postOps,
                                                                                                          memory,

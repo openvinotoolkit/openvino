@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -66,9 +66,9 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
-    "ie_libs_с": {
+    "ie_libs_c": {
         "name": "core_c",
-        "prefix": f"{BUILD_BASE}/libs.core_с",
+        "prefix": f"{BUILD_BASE}/libs.core_c",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -792,7 +792,7 @@ if os.getenv("CI_BUILD_DEV_TAG"):
     long_description_md = WORKING_DIR / "build" / "pypi-openvino-rt.md"
     long_description_md.parent.mkdir(exist_ok=True)
     concat_files(md_files, long_description_md)
-    docs_url = "https://docs.openvino.ai/nightly/index.html"
+    docs_url = "https://docs.openvino.ai/2025/index.html"
     OPENVINO_VERSION = WHEEL_VERSION[0:8]
 
 setup(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,9 @@ void jit_rotary_kernel<isa>::generate() {
     }
     this->postamble();
     for (const auto& emitter : emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 

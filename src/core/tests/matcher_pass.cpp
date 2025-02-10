@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ using namespace std;
 
 class TestMatcherPass : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("TestMatcherPass");
     TestMatcherPass() {
         auto m_relu1 = ov::pass::pattern::wrap_type<ov::op::v0::Relu>(pattern::consumers_count(1));
         auto m_relu2 = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({m_relu1});

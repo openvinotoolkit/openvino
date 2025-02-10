@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <utility>
+#include <initializer_list>
+#include <ostream>
+#include <type_traits>
 
 namespace ov {
 

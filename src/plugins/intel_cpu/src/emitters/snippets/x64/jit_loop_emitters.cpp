@@ -94,8 +94,9 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
-    if (evaluate_once && !is_work_amount_dynamic)
+    if (evaluate_once && !is_work_amount_dynamic) {
         return;
+    }
 
     Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
@@ -160,7 +161,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* 
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
-    const auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
+    auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(begin_expr->get_node()),
                               "LoopEnd expression must have th last port connector to LoopBegin");
     return begin_expr;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 
 using namespace cldnn;
 using namespace ::tests;
-
 
 template <format::type layoutFormat, typename DataType>
 struct arg_max_input_types {
@@ -56,9 +55,20 @@ using format_types = testing::Types<arg_max_input_types<format::bfyx, float>,
                                     arg_max_input_types<format::bfyx, ov::float16>,
                                     arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16>,
                                     arg_max_input_types<format::bfyx, int8_t>,
-                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>>;
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, int8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, int8_t>,
+                                    arg_max_input_types<format::bfyx, uint8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv16, uint8_t>,
+                                    arg_max_input_types<format::bs_fs_yx_bsv32_fsv32, uint8_t>>;
 
 TYPED_TEST_SUITE(argmax_gpu_test, format_types);
+
+// Helper trait to check for uint8_t input_type
+template<typename T>
+struct is_uint8_input : std::false_type {};
+
+template<format::type Fmt>
+struct is_uint8_input<arg_max_input_types<Fmt, uint8_t>> : std::true_type {};
 
 TYPED_TEST(argmax_gpu_test, base) {
     //  Input  : 2x4x2x2
@@ -82,7 +92,25 @@ TYPED_TEST(argmax_gpu_test, base) {
                                     /*b1f1*/ 4.f,  0.5f,  8.f,   8.2f,
                                     /*b1f2*/ 0.2f, 0.2f,  -10.f, 5.2f,
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
-    set_values(input, this->getTypedVector(input_vec));
+
+    // Positive values for u8 input type test
+    std::vector<float> input_vec_u8 = {// y0x0 y0x1 y1x0 y1x1
+                                    /*b0f0*/ 0.1f, 0.1f, 0.9f,  1.5f,
+                                    /*b0f1*/ 0.2f, 0.2f,  0.1f, 5.2f,
+                                    /*b0f2*/ 0.2f, 0.2f,  0.1f, 5.2f,
+                                    /*b0f3*/ 0.2f, 0.2f,  0.1f, 4.2f,
+
+                                    /*b1f0*/ 3.f,  0.5f,  7.f,   10.f,
+                                    /*b1f1*/ 4.f,  0.5f,  8.f,   8.2f,
+                                    /*b1f2*/ 0.2f, 0.2f,  0.1f, 5.2f,
+                                    /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
+
+    // If format is of type u8 then use non negative values as input.
+    if (is_uint8_input<TypeParam>::value) {
+        set_values(input, this->getTypedVector(input_vec_u8));
+    } else {
+        set_values(input, this->getTypedVector(input_vec));
+    }
 
     network network(engine, topology, get_test_default_config(engine));
 

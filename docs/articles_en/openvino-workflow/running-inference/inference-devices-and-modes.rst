@@ -31,7 +31,6 @@ different conditions:
 |    :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
 |    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
 |    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
-|    :doc:`[DEPRECATED] Multi-Device Execution (MULTI) <../../documentation/legacy-features/multi-device>`
 
 To learn how to change the device configuration, read the :doc:`Query device properties article <inference-devices-and-modes/query-device-properties>`.
 
@@ -55,7 +54,7 @@ as an example):
        Device: GPU.1
 
 
-You may see how to obtain this information in the :doc:`Hello Query Device Sample <../../learn-openvino/openvino-samples/hello-query-device>`.
+You may see how to obtain this information in the :doc:`Hello Query Device Sample <../../get-started/learn-openvino/openvino-samples/hello-query-device>`.
 Here is an example of a simple programmatic way to enumerate the devices and use them with the
 multi-device mode:
 

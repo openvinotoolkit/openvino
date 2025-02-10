@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,10 +109,11 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
         break;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return (outCoord + 0.5f) / scale - 0.5f;
-        else
+        } else {
             return 0;
+        }
         break;
     }
     case InterpolateCoordTransMode::asymmetric: {
@@ -124,14 +125,15 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
         break;
     }
     case InterpolateCoordTransMode::align_corners: {
-        if (outShape > 1)
+        if (outShape > 1) {
             return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
-        else
+        } else {
             return 0;
+        }
         break;
     }
     default: {
-        OPENVINO_THROW("errorPrefix", " does not support specified coordinate transformation mode");
+        OPENVINO_THROW("Interpolate executor does not support specified coordinate transformation mode");
         break;
     }
     }
@@ -142,10 +144,11 @@ int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord,
                                                      InterpolateNearestMode nearestMode) const {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
-        if (originCoord == (static_cast<int>(originCoord) + 0.5f))
+        if (originCoord == (static_cast<int>(originCoord) + 0.5f)) {
             return static_cast<int>(std::floor(originCoord));
-        else
+        } else {
             return static_cast<int>(std::round(originCoord));
+        }
         break;
     }
     case InterpolateNearestMode::round_prefer_ceil: {
@@ -161,13 +164,14 @@ int ov::intel_cpu::InterpolateExecutor::nearestRound(float originCoord,
         break;
     }
     case InterpolateNearestMode::simple: {
-        if (isDownsample)
+        if (isDownsample) {
             return static_cast<int>(std::ceil(originCoord));
-        else
+        } else {
             return static_cast<int>(originCoord);
+        }
     }
     default: {
-        OPENVINO_THROW("errorPrefix", " does not support specified nearest round mode");
+        OPENVINO_THROW("Interpolate executor does not support specified nearest round mode");
         break;
     }
     }
@@ -547,7 +551,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
             uint8_t* src_data_pad = static_cast<uint8_t*>(&srcPadded[0]);
             if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                OPENVINO_THROW("Interpolate layer with name does not support padding on batch and channel dimensions");
+                OPENVINO_THROW("Interpolate executor does not support padding on batch and channel dimensions");
             }
             parallel_for5d(
                 srcDim5d[0],

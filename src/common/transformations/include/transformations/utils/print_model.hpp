@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pass.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -261,7 +262,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
     // collect all scalar & short 1D vectors for literal-style display
     std::map<std::shared_ptr<ov::Node>, std::string> literal_consts;
     for (auto op : f.get_ordered_ops()) {
-        if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
+        if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {
             // only i32/f32 type const literal can be parsed by C++ compiler
             if (constop->get_output_element_type(0) != ov::element::i32 &&
                 constop->get_output_element_type(0) != ov::element::i64 &&
@@ -327,7 +328,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         auto name = opname[op.get()];
         os << prefix << "    ";
 
-        if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
+        if (auto constop = ov::as_type_ptr<op::v0::Constant>(op)) {
             os << "auto " << name << " = makeConst(" << to_code(op->get_output_element_type(0)) << ", "
                << to_code(op->get_output_shape(0)) << ", " << to_code(constop, true) << ");" << std::endl;
         } else {
@@ -375,7 +376,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
         }
 
         // recursively output subgraphs
-        if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
+        if (auto msubgraph = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (size_t i = 0; i < cnt; i++) {
                 os << "    MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << std::endl;
@@ -390,7 +391,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
 class OPENVINO_API PrintModel : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::PrintModel");
+    OPENVINO_MODEL_PASS_RTTI("ov::pass::PrintModel");
 
     PrintModel(std::string file_name) {
         static int dump_index = 0;

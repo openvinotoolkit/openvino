@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * @brief Read-only property to get GPU driver version
@@ -58,8 +57,7 @@ static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_r
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"USE_ONEDNN"};
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
 
 namespace cldnn {
 using ov::intel_gpu::QueueTypes;
