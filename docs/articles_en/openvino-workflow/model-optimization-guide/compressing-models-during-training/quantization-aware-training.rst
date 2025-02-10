@@ -10,7 +10,7 @@ degradation caused by quantization. In fact, this is the most accurate quantizat
 apply QAT from the Neural Network Compression Framework (NNCF) to get 8-bit quantized models. This assumes that you are
 knowledgeable in Python programming and familiar with the training code for the model in the source DL framework.
 
-Below, we provide the steps required to apply QAT to the model:
+Steps required to apply QAT to the model:
 
 .. note::
    Currently, NNCF for TensorFlow supports the optimization of models created using the Keras
