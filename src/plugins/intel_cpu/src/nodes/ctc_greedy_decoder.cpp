@@ -35,32 +35,38 @@ CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ov::Node>& op, const Gr
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 2)
+    if (getOriginalInputsNumber() != 2) {
         THROW_CPU_NODE_ERR("has invalid number of input edges: ", getOriginalInputsNumber());
-    if (getOriginalOutputsNumber() != 1)
+    }
+    if (getOriginalOutputsNumber() != 1) {
         THROW_CPU_NODE_ERR("has invalid number of outputs edges: ", getOriginalOutputsNumber());
+    }
 
     const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
     const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
 
-    if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1]))
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1])) {
         THROW_CPU_NODE_ERR("has invalid input shapes.");
+    }
 
     auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
     mergeRepeated = greedyDecOp->get_ctc_merge_repeated();
 }
 
 void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
+    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
+    }
 
     ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
+    if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         THROW_CPU_NODE_ERR("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -84,8 +90,9 @@ void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
     parallel_for(B, [&](size_t b) {
         size_t t = 0;
         for (; t < T; t++) {
-            if (sequenceMask[B * t + b] == 0.f)
+            if (sequenceMask[B * t + b] == 0.f) {
                 break;
+            }
         }
         sequenceLengths[b] = t;
     });
@@ -102,8 +109,9 @@ void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
         size_t tStart = 0lu, bStart = 0lu;
         for (; bStart < B; bStart++) {
             tStart += sequenceLengths[bStart];

@@ -143,8 +143,9 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
+    if (curNumaNode == numaNodeID) {
         return;
+    }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
     if (m_attrs.withBias) {

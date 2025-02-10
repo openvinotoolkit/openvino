@@ -62,19 +62,6 @@ Imports
     # Install openvino package
     %pip install -q "openvino>=2023.1.0"
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddleclas 2.6.0 requires easydict, which is not installed.
-    paddleclas 2.6.0 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
-    paddleclas 2.6.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
     import time
@@ -90,20 +77,19 @@ Imports
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     from notebook_utils import download_file, device_widget
-
-
-.. parsed-literal::
-
-    2024-12-10 02:42:23 INFO: Loading faiss with AVX512 support.
-    2024-12-10 02:42:23 INFO: Successfully loaded faiss with AVX512 support.
-
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("paddle-to-openvino-classification.ipynb")
 
 Settings
 ~~~~~~~~
@@ -126,10 +112,13 @@ PaddleHub. This may take a while.
 .. code:: ipython3
 
     # Download the image from the openvino_notebooks storage
-    img = download_file(
-        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_close.png",
-        directory="data",
-    )
+    img = Path("data/coco_close.png")
+    
+    if not img.exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_close.png",
+            directory="data",
+        )
     
     IMAGE_FILENAME = img.as_posix()
     
@@ -137,32 +126,24 @@ PaddleHub. This may take a while.
     MODEL_DIR = Path("model")
     if not MODEL_DIR.exists():
         MODEL_DIR.mkdir()
-    MODEL_URL = "https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/inference/{}_infer.tar".format(MODEL_NAME)
-    download_file(MODEL_URL, directory=MODEL_DIR)
-    file = tarfile.open(MODEL_DIR / "{}_infer.tar".format(MODEL_NAME))
-    res = file.extractall(MODEL_DIR)
-    if not res:
-        print(f'Model Extracted to "./{MODEL_DIR}".')
-    else:
-        print("Error Extracting the model. Please check the network.")
-
-
-
-.. parsed-literal::
-
-    coco_close.png:   0%|          | 0.00/133k [00:00<?, ?B/s]
-
+    
+    if not (MODEL_DIR / "{}_infer".format(MODEL_NAME)).exists():
+        MODEL_URL = "https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/inference/{}_infer.tar".format(MODEL_NAME)
+        download_file(MODEL_URL, directory=MODEL_DIR)
+        file = tarfile.open(MODEL_DIR / "{}_infer.tar".format(MODEL_NAME))
+        res = file.extractall(MODEL_DIR)
+        if not res:
+            print(f'Model Extracted to "./{MODEL_DIR}".')
+        else:
+            print("Error Extracting the model. Please check the network.")
 
 
 .. parsed-literal::
 
-    MobileNetV3_large_x1_0_infer.tar:   0%|          | 0.00/19.5M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
+    'data/coco_close.png' already exists.
+    'model/MobileNetV3_large_x1_0_infer.tar' already exists.
     Model Extracted to "./model".
-
+    
 
 Show Inference on PaddlePaddle Model
 ------------------------------------
@@ -186,13 +167,13 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/12/10 02:42:46] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/11/14 13:49:26] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
     Rottweiler, 0.01435
     flat-coated retriever, 0.01144
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_7_1.png
@@ -252,19 +233,19 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-12-10 02:42:46 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
-
+    [2024-11-14 13:49:27,391] [ WARNING] image.py:705 - Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers). Got range [-2.117904..2.640001].
+    
 
 .. parsed-literal::
 
     Processed image shape: (3, 224, 224)
-
+    
 
 
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fe3805ac910>
+    <matplotlib.image.AxesImage at 0x7f7061360c90>
 
 
 
@@ -377,7 +358,7 @@ Notebook <openvino-api-with-output.html>`__ for more information.
     Labrador retriever, 0.74909
     German short-haired pointer, 0.02368
     Great Dane, 0.01873
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_22_1.png
@@ -417,8 +398,8 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
-
+    CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz
+    
 
 .. code:: ipython3
 
@@ -439,7 +420,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0071 seconds per image, FPS: 141.67
+    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.05
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -447,7 +428,7 @@ Note that many optimizations are possible to improve the performance.
     Great Dane, 0.01848
     Rottweiler, 0.01435
     flat-coated retriever, 0.01144
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_26_1.png
@@ -500,7 +481,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0027 seconds per image, FPS: 376.00
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 359.33
     
     OpenVINO result:
     Labrador retriever, 0.74909
@@ -508,7 +489,7 @@ select device from dropdown list for running inference using OpenVINO
     Great Dane, 0.01873
     Rottweiler, 0.01448
     flat-coated retriever, 0.01153
-
+    
 
 
 .. image:: paddle-to-openvino-classification-with-output_files/paddle-to-openvino-classification-with-output_29_1.png

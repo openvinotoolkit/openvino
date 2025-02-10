@@ -310,19 +310,21 @@ private:
         cmp(reg_bin_area, 0);
         je(empty_roi_label, T_NEAR);
 
-        if (jpp_.alg == Algorithm::ROIPoolingMax)
+        if (jpp_.alg == Algorithm::ROIPoolingMax) {
             roi_pool_max(c_blocks);
-        else
+        } else {
             roi_pool_bilinear(c_blocks);
+        }
 
         if (isa == cpu::x64::sse41) {
             add(reg_input, 4 * jpp_.src_prc.size());
             add(reg_output, 4 * jpp_.dst_prc.size());
 
-            if (jpp_.alg == Algorithm::ROIPoolingMax)
+            if (jpp_.alg == Algorithm::ROIPoolingMax) {
                 roi_pool_max(c_blocks);
-            else
+            } else {
                 roi_pool_bilinear(c_blocks);
+            }
         }
         jmp(exit_label, T_NEAR);
 
@@ -421,10 +423,12 @@ ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void ROIPooling::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2)
+    if (getParentEdges().size() != 2) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    if (getChildEdges().empty())
+    }
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+    }
 
     if (getInputShapeAtPort(0).getRank() != 4) {
         THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
@@ -445,8 +449,9 @@ void ROIPooling::getSupportedDescriptors() {
 }
 
 void ROIPooling::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type;
@@ -463,8 +468,9 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
     if (!mayiuse(avx512_core)) {
-        if (refParams.src_prc == ov::element::bf16)
+        if (refParams.src_prc == ov::element::bf16) {
             refParams.src_prc = ov::element::f32;
+        }
     }
 
     if (impl_type != impl_desc_type::ref && refParams.src_prc == ov::element::f16) {
@@ -478,8 +484,9 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 
 void ROIPooling::createPrimitive() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD)
-        OPENVINO_THROW("CPU ROI Pooling node with name '", getName(), "' doesn't have primitive descriptors.");
+    if (!selectedPD) {
+        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
+    }
 
     refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     ;
@@ -491,8 +498,9 @@ void ROIPooling::createPrimitive() {
     refParams.dst_prc = config.outConfs[0].getMemDesc()->getPrecision();
 
     if (inputShapesDefined()) {
-        if (needPrepareParams() && isExecutable())
+        if (needPrepareParams() && isExecutable()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
 }
@@ -504,7 +512,7 @@ void ROIPooling::execute(const dnnl::stream& strm) {
         const auto& dstMemory = getChildEdgeAt(0)->getMemory();
         execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
-        OPENVINO_THROW("Can't execute ROI Pooling node. Primitive wasn't created");
+        THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
 }
 
@@ -516,14 +524,18 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& srcMemPtr1 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr0 || !srcMemPtr0->isDefined())
-        OPENVINO_THROW("Input memory is undefined.");
-    if (!srcMemPtr1 || !srcMemPtr1->isDefined())
-        OPENVINO_THROW("Input memory is undefined.");
-    if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW("Destination is undefined.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set.");
+    if (!srcMemPtr0 || !srcMemPtr0->isDefined()) {
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
+    }
+    if (!srcMemPtr1 || !srcMemPtr1->isDefined()) {
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
+    }
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("Destination is undefined.");
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+    }
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
@@ -560,14 +572,16 @@ public:
             OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
 
-        if (roi_pooling_kernel)
+        if (roi_pooling_kernel) {
             roi_pooling_kernel->create_ker();
+        }
 #endif
     }
 
     void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
-        if (!roi_pooling_kernel)
+        if (!roi_pooling_kernel) {
             OPENVINO_THROW("Could not execute. Kernel for RoiPooling node was not compiled.");
+        }
 
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
@@ -670,11 +684,13 @@ private:
                         int left_x_index = static_cast<int>(floorf(in_x));
                         int right_x_index = static_cast<int>(ceilf(in_x));
 
-                        if (right_x_index > jpp.iw - 1)
+                        if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
+                        }
 
-                        if (bottom_y_index > jpp.ih - 1)
+                        if (bottom_y_index > jpp.ih - 1) {
                             bottom_y_index = jpp.ih - 1;
+                        }
 
                         arg.dst =
                             &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
@@ -833,11 +849,13 @@ public:
                         int left_x_index = static_cast<int>(floorf(in_x));
                         int right_x_index = static_cast<int>(ceilf(in_x));
 
-                        if (right_x_index > jpp.iw - 1)
+                        if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
+                        }
 
-                        if (bottom_y_index > jpp.ih - 1)
+                        if (bottom_y_index > jpp.ih - 1) {
                             bottom_y_index = jpp.ih - 1;
+                        }
 
                         for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
                             int ch_blk_cur = cbb * cb_num + cbb_cur;
@@ -966,8 +984,9 @@ template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
     const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(cpu::x64::sse41))
+    if (mayiuse(cpu::x64::sse41)) {
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
+    }
 #endif
 
     return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);

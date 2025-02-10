@@ -113,18 +113,25 @@ tokenizer and preparing the images.
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "matplotlib>=3.4" "openvino>=2023.1.0" "transformers[torch]>=4.30" "datasets" "nncf>=2.6.0" "torch>=2.1" Pillow
-
+    
+    from pathlib import Path
     import requests
-
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        open("notebook_utils.py", "w").write(r.text)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("clip-zero-shot-classification.ipynb")
 
 .. code:: ipython3
 
     from transformers import CLIPProcessor, CLIPModel
-
+    
     # load pre-trained model
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16")
     # load preprocessor for model input
@@ -136,8 +143,8 @@ tokenizer and preparing the images.
     import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image
-
-
+    
+    
     def visualize_result(image: Image, labels: List[str], probs: np.ndarray, top: int = 5):
         """
         Utility function for visualization classification results
@@ -155,7 +162,7 @@ tokenizer and preparing the images.
         plt.subplot(8, 8, 1)
         plt.imshow(image)
         plt.axis("off")
-
+    
         plt.subplot(8, 8, 2)
         y = np.arange(top_probs.shape[-1])
         plt.grid()
@@ -184,17 +191,19 @@ similarity score for the final result.
 
     import requests
     from pathlib import Path
-
-
+    
+    
     sample_path = Path("data/coco.jpg")
     sample_path.parent.mkdir(parents=True, exist_ok=True)
-    r = requests.get("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg")
-
-    with sample_path.open("wb") as f:
-        f.write(r.content)
-
+    
+    if not sample_path.exists():
+        r = requests.get("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg")
+    
+        with sample_path.open("wb") as f:
+            f.write(r.content)
+    
     image = Image.open(sample_path)
-
+    
     input_labels = [
         "cat",
         "dog",
@@ -208,9 +217,9 @@ similarity score for the final result.
         "computer",
     ]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-
+    
     inputs = processor(text=text_descriptions, images=[image], return_tensors="pt", padding=True)
-
+    
     results = model(**inputs)
     logits_per_image = results["logits_per_image"]  # this is the image-text similarity score
     probs = logits_per_image.softmax(dim=1).detach().numpy()  # we can take the softmax to get the label probabilities
@@ -238,10 +247,10 @@ save it on disk for the next usage with ``ov.save_model``.
 .. code:: ipython3
 
     import openvino as ov
-
+    
     fp16_model_path = Path("clip-vit-base-patch16.xml")
     model.config.torchscript = True
-
+    
     if not fp16_model_path.exists():
         ov_model = ov.convert_model(model, example_input=dict(inputs))
         ov.save_model(ov_model, fp16_model_path)
@@ -258,7 +267,7 @@ same input data from the example above with PyTorch.
 .. code:: ipython3
 
     from scipy.special import softmax
-
+    
     # create OpenVINO core object instance
     core = ov.Core()
 
@@ -272,9 +281,9 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     from notebook_utils import device_widget
-
+    
     device = device_widget()
-
+    
     device
 
 
@@ -334,9 +343,9 @@ inference faster. The optimization process contains the following steps:
 .. code:: ipython3
 
     from notebook_utils import quantization_widget
-
+    
     to_quantize = quantization_widget()
-
+    
     to_quantize
 
 
@@ -351,11 +360,12 @@ inference faster. The optimization process contains the following steps:
 .. code:: ipython3
 
     # Fetch skip_kernel_extension module
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
-
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
+    
     %load_ext skip_kernel_extension
 
 Prepare datasets
@@ -371,16 +381,16 @@ model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import requests
     from io import BytesIO
     import numpy as np
     from PIL import Image
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
+    
     max_length = model.config.text_config.max_position_embeddings
-
+    
     def check_text_data(data):
         """
         Check if the given data is text-based.
@@ -390,7 +400,7 @@ model.
         if isinstance(data, list):
             return all(isinstance(x, str) for x in data)
         return False
-
+    
     def get_pil_from_url(url):
         """
         Downloads and converts an image from a URL to a PIL Image object.
@@ -398,7 +408,7 @@ model.
         response = requests.get(url, verify=False, timeout=20)
         image = Image.open(BytesIO(response.content))
         return image.convert("RGB")
-
+    
     def collate_fn(example, image_column="image_url", text_column="caption"):
         """
         Preprocesses an example by loading and transforming image and text data.
@@ -409,10 +419,10 @@ model.
         """
         assert len(example) == 1
         example = example[0]
-
+    
         if not check_text_data(example[text_column]):
             raise ValueError("Text data is not valid")
-
+    
         url = example[image_column]
         try:
             image = get_pil_from_url(url)
@@ -421,7 +431,7 @@ model.
                 return None
         except Exception:
             return None
-
+    
         inputs = processor(text=example[text_column], images=[image], return_tensors="pt", padding=True)
         if inputs['input_ids'].shape[1] > max_length:
             return None
@@ -430,11 +440,11 @@ model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import torch
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-
+    
     def prepare_calibration_data(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -457,8 +467,8 @@ model.
                             }
                         )
         return data
-
-
+    
+    
     def prepare_dataset(opt_init_steps=50, max_train_samples=1000):
         """
         Prepares a vision-text dataset for quantization.
@@ -472,14 +482,14 @@ model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import logging
     import nncf
-
+    
     core = ov.Core()
-
+    
     nncf.set_log_level(logging.ERROR)
-
+    
     int8_model_path = 'clip-vit-base-patch16_int8.xml'
     calibration_data = prepare_dataset()
     ov_model = core.read_model(fp16_model_path)
@@ -522,12 +532,12 @@ Create a quantized model from the pre-trained ``FP16`` model.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     if len(calibration_data) == 0:
         raise RuntimeError(
             'Calibration dataset is empty. Please check internet connection and try to download images manually.'
         )
-
+    
     calibration_dataset = nncf.Dataset(calibration_data)
     quantized_model = nncf.quantize(
         model=ov_model,
@@ -641,7 +651,7 @@ the same input data that we used before.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     # compile model for loading on device
     compiled_model = core.compile_model(quantized_model, device.value)
     # run inference on preprocessed data and get image-text similarity score
@@ -666,9 +676,9 @@ Compare File Size
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     from pathlib import Path
-
+    
     fp16_ir_model_size = Path(fp16_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     quantized_model_size = Path(int8_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     print(f"FP16 IR model size: {fp16_ir_model_size:.2f} MB")
@@ -698,9 +708,9 @@ up of the dynamic quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     import time
-
+    
     def calculate_inference_time(model_path, calibration_data):
         model = core.compile_model(model_path, device.value)
         inference_time = []
@@ -715,7 +725,7 @@ up of the dynamic quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-
+    
     fp16_latency = calculate_inference_time(fp16_model_path, calibration_data)
     int8_latency = calculate_inference_time(int8_model_path, calibration_data)
     print(f"Performance speed up: {fp16_latency / int8_latency:.3f}")
@@ -728,6 +738,7 @@ up of the dynamic quantized models.
 
 Interactive demo
 ----------------
+
 
 
 Now, it is your turn! You can provide your own image and comma-separated
@@ -743,8 +754,8 @@ example, ``cat,dog,bird``)
     if not model_path.exists():
         model_path = Path("clip-vit-base-patch16.xml")
     compiled_model = core.compile_model(model_path, device.value)
-
-
+    
+    
     def classify(image, text):
         """Classify image using classes listing.
         Args:
@@ -758,7 +769,7 @@ example, ``cat,dog,bird``)
         inputs = processor(text=text_descriptions, images=[image], return_tensors="np", padding=True)
         ov_logits_per_image = compiled_model(dict(inputs))[0]
         probs = softmax(ov_logits_per_image, axis=1)[0]
-
+    
         return {label: float(prob) for label, prob in zip(labels, probs)}
 
 .. code:: ipython3
@@ -768,11 +779,11 @@ example, ``cat,dog,bird``)
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/clip-zero-shot-image-classification/gradio_helper.py"
         )
         open("gradio_helper.py", "w").write(r.text)
-
+    
     from gradio_helper import make_demo
-
+    
     demo = make_demo(classify)
-
+    
     try:
         demo.launch(debug=False)
     except Exception:
