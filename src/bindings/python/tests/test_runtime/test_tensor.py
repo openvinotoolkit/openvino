@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from copy import deepcopy, copy
 import os
 import subprocess
 import sys
@@ -617,3 +618,25 @@ def test_tensor_keeps_memory():
 
     tensor = get_tensor()
     assert np.allclose(tensor.data[0][0][0:3], [0, 0, 1])
+
+
+@pytest.mark.parametrize(
+    ("copy_func", "should_share_data"), [(copy, True), (deepcopy, False)]
+)
+def test_copy_and_deepcopy(copy_func, should_share_data):
+    shape = (3, 4)
+    value, outlier = 7, 100
+    tensor_data = np.full(shape, value)
+    tensor = ov.Tensor(tensor_data)
+    tensor_copy = copy_func(tensor)
+
+    assert np.array_equal(tensor_copy.data, tensor.data)
+    assert tensor_copy is not tensor
+    # Update value of the original tensor
+    tensor.data[0, 0] = outlier
+    assert tensor.data[0, 0] == outlier
+
+    if should_share_data:
+        assert tensor_copy.data[0, 0] == outlier
+    else:
+        assert tensor_copy.data[0, 0] == value
