@@ -22,8 +22,15 @@ void MKernel::generate_2x2() {
     Xbyak::Reg64 reg_A_addr = abi_param2;
     Xbyak::Reg64 reg_A_stride = abi_param3;
     Xbyak::Reg64 reg_B_addr = abi_param4;
+#ifdef _WIN32
+    Xbyak::Reg64 reg_C_addr = rdi;
+    Xbyak::Reg64 reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
     Xbyak::Reg64 reg_C_addr = abi_param5;
     Xbyak::Reg64 reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -140,6 +147,10 @@ void MKernel::generate_2x2() {
     tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC11);
 
     pop(reg_prefetch);
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -174,8 +185,15 @@ void MKernel::generate_1x2() {
     Xbyak::Reg64 reg_A_addr = abi_param2;
     Xbyak::Reg64 reg_A_stride = abi_param3;
     Xbyak::Reg64 reg_B_addr = abi_param4;
+#ifdef _WIN32
+    Xbyak::Reg64 reg_C_addr = rdi;
+    Xbyak::Reg64 reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
     Xbyak::Reg64 reg_C_addr = abi_param5;
     Xbyak::Reg64 reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -254,7 +272,10 @@ void MKernel::generate_1x2() {
         tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC01);
     }
     L(skip_store);
-
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -600,11 +621,18 @@ void GateUpCombine::generate() {
 
 void ReduceAdd2bh::generate() {
     if (m_do_reduce2) {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 src1 = abi_param2;
-        Xbyak::Reg64 dst = abi_param3;
-        Xbyak::Reg64 prefetch_dst = abi_param4;
-        Xbyak::Reg64 BN = abi_param5;
+        Xbyak::Reg64 src0 = rdx;
+        Xbyak::Reg64 src1 = r8;
+        Xbyak::Reg64 dst = r9;
+        Xbyak::Reg64 prefetch_dst = r10;
+        Xbyak::Reg64 BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(src1, ptr[abi_param1 + offsetof(CallArgs, src1)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -636,10 +664,16 @@ void ReduceAdd2bh::generate() {
 
         ret();
     } else {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 dst = abi_param2;
-        Xbyak::Reg64 prefetch_dst = abi_param3;
-        Xbyak::Reg64 BN = abi_param4;
+        Xbyak::Reg64 src0 = rdx;
+        Xbyak::Reg64 dst = r9;
+        Xbyak::Reg64 prefetch_dst = r10;
+        Xbyak::Reg64 BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
