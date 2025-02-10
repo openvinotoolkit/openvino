@@ -64,6 +64,13 @@ public:
     };
 
 private:
+    // PIR TODO
+    std::string determineFormat(const std::string& model_path);
+    void parseProtobuf(std::ifstream& pb_stream);
+    void parseJson(std::ifstream& json_stream);
+    template <typename T>
+    void loadModelData(const std::basic_string<T>& path, std::ifstream& weight_stream);
+private:
     void load_places();
     template <typename T>
     void load_consts(const std::basic_string<T>& folder_with_weights);
@@ -88,6 +95,24 @@ private:
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
 };
+
+std::string InputModel::InputModelImpl::determineFormat(const std::string& model_path) {
+    if (ov::util::ends_with(model_path, ".pdmodel")) {
+        return "protobuf";
+    } else if (ov::util::ends_with(model_path, ".json")) {
+        return "json";
+    } else {
+        throw std::runtime_error("Unsupported file format: " + model_path);
+    }
+}
+
+void InputModel::InputModelImpl::parseProtobuf(std::ifstream& pb_stream) {
+    FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
+}
+
+void InputModel::InputModelImpl::parseJson(std::ifstream& json_stream) {
+    // TODO PIR: parse json to m_fw_pir_ptr
+}
 
 void InputModel::InputModelImpl::load_places() {
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
