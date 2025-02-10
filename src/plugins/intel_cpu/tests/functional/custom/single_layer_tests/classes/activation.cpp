@@ -222,11 +222,11 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if ((activation_type == utils::ActivationTypes::Relu) ||
-        (activation_type == utils::ActivationTypes::PReLu))
+        (activation_type == utils::ActivationTypes::PReLu) ||
+        (activation_type == utils::ActivationTypes::Clamp))
         return "jit";
 #if defined(OV_CPU_WITH_SHL)
-    if ((activation_type == utils::ActivationTypes::Exp) ||
-        (activation_type == utils::ActivationTypes::Clamp)) {
+    if ((activation_type == utils::ActivationTypes::Exp)) {
         return "shl";
     } else {
         return "ref";
