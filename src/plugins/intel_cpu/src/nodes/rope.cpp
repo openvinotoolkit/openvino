@@ -25,7 +25,7 @@ RoPE::RoPE(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto node = ov::as_type_ptr<const op::internal::RoPE>(op);
@@ -405,9 +405,9 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_interleaved) {
-        OPENVINO_ASSERT(m_config.slice_start == 0);
-        OPENVINO_ASSERT(m_config.slice_stop == 0);
-        OPENVINO_ASSERT(m_config.gather_position_arg_id == 0);
+        CPU_NODE_ASSERT(m_config.slice_start == 0, "slice_start must be 0 for interleaved mode");
+        CPU_NODE_ASSERT(m_config.slice_stop == 0, "slice_stop must be 0 for interleaved mode");
+        CPU_NODE_ASSERT(m_config.gather_position_arg_id == 0, "gather_position_arg_id must be 0 for interleaved mode");
         if (rtPrecision == ov::element::f16) {
             m_executor = std::make_shared<RoPEExecutorInterleaved<ov::float16>>(m_config);
         } else if (rtPrecision == ov::element::bf16) {

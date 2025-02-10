@@ -41,7 +41,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     // RandomUniform should generate new sequence each run even if all inputs are constants. So that method
@@ -234,6 +234,10 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
 bool RandomUniform::needShapeInfer() const {
     return !m_const_inputs[SHAPE];
+}
+
+bool RandomUniform::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(SHAPE);
 }
 
 bool RandomUniform::isExecutable() const {

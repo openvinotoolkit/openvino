@@ -669,3 +669,36 @@ function(ov_try_use_gold_linker)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
     endif()
 endfunction()
+
+#
+# ov_target_link_libraries_as_system(<TARGET NAME> <PUBLIC | PRIVATE | INTERFACE> <target1 target2 ...>)
+#
+function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
+    target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
+
+    # include directories as SYSTEM
+    foreach(library IN LISTS ARGN)
+        if(TARGET ${library})
+            get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
+            if(include_directories)
+                foreach(include_directory IN LISTS include_directories)
+                    # cannot include /usr/include headers as SYSTEM
+                    if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
+                        # Note, some include dirs can be wrapper with $<BUILD_INTERFACE:dir1 dir2 ...> and we need to clean it
+                        string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directory "${include_directory}")
+                        string(REGEX REPLACE ">$" "" include_directory "${include_directory}")
+                        target_include_directories(${TARGET_NAME} SYSTEM ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                    else()
+                        set(_system_library ON)
+                    endif()
+                endforeach()
+            endif()
+        endif()
+    endforeach()
+
+    if(_system_library)
+        # if we deal with system library (e.i. having /usr/include as header paths)
+        # we cannot use SYSTEM key word for such library
+        set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+    endif()
+endfunction()
