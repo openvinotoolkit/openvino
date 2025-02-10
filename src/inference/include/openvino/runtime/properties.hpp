@@ -193,7 +193,7 @@ struct PropertyName : public std::string {
      * @return true if property is mutable
      */
     bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
+        return _mutability != PropertyMutability::RO;
     }
 
 private:
