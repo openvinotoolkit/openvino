@@ -347,9 +347,6 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::Validate().run_on_model(model);
 
     // NB: if new_params is not empty - pass has been applied
-    if (ctx.new_params.empty()) {
-        LOG_DEBUG("vtensors transpose not applied");
-    }
     return !ctx.new_params.empty();
 }
 
@@ -576,14 +573,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
-    LOG_DEBUG("6.Check and apply opt layout if applicable.");
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
+        LOG_DEBUG("6. Check and apply opt layout");
+        LOG_BLOCK();
         if (optimize_value_tensors(kvcache_model)) {
             m_kvcache_desc.v_tensors_transposed = true;
             prefill_model = cvt_value_tensors_layout(prefill_model);
+        } else {
+            LOG_DEBUG("vtensors optimisation not applied");
         }
+    } else {
+        LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
