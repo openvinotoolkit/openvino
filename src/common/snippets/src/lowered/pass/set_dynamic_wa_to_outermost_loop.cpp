@@ -18,9 +18,12 @@ namespace pass {
 
 bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetDynamicWAToOuterMostLoop")
-    if (linear_ir.empty() || !linear_ir.is_dynamic() || linear_ir.get_config().m_enable_domain_optimization)
+    // This optimization is needed only for non-eltwise subgraphs
+    if (linear_ir.empty() || linear_ir.get_config().m_enable_domain_optimization)
         return false;
 
+    std::cout << " [ INFO ] SetDynamicWAToOuterMostLoop is started. linear_ir.is_dynamic() = "
+            << linear_ir.is_dynamic() << std::endl;
     const auto linear_ir_ptr = std::make_shared<const LinearIR>(linear_ir);
     const auto brgemms = MHAParallelWAOptimizer::find_applicable_brgemms(linear_ir_ptr, false);
     if (brgemms.empty())
@@ -28,7 +31,6 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
 
     const auto unsqueezed_params = MHAParallelWAOptimizer::find_unsqueezed_params(linear_ir_ptr, brgemms);
     OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
-
 
     const auto& loop_manager = linear_ir_ptr->get_loop_manager();
     std::unordered_set<lowered::UnifiedLoopInfoPtr> affected_loops;
@@ -63,6 +65,13 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
             modified = true;
         }
     }
+
+    // If the LIR was static, now it has dynamic loops, so its state must be updated
+    if (modified && !linear_ir.is_dynamic())
+        linear_ir.update_is_dynamic();
+
+    std::cout << " [ INFO ] SetDynamicWAToOuterMostLoop is finished. linear_ir.is_dynamic() = "
+              << linear_ir.is_dynamic() << std::endl;
 
     return modified;
 }
