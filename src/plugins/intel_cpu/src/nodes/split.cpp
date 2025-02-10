@@ -293,6 +293,10 @@ void Split::prepareParams() {
     }
 }
 
+bool Split::neverExecute() const {
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Split::isExecutable() const {
     return !isInPlace() && !isInputTensorAtPortEmpty(0);
 }

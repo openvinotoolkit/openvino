@@ -580,6 +580,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
         deviceName = "AUTO";
+    if (deviceName == "(CPU)")
+        deviceName = "CPU";
     stripDeviceName(deviceName, "-");
     std::map<std::string, PluginDescriptor>::const_iterator it;
     {
