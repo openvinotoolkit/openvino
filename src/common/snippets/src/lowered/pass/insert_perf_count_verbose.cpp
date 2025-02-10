@@ -26,12 +26,12 @@ bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
 
     static size_t seq_number = 0;
     bool modified = false;
-    auto csv_path = linear_ir.get_config().debug_config.dumpParams.csv_path;
+    auto csv_path = linear_ir.get_config().debug_config->dumpParams.csv_path;
 
     std::vector<std::shared_ptr<snippets::utils::Dumper>> dumpers;
     dumpers.push_back(std::make_shared<snippets::utils::ConsoleDumper>());
     // Add CSV dumper if path is provided
-    if (!linear_ir.get_config().debug_config.dumpParams.csv_path.empty()) {
+    if (!linear_ir.get_config().debug_config->dumpParams.csv_path.empty()) {
         dumpers.push_back(std::make_shared<snippets::utils::CSVDumper>(csv_path));
     }
 
