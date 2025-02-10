@@ -316,11 +316,12 @@ categories of object. For details, see the
     # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
     
     # A directory where the model will be downloaded.
     base_model_dir = Path("./model").expanduser()
@@ -333,6 +334,11 @@ categories of object. For details, see the
         hf_hub.snapshot_download("katuni4ka/ssdlite_mobilenet_v2_fp16", local_dir=base_model_dir / model_name)
     
     model = core.read_model(ov_model_path)
+    
+    # Read more about telemetry collection at https://github.com/openvinotoolkit/openvino_notebooks?tab=readme-ov-file#-telemetry
+    from notebook_utils import collect_telemetry
+    
+    collect_telemetry("gpu-device.ipynb")
 
 Compile with Default Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

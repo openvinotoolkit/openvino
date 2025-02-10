@@ -9,8 +9,7 @@
 
 #include "intel_gpu/primitives/depth_to_space.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static cldnn::depth_to_space_mode GetDepthMode(ov::op::v0::DepthToSpace::DepthToSpaceMode mode) {
     switch (mode) {
@@ -41,5 +40,4 @@ static void CreateDepthToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
 REGISTER_FACTORY_IMPL(v0, DepthToSpace);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -20,6 +20,8 @@ public:
 
     TensorInfoMemoryType() = default;
 
+    ~TensorInfoMemoryType() override;
+
     explicit TensorInfoMemoryType(const std::string& value) : value(value) {}
 
     bool visit_attributes(AttributeVisitor& visitor) override {

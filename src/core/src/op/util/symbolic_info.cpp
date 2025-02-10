@@ -8,6 +8,8 @@
 
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
+ov::SkipInvalidation::~SkipInvalidation() = default;
+
 void ov::skip_invalidation(const ov::Output<ov::Node>& output) {
     output.get_tensor().get_rt_info()[ov::SkipInvalidation::get_type_info_static()] = nullptr;
 }

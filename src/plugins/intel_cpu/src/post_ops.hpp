@@ -56,7 +56,7 @@ struct ActivationPostOp : PostOp {
                      const float alpha,
                      const float beta,
                      const float gamma,
-                     eltwiseExecutorCreatingStrategy strategy = nullptr)
+                     const eltwiseExecutorCreatingStrategy& strategy = nullptr)
         : m_type(type),
           m_alpha(alpha),
           m_beta(beta),
@@ -189,6 +189,6 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
 
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
 
-PostOps getPostOps(std::vector<NodePtr> fused);
+PostOps getPostOps(const std::vector<NodePtr>& fused);
 }  // namespace intel_cpu
 }  // namespace ov

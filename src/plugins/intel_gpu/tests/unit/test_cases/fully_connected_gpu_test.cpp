@@ -3831,6 +3831,10 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
+        const int batch_alignment = 64;
+        if ((batch > batch_alignment) && (batch % batch_alignment != 0)) {
+            ASSERT_EQ(output_mem->get_layout().batch(), align_to(batch, batch_alignment));
+        }
         cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
 
         auto ref_output_mem = get_ref_results();
@@ -3928,7 +3932,6 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 TEST_P(fully_connected_random_test_f16, basic) {
-    GTEST_SKIP();
     run_test();
 }
 
@@ -4107,7 +4110,6 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 TEST_P(fully_connected_random_test_i8_3d, basic) {
-    GTEST_SKIP();
     run_test();
 }
 
@@ -4417,32 +4419,26 @@ using fully_connected_u8_u8_test = fc_quantized_random_test<uint8_t, uint8_t>;
 using fully_connected_u8_f32_test = fc_quantized_random_test<uint8_t, float>;
 
 TEST_P(fully_connected_i8_i8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_i8_u8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_i8_f32_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_u8_i8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_u8_u8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_u8_f32_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
@@ -4765,7 +4761,6 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(false, false, 256);
 }
 
@@ -4798,7 +4793,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_reuse_scale) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_cached) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(true, false, 256);
 }
 
@@ -4815,7 +4809,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g32) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(false, true, 1, 32);
 }
 
@@ -4824,22 +4817,18 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b48g32) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g64) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(false, true, 1, 64);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g128) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(false, true, 1, 128);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g32) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(false, false, 1, 32);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_b1g64) {
-    GTEST_SKIP();
     this->test_compressed_int4_scale(false, false, 1, 64);
 }
 
@@ -5056,7 +5045,11 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_dynamic_batch) {
     this->test_compressed_int4_scale_dynamic_batch_gemv(false, 128, false);
 }
 
-// Test weight zp for INT8 ASYM 
+// Test weight zp for INT8 ASYM
+TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
+    this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 1025, 3584, 4608, 128, 128, true);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large) {
     this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 320, 4096, 4096, 128, 128, true);
 }
@@ -5124,7 +5117,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
-    GTEST_SKIP();
     this->test_compressed_int8_scale(false, true, 1, false, false);
 }
 
@@ -5141,7 +5133,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_cached) {
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b1) {
-    GTEST_SKIP();
     this->test_compressed_int8_scale(false, true, 1, false, true);
 }
 
@@ -5317,17 +5308,14 @@ static const std::vector<ov::Dimension::value_type>
     dyn_batches_smoke = {1, 2, 7, 8, 9, 16, 32, 33, 47, 48, 58};
 
 TEST_P(dynamic_fully_connected_gpu_f32_3d, basic) {
-    GTEST_SKIP();
     run_test();
 }
 
 TEST_P(dynamic_fully_connected_gpu_f16_3d, basic) {
-    GTEST_SKIP();
     run_test();
 }
 
 TEST_P(dynamic_fully_connected_gpu_i8_3d, basic) {
-    GTEST_SKIP();
     run_test();
 }
 
@@ -5598,12 +5586,10 @@ using fully_connected_types_u8_u8_test = fc_random_types_test<uint8_t, uint8_t>;
 using fully_connected_types_u8_f32_test = fc_random_types_test<uint8_t, float>;
 
 TEST_P(fully_connected_types_i8_i8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_types_i8_u8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
@@ -5612,12 +5598,10 @@ TEST_P(fully_connected_types_i8_f32_test, random) {
 }
 
 TEST_P(fully_connected_types_u8_i8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
 TEST_P(fully_connected_types_u8_u8_test, random) {
-    GTEST_SKIP();
     run_random_test();
 }
 
