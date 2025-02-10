@@ -7927,7 +7927,9 @@ TEST_P(convolution_grouped_gpu, base) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    auto out_lockable = engine.allocate_memory(out_mem->get_layout());
+    out_mem->copy_to(get_test_stream(), *out_lockable, true);
+    cldnn::mem_lock<float> out_ptr(out_lockable, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
     ASSERT_EQ(out_mem->get_layout().format, input_data_format);
