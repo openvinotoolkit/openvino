@@ -4,6 +4,8 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace riscv64 {
@@ -49,6 +51,52 @@ void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
 std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
+}
+
+
+/// CLamp ///
+jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {
+    if (const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node)) {
+        min = static_cast<float>(clamp->get_min());
+        max = static_cast<float>(clamp->get_max());
+    } else {
+        OPENVINO_THROW("Incompatible node!");
+    }
+}
+
+jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, float min, float max, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc), min(min), max(max) {}
+
+size_t jit_clamp_emitter::get_inputs_num() const {
+    return 1;
+}
+
+void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src = VReg(in_vec_idxs[0]);
+    VReg dst = VReg(out_vec_idxs[0]);
+    FReg fmin = f0, fmax = f0;
+
+    h->flw(fmin, p_table, 0);
+    h->vfmax_vf(dst, src, fmin);
+
+    h->flw(fmax, p_table, sizeof(float));
+    h->vfmin_vf(dst, dst, fmin);
+}
+
+std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+bool jit_clamp_emitter::need_table() const {
+    return true;
+}
+
+const void* jit_clamp_emitter::get_table() const {
+    static float values[2];
+    values[0] = min; // use explicit assignment to change dynamically array in runtime
+    values[1] = max;
+    return values;
 }
 
 /// DIV ///
@@ -128,10 +176,18 @@ std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions
 }
 
 /// ReLU ///
-jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, float alpha)
-    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)), alpha(alpha) {}
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {
+    if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
+        alpha = leaky_relu->get_slope();
+    } else if (ov::is_type<ov::op::v0::Relu>(node)) {
+        alpha = 0.f;
+    } else {
+        OPENVINO_THROW("Incompatible node!");
+    }
+}
 
-jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc, float alpha)
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, float alpha, const ov::element::Type exec_prc)
     : jit_emitter(host, exec_prc), alpha(alpha) {}
 
 size_t jit_relu_emitter::get_inputs_num() const {

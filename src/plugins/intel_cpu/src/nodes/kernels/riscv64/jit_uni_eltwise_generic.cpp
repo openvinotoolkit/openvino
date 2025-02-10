@@ -346,9 +346,16 @@ struct EltwiseEmitter {
 };
 
 template <>
+struct EltwiseEmitter<jit_clamp_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host, ctx.opData.alpha, ctx.opData.beta, ctx.exec_prc);
+    }
+};
+
+template <>
 struct EltwiseEmitter<jit_relu_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.exec_prc, ctx.opData.alpha);
+        ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.opData.alpha, ctx.exec_prc);
     }
 };
 } // namespace
@@ -363,6 +370,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic::create_eltwise_emitter(con
         ctx,
         data.algo,
         OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+        OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
         OV_CASE(Algorithm::EltwiseDivide, jit_div_emitter),
         OV_CASE(Algorithm::EltwiseMultiply, jit_mul_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
@@ -453,6 +461,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               precisions,
               algo,
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+              OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_div_emitter),
               OV_CASE(Algorithm::EltwiseMultiply, jit_mul_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
