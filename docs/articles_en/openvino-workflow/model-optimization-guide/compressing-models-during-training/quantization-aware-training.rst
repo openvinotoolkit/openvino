@@ -116,7 +116,8 @@ To restore the model from checkpoint, use the following API:
 Deploying the Quantized Model
 ##############################
 
-The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled, and run with OpenVINO without any additional steps.
+You can convert the model to OpenVINO IR, if needed, compile it and run with OpenVINO without
+any additional steps.
 
 .. tab-set::
 
