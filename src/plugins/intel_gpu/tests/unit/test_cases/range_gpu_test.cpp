@@ -350,7 +350,7 @@ TEST(range_gpu_test, dynamic_stop) {
     }
 }
 
-TEST(range_cpu_impl_test, dynamic_all) {
+void cpu_impl_dynamic_all() {
     auto& engine = get_test_engine();
 
     int32_t start_val = 0;
@@ -396,6 +396,25 @@ TEST(range_cpu_impl_test, dynamic_all) {
         ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
     }
 }
+
+
+TEST(range_cpu_impl_test, dynamic_all) {
+    cpu_impl_dynamic_all();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(range_cpu_impl_test, dynamic_all_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        cpu_impl_dynamic_all();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
 
 TEST(range_cpu_impl_test, dynamic_stop) {
     auto& engine = get_test_engine();

@@ -209,6 +209,20 @@ TEST(concat_cpu_impl, dynamic_4d_f) {
     start_concat_test_dynamic(impl_types::cpu);
 }
 
+#ifdef GPU_DEBUG_CONFIG
+TEST(concat_cpu_impl, dynamic_4d_f_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        start_concat_test_dynamic(impl_types::cpu);
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
+
 TEST(concat_gpu, dynamic_2d_bfyx_and_b_fs_yx_fsv32) {
     auto& engine = get_test_engine();
 

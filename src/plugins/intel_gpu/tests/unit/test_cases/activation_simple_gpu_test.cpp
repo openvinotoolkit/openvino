@@ -94,7 +94,8 @@ TEST(activation_f32_fw_gpu, dynamic) {
     }
 }
 
-TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
+void activation_f32_fw_cpu_impl_dynamic_8d();
+void activation_f32_fw_cpu_impl_dynamic_8d() {
     auto& engine = get_test_engine();
 
     ov::PartialShape in_shape  = { 1, 1, 2, 1, 1, 1, 2, 2 };
@@ -155,6 +156,24 @@ TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
         }
     }
 }
+
+TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
+    activation_f32_fw_cpu_impl_dynamic_8d();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(activation_f32_fw_cpu_impl, dynamic_8d_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        activation_f32_fw_cpu_impl_dynamic_8d();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:

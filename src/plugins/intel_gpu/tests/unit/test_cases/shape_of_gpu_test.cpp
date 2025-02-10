@@ -66,7 +66,8 @@ TEST(shape_of_gpu, bfyx_i64) {
     }
 }
 
-TEST(shape_of_cpu_impl, bfyx_i64) {
+void shape_of_cpu_impl_bfyx_i64();
+void shape_of_cpu_impl_bfyx_i64() {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 2, 3, 3}});
@@ -93,6 +94,24 @@ TEST(shape_of_cpu_impl, bfyx_i64) {
         ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
+
+TEST(shape_of_cpu_impl, bfyx_i64) {
+    shape_of_cpu_impl_bfyx_i64();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(shape_of_cpu_impl, bfyx_i64_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        shape_of_cpu_impl_bfyx_i64();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
 
 TEST(shape_of_gpu, yxfb) {
     auto& engine = get_test_engine();

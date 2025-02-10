@@ -382,6 +382,20 @@ TEST_F(tile_cpu_impl, dynamic) {
     this->test_dynamic_1x2x2x2_axis_f(impl_types::cpu);
 }
 
+#ifdef GPU_DEBUG_CONFIG
+TEST_F(tile_cpu_impl, dynamic_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        this->test_dynamic_1x2x2x2_axis_f(impl_types::cpu);
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
+
 namespace {
 template<typename T>
 struct Params {

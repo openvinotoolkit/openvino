@@ -1258,11 +1258,8 @@ INSTANTIATE_TEST_SUITE_P(export_import_crop_test, crop_gpu,
                                 ::testing::Values(true)
                                 ));
 
-class crop_gpu_dynamic : public ::testing::TestWithParam<std::tuple<impl_types>> {};
-TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
-    auto test_params = GetParam();
-    impl_types impl_type = std::get<0>(test_params);
-
+void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type);
+void crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_types impl_type) {
     auto& engine = get_test_engine();
 
     auto batch_num = 2;
@@ -1335,12 +1332,36 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
         }
     }
 }
+using ConfigParams = std::tuple<impl_types, bool>;
+class crop_gpu_dynamic : public ::testing::TestWithParam<ConfigParams> {};
+TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
+    impl_types impl_type;
+    bool disable_usm;
+    std::tie(impl_type, disable_usm) = GetParam();
+    if (disable_usm) {
+#ifdef GPU_DEBUG_CONFIG
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        auto original_usm = debug_config->disable_usm;
+        auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+        config->disable_usm = 1;
+        try {
+            crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_type);
+        } catch (std::exception& exc) {
+        }
+        config->disable_usm = original_usm;
+#endif
+    } else {
+        crop_gpu_dynamic_i32_in2x3x2x2_crop_offsets(impl_type);
+    }
+}
 
-static std::vector<impl_types> impls = { impl_types::any, impl_types::cpu };
+const std::vector<ConfigParams> testConfigs = {
+    ConfigParams{impl_types::any, false},
+    ConfigParams{impl_types::cpu, false},
+    ConfigParams{impl_types::cpu, true}
+};
 INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu_dynamic,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(impls)
-                                ));
+                        ::testing::ValuesIn(testConfigs));
 
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();

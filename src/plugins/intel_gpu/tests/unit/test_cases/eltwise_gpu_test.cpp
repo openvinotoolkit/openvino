@@ -1751,7 +1751,8 @@ TEST(eltwise_gpu_f32, add_basic_8d) {
     }
 }
 
-TEST(eltwise_cpu_impl_f32, add_basic_8d) {
+void eltwise_cpu_impl_f32();
+void eltwise_cpu_impl_f32() {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({{1, 3, 2, 2, 2, 3, 2, 3}, data_types::f32, format::bfvuwzyx });
@@ -1793,6 +1794,24 @@ TEST(eltwise_cpu_impl_f32, add_basic_8d) {
         ASSERT_EQ(2.f*i, output_ptr[i]) << " i = " << i;
     }
 }
+
+TEST(eltwise_cpu_impl_f32, add_basic_8d) {
+    eltwise_cpu_impl_f32();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(eltwise_cpu_impl_f32, add_basic_8d_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        eltwise_cpu_impl_f32();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
 
 TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
     //  Input2   : 2x2x2

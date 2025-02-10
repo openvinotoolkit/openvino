@@ -2758,6 +2758,20 @@ TEST_F(strided_slice_cpu_impl, test_2x2x1x1) {
     this->test_2x2x1x1(false, impl_types::cpu);
 }
 
+#ifdef GPU_DEBUG_CONFIG
+TEST_F(strided_slice_cpu_impl, test_2x2x1x1_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        this->test_2x2x1x1(false, impl_types::cpu);
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
+
 TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2) {
     this->test_2x2x2x1x1_2(false, impl_types::cpu);
 }

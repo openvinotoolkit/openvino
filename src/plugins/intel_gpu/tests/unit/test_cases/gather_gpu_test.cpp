@@ -2005,7 +2005,8 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     }
 }
 
-TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
+void gather_cpu_impl_fp32_dynamic_322_axisF();
+void gather_cpu_impl_fp32_dynamic_322_axisF() {
     auto& engine = get_test_engine();
 
     ov::Shape in1_shape = { 3, 3 };
@@ -2048,6 +2049,24 @@ TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
     }
 }
+
+TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
+    gather_cpu_impl_fp32_dynamic_322_axisF();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(gather_cpu_impl_fp32, dynamic_322_axisF_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        gather_cpu_impl_fp32_dynamic_322_axisF();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
 
 template <typename T>
 void test_gather_gpu_u8_322_axisF(bool is_caching_test) {

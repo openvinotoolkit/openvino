@@ -1764,8 +1764,8 @@ TEST(scatter_update_gpu_fp32, mixed_input_with_dynamic_static) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
-
-TEST(scatter_update_cpu_impl_fp32, dynamic) {
+void scatter_update_cpu_impl_fp32_dynamic();
+void scatter_update_cpu_impl_fp32_dynamic() {
     //  Dictionary : 1x2x5x2
     //  Indexes : 2x1x2x1
     //  Updates : 1x2x2x1x2x2
@@ -1847,6 +1847,24 @@ TEST(scatter_update_cpu_impl_fp32, dynamic) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
+
+TEST(scatter_update_cpu_impl_fp32, dynamic) {
+    scatter_update_cpu_impl_fp32_dynamic();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(scatter_update_cpu_impl_fp32, dynamic_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        scatter_update_cpu_impl_fp32_dynamic();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(scatter_update_gpu_fp16, d21214_bfzyx_axisX_bfwzyx_cached) {

@@ -336,6 +336,28 @@ TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<float, int32_t>(format::bfyx, data_types::f32, data_types::i32, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
 }
 
+#ifdef GPU_DEBUG_CONFIG
+TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        start_broadcast_test_dynamic<float, int32_t>(format::bfyx,
+                                                     data_types::f32,
+                                                     data_types::i32,
+                                                     {4, 5},
+                                                     {1, 1},
+                                                     {0, 1},
+                                                     false,
+                                                     impl_types::cpu,
+                                                     false);
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
+
 TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
     start_broadcast_test_dynamic<float, float>(format::bfyx, data_types::f32, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
 }
