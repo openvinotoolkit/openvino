@@ -454,7 +454,6 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
             makeOP<opset3::ScatterElementsUpdate>({Broadcast_2560, Constant_2110, Gather_2114, Constant_2112});
         auto Reshape_2564 = makeOP<opset1::Reshape>({ScatterElementsUpdate_2557, ScatterElementsUpdate_2563},
                                                     {{"special_zero", false}});
-        auto Convert_2565 = makeOP<opset1::Convert>({Reshape_2564}, {{"destination_type", "f32"}});
         auto Constant_2569 = makeConst(element::i64, ov::Shape({}), {0});
         auto ShapeOf_2566 = makeOP<opset3::ShapeOf>({node_0}, {{"output_type", "i64"}});
         auto Constant_2567 = makeConst(element::i64,
@@ -492,9 +491,9 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
             makeOP<opset3::ScatterElementsUpdate>({Broadcast_3017, Constant_2567, Gather_2571, Constant_2569});
         auto Reshape_3021 = makeOP<opset1::Reshape>({ScatterElementsUpdate_3014, ScatterElementsUpdate_3020},
                                                     {{"special_zero", false}});
-        auto Convert_3022 = makeOP<opset1::Convert>({Reshape_3021}, {{"destination_type", "f32"}});
-        auto Multiply_3023 = makeOP<opset1::Multiply>({Convert_2565, Convert_3022}, {{"auto_broadcast", "numpy"}});
-        auto Multiply_3024 = makeOP<opset1::Multiply>({node_0, Multiply_3023}, {{"auto_broadcast", "numpy"}});
+        auto Multiply_3023 = makeOP<opset1::Multiply>({Reshape_2564, Reshape_3021}, {{"auto_broadcast", "numpy"}});
+        auto ConvertLike_3024 = makeOP<opset1::ConvertLike>({Multiply_3023, node_0});
+        auto Multiply_3024 = makeOP<opset1::Multiply>({node_0, ConvertLike_3024}, {{"auto_broadcast", "numpy"}});
         auto Constant_3025 = makeConst(element::i64,
                                        ov::Shape({
                                            3,
@@ -717,7 +716,6 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
             makeOP<opset3::ScatterElementsUpdate>({Broadcast_1352, Constant_902, Gather_906, Constant_904});
         auto Reshape_1356 = makeOP<opset1::Reshape>({ScatterElementsUpdate_1349, ScatterElementsUpdate_1355},
                                                     {{"special_zero", false}});
-        auto Convert_1357 = makeOP<opset1::Convert>({Reshape_1356}, {{"destination_type", "f32"}});
         auto Constant_1361 = makeConst(element::i64, ov::Shape({}), {0});
         auto ShapeOf_1358 = makeOP<opset3::ShapeOf>({node_2}, {{"output_type", "i64"}});
         auto Constant_1359 = makeConst(element::i64,
@@ -755,9 +753,9 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
             makeOP<opset3::ScatterElementsUpdate>({Broadcast_1809, Constant_1359, Gather_1363, Constant_1361});
         auto Reshape_1813 = makeOP<opset1::Reshape>({ScatterElementsUpdate_1806, ScatterElementsUpdate_1812},
                                                     {{"special_zero", false}});
-        auto Convert_1814 = makeOP<opset1::Convert>({Reshape_1813}, {{"destination_type", "f32"}});
-        auto Multiply_1815 = makeOP<opset1::Multiply>({Convert_1357, Convert_1814}, {{"auto_broadcast", "numpy"}});
-        auto Multiply_1816 = makeOP<opset1::Multiply>({node_2, Multiply_1815}, {{"auto_broadcast", "numpy"}});
+        auto Multiply_1815 = makeOP<opset1::Multiply>({Reshape_1356, Reshape_1813}, {{"auto_broadcast", "numpy"}});
+        auto ConvertLike_1816 = makeOP<opset1::ConvertLike>({Multiply_1815, node_2});
+        auto Multiply_1816 = makeOP<opset1::Multiply>({node_2, ConvertLike_1816}, {{"auto_broadcast", "numpy"}});
         auto Constant_1817 = makeConst(element::i64,
                                        ov::Shape({
                                            3,
@@ -853,8 +851,8 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
             makeOP<opset3::ScatterElementsUpdate>({Broadcast_885, Constant_435, Gather_439, Constant_437});
         auto Reshape_889 =
             makeOP<opset1::Reshape>({ScatterElementsUpdate_882, ScatterElementsUpdate_888}, {{"special_zero", false}});
-        auto Convert_890 = makeOP<opset1::Convert>({Reshape_889}, {{"destination_type", "f32"}});
-        auto Multiply_891 = makeOP<opset1::Multiply>({Unsqueeze_433, Convert_890}, {{"auto_broadcast", "numpy"}});
+        auto ConvertLike_890 = makeOP<opset1::ConvertLike>({Reshape_889, Unsqueeze_433});
+        auto Multiply_891 = makeOP<opset1::Multiply>({Unsqueeze_433, ConvertLike_890}, {{"auto_broadcast", "numpy"}});
         auto Constant_892 = makeConst(element::i64,
                                       ov::Shape({
                                           1,

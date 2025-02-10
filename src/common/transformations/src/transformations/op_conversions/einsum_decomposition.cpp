@@ -12,6 +12,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/gather.hpp"
@@ -696,7 +697,6 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
 
     // Reshape the flattened identity tensor to the target shape.
     const auto identity = std::make_shared<ov::op::v1::Reshape>(eye_flattened, identity_shape, false);
-    const auto identity_cvt = std::make_shared<ov::op::v0::Convert>(identity, input_node.get_element_type());
     subgraph_nodes.insert(subgraph_nodes.end(),
                           {input_shape,
                            repeated_label_indices,
@@ -720,8 +720,7 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                            identity_rank,
                            ones_of_input_shape_rank,
                            identity_shape,
-                           identity,
-                           identity_cvt});
+                           identity});
     return subgraph_nodes.back();
 }
 
@@ -847,9 +846,10 @@ void extract_diagonal(ov::OutputVector& inputs,
     const auto multi_identity = build_multi_identity(input_node, repeated_labels, label_dim_map, subgraph_nodes);
 
     // multiply both operands with broadcasting
+    const auto multi_identity_converted = std::make_shared<ov::op::v1::ConvertLike>(multi_identity, input_node);
     const auto mul =
-        std::make_shared<ov::op::v1::Multiply>(input_node, multi_identity, ov::op::AutoBroadcastType::NUMPY);
-    subgraph_nodes.insert(subgraph_nodes.end(), {mul});
+        std::make_shared<ov::op::v1::Multiply>(input_node, multi_identity_converted, ov::op::AutoBroadcastType::NUMPY);
+    subgraph_nodes.insert(subgraph_nodes.end(), {multi_identity_converted, mul});
 
     const std::vector<int64_t> reduced_axes_vec{reduced_axes.cbegin(), reduced_axes.cend()};
     const auto axes_const =
