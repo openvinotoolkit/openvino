@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
@@ -10,7 +11,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -44,11 +44,8 @@ static std::shared_ptr<Model> create_conv(element::Type type, const PartialShape
     data1->get_output_tensor(0).set_names({"tensor_input1"});
 
     auto weights = std::make_shared<op::v0::Constant>(type, ov::Shape{1, 3, 3, 3}, 1);
-    auto conv = std::make_shared<op::v1::Convolution>(data1, weights,
-                                                     Strides{},
-                                                     CoordinateDiff{},
-                                                     CoordinateDiff{},
-                                                     Strides{});
+    auto conv =
+        std::make_shared<op::v1::Convolution>(data1, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
     auto res = std::make_shared<op::v0::Result>(conv);
     res->set_friendly_name("Result1");
     res->get_output_tensor(0).set_names({"tensor_output1"});
@@ -2445,17 +2442,35 @@ TEST(pre_post_process, dump_error) {
     EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
 }
 
-TEST(pre_post_process, mul_conv_fusion_in_moc) {
-    auto f = create_conv(element::f32, Shape{1, 3, 32, 32});
-    auto p = PrePostProcessor(f);
+TEST_F(TransformationTestsF, preprocessing_mul_conv_fusion) {
+    auto in_shape = Shape{1, 3, 32, 32};
+    auto in_type = element::f32;
+    {
+        auto f = create_conv(in_type, in_shape);
+        auto p = PrePostProcessor(f);
 
-    p.input().tensor().set_layout(Layout("NCHW"));
-    p.input().preprocess().reverse_channels();
-    p.input().preprocess().scale(255.);
-    f = p.build();
+        p.input().tensor().set_layout(Layout("NCHW"));
+        p.input().preprocess().reverse_channels();
+        p.input().preprocess().scale(255.);
+        model = p.build();
+    }
 
-    // we expect that MultiplyConvolutionFusion and ConstantFolding transformations will be applied.
-    EXPECT_EQ(f->get_ops().size(), 4);
-    EXPECT_EQ(count_ops_of_type<op::v1::Divide>(f), 0);
-    EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(f), 0);
+    {
+        // we expect that MultiplyConvolutionFusion will be applied
+        auto input = std::make_shared<op::v0::Parameter>(in_type, in_shape);
+
+        auto weights = op::v0::Constant::create(element::f32, ov::Shape({1, 3, 3, 3}), {0.003922f});
+        auto axis = op::v0::Constant::create(element::i64, ov::Shape{1}, {1});
+        auto indices = op::v0::Constant::create(element::i64, ov::Shape{3}, {2, 1, 0});
+
+        auto gather = std::make_shared<op::v8::Gather>(weights, indices, axis);
+        auto conv = std::make_shared<op::v1::Convolution>(input,
+                                                          gather,
+                                                          Strides{},
+                                                          CoordinateDiff{},
+                                                          CoordinateDiff{},
+                                                          Strides{});
+        auto res = std::make_shared<op::v0::Result>(conv);
+        model_ref = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{input});
+    }
 }

@@ -6,11 +6,37 @@
 
 #include "color_utils.hpp"
 #include "function_guard.hpp"
+#include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "preprocess_impls.hpp"
-#include "transformations/common_optimizations/moc_transformations.hpp"
 #include "openvino/pass/manager.hpp"
+#include "preprocess_impls.hpp"
+#include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
+#include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "transformations/common_optimizations/ric_fusion.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
+
+namespace {
+
+void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
+    using namespace ov;
+    using namespace ov::pass;
+
+    ov::pass::Manager manager("pre_post_processing");
+    REGISTER_PASS(manager, ConvertDivideWithConstant)
+
+    auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    multiply_fusions->set_name("ov::pass::MultiplyFusions");
+
+    REGISTER_PASS(manager, ReverseInputChannelsFusion)
+    manager.run_passes(model);
+}
+
+}  // namespace
 
 namespace ov {
 namespace preprocess {
@@ -212,10 +238,8 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     // Since nncf is applied with a not fully optimized model, extra FQ ops might appear,
     // which can affect both accuracy and performance.
     // PrePostProcessing is not part of OVC, so we have to insert an additional
-    // MOC call inside PrePostProcessing.
-    ov::pass::Manager manager("pre_post_processing");
-    manager.register_pass<ov::pass::MOCTransformations>(false);
-    manager.run_passes(function);
+    // Transformation calls inside PrePostProcessing.
+    transformation_pipeline(function);
 
     guard.reset();
     return function;
