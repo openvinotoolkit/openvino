@@ -147,11 +147,11 @@ const ISTFTLayerTest::TGenData ISTFTLayerTest::GetTestDataForDevice(const char* 
         },
         {
             // Dynamic dims in the first and second input shape
-            {{-1}, {{9, 3, 2}}},  // 1st input
-            {{-1}, {{8}}},        // 2nd input
-            {{}, {{}}},           // 3rd input
-            {{}, {{}}},           // 4th input
-            {{}, {{}}}            // 5th input
+            {{-1, -1, -1}, {{9, 3, 2}}},  // 1st input
+            {{-1}, {{8}}},                // 2nd input
+            {{}, {{}}},                   // 3rd input
+            {{}, {{}}},                   // 4th input
+            {{}, {{}}}                    // 5th input
         }};
 
     const std::vector<int64_t> frame_size = {16, 24};
