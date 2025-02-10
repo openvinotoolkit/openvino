@@ -74,7 +74,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
 If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()),
       m_op(ov::as_type_ptr<ov::op::v8::If>(op)) {
-    OPENVINO_ASSERT(m_op, "'If' operation is expected");
+    CPU_NODE_ASSERT(m_op, "'If' operation is expected");
 
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

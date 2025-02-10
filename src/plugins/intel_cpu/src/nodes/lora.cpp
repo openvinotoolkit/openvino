@@ -33,7 +33,7 @@ LoRA::LoRA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& loraModel = ov::as_type_ptr<ov::op::internal::LoraSubgraph>(op);
-    OPENVINO_ASSERT(loraModel,
+    CPU_NODE_ASSERT(loraModel,
                     "Attempt to create LoRA node from an invalid op type: ",
                     op,
                     " with name ",
@@ -96,7 +96,7 @@ int LoRA::registerToAllocationContext(int offset, AllocationContext& context) {
         auto parentEdge = getParentEdgeAt(i);
         auto inputEdges = m_graph.getInputNodeByIndex(i)->getChildEdgesAtPort(0);
         for (const auto& inputEdge : inputEdges) {
-            OPENVINO_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+            CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
                             "Expected Uninitialized Edge instead of: ",
                             static_cast<int>(inputEdge->getStatus()));
             inputEdge->sharedMemFrom(parentEdge);
