@@ -15,8 +15,7 @@
 
 #include <sys/types.h>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -195,8 +194,8 @@ void CompiledModel::export_model(std::ostream& model) const {
     const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
         encryption_enabled
-            ? cldnn::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
-            : cldnn::make_unique<cldnn::BinaryOutputBuffer>(model);
+            ? std::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
+            : std::make_unique<cldnn::BinaryOutputBuffer>(model);
     auto& ob = *ob_ptr;
 
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
@@ -283,6 +282,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
         };
@@ -322,5 +322,4 @@ void CompiledModel::release_memory() {
     dnnl::set_primitive_cache_capacity(capacity);
 #endif
 }
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

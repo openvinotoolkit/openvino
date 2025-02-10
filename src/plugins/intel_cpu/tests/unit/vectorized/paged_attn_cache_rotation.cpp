@@ -416,6 +416,7 @@ protected:
 
         switch (instruction_set) {
             using namespace ov::Extensions::Cpu::XARCH;
+#if defined(HAVE_AVX2)
         case TargetInstructionSet::AVX2:
             rotate_kv_cache_chunk_avx2(chunk_x.data(),
                                        chunk_y.data(),
@@ -424,6 +425,8 @@ protected:
                                        num_elements_to_process,
                                        /* is_tail = */ num_elements_to_process < vec_len_f32_avx2);
             break;
+#endif
+#if defined(HAVE_AVX512F)
         case TargetInstructionSet::AVX512:
             rotate_kv_cache_chunk_avx512(chunk_x.data(),
                                          chunk_y.data(),
@@ -432,6 +435,7 @@ protected:
                                          num_elements_to_process,
                                          /* is_tail = */ num_elements_to_process < vec_len_f32_avx512);
             break;
+#endif
         default:
             FAIL() << "unknown target instruction set";
         }
@@ -454,6 +458,7 @@ TEST_P(CacheRotationKernelInstructionParameterizedTest, OptChunkRotationGivesRef
     test_chunk_rotation_for_type<ov::bfloat16>();
 }
 
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 auto TEST_STRUCT_TO_NAME_FN =
     [](const testing::TestParamInfo<CacheRotationKernelInstructionParameterizedTest::ParamType>& info) {
         size_t num_elts = std::get<1>(info.param);
@@ -465,19 +470,24 @@ auto TEST_STRUCT_TO_NAME_FN =
         }
         return std::string("unknown");
     };
+#endif
 
+#if defined(HAVE_AVX2)
 INSTANTIATE_TEST_SUITE_P(AVX2,
                          CacheRotationKernelInstructionParameterizedTest,
                          ::testing::Combine(::testing::Values(TargetInstructionSet::AVX2),
                                             ::testing::Range(size_t(0),
                                                              ov::Extensions::Cpu::XARCH::vec_len_f32_avx2 + 1)),
                          TEST_STRUCT_TO_NAME_FN);
+#endif
+#if defined(HAVE_AVX512F)
 INSTANTIATE_TEST_SUITE_P(AVX512,
                          CacheRotationKernelInstructionParameterizedTest,
                          ::testing::Combine(::testing::Values(TargetInstructionSet::AVX512),
                                             ::testing::Range(size_t(0),
                                                              ov::Extensions::Cpu::XARCH::vec_len_f32_avx512 + 1)),
                          TEST_STRUCT_TO_NAME_FN);
+#endif
 
 TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, OptBlockRotationGivesReferenceResults) {
     auto raw_cache_mem_ptr = this->cache_mem.data();

@@ -397,9 +397,11 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto varsplit = makePattern<opset1::VariadicSplit>({gather_sin_cos, -1, {ndims / 2, -1}});
     varsplit->set_output_size(2);
     // Reshape or UnSqueeze should both be support
-    auto unsqueeze_sin = makePattern<opset1::Reshape>({varsplit->output(0), {1, -1, 1, 32}}) |
+    auto dim0 = ov::gen_pattern::Symbol("dim0");
+    auto dim1 = ov::gen_pattern::Symbol("dim1");
+    auto unsqueeze_sin = makePattern<opset1::Reshape>({varsplit->output(0), {dim0, dim1, 1, 32}}) |
                          makePattern<opset1::Unsqueeze>({varsplit->output(0), 2});
-    auto unsqueeze_cos = makePattern<opset1::Reshape>({varsplit->output(1), {1, -1, 1, 32}}) |
+    auto unsqueeze_cos = makePattern<opset1::Reshape>({varsplit->output(1), {dim0, dim1, 1, 32}}) |
                          makePattern<opset1::Unsqueeze>({varsplit->output(1), 2});
     // repeate cos/sin table
     auto const_idx = makeConst(ov::element::i32, ov::PartialShape::dynamic(), [](const ov::op::v0::Constant& node) {
@@ -419,10 +421,17 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
     auto neg_Multiply_1177 = makePattern<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
     auto Unsqueeze_65524 = makePattern<opset1::Unsqueeze>({neg_Multiply_1177, -1});
+    auto head_num = ov::gen_pattern::Symbol("head_num");
+    auto Unsqueeze_28998 =
+        makePattern<opset1::Reshape>({neg_Multiply_1177, {-1, 1, head_num, 32, 1}}, {{"special_zero", false}});
 
     auto slice_Slice_1168 = GenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, int32_max, 2, 3);
     auto Unsqueeze_65525 = makePattern<opset1::Unsqueeze>({slice_Slice_1168, -1});
-    auto stack_1182 = makePattern<opset1::Concat>({Unsqueeze_65524, Unsqueeze_65525}, {{"axis", -1}});
+    auto Unsqueeze_28999 =
+        makePattern<opset1::Reshape>({slice_Slice_1168, {-1, 1, head_num, 32, 1}}, {{"special_zero", false}});
+    auto stack_1182 =
+        makePattern<opset1::Concat>({Unsqueeze_28998 | Unsqueeze_65524, Unsqueeze_65525 | Unsqueeze_28999},
+                                    {{"axis", -1}});
 
     auto ShapeOf_169068 = makePattern<opset1::ShapeOf>({stack_1182});
     auto flatten_Slice_1194 = GenSlice(ShapeOf_169068, 0, 3, 1, 0);
@@ -445,9 +454,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto slice_Slice_971 = GenSlice(view_Reshape, ndims, int32_max, 1, 3);
     auto cat_Concat_1211 =
         makePattern<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)}, {{"axis", -1}});
-    auto permute_Transpose_1213 = makePattern<opset1::Transpose>({cat_Concat_1211, {0, 2, 1, 3}});
 
-    auto result = permute_Transpose_1213;
+    auto result = cat_Concat_1211;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -459,9 +467,31 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
+        NodeVector rt_from = {pattern_map.at(varsplit).get_node_shared_ptr(),
+                              pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
+                              pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
+                              pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
+                              pattern_map.at(stack_1182).get_node_shared_ptr(),
+                              pattern_map.at(mul_cos).get_node_shared_ptr(),
+                              pattern_map.at(mul_sin).get_node_shared_ptr(),
+                              pattern_map.at(rotary_emb).get_node_shared_ptr(),
+                              pattern_map.at(cat_Concat_1211).get_node_shared_ptr()};
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
 
-        config.output_trans0213 = true;
+        // Fuse output transpose to Rope.
+        auto root_target_inputs = root->output(0).get_target_inputs();
+        if (root_target_inputs.size() == 1) {
+            auto target_node = root_target_inputs.begin()->get_node()->shared_from_this();
+            if (auto transpose = ov::as_type_ptr<op::v1::Transpose>(target_node)) {
+                auto axes = transpose->input_value(1).get_node_shared_ptr();
+                auto axes_const = ov::as_type_ptr<op::v0::Constant>(axes);
+                if (axes_const && axes_const->cast_vector<int64_t>() == std::vector<int64_t>{0, 2, 1, 3}) {
+                    config.output_trans0213 = true;
+                    rt_from.push_back(target_node);
+                    root = target_node;
+                }
+            }
+        }
         config.is_interleaved = true;
 
         // input is [B,L,H,S]
@@ -474,19 +504,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(varsplit).get_node_shared_ptr(),
-                               pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
-                               pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
-                               pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
-                               pattern_map.at(Unsqueeze_65524).get_node_shared_ptr(),
-                               pattern_map.at(Unsqueeze_65525).get_node_shared_ptr(),
-                               pattern_map.at(stack_1182).get_node_shared_ptr(),
-                               pattern_map.at(mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(rotary_emb).get_node_shared_ptr(),
-                               pattern_map.at(cat_Concat_1211).get_node_shared_ptr(),
-                               pattern_map.at(permute_Transpose_1213).get_node_shared_ptr()},
-                              new_node);
+        ov::copy_runtime_info(rt_from, new_node);
         ov::replace_node(old_node, new_node);
         // shapeof may be moved up from transpose to add,
         // After RoPE fusion, shapeof must be moved to the data input of RoPE otherwise extra subgraph exists

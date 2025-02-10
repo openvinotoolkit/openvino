@@ -48,7 +48,7 @@ if "openvino" not in autodoc_mock_imports:
     except ImportError:
         autodoc_mock_imports.append("openvino_genai")
 
-        
+
 breathe_projects = {
     "openvino": "../xml/"
 }
@@ -66,7 +66,7 @@ source_suffix = {
 }
 
 
-# html_baseurl = 'https://docs.openvino.ai/2024/'
+# html_baseurl = 'https://docs.openvino.ai/2025/'
 
 
 # -- Sitemap configuration ---------------------------------------------------

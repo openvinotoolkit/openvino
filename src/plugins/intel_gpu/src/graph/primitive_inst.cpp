@@ -2031,7 +2031,7 @@ void primitive_inst::configure_shape_of_dependencies() {
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)
-    , _impl_params(make_unique<kernel_impl_params>())
+    , _impl_params(std::make_unique<kernel_impl_params>())
     , _impl(nullptr)
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
@@ -2672,6 +2672,7 @@ bool primitive_inst::is_valid_fusion() const {
         const auto& outer_dep = _deps[outer_dep_idx];
 
         const auto& outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
+        size_t outer_dep_pshape_count = outer_dep_pshape.is_static() ? ov::shape_size(outer_dep_pshape.to_shape()) : 0;
         auto merged_shape = out_pshape;
         bool can_broadcast = true;
         if (fd.is_type<eltwise>())
@@ -2679,7 +2680,8 @@ bool primitive_inst::is_valid_fusion() const {
 
         // Check if broadcast happens more than single axis.
         // Current gemm_tiled_opt kernel FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
-        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length()) {
+        if (_node->is_type<gemm>() && can_broadcast == true && merged_shape.rank().get_length() >= outer_dep_pshape.rank().get_length() &&
+            outer_dep_pshape_count != 1) {
             uint8_t broadcast_more_than_single_axis = 0;
             auto updated_outer_dep_pshape = ov::PartialShape(outer_dep_pshape);
 
@@ -2715,7 +2717,7 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0])
+            if (gemm_dims[0] != data_dims[0] && outer_dep_pshape_count != 1)
                 return false;
         } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& fc_layout = _impl_params->get_output_layout();

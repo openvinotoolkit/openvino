@@ -32,8 +32,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 std::vector<ov::op::util::VariableInfo> get_variable_infos(const ov::op::util::VariableInfo& data_variable_info,
@@ -289,5 +288,4 @@ KVCacheCompression::KVCacheCompression(ov::element::Type compression_dt, bool su
     add_matcher<ov::intel_gpu::KVCacheCompressionMatcher>(compression_dt, supports_immad);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
