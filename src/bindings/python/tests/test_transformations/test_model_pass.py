@@ -14,9 +14,8 @@ def test_model_pass():
     assert model_pass.model_changed
 
 
-def test_model_pass2():
-    manager = Manager()
-    model_pass = manager.register_pass(MyModelPass())
-    MyModelPass().run_on_model(get_relu_model())
+def test_model_pass_run_on_model():
+    model_pass = MyModelPass()
+    model_pass.run_on_model(get_relu_model())
 
     assert model_pass.model_changed
