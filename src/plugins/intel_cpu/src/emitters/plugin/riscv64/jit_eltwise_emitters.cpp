@@ -97,6 +97,36 @@ std::set<std::vector<element::Type>> jit_mul_emitter::get_supported_precisions(c
     return {{element::f32, element::f32}};
 }
 
+/// PReLU ///
+jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {}
+
+size_t jit_prelu_emitter::get_inputs_num() const {
+    return 2;
+}
+
+void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+    FReg fzero = f0;
+
+    if (src0.getIdx() != dst.getIdx())
+        h->vmv_v_v(dst, src0);
+
+    h->fmv_w_x(fzero, zero);
+    h->vmflt_vf(mask_vreg(), src0, fzero);
+
+    h->vfmul_vv(dst, src0, src1, VM::masked);
+}
+
+std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
 /// ReLU ///
 jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, float alpha)
     : jit_emitter(host, get_arithmetic_binary_exec_precision(node)), alpha(alpha) {}
@@ -108,31 +138,26 @@ size_t jit_relu_emitter::get_inputs_num() const {
     return 1;
 }
 
-size_t jit_relu_emitter::aux_vecs_count() const {
-    // for zero vector register
-    return 1;
-}
-
 void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src = VReg(in_vec_idxs[0]);
     VReg dst = VReg(out_vec_idxs[0]);
-    VReg zeros = VReg(aux_vec_idxs[0]);
+    FReg fzero = f0;
+
+    h->fmv_w_x(fzero, zero);
 
     if (alpha == 0) {
-        h->vmv_v_i(zeros, 0);
-        h->vfmax_vv(dst, src, zeros);
+        h->vfmax_vf(dst, src, fzero);
         return;
     }
 
     if (src.getIdx() != dst.getIdx())
         h->vmv_v_v(dst, src);
 
-    h->vmv_v_i(zeros, 0);
-    h->vmflt_vv(mask_vreg(), dst, zeros);
+    h->vmflt_vf(mask_vreg(), dst, fzero);
 
-    FReg f0;
-    h->flw(f0, p_table);
-    h->vfmul_vf(dst, dst, f0, VM::masked);
+    FReg alpha_reg = fzero;
+    h->flw(alpha_reg, p_table);
+    h->vfmul_vf(dst, dst, alpha_reg, VM::masked);
 }
 
 std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -144,7 +169,8 @@ bool jit_relu_emitter::need_table() const {
 }
 
 const void* jit_relu_emitter::get_table() const {
-    static float values[1] = { alpha };
+    static float values[1];
+    values[0] = alpha; // use explicit assignment to change dynamically array in runtime
     return values;
 }
 

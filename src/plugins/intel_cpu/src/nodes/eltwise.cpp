@@ -794,6 +794,7 @@ public:
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseMultiply,
+                    Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSubtract)) {
             return false;
