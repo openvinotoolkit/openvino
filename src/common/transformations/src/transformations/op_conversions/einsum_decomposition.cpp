@@ -618,17 +618,17 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
         ov::op::v0::Constant::create(ov::element::i64, {}, {repeated_label_dims.size()});
     const auto const_0 = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
     const auto const_1 = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
-    const auto repeated_dimensions = std::make_shared<ov::op::v8::Gather>(input_shape, repeated_label_indices, const_0);
-    const auto reduced_dimension = std::make_shared<ov::op::v8::Gather>(repeated_dimensions, const_0, const_0);
-    const auto range_max_val = std::make_shared<ov::op::v1::Power>(reduced_dimension, repeated_label_indices_len);
+    const auto repeated_dimensions = std::make_shared<ov::op::v7::Gather>(input_shape, repeated_label_indices, const_0);
+    const auto repeated_dimension = std::make_shared<ov::op::v7::Gather>(repeated_dimensions, const_0, const_0);
+    const auto range_max_val = std::make_shared<ov::op::v1::Power>(repeated_dimension, repeated_label_indices_len);
     const auto step_numerator = std::make_shared<ov::op::v1::Subtract>(range_max_val, const_1);
-    const auto step_denominator = std::make_shared<ov::op::v1::Subtract>(reduced_dimension, const_1);
+    const auto step_denominator = std::make_shared<ov::op::v1::Subtract>(repeated_dimension, const_1);
     const auto step_denominator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_denominator, const_1);
     const auto step_numerator_but_not_0 = std::make_shared<ov::op::v1::Maximum>(step_numerator, const_1);
     const auto step = std::make_shared<ov::op::v1::Divide>(step_numerator_but_not_0, step_denominator_but_not_0);
     const auto eye_flattened_indices = std::make_shared<ov::op::v0::Range>(const_0, range_max_val, step);
-    const auto reduced_dimension_1d = std::make_shared<ov::op::v0::Unsqueeze>(reduced_dimension, const_0);
-    const auto ones = std::make_shared<ov::op::v1::Broadcast>(const_1, reduced_dimension_1d);
+    const auto repeated_dimension_1d = std::make_shared<ov::op::v0::Unsqueeze>(repeated_dimension, const_0);
+    const auto ones = std::make_shared<ov::op::v1::Broadcast>(const_1, repeated_dimension_1d);
     const auto reduced_size = std::make_shared<ov::op::v1::ReduceProd>(repeated_dimensions, const_0, true);
     const auto zeros = std::make_shared<ov::op::v1::Broadcast>(const_0, reduced_size);
     const auto eye_flattened =
@@ -650,7 +650,7 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                            const_0,
                            const_1,
                            repeated_dimensions,
-                           reduced_dimension,
+                           repeated_dimension,
                            range_max_val,
                            step_numerator,
                            step_denominator,
@@ -658,7 +658,7 @@ ov::Output<ov::Node> build_identity(const ov::Output<ov::Node>& input_node,
                            step_numerator_but_not_0,
                            step,
                            eye_flattened_indices,
-                           reduced_dimension_1d,
+                           repeated_dimension_1d,
                            ones,
                            reduced_size,
                            zeros,
