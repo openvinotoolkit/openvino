@@ -70,7 +70,7 @@ protected:
     }
 };
 
-// llama2, phi3, etc
+// llama2 pattern for value tensor concate
 class TransposeValueTensors_llama2 : public TransposeValueTensors {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama2");
@@ -95,13 +95,14 @@ private:
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
             transpose_matmul_b(ctx, matched_node_param, matched_node_concat, matched_node_transpose, matched_node_matmul);
+            LOG_DEBUG("vtensors transposed: LLama2 pattern");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
     }
 };
 
-// llama2, phi3, etc
+// llama3, phi3, mistral, etc, concate value tensors with broadcasting
 class TransposeValueTensors_llama3 : public TransposeValueTensors {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama3");
@@ -110,7 +111,6 @@ public:
     }
 
 private:
-    // llama3.2, mistral, etc
     void register_matcher_llama3(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
@@ -171,7 +171,7 @@ private:
                                matched_node_concat,
                                matched_node_transpose,
                                matched_node_matmul);
-
+            LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };
         register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
@@ -347,6 +347,9 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     ov::pass::Validate().run_on_model(model);
 
     // NB: if new_params is not empty - pass has been applied
+    if (ctx.new_params.empty()) {
+        LOG_DEBUG("vtensors transpose not applied");
+    }
     return !ctx.new_params.empty();
 }
 
@@ -578,7 +581,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         if (optimize_value_tensors(kvcache_model)) {
-            // NB: Check if TransposeValueTensors transformation was applied
             m_kvcache_desc.v_tensors_transposed = true;
             prefill_model = cvt_value_tensors_layout(prefill_model);
         }
