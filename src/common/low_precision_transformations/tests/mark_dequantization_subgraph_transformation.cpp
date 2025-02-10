@@ -85,8 +85,6 @@ TEST_F(TransformationTestsF, KeepConstPrecision2BranchesDiffShapes) {
         const auto right_branch = make_branch(zp_convert, {128,64,2,2}, {1, 64, 1, 1});
         const auto result_right = std::make_shared<opset10::Result>(right_branch);
 
-        // -----
-
         const auto left_branch = make_branch(zp_convert, {64,3,3,3}, {64, 1, 1, 1});
         const auto result_left = std::make_shared<opset10::Result>(left_branch);
 
@@ -106,8 +104,6 @@ TEST_F(TransformationTestsF, KeepConstPrecision2BranchesDiffShapes) {
 
         const auto right_branch = make_branch(zp_convert, {128, 64, 2, 2}, {1, 64, 1, 1}, true);
         const auto result_right = std::make_shared<opset10::Result>(right_branch);
-
-        // -----
 
         const auto left_branch = make_branch(zp_convert, {64, 3, 3, 3}, {64, 1, 1, 1}, true);
         const auto result_left = std::make_shared<opset10::Result>(left_branch);
@@ -152,8 +148,6 @@ TEST_F(TransformationTestsF, KeepConstPrecision2BranchesSameShapes) {
         const auto right_branch = make_branch(zp_convert, {64, 3, 3, 3}, {64, 1, 1, 1});
         const auto result_right = std::make_shared<opset10::Result>(right_branch);
 
-        // -----
-
         const auto left_branch = make_branch(zp_convert, {64, 3, 3, 3}, {64, 1, 1, 1});
         const auto result_left = std::make_shared<opset10::Result>(left_branch);
 
@@ -172,8 +166,6 @@ TEST_F(TransformationTestsF, KeepConstPrecision2BranchesSameShapes) {
 
         const auto multiply_left = make_branch_same(zp_convert);
         const auto result_left = std::make_shared<opset10::Result>(multiply_left);
-
-        // -----
 
         const auto multiply_right = make_branch_same(zp_convert);
         const auto result_right = std::make_shared<opset10::Result>(multiply_right);
