@@ -72,13 +72,6 @@ protected:
 
     Xbyak_riscv::VReg mask_vreg() const { return Xbyak_riscv::v0; }
 
-    virtual bool need_table() const { return false; }
-    virtual const void* get_table() const { return nullptr; };
-
-    void load_table_addr(const void* table_ptr) const {
-        h->uni_li(p_table, (size_t)table_ptr);
-    }
-
     virtual void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const = 0;
 
     virtual void emitter_preamble(const std::vector<size_t>& in_idxs,
@@ -97,12 +90,59 @@ protected:
                          const std::vector<size_t>& vec_regs,
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
 
-    // Xbyak_riscv64::Address table_val(const std::string& key, size_t key_off_val_shift = 0) const {
-    //     auto off = table_off(key, key_off_val_shift);
-    //     return h->ptr[p_table + off];
-    // }
-
     virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+
+    // we accept only 32bit hexadecimal table values to avoid any rounding
+    using table_entry_val_t = uint32_t;
+    using table_entry_offset_t = size_t;  // offsets are in bytes wrt p_table
+
+    struct mapped_table_entry_t {
+        table_entry_offset_t off;
+        table_entry_val_t val;
+    };
+
+    using table_t = std::multimap<std::string, table_entry_val_t>;
+    using mapped_table_t = std::multimap<std::string, mapped_table_entry_t>;
+
+    void push_arg_entry_of(const std::string& key, const table_entry_val_t val) {
+        mapped_table_entry_t te{0, val};
+        entry_map_.insert(std::make_pair(key, te));
+    }
+
+    void push_entries_of(const table_t& t) {
+        for (auto it = t.begin(); it != t.end(); it++) {
+            auto key = (*it).first;
+            auto te = (*it).second;  // copy values from table
+            push_arg_entry_of(key, te);
+        }
+    }
+
+    virtual void prepare_table();
+    virtual void register_table_entries() {}
+    virtual const table_entry_val_t* get_table() const { return nullptr; };
+
+    void fill_table(table_entry_val_t* tbl, size_t size) const;
+
+    void load_table_addr() const {
+        h->uni_li(p_table, (size_t)(get_table()));
+    }
+
+    inline void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
+        auto off = table_off(key, key_off_val_shift);
+        h->flw(freg, p_table, off);
+    }
+
+    inline void load_table_val(const std::string& key, const Xbyak_riscv::Reg& reg, size_t key_off_val_shift = 0) const {
+        auto off = table_off(key, key_off_val_shift);
+        h->lw(reg, p_table, off);
+    }
+
+    // Load scalar to vector with broadcast
+    inline void load_table_val(const std::string& key, const Xbyak_riscv::VReg& vreg, const Xbyak_riscv::Reg& tmp, size_t key_off_val_shift = 0) const {
+        auto off = table_off(key, key_off_val_shift);
+        h->lw(tmp, p_table, off);
+        h->vmv_v_x(vreg, tmp);
+    }
 
     ov::intel_cpu::riscv64::jit_generator* h;
     ov::element::Type exec_prc_;
@@ -114,6 +154,7 @@ protected:
     mutable std::vector<size_t> aux_fp_gpr_idxs;
 
     emitter_in_out_map in_out_type_;
+    mapped_table_t entry_map_;
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
@@ -128,6 +169,14 @@ private:
     const size_t flen = Xbyak_riscv::CPU().getFlen() / 8;
     // vector register byte size
     const size_t vlen = Xbyak_riscv::CPU().getVlen() / 8;
+
+    size_t table_off(const std::string& key, size_t key_off_val_shift = 0) const {
+        const auto it = entry_map_.find(key);  // search an entry for a key
+        OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
+        const auto& te = (*it).second;
+        const auto scale = sizeof(table_entry_val_t);
+        return te.off + key_off_val_shift * scale;
+    }
 };
 
 }  // namespace riscv64
