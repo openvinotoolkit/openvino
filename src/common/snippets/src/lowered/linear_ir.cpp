@@ -428,9 +428,10 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     update_consumers_and_regs(new_expr, consumers);
 
     const auto new_expr_it = insert(place, new_expr);
-    const auto& loop_ids = new_expr_it->get()->get_loop_ids();
-    const auto input_ports = new_expr_it->get()->get_input_ports();
-    const auto output_ports = new_expr_it->get()->get_output_ports();
+    const auto& inserted_expr = *new_expr_it;
+    const auto& loop_ids = inserted_expr->get_loop_ids();
+    const auto input_ports = inserted_expr->get_input_ports();
+    const auto output_ports = inserted_expr->get_output_ports();
     for (const auto& old_expr : old_exprs) {
         for (size_t i = 0; i < old_expr->get_input_count(); ++i) {
             for (const auto& loop_id : loop_ids) {
@@ -439,10 +440,10 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
                     continue;
                 }
                 std::vector<ExpressionPort> new_input_ports;
-                for (size_t j = 0; j < new_expr_it->get()->get_input_count(); ++j) {
-                    if (new_expr_it->get()->get_input_port_connector(j)->get_source() ==
-                        old_expr->get_input_port_connector(i)->get_source()) {
-                        new_input_ports.push_back(new_expr_it->get()->get_input_port(j));
+                const auto& old_expr_source = old_expr->get_input_port_connector(i)->get_source();
+                for (size_t j = 0; j < inserted_expr->get_input_count(); ++j) {
+                    if (inserted_expr->get_input_port_connector(j)->get_source() == old_expr_source) {
+                        new_input_ports.push_back(inserted_expr->get_input_port(j));
                     }
                 }
                 if (!new_input_ports.empty()) {
