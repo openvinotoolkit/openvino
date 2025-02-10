@@ -651,7 +651,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::weights_path.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::WO},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
     };
 
