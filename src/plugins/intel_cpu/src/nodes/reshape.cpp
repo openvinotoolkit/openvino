@@ -38,9 +38,9 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     }
 
     if (isDynamicNode()) {
-        auto checkSecondInput = [](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
+        auto checkSecondInput = [this](const std::shared_ptr<ov::Node>& op, const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
-                OPENVINO_THROW("CPU plug-in doesn't support ", opType, " node with non static second input");
+                THROW_CPU_NODE_ERR("has non static second input");
             }
         };
 
@@ -48,13 +48,13 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
             checkSecondInput(op, "Reshape");
         } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1) {
-                OPENVINO_THROW("CPU plug-in doesn't support Squeeze node with inputs num equal 1");
+                THROW_CPU_NODE_ERR("has inputs num equal 1");
             }
             checkSecondInput(op, "Squeeze");
         } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
-            OPENVINO_THROW("Unsupported operation type via reshape node");
+            THROW_CPU_NODE_ERR("Unsupported operation type via reshape node");
         }
     }
 }
@@ -81,10 +81,10 @@ bool Reshape::needShapeInfer() const {
 
 void Reshape::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
-        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 }
 
@@ -142,7 +142,7 @@ void Reshape::execute(const dnnl::stream& strm) {
     }
 }
 
-bool Reshape::isExecutable() const {
+bool Reshape::neverExecute() const {
     bool inPlaceEnabled = false;
     if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
         auto& config = prim_desc->getConfig();
@@ -150,7 +150,11 @@ bool Reshape::isExecutable() const {
             inPlaceEnabled = true;
         }
     }
-    return !inPlaceEnabled;
+    return inPlaceEnabled;
+}
+
+bool Reshape::isExecutable() const {
+    return !neverExecute();
 }
 
 bool Reshape::created() const {

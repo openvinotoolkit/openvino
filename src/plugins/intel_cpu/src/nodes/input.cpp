@@ -499,10 +499,12 @@ void Input::selectOptimalPrimitiveDescriptor() {
     // ignore previous configuration
     supportedPrimitiveDescriptors.clear();
 
+    const int inPlacePort = m_isInPlace ? 0 : -1;
     // and just use parent memory descriptor for Output node to avoid reorders insertion
     std::vector<PortConfig> inConfs;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        inConfs.push_back({PortConfig(getParentOutputMemDesc(getParentEdgeAt(i)), BlockedMemoryDesc::FULL_MASK, 0)});
+        inConfs.push_back(
+            {PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, inPlacePort)});
     }
     NodeConfig config(inConfs, {});
 
@@ -573,6 +575,38 @@ void Input::initSupportedPdFromMemDesc() {
     }
 
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
+}
+
+void Input::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!m_isInPlace) {
+        return Node::resolveInPlaceEdges(look);
+    }
+
+    if (look & Edge::LOOK_UP) {
+        auto edges = getChildEdgesAtPort(0);
+        for (const auto& edge : edges) {
+            EdgePtr sharedEdge = edge;
+
+            while (sharedEdge->getSharedEdge(std::nothrow)) {
+                sharedEdge = sharedEdge->getSharedEdge(std::nothrow);
+            }
+
+            edge->reuse(sharedEdge->getMemoryPtr());
+        }
+    }
+
+    if (look & Edge::LOOK_DOWN) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto edge = getParentEdgeAt(i);
+            EdgePtr sharedEdge = edge;
+
+            while (sharedEdge->getSharedEdge(std::nothrow)) {
+                sharedEdge = sharedEdge->getSharedEdge(std::nothrow);
+            }
+
+            edge->reuse(sharedEdge->getMemoryPtr());
+        }
+    }
 }
 
 }  // namespace node

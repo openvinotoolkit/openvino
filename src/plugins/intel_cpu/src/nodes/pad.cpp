@@ -210,6 +210,10 @@ void Pad::createPrimitive() {
     }
 }
 
+bool Pad::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
+}
+
 bool Pad::isExecutable() const {
     return !isOutputTensorAtPortEmpty(0);
 }

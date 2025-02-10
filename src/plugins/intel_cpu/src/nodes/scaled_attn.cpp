@@ -1084,7 +1084,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     : Node(op, context, SDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& cpuConfig = context->getConfig();
     const auto& keyCachePrecision = cpuConfig.keyCachePrecision;
@@ -1093,10 +1093,9 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     const auto valueDims = getInputShapeAtPort(2).getDims();
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
-    OPENVINO_ASSERT(valueCachePrecision == keyCachePrecision,
-                    "CPU: SDPA node only supports same key/value cache precision");
-    OPENVINO_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
-                    "CPU: SDPA only supports key/value cache precision f32, f16, bf16, u8 but gets ",
+    CPU_NODE_ASSERT(valueCachePrecision == keyCachePrecision, "supports same key/value cache precision");
+    CPU_NODE_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
+                    "supports key/value cache precision f32, f16, bf16, u8 but gets ",
                     keyCachePrecision);
     m_key_quant_param.groupSize = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
                                       ? keyS
@@ -1193,7 +1192,7 @@ void ScaledDotProductAttention::createPrimitive() {
     if (m_config.config.fuse_concat) {
         auto desc = getSelectedPrimitiveDescriptor();
         if (desc == nullptr) {
-            OPENVINO_THROW("has unidentified preferable primitive descriptor");
+            THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
         }
     }
     auto rtPrecision = getRuntimePrecision();
@@ -1237,8 +1236,7 @@ void ScaledDotProductAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails with precision " +
-                       rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
@@ -1328,12 +1326,12 @@ void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateK
     } else if (inputNumber - 1 == static_cast<size_t>(idx)) {
         m_v_state = state;
     } else {
-        OPENVINO_THROW("Unexpected idx ",
-                       idx,
-                       " for a state in a node with type: ",
-                       getTypeStr(),
-                       " and name ",
-                       getName());
+        THROW_CPU_NODE_ERR("Unexpected idx ",
+                           idx,
+                           " for a state in a node with type: ",
+                           getTypeStr(),
+                           " and name ",
+                           getName());
     }
 }
 
@@ -1388,7 +1386,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     // 1. check beam idx if it's valid
     auto* table = beam_idx.ptr<int32_t>();
     for (size_t i = 0; i < B; i++) {
-        OPENVINO_ASSERT(static_cast<size_t>(table[i]) < B_state,
+        CPU_NODE_ASSERT(static_cast<size_t>(table[i]) < B_state,
                         "beam_idx[",
                         i,
                         "]=",
@@ -1584,11 +1582,11 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     auto&& v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
     size_t L0 = v_dims.at(order[2]);
     auto B_state = v_dims.at(order[0]);
-    OPENVINO_ASSERT(m_k_state->is_reset_state() == m_v_state->is_reset_state(),
+    CPU_NODE_ASSERT(m_k_state->is_reset_state() == m_v_state->is_reset_state(),
                     "KV state must be reset simultaneously, please also reset state for ",
                     (m_k_state->is_reset_state() ? m_v_state->get_name() : m_k_state->get_name()));
-    OPENVINO_ASSERT(B == B_state, "beam idx batch: ", B, " is not equal to batch of state: ", B_state);
-    OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
+    CPU_NODE_ASSERT(B == B_state, "beam idx batch: ", B, " is not equal to batch of state: ", B_state);
+    CPU_NODE_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
     bool need_redefine = true;
     if (B * (L0 + L1) > m_k_state->hidden_state_max_size()) {
@@ -1728,8 +1726,8 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     auto&& v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
     size_t L0 = v_dims.at(order[2]);
     auto B_state = v_dims.at(order[0]);
-    OPENVINO_ASSERT(B == B_state, "pastkv batch: ", B, " is not equal to batch of state: ", B_state);
-    OPENVINO_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
+    CPU_NODE_ASSERT(B == B_state, "pastkv batch: ", B, " is not equal to batch of state: ", B_state);
+    CPU_NODE_ASSERT(B * (L0 + L1) > 0, "B or (L0+L1) is zero, B: ", B, ", L0: ", L0, ", L1: ", L1);
     // resize buffer
     ov::element::Type kvcache_precision = m_k_state->internal_desc()->getPrecision();
     bool need_redefine = true;
