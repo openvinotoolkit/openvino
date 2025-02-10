@@ -846,8 +846,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         bool skipCompatibility = false;
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-        if (auto envVar = std::getenv("NPU_DISABLE_VERSION_CHECK")) {
-            if (envVarStrToBool("NPU_DISABLE_VERSION_CHECK", envVar)) {
+        if (auto envVar = std::getenv("OV_NPU_DISABLE_VERSION_CHECK")) {
+            if (envVarStrToBool("OV_NPU_DISABLE_VERSION_CHECK", envVar)) {
                 _logger.info("Blob compatibility check skipped.");
                 skipCompatibility = true;
             }
