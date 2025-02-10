@@ -2731,6 +2731,52 @@ TEST(reorder_gpu, any_format) {
     }
 }
 
+void reorder_cpu_any_format();
+void reorder_cpu_any_format() {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
+
+    topology topo;
+    topo.add(input_layout("in", input->get_layout()));
+    topo.add(reorder("reorder", input_info("in"), format::any, data_types::f32));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", {format::any, "", impl_types::cpu}} }));
+
+    network net(engine, topo, config);
+
+    auto data = rg.generate_random_1d<float>(input->count(), -1, 1);
+    set_values(input, data);
+    net.set_input_data("in", input);
+
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<float> output(out_mem, get_test_stream());
+
+    for (size_t i = 0; i < data.size(); ++i) {
+        ASSERT_EQ(output[i], data[i]) << "i = " << i;
+    }
+}
+
+TEST(reorder_cpu, any_format) {
+    reorder_cpu_any_format();
+}
+
+#ifdef GPU_DEBUG_CONFIG
+TEST(reorder_cpu, any_format_disable_usm) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto original_usm = debug_config->disable_usm;
+    auto config = const_cast<cldnn::debug_configuration*>(debug_config);
+    config->disable_usm = 1;
+    try {
+        reorder_cpu_any_format();
+    } catch (std::exception& exc) {
+    }
+    config->disable_usm = original_usm;
+}
+#endif
+
 TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
 {
     auto& engine = get_test_engine();
