@@ -301,6 +301,12 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     auto& output = fc_params.outputs[0];
     auto& weights = fc_params.weights;
 
+    if (fc_params.single_batch && !is_swiglu_fused(fc_params) &&
+        (weights.GetDType() == WeightsType::INT4 || weights.GetDType() == WeightsType::UINT4)) {
+        std::cout << "FullyConnected_bf_tiled is refused due to single batch" << std::endl;
+        return false;
+    }
+
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {

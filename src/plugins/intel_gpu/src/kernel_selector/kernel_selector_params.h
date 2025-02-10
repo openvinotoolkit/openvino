@@ -131,6 +131,7 @@ public:
                 uint32_t asym_d_quantization : 1;
                 uint32_t dynamic_shapes : 1;
                 uint32_t compressed_weights : 1;
+                uint32_t single_batch_opt : 1;
 
                 union dedicated_t {
                     struct argm_t {
@@ -300,6 +301,7 @@ public:
     void EnableNonBiasTerm() { key.restrict.val.nonBias = 1; }
     void EnableBiasPerFeature() { key.restrict.val.biasPerFeatureMap = 1; }
     void EnableBiasPerOutput() { key.restrict.val.biasPerOutput = 1; }
+    void EnableSingleBatchOpt() { key.restrict.val.single_batch_opt = 1; }
     void EnableActivationAdditionalParamsAsInput() { key.restrict.val.activationAdditionalParamsAsInput = 1; }
     void EnableMomentum() { key.restrict.val.momentum = 1; }
     void EnableLRNMode(LRNMode m);
