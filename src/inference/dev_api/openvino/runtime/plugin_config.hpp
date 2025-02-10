@@ -34,6 +34,13 @@ private:                                                                        
         #PropertyNamespace "::" #PropertyVar,                                                               \
         __VA_ARGS__};
 
+#define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
+    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
+
+#define OV_CONFIG_RELEASE_INTERNAL_OPTION(PropertyNamespace, PropertyVar, ...) \
+    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
+
+#ifdef ENABLE_DEBUG_CAPS
 #define OV_CONFIG_DEBUG_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                                           \
 public:                                                                                                              \
     static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {                         \
@@ -51,14 +58,12 @@ private:                                                                        
                         __VA_ARGS__};                                                                                \
     OptionRegistrationHelper m_##PropertyVar##_rh{this, PropertyNamespace::PropertyVar.name(), &m_##PropertyVar};
 
-#define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
-
-#define OV_CONFIG_RELEASE_INTERNAL_OPTION(PropertyNamespace, PropertyVar, ...) \
-    OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
-
 #define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
+#else
+    #define OV_CONFIG_DEBUG_GLOBAL_OPTION(...)
+    #define OV_CONFIG_DEBUG_OPTION(...)
+#endif
 
 namespace ov {
 enum class OptionVisibility : uint8_t {
