@@ -99,6 +99,9 @@ public:
     // load size_t value to GPR safely
     void uni_li(const Xbyak_riscv::Reg& rd, size_t value);
 
+    // negative pseudo-instruction
+    void vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VReg& vs, Xbyak_riscv::VM vm = Xbyak_riscv::VM::unmasked);
+
 protected:
     virtual void generate() = 0;
     

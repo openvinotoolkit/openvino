@@ -57,8 +57,8 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
 
 
 /// Clamp ///
-jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {
+jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {
     if (const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node)) {
         min = static_cast<float>(clamp->get_min());
         max = static_cast<float>(clamp->get_max());
@@ -132,8 +132,8 @@ std::set<std::vector<element::Type>> jit_div_emitter::get_supported_precisions(c
 }
 
 /// Exp ///
-jit_exp_emitter::jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {
+jit_exp_emitter::jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {
     prepare_table();
 }
 
@@ -163,17 +163,18 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     VReg dst = VReg(out_vec_idxs[0]);
     VReg aux0 = VReg(aux_vec_idxs[0]);
     VReg aux1 = VReg(aux_vec_idxs[1]);
-    VReg aux2 = VReg(aux_vec_idxs[2]);
+    VReg zero_mask = VReg(aux_vec_idxs[2]);
+    VReg aux2 = zero_mask;
     FReg fp0 = FReg(aux_fp_gpr_idxs[0]);
     FReg fp1 = FReg(aux_fp_gpr_idxs[1]);
     Reg tmp = Reg(aux_gpr_idxs[0]);
 
-    // save src
-    h->vmv_v_v(aux2, src);
-
-    // get mask of values lower than log(FLT_MIN) to zero them in the output
     FReg ln_flt_min_f = fp0;
     load_table_val("ln_flt_min_f", ln_flt_min_f);
+    // get mask of values lower than log(FLT_MIN) to zero them in the output
+    h->vmflt_vf(mask_vreg(), src, ln_flt_min_f);
+    h->vmv1r_v(zero_mask, mask_vreg()); // save mask
+
     h->vfmax_vf(dst, src, ln_flt_min_f);
 
     load_table_val("ln_flt_max_f", fp1);
@@ -212,7 +213,7 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
     // set zeroes at those points which were < log(FLT_MIN)
     // Note: Xbyak doesn't support vmv_v_i with mask to set zero where masked
-    h->vmflt_vf(mask_vreg(), aux2, ln_flt_min_f); // aux - tmp mask
+    h->vmv1r_v(mask_vreg(), zero_mask); // pop mask
     h->vand_vx(aux1, aux1, zero, VM::masked);
 
     // compute polynomial
@@ -294,8 +295,8 @@ std::set<std::vector<element::Type>> jit_mul_emitter::get_supported_precisions(c
 }
 
 /// PReLU ///
-jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {}
+jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {}
 
 jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc)
     : jit_emitter(host, exec_prc) {}
@@ -328,8 +329,8 @@ std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions
 }
 
 /// ReLU ///
-jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, get_arithmetic_binary_exec_precision(node)) {
+jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {
     if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
         alpha = leaky_relu->get_slope();
     } else if (ov::is_type<ov::op::v0::Relu>(node)) {
@@ -384,6 +385,89 @@ const jit_relu_emitter::table_entry_val_t* jit_relu_emitter::get_table() const {
     static uint32_t tbl[1];
     fill_table(tbl, 1);
     return tbl;
+}
+
+/// Sigmoid ///
+jit_sigmoid_emitter::jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {
+    jit_exp_emitter_.reset(new jit_exp_emitter(host, exec_prc));
+    prepare_table();
+}
+
+jit_sigmoid_emitter::jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc)
+    : jit_emitter(host, exec_prc) {
+    jit_exp_emitter_.reset(new jit_exp_emitter(host, exec_prc));
+    prepare_table();
+}
+
+size_t jit_sigmoid_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_sigmoid_emitter::aux_gprs_count() const {
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitters is missed!");
+    return jit_exp_emitter_->aux_gprs_count();
+}
+
+size_t jit_sigmoid_emitter::aux_vecs_count() const {
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitters is missed!");
+    return jit_exp_emitter_->aux_vecs_count() + 1;
+}
+
+size_t jit_sigmoid_emitter::aux_fp_gprs_count() const {
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitters is missed!");
+    return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1lu);
+}
+
+void jit_sigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src = VReg(in_vec_idxs[0]);
+    VReg dst = VReg(out_vec_idxs[0]);
+    VReg sign_mask = VReg(aux_vec_idxs[aux_vecs_count() - 1]);
+    VReg aux = VReg(aux_vec_idxs[aux_vecs_count() - 2]);
+
+    // To avoid exp(x) overflow happened at x > logf(FLT_MAX), negate positive,
+    // compute exp(x), where x <= 0 to get 0 <= exp(x) <= 1 and restore value
+    // sign at the end. This is possible due to logistic is symmetric function.
+
+    // we store the original sign and make x negative
+    FReg fzero = FReg(aux_fp_gpr_idxs[0]);
+    h->vmfgt_vf(mask_vreg(), src, fzero);
+    h->vfneg_vv(src, src, VM::masked);
+    h->vmv1r_v(sign_mask, mask_vreg()); // save mask since exp uses mask too
+
+    const auto exp_src_idxs = std::vector<size_t>{static_cast<size_t>(src.getIdx())};
+    const auto exp_dst_idxs = std::vector<size_t>{static_cast<size_t>(dst.getIdx())};
+    const auto exp_aux_vec_idxs = std::vector<size_t>{aux_vec_idxs.cbegin(), aux_vec_idxs.cbegin() + jit_exp_emitter_->aux_vecs_count()};
+    jit_exp_emitter_->emit_code(exp_src_idxs, exp_dst_idxs, exp_aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
+
+    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    load_table_val("one", one);
+    // aux = copy exp(x)
+    h->vmv_v_v(aux, dst);
+    // aux = (exp(x) + 1)
+    h->vfadd_vf(aux, aux, one);
+    // dst = exp(x) / (exp(x) + 1) = dst / aux
+    h->vfdiv_vv(dst, dst, aux);
+
+    // Now we have to apply the "symmetry" based on original sign
+    // aux = dst - 1 = 1 - ( 1 / (exp(x) + 1))
+    h->vfrsub_vf(aux, dst, one);
+    h->vmv1r_v(mask_vreg(), sign_mask); // pop mask
+    h->vmerge_vvm(dst, dst, aux);
+}
+
+void jit_sigmoid_emitter::register_table_entries() {
+    push_arg_entry_of("one", CONST_1_F);
+}
+
+const jit_sigmoid_emitter::table_entry_val_t* jit_sigmoid_emitter::get_table() const {
+    static uint32_t tbl[1];
+    fill_table(tbl, 1);
+    return tbl;
+}
+
+std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
 }
 
 /// SUB ///
