@@ -33,10 +33,7 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -1048,7 +1045,7 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     __mmask16 mask = (1 << K) - 1;
-    for (size_t i = 0; i < K; i++) {
+    for (size_t i = 0; i < 16; i++) {
         auto x = _mm256_maskz_loadu_epi16(mask, src);               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
         auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
@@ -2356,6 +2353,28 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 _slot_mapping.ptr<int32_t>()[idx++] =
                     block_number * _helper._block_size + block_offset % _helper._block_size;
             }
+            // To simplify tails of the kernels for Q*K and W*V:
+            // for first token kernels:
+            //    Q*K aka [m, k0] * [n0, k0]', there is already tails logic for m, k0, but no(always assume n0 is
+            //    block_size) for n0 which means the tail of k_cache need to be set to zero.
+            //    W*V aka [m, k1] * [n1, k1]', there is no tails handing for n1, so tails of v_cache need to be set to
+            //    zero.
+            // for second token, the kernels have tails handling logic
+            if (q_len != 1 && kv_len % _helper._block_size != 0) {
+                // block no. which contains tails
+                auto block_number = block_indices.ptr<int32_t>()[block_number_start + kv_len / _helper._block_size];
+                // tails start position
+                auto block_offset = kv_len % _helper._block_size;
+                // tails number
+                auto zero_tokens = _helper._block_size - block_offset;
+                auto S = k_cache.m_dims[3];
+                auto SV = v_cache.m_dims[3];
+                auto Hk = k_cache.m_dims[1];    // shape: [block, H, 32, S]
+                parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
+                    std::memset(k_cache.ptr_v(block_number, h, block_offset + l, 0), 0, S * k_cache.m_element_size);
+                    std::memset(v_cache.ptr_v(block_number, h, block_offset + l, 0), 0, SV * v_cache.m_element_size);
+                });
+            }
         }
 
         if (k_cache.m_dt == ov::element::Type_t::u8) {
@@ -2524,7 +2543,4 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     return executor;
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH
