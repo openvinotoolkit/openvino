@@ -234,7 +234,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         auto options = c.first;
         auto& batches = std::get<1>(c.second);
         for (auto& b : batches) {
-            auto find_and_remove_includes = [](const std::string& code, std::set<std::string>& required_headers) {
+            auto find_and_remove_includes = [](const std::string& code, std::vector<std::string>& required_headers) {
                 std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
                 std::string processed_kernel;
                 std::sregex_iterator it(code.begin(), code.end(), include_regex);
@@ -245,7 +245,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     auto header_name = (*it)[1].str();
                     header_name = header_name.substr(header_name.find_last_of("/") + 1);
                     header_name = header_name.substr(0, header_name.find_last_of("."));
-                    required_headers.insert(header_name);
+                    required_headers.push_back(header_name);
                     processed_kernel += code.substr(last_pos, it->position() - last_pos);
                     last_pos = it->position() + it->length();
                 }
@@ -256,17 +256,17 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             auto process_batch_includes = [find_and_remove_includes](kernels_cache::batch_program& prog) {
                 std::list<std::string> sources_to_process(prog.source.begin(), prog.source.end());
                 prog.source.clear();
-                std::set<std::string> all_headers;
+                std::list<std::string> all_headers;
                 while (!sources_to_process.empty()) {
-                    std::set<std::string> new_headers;
+                    std::vector<std::string> new_headers;
                     auto source = sources_to_process.front();
                     sources_to_process.pop_front();
                     prog.source.insert(prog.source.begin(), find_and_remove_includes(source, new_headers));
                     for (auto& header : new_headers) {
-                        if (all_headers.count(header) == 0) {
-                            all_headers.insert(header);
+                        if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
+                            all_headers.push_front(header);
                             std::string_view header_code = ov::intel_gpu::ocl::OCLSourcesDB::get_kernel_header(header);
-                            sources_to_process.push_back(std::string(header_code));
+                            sources_to_process.push_back(std::string(header_code) + "\n");
                         }
                     }
                 }

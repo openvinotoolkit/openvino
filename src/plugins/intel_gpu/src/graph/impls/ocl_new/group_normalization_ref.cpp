@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "group_normalization_ref.hpp"
@@ -23,17 +23,17 @@ void common_jit_constants(JitConstants& jit_constants, const kernel_impl_params&
 
 class GroupNormalizationGeneratorCalcMeanRef : public ov::intel_gpu::ocl::SingleKernelGenerator {
 public:
-    GroupNormalizationGeneratorCalcMeanRef() : SingleKernelGenerator("group_normalization_gpu_ref") {}
+    GroupNormalizationGeneratorCalcMeanRef() : SingleKernelGenerator("group_normalization_ref") {}
 
 protected:
-    JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-        auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+    JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit_constants = SingleKernelGenerator::get_jit_constants(params);
         common_jit_constants(jit_constants, params);
         jit_constants.make("MEAN_KERNEL_ENABLED", 1);
         return jit_constants;
     }
 
-    Arguments get_arguments_desc(const program_node& node, const kernel_impl_params& params) const override {
+    Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
@@ -43,18 +43,18 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
-        static auto f = DISPATCH_DATA_FUNC(params) {
-            WorkGroupSizes dispatch_data;
+        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+            WorkGroupSizes wgs;
 
             auto desc = params.typed_desc<group_normalization>();
             auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
             size_t num_groups = static_cast<std::size_t>(desc->num_groups);
             if (params.output_layouts[0].is_static()) {
                 const auto& out_shape = params.output_layouts[0].get_shape();
-                dispatch_data.global = { out_shape[0], num_groups, 1 };
-                dispatch_data.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
+                wgs.global = { out_shape[0], num_groups, 1 };
+                wgs.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
             }
-            return { dispatch_data, {} };
+            return { wgs, {} };
         };
 
         return f;
@@ -63,17 +63,17 @@ protected:
 
 class GroupNormalizationGeneratorCalcStd : public ov::intel_gpu::ocl::SingleKernelGenerator {
 public:
-    GroupNormalizationGeneratorCalcStd() : SingleKernelGenerator("group_normalization_gpu_ref") {}
+    GroupNormalizationGeneratorCalcStd() : SingleKernelGenerator("group_normalization_ref") {}
 
 protected:
-    JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-        auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+    JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit_constants = SingleKernelGenerator::get_jit_constants(params);
         common_jit_constants(jit_constants, params);
         jit_constants.make("STANDARD_DEVIATION_KERNEL_ENABLED", 1);
         return jit_constants;
     }
 
-    Arguments get_arguments_desc(const program_node& node, const kernel_impl_params& params) const override {
+    Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
@@ -84,18 +84,18 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
-        static auto f = DISPATCH_DATA_FUNC(params) {
-            WorkGroupSizes dispatch_data;
+        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+            WorkGroupSizes wgs;
 
             auto desc = params.typed_desc<group_normalization>();
             auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
             size_t num_groups = static_cast<std::size_t>(desc->num_groups);
             if (params.output_layouts[0].is_static()) {
                 const auto& out_shape = params.output_layouts[0].get_shape();
-                dispatch_data.global = { out_shape[0], num_groups, 1 };
-                dispatch_data.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
+                wgs.global = { out_shape[0], num_groups, 1 };
+                wgs.local = { out_shape[0] *num_groups > max_wgs ? max_wgs / num_groups : out_shape[0], num_groups, 1 };
             }
-            return { dispatch_data, {} };
+            return { wgs, {} };
         };
         return f;
     }
@@ -103,18 +103,18 @@ protected:
 
 class GroupNormalizationGeneratorNormalize : public ov::intel_gpu::ocl::SingleKernelGenerator {
 public:
-    GroupNormalizationGeneratorNormalize() : SingleKernelGenerator("group_normalization_gpu_ref") {}
+    GroupNormalizationGeneratorNormalize() : SingleKernelGenerator("group_normalization_ref") {}
 
 protected:
-    JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-        auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+    JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit_constants = SingleKernelGenerator::get_jit_constants(params);
         common_jit_constants(jit_constants, params);
         jit_constants.make("NORMALIZE_KERNEL_ENABLED", 1);
         jit_constants.make("INPUT_INDICES_ORDER", "batch, feature, z, y, x");
         return jit_constants;
     }
 
-    Arguments get_arguments_desc(const program_node& node, const kernel_impl_params& params) const override {
+    Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
@@ -128,40 +128,25 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
-        static auto f = DISPATCH_DATA_FUNC(params) {
-            WorkGroupSizes dispatch_data;
+        static auto f = DISPATCH_DATA_FUNC(params, kd) {
+            WorkGroupSizes wgs;
 
             if (params.output_layouts[0].is_static()) {
-                const auto& out_shape = params.output_layouts[0].get_shape();
-                if (out_shape.size() == 4) {
-                    dispatch_data.global = { out_shape[0], out_shape[1], out_shape[2] * out_shape[3]};
-                } else if (out_shape.size() == 4) {
-                    dispatch_data.global = { out_shape[0], out_shape[1] * out_shape[2], out_shape[3] * out_shape[4]};
-                }
-                dispatch_data.local = {1, 1, 1}; //GetOptimalLocalWorkGroupSizes(dispatch_data.global, params.engineInfo, in_layout, out_layout, dims_by_gws);
+                const auto& out_l = params.output_layouts[0];
+                auto b = extract_channel(ChannelName::BATCH, out_l);
+                auto f = extract_channel(ChannelName::FEATURE, out_l);
+                auto z = extract_channel(ChannelName::Z, out_l);
+                auto y = extract_channel(ChannelName::Y, out_l);
+                auto x = extract_channel(ChannelName::X, out_l);
+
+                wgs.global = { b, f * z, y * x};
+                wgs.local = {1, 1, 1}; //GetOptimalLocalWorkGroupSizes(wgs.global, params.engineInfo, in_layout, out_layout, dims_by_gws);
             }
-            return { dispatch_data, {} };
+            return { wgs, {} };
         };
         return f;
     }
 };
-
-// class GroupNormalizationGeneratorRef : public ov::intel_gpu::ocl::MultiStageKernelGenerator {
-// public:
-//     GroupNormalizationGeneratorRef() : MultiStageKernelGenerator(
-//             GroupNormalizationGeneratorCalcMeanRef(),
-//             GroupNormalizationGeneratorCalcStd(),
-//             GroupNormalizationGeneratorNormalize()
-//     ) {}
-
-//     JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-//         JitConstants jit_constants;
-//         auto desc = params.typed_desc<group_normalization>();
-//         jit_constants.make("EPSILON", static_cast<float>(desc->epsilon));
-//         jit_constants.make("NUM_GROUPS", desc->num_groups);
-//         return jit_constants;
-//     }
-// };
 
 class GroupNormalizationRefImpl : public PrimitiveImplOCL {
 public:
@@ -171,11 +156,10 @@ public:
 
     GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params)
         : PrimitiveImplOCL(std::string(GroupNormalizationRef::get_type_info_static().name)) {
-        add_stage<GroupNormalizationGeneratorCalcMeanRef, CALC_MEAN_STAGE>(node, params);
-        add_stage<GroupNormalizationGeneratorCalcStd, CALC_STD_STAGE>(node, params);
-        add_stage<GroupNormalizationGeneratorNormalize, NORMALIZE_STAGE>(node, params);
+        add_stage<GroupNormalizationGeneratorCalcMeanRef, CALC_MEAN_STAGE>(params);
+        add_stage<GroupNormalizationGeneratorCalcStd, CALC_STD_STAGE>(params);
+        add_stage<GroupNormalizationGeneratorNormalize, NORMALIZE_STAGE>(params);
     }
-
 
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<GroupNormalizationRefImpl>(*this);

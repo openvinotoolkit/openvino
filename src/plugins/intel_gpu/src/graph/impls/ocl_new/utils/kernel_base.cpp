@@ -64,10 +64,10 @@ public:
     }
 };
 
-JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& node, const kernel_impl_params& params) const {
+JitConstants SingleKernelGenerator::make_base_jit_constants(const kernel_impl_params& params) const {
     JitConstants jit_constants;
 
-    auto entry_point = get_entry_point(node, params);
+    auto entry_point = get_entry_point(params);
     jit_constants.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
     jit_constants.add(make_jit_constant("KERNEL_ID", entry_point));
 
@@ -95,10 +95,10 @@ JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& 
     return jit_constants;
 }
 
-std::string SingleKernelGenerator::build_code(const std::string& template_name, const JitConstants& jit_constants, const std::string& kernel_id) const {
+std::string SingleKernelGenerator::build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& kernel_id) const {
     CodeBuilder code;
     code.add_line("\n//====================================================")
-        .add_line("// Kernel template: " + template_name + " ")
+        .add_line("// Kernel template: " + std::string(template_name) + " ")
         .add_line("// Kernel name: " + kernel_id)
         .decoration_macro("FUNC", "", kernel_id)
         .decoration_macro("FUNC_CALL", "", kernel_id)
@@ -122,44 +122,41 @@ std::string SingleKernelGenerator::build_code(const std::string& template_name, 
     return code.str();
 }
 
-KernelData SingleKernelGenerator::get_kernel_data(const program_node& node, const kernel_impl_params& params) const {
-    KernelData kd;
-    auto kernel_str = std::make_shared<KernelString>();
-    kernel_str->language = kernel_language::OCLC_V2;
-    auto entry_point = get_entry_point(node, params);
-    auto jit = get_jit_constants(node, params);
-    auto dispatch_data_f = get_dispatch_data_func(params);
-    auto dispatch_data = dispatch_data_f(params);
-    jit.add(m_jit_constants);
+KernelData SingleKernelGenerator::get_kernel_data(const kernel_impl_params& params) const {
+    auto jit = get_jit_constants(params);
 
-    kernel_str->entry_point = entry_point;
-    kernel_str->jit = "";
-    kernel_str->undefs = "";
-    kernel_str->options = get_build_options(node, params);
-    kernel_str->batch_compilation = false;
-    kernel_str->has_microkernels = false;
-    kernel_str->str = build_code(get_name(), jit, entry_point);
-    kd.code.kernelString = kernel_str;
+    KernelData kd;
+    kd.code.kernelString = std::make_shared<KernelString>();
+    kd.code.kernelString->language = kernel_language::OCLC_V2;
+    kd.code.kernelString->entry_point = get_entry_point(params);
+    kd.code.kernelString->jit = "";
+    kd.code.kernelString->undefs = "";
+    kd.code.kernelString->options = get_build_options(params);
+    kd.code.kernelString->batch_compilation = false;
+    kd.code.kernelString->has_microkernels = false;
+    kd.code.kernelString->str = build_code(m_kernel_name, jit, kd.code.kernelString->entry_point);
+
+    kd.params.arguments = get_arguments_desc(params);
+    kd.update_dispatch_data_func = get_dispatch_data_func(params);;
+
+    auto dispatch_data = kd.update_dispatch_data_func(params, kd);
     kd.params.workGroups = dispatch_data.work_groups;
-    kd.params.arguments = get_arguments_desc(node, params);
-    kd.internal_buffers = {};
-    kd.update_dispatch_data_func = dispatch_data_f;
 
     return kd;
 }
 
-std::string SingleKernelGenerator::get_entry_point(const program_node& node, const kernel_impl_params& params) const {
-    std::string entry_point = get_name();
+std::string SingleKernelGenerator::get_entry_point(const kernel_impl_params& params) const {
+    auto entry_point = std::string(m_kernel_name) + m_stage_suffix;
 
     entry_point += "_" + std::to_string(params.hash());
-    entry_point += "__sa";
+    entry_point += params.is_dynamic() ? "__sa" : "";
 
     return entry_point;
 }
 
-std::string SingleKernelGenerator::get_build_options(const program_node& node, const kernel_impl_params& params) const {
+std::string SingleKernelGenerator::get_build_options(const kernel_impl_params& params) const {
     std::string options;
-    const auto& device_info = node.get_program().get_engine().get_device_info();
+    const auto& device_info = params.get_program().get_engine().get_device_info();
     if (device_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
         options = " -cl-mad-enable";
         if (device_info.supports_local_block_io)
@@ -173,17 +170,13 @@ std::string SingleKernelGenerator::get_build_options(const program_node& node, c
     return options;
 }
 
-void SingleKernelGenerator::add_common_jit_constants(const JitConstants& jit_constants) {
-    m_jit_constants.add(jit_constants);
-}
-
-JitConstants SingleKernelGenerator::get_jit_constants(const program_node& node, const kernel_impl_params& params) const {
-    auto jit = make_base_jit_constants(node, params);
+JitConstants SingleKernelGenerator::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = make_base_jit_constants(params);
     jit.add(make_activation_jit_constants(activation_func::none, ov::element::undefined, "", false, false));
     return jit;
 }
 
-Arguments SingleKernelGenerator::get_arguments_desc(const program_node& node, const kernel_impl_params& params) const {
+Arguments SingleKernelGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
 
     if (params.is_dynamic())
@@ -198,12 +191,6 @@ Arguments SingleKernelGenerator::get_arguments_desc(const program_node& node, co
     }
 
     return args;
-}
-
-DispatchData SingleKernelGenerator::get_dispatch_data(const kernel_impl_params& params) const {
-    auto f = get_dispatch_data_func(params);
-
-    return f(params);
 }
 
 }  // namespace ov::intel_gpu::ocl

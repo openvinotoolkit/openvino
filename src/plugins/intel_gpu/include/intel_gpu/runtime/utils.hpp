@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <initializer_list>
 #include <type_traits>
 #include <stdint.h>
 #include <stddef.h>
@@ -187,9 +188,14 @@ template <typename T>
 inline bool one_of(const T& val, const std::vector<T>& vec) {
     return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
 }
-template <typename T, typename... T1>
-inline bool one_of(const T& val, T1... args) {
-    return one_of(val, std::vector<T>{args...});
+template <typename T, typename U, size_t N, std::enable_if_t<std::is_convertible_v<T, U>>* = nullptr>
+inline bool one_of(const T& val, const std::array<U, N>& vec) {
+    return std::any_of(vec.begin(), vec.end(), [&val](const U& v) { return v == val; });
+}
+
+template <typename T, typename U, std::enable_if_t<std::is_convertible_v<T, U>>* = nullptr>
+inline bool one_of(const T& val, const std::initializer_list<U>& vec) {
+    return std::any_of(vec.begin(), vec.end(), [&val](const U& v) { return v == val; });
 }
 
 template <typename T, typename P>

@@ -14,8 +14,8 @@ namespace ov::intel_gpu::ocl {
 
 namespace {
 
-ov::element::Type get_accumulator_type(const program_node& node) {
-    return node.get_input_layout(0).data_type;
+ov::element::Type get_accumulator_type(const kernel_impl_params& params) {
+    return params.get_input_layout(0).data_type;
 }
 
 using namespace ov::intel_gpu::ocl;
@@ -25,47 +25,50 @@ public:
     SDPARefGenerator(bool indirect) : SDPABase("sdpa_ref", indirect) {}
 
 protected:
-    JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-        auto jit = SDPABase::get_jit_constants(node, params);
+    JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit = SDPABase::get_jit_constants(params);
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-        jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(node)));
+        jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
         jit.make("NUM_KV_HEADS", -1);
 
         return jit;
     }
 
-    Arguments get_arguments_desc(const program_node& node, const kernel_impl_params& params) const override {
+    Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
         if (params.is_dynamic())
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
 
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-        size_t inputs_count = desc->input_size();
+        size_t data_inputs_num = desc->input_size();
         if (desc->indirect_axis != -1) {
-            inputs_count--;
+            data_inputs_num--;
         }
 
-        for (uint32_t i = 0; i < inputs_count; i++)
+        auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
+        if (desc->is_kv_compressed) {
+            data_inputs_num -= 2; // key and value compression scales are handled separately
+
+            if (desc->get_compression_zp_inputs_num() > 0)
+                data_inputs_num -= 2; // key and value compression zp are handled separately
+        }
+
+        for (uint32_t i = 0; i < data_inputs_num; i++)
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-        auto beam_table_idx = inputs_count + 1;
+        auto beam_table_idx = data_inputs_num;
         if (desc->is_kv_compressed) {
-            auto key_cache_compression_scale_idx = static_cast<uint32_t>(desc->input_size());
-            auto value_cache_compression_scale_idx = static_cast<uint32_t>(desc->input_size() + 1);
+            auto key_cache_compression_scale_idx = static_cast<uint32_t>(data_inputs_num);
+            auto value_cache_compression_scale_idx = static_cast<uint32_t>(data_inputs_num + 1);
 
             args.push_back({ArgumentDescriptor::Types::INPUT, key_cache_compression_scale_idx});
             args.push_back({ArgumentDescriptor::Types::INPUT, value_cache_compression_scale_idx});
 
-            const bool is_asym_quantization =
-                desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
-            const bool combined_scale_and_zp =
-                desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
-
-            if (is_asym_quantization && !combined_scale_and_zp) {
+            if (has_zp_input_buffers) {
                 args.push_back({ArgumentDescriptor::Types::INPUT, key_cache_compression_scale_idx + 2});
                 args.push_back({ArgumentDescriptor::Types::INPUT, value_cache_compression_scale_idx + 2});
                 beam_table_idx += 2;
@@ -84,9 +87,8 @@ protected:
     }
 
     DispatchDataFunc get_dispatch_data_func(const kernel_impl_params& params) const override {
-        static auto f = DISPATCH_DATA_FUNC(params) {
+        static auto f = DISPATCH_DATA_FUNC(params, kd) {
             WorkGroupSizes wgs;
-            std::vector<layout> intermediate_buffers;
 
             if (!params.is_dynamic()) {
                 auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -109,43 +111,12 @@ protected:
 
 }  // namespace
 
-class SDPARefImpl : public PrimitiveImplOCL {
+class SDPARefImpl : public SDPAImplBase {
 public:
-    static constexpr const size_t INDIRECT_STAGE = 1;
-    static constexpr const size_t REGULAR_STAGE = 0;
-
-    SDPARefImpl(const program_node& node, const kernel_impl_params& params)
-        : PrimitiveImplOCL(std::string(SDPARef::get_type_info_static().name)) {
-        add_stage<SDPARefGenerator, REGULAR_STAGE>(node, params, false);
-        add_stage<SDPARefGenerator, INDIRECT_STAGE>(node, params, true);
-    }
-
-    static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
-        return primitive->input_size() - 1;
-    }
-
-    bool need_indirect_load(const scaled_dot_product_attention_inst& instance) const {
-        auto desc = instance.get_typed_desc<scaled_dot_product_attention>();
-
-        if (!instance.has_indirect_inputs())
-            return false;
-
-        const auto& params = *instance.get_impl_params();
-        const auto indirect_axis = desc->indirect_axis;
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
-            return false;
-
-        const auto& deps = instance.dependencies();
-
-        const auto indirect_dep_idx = 1;
-        const auto& indirect_dep = deps[indirect_dep_idx].first;
-        if (dynamic_cast<const kv_cache_inst*>(indirect_dep) == nullptr) {
-            return true;
-        }
-
-        auto state_layout = indirect_dep->get_impl_params()->get_input_layout(0);
-        bool is_prefill = state_layout.count() == 0;
-        return !is_prefill;
+    SDPARefImpl(const kernel_impl_params& params)
+        : SDPAImplBase(std::string(SDPARef::get_type_info_static().name)) {
+        add_stage<SDPARefGenerator, REGULAR_STAGE>(params, false);
+        add_stage<SDPARefGenerator, INDIRECT_STAGE>(params, true);
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
@@ -155,7 +126,6 @@ public:
             return execute_stage(events, instance, REGULAR_STAGE);
         }
     }
-
 
     std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         std::vector<layout> bufs;
@@ -183,7 +153,7 @@ public:
 
 std::unique_ptr<primitive_impl> SDPARef::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<scaled_dot_product_attention>());
-    return std::make_unique<SDPARefImpl>(node, params);
+    return std::make_unique<SDPARefImpl>(params);
 }
 
 }  // namespace ov::intel_gpu::ocl

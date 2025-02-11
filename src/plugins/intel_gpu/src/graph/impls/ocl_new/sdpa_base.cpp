@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sdpa_base.hpp"
+#include "impls/ocl_new/sdpa_utils.hpp"
 #include "utils/jitter.hpp"
 #include "utils/kernel_base.hpp"
-#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -78,22 +78,13 @@ static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attenti
 
 }  // namespace
 
-JitConstants SDPABase::get_jit_constants(const program_node& node, const kernel_impl_params& params) const {
-    assert(node.is_type<scaled_dot_product_attention>());
+JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const {
+    assert(params.is_type<scaled_dot_product_attention>());
     const auto& desc = params.typed_desc<scaled_dot_product_attention>();
 
-    auto jit = SingleKernelGenerator::get_jit_constants(node, params);
+    auto jit = SingleKernelGenerator::get_jit_constants(params);
 
-    auto data_inputs_num = params.input_layouts.size();
-    if (has_indirect_inputs(params))
-        data_inputs_num--;
-
-    if (desc->is_kv_compressed) {
-        data_inputs_num -= 2; // key and value compression scales are handled separately
-
-        if (desc->get_compression_zp_inputs_num() > 0)
-            data_inputs_num -= 2; // key and value compression zp are handled separately
-    }
+    auto data_inputs_num = get_data_inputs_num(*desc);
 
     auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
         if (order.empty())
@@ -131,13 +122,12 @@ JitConstants SDPABase::get_jit_constants(const program_node& node, const kernel_
         jit.make("BROADCAST_GROUP_SIZE", 1);
     }
 
-    bool indirect_inputs = has_indirect_inputs(params);
-    const size_t attn_mask_id = indirect_inputs ? 4 : 3;
+    const size_t attn_mask_id = 3;
     const size_t scale_id = attn_mask_id + 1;
 
     jit.make("IS_CAUSAL", desc->is_causal);
-    jit.make("HAS_ATTN_MASK_INPUT", desc->input_size() > attn_mask_id + 1);
-    jit.make("HAS_SCALE_INPUT", desc->input_size() > scale_id + 1);
+    jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
+    jit.make("HAS_SCALE_INPUT", data_inputs_num > scale_id);
 
     jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
 
@@ -200,16 +190,14 @@ JitConstants SDPABase::get_jit_constants(const program_node& node, const kernel_
     if (use_index_calc_func(desc->input_v_transpose_order))
         jit.make("INPUT2_DIMS_ORDER", get_dims_order(desc->input_v_transpose_order));
 
-    // TransposedDimensionAccessHelperJit dims_q(params.input_layouts[0], desc->input_q_transpose_order);
     LayoutJitter q_jitter(params.input_layouts[0], in_offsets_map.at(0));
-    const auto num_heads = q_jitter.dim(ChannelName::FEATURE);
-    jit.make("TARGET_SEQ_LEN", q_jitter.dim(ChannelName::Y));
-    jit.make("HEAD_SIZE", q_jitter.dim(ChannelName::X));
+    const auto num_heads = q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_q_transpose_order));
+    jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order)));
+    jit.make("HEAD_SIZE", q_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order)));
     jit.make("NUM_HEADS", num_heads);
 
     LayoutJitter k_jitter(params.input_layouts[1], in_offsets_map.at(1));
-    // TransposedDimensionAccessHelperJit k_jitter(params.input_layouts[1], desc->input_k_transpose_order);
-    jit.make("SOURCE_SEQ_LEN", k_jitter.dim(ChannelName::Y));
+    jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, desc->input_k_transpose_order)));
 
     return jit;
 }

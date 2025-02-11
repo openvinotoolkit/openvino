@@ -32,18 +32,7 @@ class OpenCL2CHeaders(object):
         content = '\n'.join(re.sub(r'\s+', ' ', line) for line in content.splitlines())
 
         # Remove unnecessary spaces/new lines around specific symbols
-        content = '\n'.join(re.sub(r'\s*([{}=;,+\-*\/<>!&|%#])\s*', r'\1', line) for line in content.splitlines())
-
-        # Remove newline before '{' and '}' if the previous line is not a macro
-        lines = content.splitlines()
-        processed_lines = []
-        for i, line in enumerate(lines):
-            if i > 0 and (line.strip() in ['{', '}']) and not lines[i - 1].strip().startswith('#'):
-                processed_lines[-1] += ' ' + line.strip()
-            else:
-                processed_lines.append(line)
-
-        content = '\n'.join(processed_lines)
+        content = '\n'.join(re.sub(r'\s*([{}=;,+\-<>!&|%#])\s*', r'\1', line) for line in content.splitlines())
 
         # Fold multi-line macros into single-line
         content = re.sub(r'\\\s*\n', '', content)
