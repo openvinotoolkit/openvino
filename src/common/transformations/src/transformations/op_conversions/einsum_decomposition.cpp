@@ -1289,7 +1289,7 @@ void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
 ov::pass::EinsumDecomposition::EinsumDecomposition() {
     MATCHER_SCOPE(EinsumDecomposition);
     auto einsum = ov::pass::pattern::wrap_type<ov::op::v7::Einsum>();
-    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto einsum_node = ov::as_type_ptr<ov::op::v7::Einsum>(m.get_match_root());
         if (!einsum_node) {
             return false;
