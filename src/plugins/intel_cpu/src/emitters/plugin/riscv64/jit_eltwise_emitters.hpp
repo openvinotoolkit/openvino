@@ -27,7 +27,8 @@ private:
 class jit_clamp_emitter : public jit_emitter {
 public:
     jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, float min, float max, const ov::element::Type exec_prc = ov::element::f32);
-    jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node,
+                      const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
@@ -40,8 +41,8 @@ private:
     void register_table_entries() override;
     const table_entry_val_t* get_table() const override;
 
-    float min = 0.f;
-    float max = 0.f;
+    float min {0.f};
+    float max {0.f};
 };
 
 class jit_div_emitter : public jit_emitter {
@@ -61,7 +62,7 @@ private:
 class jit_exp_emitter : public jit_emitter {
 public:
     jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_gprs_count() const override;
@@ -94,7 +95,8 @@ private:
 class jit_prelu_emitter : public jit_emitter {
 public:
     jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node,
+                      const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
@@ -109,7 +111,7 @@ private:
 class jit_relu_emitter : public jit_emitter {
 public:
     jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, float alpha, const ov::element::Type exec_prc = ov::element::f32);
-    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
@@ -123,9 +125,30 @@ private:
     void register_table_entries() override;
     const table_entry_val_t* get_table() const override;
 
-    float alpha = 0.f;
+    float alpha {0.f};
 };
 
+class jit_sigmoid_emitter : public jit_emitter {
+public:
+    jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
+    jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node,
+                        const ov::element::Type exec_prc = ov::element::f32);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    void register_table_entries() override;
+    const table_entry_val_t* get_table() const override;
+
+    std::unique_ptr<jit_exp_emitter> jit_exp_emitter_ {nullptr};
+};
 class jit_sub_emitter : public jit_emitter {
 public:
     jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);

@@ -224,7 +224,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if ((activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::PReLu) ||
         (activation_type == utils::ActivationTypes::Clamp) ||
-        (activation_type == utils::ActivationTypes::Exp))
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Sigmoid))
         return "jit";
     return "ref";
 #else

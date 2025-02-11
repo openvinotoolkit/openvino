@@ -101,6 +101,10 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
     }
 }
 
+void jit_generator::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VReg& vs, Xbyak_riscv::VM vm) {
+    vfsgnjn_vv(vd, vs, vs, vm);
+}
+
 Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) const {
     if (lmul == 0.125f) return LMUL::mf8;
     if (lmul == 0.25f) return LMUL::mf4;

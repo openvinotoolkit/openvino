@@ -798,6 +798,7 @@ public:
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
+                    Algorithm::EltwiseSigmoid,
                     Algorithm::EltwiseSubtract)) {
             return false;
         }

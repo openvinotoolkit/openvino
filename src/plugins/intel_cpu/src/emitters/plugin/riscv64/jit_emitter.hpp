@@ -37,11 +37,11 @@ public:
 
     // We have to define two "emit_code" to pass FP registers because
     // the base class method doesn't support them for code emission
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs,
-                   const std::vector<size_t>& pool_gpr_idxs,
-                   const std::vector<size_t>& pool_fp_gpr_idxs) const;
+    virtual void emit_code(const std::vector<size_t>& in_idxs,
+                           const std::vector<size_t>& out_idxs,
+                           const std::vector<size_t>& pool_vec_idxs,
+                           const std::vector<size_t>& pool_gpr_idxs,
+                           const std::vector<size_t>& pool_fp_gpr_idxs) const;
     void emit_code(const std::vector<size_t>& in_idxs,
                    const std::vector<size_t>& out_idxs,
                    const std::vector<size_t>& pool_vec_idxs,
