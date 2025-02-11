@@ -110,6 +110,7 @@ jobs:
 
       - name: Build ET-OV
         run: |
+          chown root:root /github/home
           echo "HOME_DIR:"
           echo $HOME
           echo "USERS:"
