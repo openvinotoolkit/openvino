@@ -212,15 +212,6 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     };
 
     const auto& params = dynamic_cast<const permute_params&>(p);
-    // permute_kernel_f_y_axes doesn't support dynamic shape.
-    // So it needs to check if fused ops have dynamic shape.
-    for (auto& fused_op : params.fused_ops) {
-        for (auto tensor : fused_op.tensors) {
-            if (tensor.is_dynamic())
-                return false;
-        }
-    }
-
     const auto& in = params.inputs[0];
     const auto in_layout = in.GetLayout();
     const auto& out = params.outputs[0];
