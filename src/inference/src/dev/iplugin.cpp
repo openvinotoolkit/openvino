@@ -4,6 +4,8 @@
 
 #include "openvino/runtime/iplugin.hpp"
 
+#include <iterator>
+
 #include "core_impl.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"

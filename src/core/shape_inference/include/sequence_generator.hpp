@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <type_traits>
+
 namespace ov {
 /** \brief Enumerate directions */
 enum Direction : uint8_t { FORWARD, BACKWARD };

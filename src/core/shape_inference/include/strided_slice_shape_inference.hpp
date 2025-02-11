@@ -5,7 +5,11 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
+#include <limits>
 #include <optional>
+#include <type_traits>
+#include <vector>
 
 #include "openvino/op/strided_slice.hpp"
 #include "slice_shape_inference_utils.hpp"

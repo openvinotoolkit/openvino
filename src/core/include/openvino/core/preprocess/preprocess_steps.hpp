@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/padding_mode.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
