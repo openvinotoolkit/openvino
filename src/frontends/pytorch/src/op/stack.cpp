@@ -70,7 +70,7 @@ OutputVector translate_hstack(const NodeContext& context) {
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     int64_t axis = 1;
     auto out = translate_stack_common(context, list_elems, axis);
-    if (!context.input_is_none(2)) {
+    if (!context.input_is_none(1)) {
         context.mutate_input(1, out[0]);
     }
     return out;
@@ -81,7 +81,7 @@ OutputVector translate_vstack(const NodeContext& context) {
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     int64_t axis = 0;
     auto out = translate_stack_common(context, list_elems, axis);
-    if (!context.input_is_none(2)) {
+    if (!context.input_is_none(1)) {
         context.mutate_input(1, out[0]);
     }
     return out;
