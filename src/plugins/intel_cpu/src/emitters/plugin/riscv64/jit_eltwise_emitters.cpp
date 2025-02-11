@@ -45,8 +45,7 @@ size_t jit_add_emitter::get_inputs_num() const {
     return 2;
 }
 
-void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -103,8 +102,7 @@ size_t jit_clamp_emitter::aux_fp_gprs_count() const {
     return 1;
 }
 
-void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                  const std::vector<size_t>& out_vec_idxs) const {
+void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -141,20 +139,19 @@ std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions
 }
 
 /// DIV ///
-jit_div_emitter::jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const std::shared_ptr<ov::Node>& node)
+jit_divide_emitter::jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
 
-jit_div_emitter::jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host,  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+jit_divide_emitter::jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator* host,  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
-size_t jit_div_emitter::get_inputs_num() const {
+size_t jit_divide_emitter::get_inputs_num() const {
     return 2;
 }
 
-void jit_div_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_divide_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -163,7 +160,7 @@ void jit_div_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_div_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
@@ -171,7 +168,7 @@ void jit_div_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->vfdiv_vv(dst, src0, src1);
 }
 
-std::set<std::vector<element::Type>> jit_div_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -204,8 +201,7 @@ size_t jit_exp_emitter::aux_fp_gprs_count() const {
     return 2;
 }
 
-void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -328,20 +324,19 @@ const jit_exp_emitter::table_entry_val_t* jit_exp_emitter::get_table() const {
 }
 
 /// MUL ///
-jit_mul_emitter::jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const std::shared_ptr<ov::Node>& node)
+jit_multiply_emitter::jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                           const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
 
-jit_mul_emitter::jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+jit_multiply_emitter::jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                           const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
-size_t jit_mul_emitter::get_inputs_num() const {
+size_t jit_multiply_emitter::get_inputs_num() const {
     return 2;
 }
 
-void jit_mul_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_multiply_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -350,7 +345,7 @@ void jit_mul_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_mul_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
@@ -358,7 +353,7 @@ void jit_mul_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->vfmul_vv(dst, src0, src1);
 }
 
-std::set<std::vector<element::Type>> jit_mul_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -379,8 +374,7 @@ size_t jit_prelu_emitter::aux_fp_gprs_count() const {
     return 1;
 }
 
-void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                  const std::vector<size_t>& out_vec_idxs) const {
+void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -436,8 +430,7 @@ size_t jit_relu_emitter::aux_fp_gprs_count() const {
     return 1;
 }
 
-void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                 const std::vector<size_t>& out_vec_idxs) const {
+void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -516,8 +509,7 @@ size_t jit_sigmoid_emitter::aux_fp_gprs_count() const {
     return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1lu);
 }
 
-void jit_sigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                 const std::vector<size_t>& out_vec_idxs) const {
+void jit_sigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -578,20 +570,19 @@ std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisio
 }
 
 /// SUB ///
-jit_sub_emitter::jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const std::shared_ptr<ov::Node>& node)
+jit_subtract_emitter::jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                           const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
 
-jit_sub_emitter::jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+jit_subtract_emitter::jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                           const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
-size_t jit_sub_emitter::get_inputs_num() const {
+size_t jit_subtract_emitter::get_inputs_num() const {
     return 2;
 }
 
-void jit_sub_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_subtract_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::imafdcv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::imafdcv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -600,7 +591,7 @@ void jit_sub_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_sub_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     VReg src0 = VReg(in_vec_idxs[0]);
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
@@ -617,7 +608,7 @@ void jit_sub_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     }
 }
 
-std::set<std::vector<element::Type>> jit_sub_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
