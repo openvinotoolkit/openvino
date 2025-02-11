@@ -98,7 +98,6 @@ jobs:
 
       - name: Build ET-OV
         run: |
-          source openvino/dist/setupvars.sh
           cd executorch
           ./install_requirements.sh
           ./install_executorch.sh
