@@ -38,27 +38,6 @@ OutputVector translate_logit(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v0::Log>(division))};
 };
 
-OutputVector translate_special_logit(const NodeContext& context) {
-    num_inputs_check(context, 1, 3);
-    auto x = context.get_input(0);
-    if (!context.input_is_none(1)) {
-        auto eps = context.get_input(1);
-        auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-        auto one_minus_eps = context.mark_node(std::make_shared<v1::Subtract>(one, eps));
-        eps = context.mark_node(std::make_shared<v1::ConvertLike>(eps, x));
-        x = context.mark_node(std::make_shared<v1::Maximum>(x, eps));
-        one_minus_eps = context.mark_node(std::make_shared<v1::ConvertLike>(one_minus_eps, x));
-        x = context.mark_node(std::make_shared<v1::Minimum>(x, one_minus_eps));
-    }
-
-    auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-    one = context.mark_node(std::make_shared<v1::ConvertLike>(one, x));
-    auto one_minus_x = context.mark_node(std::make_shared<v1::Subtract>(one, x));
-    auto division = context.mark_node(std::make_shared<v1::Divide>(x, one_minus_x));
-    return {context.mark_node(std::make_shared<v0::Log>(division))};
-};
-
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

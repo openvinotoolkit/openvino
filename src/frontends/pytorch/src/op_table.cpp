@@ -316,7 +316,6 @@ OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_slice_scatter_fx);
 OP_CONVERTER(translate_softmax_fx);
 OP_CONVERTER(translate_sort_fx);
-OP_CONVERTER(translate_special_logit);
 OP_CONVERTER(translate_split_with_sizes_fx);
 OP_CONVERTER(translate_stack_fx);
 OP_CONVERTER(translate_sub_fx);
@@ -665,7 +664,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::softmax", op::translate_softmax},
         {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
-        {"aten::special_logit", op::translate_special_logit},
+        {"aten::special_logit", op::translate_logit},
         // aten::split - Supported in limited set of patterns
         // aten::split_with_sizes - Supported in limited set of patterns
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
