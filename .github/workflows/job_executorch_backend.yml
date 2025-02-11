@@ -113,7 +113,7 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           cd executorch
           ./install_requirements.sh
-          ./install_executorch.sh
+          pkill -f buck && ./install_executorch.sh
           cd examples/openvino
           ./openvino_build.sh
           cd ../..
