@@ -172,6 +172,14 @@ AxisSet StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask)
 
 std::shared_ptr<Node> StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
+    // check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this,
+                          (new_args.size() == 3) || (new_args.size() == 4),
+                          "clone_with_new_inputs() expected 3 or 4",
+                          " arguments",
+                          " but got ",
+                          new_args.size());
+
     if (new_args.size() == 3) {
         return std::make_shared<v1::StridedSlice>(new_args.at(0),
                                                   new_args.at(1),
@@ -182,7 +190,7 @@ std::shared_ptr<Node> StridedSlice::clone_with_new_inputs(const OutputVector& ne
                                                   m_shrink_axis_mask,
                                                   m_ellipsis_mask);
     }
-    check_new_args_count(this, new_args);
+    // check_new_args_count(this, new_args);
     return std::make_shared<v1::StridedSlice>(new_args.at(0),
                                               new_args.at(1),
                                               new_args.at(2),

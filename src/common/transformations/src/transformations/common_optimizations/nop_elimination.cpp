@@ -573,70 +573,69 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
             return false;
 
         uint64_t start_index = 0;
-        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> in_index_in_cocat;
+        std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> in_index_in_concat;
         for (auto& concat_in : concat_inputs) {
             auto tmp_index = start_index + concat_in.get_shape()[concat_axis] - 1;
-            in_index_in_cocat.push_back(
+            in_index_in_concat.push_back(
                 std::make_tuple(concat_in.get_source_output().get_node_shared_ptr(), start_index, tmp_index));
             start_index = tmp_index + 1;
         }
 
         std::vector<std::tuple<std::shared_ptr<Node>, int64_t, int64_t>> mismatch_slices{};
-        for (const auto& slice_out : slice_out_index_in_cocat) {
+        for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_cocat) {
             bool matched = false;
-            for (const auto& concat_in : in_index_in_cocat) {
-                if (get<1>(slice_out) == get<1>(concat_in) && get<2>(slice_out) == get<2>(concat_in)) {
-                    auto slice_outputs = get<0>(slice_out)->outputs();
+            for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
+                if (slice_begin == concat_input_begin && slice_end == concat_input_end) {
+                    auto slice_outputs = slice_node->outputs();
                     for (auto& slice_output : slice_outputs) {
-                        replace_output_update_name(slice_output, get<0>(concat_in));
+                        replace_output_update_name(slice_output, concat_input_node);
                     }
                     matched = true;
                     break;
                 }
             }
             if (!matched)
-                mismatch_slices.push_back(slice_out);
+                mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
 
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
-        for (const auto& mismatch_slice : mismatch_slices) {
-            for (const auto& concat_in : in_index_in_cocat) {
-                if ((get<1>(concat_in) <= get<1>(mismatch_slice)) && (get<2>(concat_in) > get<1>(mismatch_slice))) {
-                    if (get<1>(concat_in) < new_start_value)
-                        new_start_value = get<1>(concat_in);
-                    if (get<2>(concat_in) > new_end_value)
-                        new_end_value = get<2>(concat_in);
+        for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
+            for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
+                if ((concat_input_begin <= slice_begin) && (concat_input_end > slice_begin)) {
+                    if (concat_input_begin < new_start_value)
+                        new_start_value = concat_input_begin;
+                    if (concat_input_end > new_end_value)
+                        new_end_value = concat_input_end;
                 }
-                if ((get<1>(concat_in) < get<2>(mismatch_slice)) && (get<2>(concat_in) >= get<2>(mismatch_slice))) {
-                    if (get<1>(concat_in) < new_start_value)
-                        new_start_value = get<1>(concat_in);
-                    if (get<2>(concat_in) > new_end_value)
-                        new_end_value = get<2>(concat_in);
+                if ((concat_input_begin < slice_end) && (concat_input_end >= slice_end)) {
+                    if (concat_input_begin < new_start_value)
+                        new_start_value = concat_input_begin;
+                    if (concat_input_end > new_end_value)
+                        new_end_value = concat_input_end;
                 }
             }
         }
 
         std::vector<std::shared_ptr<Node>> new_concat_in_nodes{};
         bool new_need = false;
-        for (const auto& concat_in : in_index_in_cocat) {
-            if (get<1>(concat_in) == new_start_value) {
+        for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
+            if (concat_input_begin == new_start_value) {
                 new_need = true;
             }
-            if (get<2>(concat_in) == new_end_value) {
-                new_concat_in_nodes.push_back(get<0>(concat_in));
+            if (concat_input_end == new_end_value) {
+                new_concat_in_nodes.push_back(concat_input_node);
                 new_need = false;
             }
             if (new_need) {
-                new_concat_in_nodes.push_back(get<0>(concat_in));
+                new_concat_in_nodes.push_back(concat_input_node);
             }
         }
 
         auto new_concat_node = concat->clone_with_new_inputs(ov::as_output_vector(new_concat_in_nodes));
         replace_output_update_name(concat, new_concat_node);
 
-        for (const auto& mismatch_slice : mismatch_slices) {
-            auto& slice_node = get<0>(mismatch_slice);
+        for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
             if (slice_node->get_users().size() == 1 && ov::is_type<ov::op::v0::Concat>(slice_node->get_users()[0]) &&
                 ov::as_type_ptr<ov::op::v0::Concat>(slice_node->get_users()[0])->get_axis() == concat_axis) {
                 auto next_concat = ov::as_type_ptr<ov::op::v0::Concat>(slice_node->get_users()[0]);
@@ -661,19 +660,19 @@ pass::EliminateConcatSplit::EliminateConcatSplit() {
                 auto begin_node = slice_node->get_input_node_shared_ptr(1);
                 const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node);
                 auto begin_values = begin_constant_node->cast_vector<int64_t>();
-                begin_values[concat_axis] = get<1>(mismatch_slice) - new_start_value;
+                begin_values[concat_axis] = slice_begin - new_start_value;
                 new_slice_in_nodes.push_back(
                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{begin_values.size()}, begin_values));
 
                 auto end_node = slice_node->get_input_node_shared_ptr(2);
                 const auto& end_constant_node = ov::util::get_constant_from_source(end_node);
                 auto end_values = end_constant_node->cast_vector<int64_t>();
-                end_values[concat_axis] = get<2>(mismatch_slice) - new_start_value + 1;
+                end_values[concat_axis] = slice_end - new_start_value + 1;
                 new_slice_in_nodes.push_back(
                     ov::op::v0::Constant::create(ov::element::i64, ov::Shape{end_values.size()}, end_values));
                 auto new_slice_node =
-                    get<0>(mismatch_slice)->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
-                replace_output_update_name(get<0>(mismatch_slice), new_slice_node);
+                    slice_node->clone_with_new_inputs(ov::as_output_vector(new_slice_in_nodes));
+                replace_output_update_name(slice_node, new_slice_node);
             }
         }
         return true;
