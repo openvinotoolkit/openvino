@@ -60,13 +60,21 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
 
-    h->vfadd_vv(dst, src0, src1);
+    switch (exec_prc_) {
+    case ov::element::f32:
+        h->vfadd_vv(dst, src0, src1);
+        break;
+    case ov::element::i32:
+        h->vadd_vv(dst, src0, src1);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
 }
 
 std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
-
 
 /// Clamp ///
 jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
@@ -597,11 +605,20 @@ void jit_sub_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
 
-    h->vfsub_vv(dst, src0, src1);
+    switch (exec_prc_) {
+    case ov::element::f32:
+        h->vfsub_vv(dst, src0, src1);
+        break;
+    case ov::element::i32:
+        h->vsub_vv(dst, src0, src1);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
 }
 
 std::set<std::vector<element::Type>> jit_sub_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 #undef CONST_1_F
