@@ -813,7 +813,7 @@ public:
                          pattern_value.get_index(),
                          "!=",
                          graph_value.get_index());
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ OUTPUT INDICES DIDN'T MATCH. EXPECTED: ", pattern_value.get_index(),
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  OUTPUT INDICES DIDN'T MATCH. EXPECTED: ", pattern_value.get_index(),
                                                                                                       ". OBSERVED: ", graph_value.get_index());
             return false;
         }
@@ -821,14 +821,14 @@ public:
         auto value_node = graph_value.get_node_shared_ptr();
         if (!value_node->get_type_info().is_castable(m_type_info)) {
             _VERBOSE_LOG(level, "X OP type mismatch: ", m_signature, " vs ", graph_value);
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(pattern_value.get_node_shared_ptr()),
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(pattern_value.get_node_shared_ptr()),
                                                                                                    ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
             return false;
         }
 
         if (!m_vt.predicate(graph_value)) {
             _VERBOSE_LOG(level, "X value info mismatch: ", m_signature, " vs ", graph_value);
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ PREDICATE DIDN'T MATCH.");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  PREDICATE DIDN'T MATCH.");
             return false;
         }
 
@@ -837,7 +837,7 @@ public:
             value_node->visit_attributes(visitor);
             if (!visitor.matched()) {
                 _VERBOSE_LOG(level, "X OP attrs mismatch: ", m_signature, " vs ", graph_value);
-                OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ ATTRIBUTES DIDN'T MATCH.");
+                OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  ATTRIBUTES DIDN'T MATCH.");
                 return false;
             }
         }
@@ -851,10 +851,10 @@ public:
 
         if (matcher_verbose_enabled())
             level.push_back('\t');
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "├─ TYPE MATCHED. CHECKING PATTERN ARGUMENTS");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "├─ TYPE MATCHED. CHECKING PATTERN ARGUMENTS");
         bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), (ret ? "└─ ALL ARGUMENTS MATCHED" : "└─ ARGUMENTS DIDN'T MATCH"));
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), (ret ? "}  ALL ARGUMENTS MATCHED" : "}  ARGUMENTS DIDN'T MATCH"));
         if (matcher_verbose_enabled()) {
             level.pop_back();
             _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);

@@ -11,6 +11,7 @@
 #include <mutex>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/env_util.hpp"
 
 void ov::util::default_logger_handler_func(const std::string& s) {
     std::cout << s << std::endl;
@@ -24,11 +25,18 @@ void ov::util::default_logger_handler_func_length(const std::string& s) {
     }
 }
 
+// Outside the LogHelper class to avoid recreation on each log call.
+// Specify matchers you want to log using a comma-separated list:
+// e.g. "StatefulSDPAFusion,MarkDequantization,KeepDecompressionsInFP32Matcher"
+// An empty list implies logging of every matcher.
+static const std::string matchers_to_log_str = ov::util::getenv_string("OV_MATCHERS_TO_LOG");
+
 ov::util::LogHelper::LogHelper(LOG_TYPE type,
                                const char* file,
                                int line,
                                std::function<void(const std::string&)> handler_func)
-    : m_handler_func(std::move(handler_func)) {
+    : m_handler_func(std::move(handler_func)),
+      m_matchers_to_log(ov::util::split_by_delimiter(matchers_to_log_str, ',')) {
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
         m_stream << "[ERR] ";

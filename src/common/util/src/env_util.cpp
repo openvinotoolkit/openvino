@@ -69,3 +69,16 @@ bool ov::util::getenv_bool(const char* env_var, bool default_value) {
     }
     return rc;
 }
+
+std::unordered_set<std::string> ov::util::split_by_delimiter(std::string str, char delimiter) {
+    std::unordered_set<std::string> res;
+    size_t pos = 0;
+    while ((pos = str.find(delimiter)) != std::string::npos) {
+        res.insert(str.substr(0, pos));
+        str.erase(0, pos + 1);
+    }
+    if (pos != str.size() - 1) {
+        res.insert(str);
+    }
+    return res;
+}

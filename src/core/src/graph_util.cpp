@@ -20,6 +20,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
@@ -356,11 +357,12 @@ bool is_used(Node* node) {
     return false;
 }
 
-// These functions are used for printing nodes in a pretty way for matching logging
 
 #ifdef ENABLE_OPENVINO_DEBUG
-// TODO: make this an env. variable
-static bool verbose = false;
+// These functions are used for printing nodes in a pretty way for matching logging
+
+//Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
+static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
 
 //TODO: rewrite these functions in a nicer way
 std::string node_version_type_str(const std::shared_ptr<ov::Node>& node) {

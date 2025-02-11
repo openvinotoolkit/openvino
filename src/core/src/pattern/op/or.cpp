@@ -10,25 +10,25 @@
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
                                             const Output<Node>& graph_value) {
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "├─ CHECKING ", this->get_input_size(), " OR BRANCHES: ", this->get_name());
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "├─ CHECKING ", this->get_input_size(), " OR BRANCHES: ", this->get_name());
     for (size_t i = 0; i < get_input_size(); ++i) {
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(++matcher->level));
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level++), "┌─ BRANCH ", i, ": ", ov::node_version_type_str(input_value(i).get_node_shared_ptr()));
+        OV_LOG_MATCHING(matcher, level_string(++matcher->level));
+        OV_LOG_MATCHING(matcher, level_string(matcher->level++), "{  BRANCH ", i, ": ", ov::node_version_type_str(input_value(i).get_node_shared_ptr()));
         auto saved = matcher->start_match();
         if (matcher->match_value(input_value(i), graph_value)) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
             auto res = saved.finish(true);
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(--matcher->level), "│");
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level--), "└─ BRANCH ", i, " MATCHED");
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
-            OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ BRANCH ", i, " HAS MATCHED");
+            OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level--), "}  BRANCH ", i, " MATCHED");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
+            OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  BRANCH ", i, " HAS MATCHED");
             return res;
         }
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(--matcher->level), "│");
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level--), "└─ BRANCH ", i, " DIDN'T MATCH");
+        OV_LOG_MATCHING(matcher, level_string(--matcher->level), "│");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level--), "}  BRANCH ", i, " DIDN'T MATCH");
     }
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ NONE OF OR BRANCHES MATCHED");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  NONE OF OR BRANCHES MATCHED");
     return false;
 }

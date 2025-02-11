@@ -10,6 +10,8 @@
 #include <vector>
 #include <unordered_set>
 
+#include "openvino/util/env_util.hpp"
+
 namespace ov {
 namespace util {
 
@@ -21,6 +23,9 @@ enum class LOG_TYPE {
     _LOG_TYPE_DEBUG_EMPTY,
 };
 
+// TODO: we probably need to rework the LogHelper class
+// in the future to make it some static object, rather
+// than recreating it each time we log something
 class LogHelper {
 public:
     LogHelper(LOG_TYPE, const char* file, int line, std::function<void(const std::string&)> m_handler_func);
@@ -42,18 +47,14 @@ static std::string level_string_fun(int level) {
     return res;
 }
 
-inline const std::unordered_set<std::string> get_matchers_to_log() { return m_matchers_to_log; }
+inline const std::unordered_set<std::string>& get_matchers_to_log() { return m_matchers_to_log; }
 
 private:
     std::function<void(const std::string&)> m_handler_func;
     std::stringstream m_stream;
-// If you want to log only specific matchers, put their names in this list and recompile.
-// The empty list would mean logging of all matchers.
-    // std::unordered_set<std::string> m_matchers_to_log = {"RoPEFusionQwen"};
-    std::unordered_set<std::string> m_matchers_to_log = {};
+    std::unordered_set<std::string> m_matchers_to_log;
 };
 
-// // TODO: maybe move to a different place
 #define level_string(level) \
     ov::util::LogHelper::level_string_fun(level)
 
@@ -126,16 +127,20 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
             ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 
-#    define OPENVINO_DEBUG_EMPTY(matcher_ptr, ...)                                                                     \
-        do {                                                                                                           \
-            ov::util::LogHelper logger = OPENVINO_LOG(_LOG_TYPE_DEBUG_EMPTY);                                          \
-            if (logger.get_matchers_to_log().empty()) {                                                                \
-                ov::util::_write_all_to_stream(logger.stream(), __VA_ARGS__);                                          \
-            } else {                                                                                                   \
-                if (logger.get_matchers_to_log().find(matcher_ptr->get_name()) != logger.get_matchers_to_log().end()) {\
-                    ov::util::_write_all_to_stream(logger.stream(), __VA_ARGS__);                                      \
-                }                                                                                                      \
-            }                                                                                                          \
+static const bool logging_enabled = ov::util::getenv_bool("OV_LOGGING_ENABLED"); 
+static const std::unordered_set<std::string> matchers_to_log = ov::util::split_by_delimiter(ov::util::getenv_string("OV_MATCHERS_TO_LOG"), ',');
+
+#    define OV_LOG_MATCHING(matcher_ptr, ...)                                                                              \
+        do {                                                                                                               \
+            if (ov::util::logging_enabled) {                                                                               \
+                if (ov::util::matchers_to_log.empty()) {                                                                   \
+                    ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY), __VA_ARGS__);               \
+                } else {                                                                                                   \
+                    if (ov::util::matchers_to_log.find(matcher_ptr->get_name()) != ov::util::matchers_to_log.end()) {      \
+                        ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY), __VA_ARGS__);           \
+                    }                                                                                                      \
+                }                                                                                                          \
+            }                                                                                                              \
         } while (0)
 #else
 #    define OPENVINO_ERR(...) \
@@ -150,8 +155,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 #    define OPENVINO_DEBUG(...) \
         do {                    \
         } while (0)
-#    define OPENVINO_DEBUG_EMPTY(matcher_ptr, ...) \
-        do {                                       \
+#    define OV_LOG_MATCHING(matcher_ptr, ...) \
+        do {                                  \
         } while (0)
 #endif
 

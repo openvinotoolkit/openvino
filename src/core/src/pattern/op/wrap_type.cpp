@@ -15,25 +15,25 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                     [&](const NodeTypeInfo& type_info) {
                         return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
                     })) {
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(pattern_value.get_node_shared_ptr()),
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  NODES' TYPE DIDN'T MATCH. EXPECTED: ", ov::node_version_type_str(pattern_value.get_node_shared_ptr()),
                                                                                                ". OBSERVED: ", ov::node_version_type_str(graph_value.get_node_shared_ptr()));
         return false;
     }
 
     if (!m_predicate(graph_value)) {
-        OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "└─ NODES' TYPE MATCHED, but PREDICATE FAILED");
+        OV_LOG_MATCHING(matcher, level_string(matcher->level), "}  NODES' TYPE MATCHED, but PREDICATE FAILED");
         return false;
     }
 
     auto& pattern_map = matcher->get_pattern_value_map();
     pattern_map[shared_from_this()] = graph_value;
     matcher->add_node(graph_value);
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "├─ NODES' TYPE and PREDICATE MATCHED. CHECKING ", get_input_size(), " PATTERN ARGUMENTS: ");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "├─ NODES' TYPE and PREDICATE MATCHED. CHECKING ", get_input_size(), " PATTERN ARGUMENTS: ");
     auto res =  (get_input_size() == 0
                 ? true
                 : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), "│");
-    OPENVINO_DEBUG_EMPTY(matcher, level_string(matcher->level), (res ? "└─ ALL ARGUMENTS MATCHED" : "└─ ARGUMENTS DIDN'T MATCH"));
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), "│");
+    OV_LOG_MATCHING(matcher, level_string(matcher->level), (res ? "}  ALL ARGUMENTS MATCHED" : "}  ARGUMENTS DIDN'T MATCH"));
     return res;
 }
 
