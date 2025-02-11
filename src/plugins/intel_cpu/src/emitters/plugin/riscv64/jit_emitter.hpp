@@ -6,6 +6,7 @@
 
 #include "node.h"
 
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "emitters/utils.hpp"
 #include "snippets/generator.hpp"
@@ -32,6 +33,7 @@ struct emitter_params {
 class jit_emitter : public ov::snippets::Emitter {
 public:
     jit_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec);
 
@@ -145,10 +147,10 @@ protected:
     }
 
     ov::intel_cpu::riscv64::jit_generator* h;
+    ov::intel_cpu::riscv64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
 
     mutable Xbyak_riscv::Reg p_table;
-    mutable std::shared_ptr<Xbyak_riscv::Label> l_table;
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;
     mutable std::vector<size_t> aux_fp_gpr_idxs;

@@ -6,6 +6,7 @@
 
 #include "jit_generator.hpp"
 
+#include "cpu_isa_traits.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
@@ -16,6 +17,7 @@ namespace ov {
 namespace intel_cpu {
 namespace riscv64 {
 
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
