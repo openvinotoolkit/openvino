@@ -101,6 +101,26 @@ ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
     }
 }
 
+template <class Container = std::initializer_list<ov::util::Path>>
+ov::util::Path path_join(Container&& paths) {
+    ov::util::Path joined_path{};
+
+    for (auto&& path : paths) {
+        if (!path.empty()) {
+            joined_path /= path;
+        }
+    }
+    return joined_path;
+}
+
+std::string ov::util::path_join(std::initializer_list<std::string>&& paths) {
+    return ::path_join<>(std::move(paths)).string();
+}
+
+std::wstring ov::util::path_join_w(std::initializer_list<std::wstring>&& paths) {
+    return ::path_join<>(std::move(paths)).wstring();
+}
+
 #ifndef _WIN32
 static void iterate_files_worker(const std::string& path,
                                  const std::function<void(const std::string& file, bool is_dir)>& func,
@@ -159,7 +179,7 @@ void ov::util::iterate_files(const std::string& path,
 #ifdef _WIN32
 #    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     std::wstring pathw = string_to_wstring(path);
-    std::wstring file_match = path_join({pathw, L"*"}).wstring();
+    std::wstring file_match = path_join_w({pathw, L"*"});
     WIN32_FIND_DATAW data;
     HANDLE hFind = FindFirstFileW(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE) {
@@ -167,7 +187,7 @@ void ov::util::iterate_files(const std::string& path,
             bool is_dir = data.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY;
             if (is_dir) {
                 if (std::wstring(data.cFileName) != L"." && std::wstring(data.cFileName) != L"..") {
-                    std::wstring dir_pathw = path_join({pathw, data.cFileName}).wstring();
+                    std::wstring dir_pathw = path_join_w({pathw, data.cFileName});
                     std::string dir_path = wstring_to_string(dir_pathw);
                     if (recurse) {
                         iterate_files(dir_path, func, recurse);
@@ -175,7 +195,7 @@ void ov::util::iterate_files(const std::string& path,
                     func(dir_path, true);
                 }
             } else {
-                std::wstring file_namew = path_join({pathw, data.cFileName}).wstring();
+                std::wstring file_namew = path_join_w({pathw, data.cFileName});
                 std::string file_name = wstring_to_string(file_namew);
                 func(file_name, false);
             }
@@ -420,12 +440,12 @@ ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin)
     str << "openvino-" << OpenVINO_VERSION;
     const auto sub_folder = str.str();
 
-    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin}).string();
+    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
     if (ov::util::file_exists(abs_file_path))
         return ov::util::to_file_path(abs_file_path);
 
     // 2. in the openvino.so location
-    abs_file_path = ov::util::path_join({ov_library_path, plugin}).string();
+    abs_file_path = ov::util::path_join({ov_library_path, plugin});
     if (ov::util::file_exists(abs_file_path))
         return ov::util::to_file_path(abs_file_path);
 
@@ -455,7 +475,7 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
 
     auto xml_path_ = xml_path;
     if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xml_path_ = ov::util::path_join({std::string("."), xml_path}).string();  // treat plugins.xml as CWD/plugins.xml
+        xml_path_ = ov::util::path_join({std::string("."), xml_path});  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
@@ -469,7 +489,7 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
         lib_file_name = ov::util::make_plugin_library_name({}, plugin);
 
     // For 4th case
-    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name}).string();
+    auto lib_path = ov::util::path_join({ov::util::get_directory(xml_path_), lib_file_name});
     lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
     if (as_abs_only || ov::util::file_exists(lib_path))
         return ov::util::to_file_path(lib_path);

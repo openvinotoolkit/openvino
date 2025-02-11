@@ -218,17 +218,9 @@ std::string get_file_ext(const std::string& path);
 ov::util::Path get_directory(const ov::util::Path& path);
 
 // TODO: Remove string() casts on function call site
-template <class Container = std::initializer_list<ov::util::Path>>
-ov::util::Path path_join(Container&& paths) {
-    ov::util::Path joined_path{};
-
-    for (auto&& path : paths) {
-        if (!path.empty()) {
-            joined_path /= path;
-        }
-    }
-    return joined_path;
-}
+std::string path_join(std::initializer_list<std::string>&& paths);
+// TODO: Remove wstring() casts on function call site
+std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 void iterate_files(const std::string& path,
                    const std::function<void(const std::string& file, bool is_dir)>& func,
