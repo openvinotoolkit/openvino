@@ -6,6 +6,7 @@
 
 #include <pugixml.hpp>
 #include <regex>
+#include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -32,6 +33,32 @@
 #include "utils.hpp"
 
 using namespace ov::util;
+
+namespace {
+/**
+ * @brief Function deserializing tensor names.
+ *
+ * Each tensor names are separated by comma. Escaped commas in tensor names are replaced by actual comma.
+ *
+ * @param tensor_names A string view to serialized tensor names.
+ * @return A set of unique tensor names.
+ */
+std::unordered_set<std::string> deserialize_tensor_names(const std::string_view& tensor_names) {
+    // tensor names are separated by comma, but ignore escaped comma
+    static const auto splitter = std::regex(R"((?:[^\\,\n]|\\.)+)");
+
+    auto output_names = std::unordered_set<std::string>();
+    std::transform(std::cregex_token_iterator{tensor_names.data(), tensor_names.data() + tensor_names.size(), splitter},
+                   std::cregex_token_iterator{},
+                   std::inserter(output_names, output_names.end()),
+                   [](const auto& token) {
+                       // If tensor name contains escaped comma, replace it with comma
+                       static const auto escaped_delim = std::regex(R"(\\,)");
+                       return std::regex_replace(token.str(), escaped_delim, ",");
+                   });
+    return output_names;
+}
+}  // namespace
 
 ov::XmlDeserializer::IoMap ov::XmlDeserializer::updated_io_map(const pugi::xml_node& node,
                                                                const pugi::xml_node& body_node) {
@@ -763,21 +790,8 @@ ov::GenericLayerParams ov::XmlDeserializer::parse_generic_params(const pugi::xml
             type = ov::element::Type(preStr);
         }
         port.precision = type;
-        std::vector<std::string> names;
-        if (getParameters<std::string>(parentNode, "names", names)) {
-            for (size_t i = 0; i < names.size(); i++) {
-                std::string name = names[i];
-                // Restore original name if it contains delimiter
-                // getParameters(...) returns the vector of names which were split by delimiter ','
-                // but some names can contain ',' as a part of name, in this case we use '\' to
-                // escape delimiter the cycle below is needed in order to find names which contained
-                // delimiter and restore the original name
-                while (i < names.size() && names[i].at(names[i].length() - 1) == '\\') {
-                    name.replace(names[i].length() - 1, 1, ",");
-                    name += names[++i];
-                }
-                port.names.emplace(name);
-            }
+        if (auto names = parentNode.attribute("names"); !names.empty()) {
+            port.names = deserialize_tensor_names(names.value());
         }
         return port;
     };
@@ -1026,14 +1040,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             }
         }
 
-        // The IR does not store information about dedicated output names for Result node (model output),
+        // If IR has no information about dedicated output names for Result node (model output),
         // assume all names from parent node are Result's (model's) tensor names.
-        //  Consider adding dedicated RT info with information about Result's output names.
         if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
-            if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
-                // Copy names if parent node is not parameter, model's input names should not be dedicated
-                // output names as they could be removed from Parameter's tensor during model transformations.
-                result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
+            if (const auto names = node.attribute("output_names"); names.empty()) {
+                if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
+                    // Copy names if parent node is not parameter, model's input names should not be dedicated
+                    // output names as they could be removed from Parameter's tensor during model transformations.
+                    result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
+                }
+            } else {
+                result->get_output_tensor(0).set_names(deserialize_tensor_names(names.value()));
             }
         }
     }
