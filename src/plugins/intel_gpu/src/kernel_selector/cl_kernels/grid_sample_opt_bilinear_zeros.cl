@@ -126,11 +126,13 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
 #endif
 
     const int n = get_global_id(0);
-    const int GRID_OFFSET_FOR_THIS_BLOCK = GRID_ITEMS_PER_BLOCK * 2 * get_group_id(1);
+    const int LOCAL_GRID_OFFSET_FOR_THI_BLOCK = GRID_ITEMS_PER_BLOCK * 2 * get_group_id(1);
+    const int GLOBAL_GRID_OFFSET_FOR_THIS_BLOCK =
+        n * OUTPUT_SIZE_Y * OUTPUT_SIZE_X * 2 + LOCAL_GRID_OFFSET_FOR_THI_BLOCK;
     const int BLOCK_SIZE = get_local_size(1);
-    const grid_t* restrict grid_for_this_block = grid + GRID_OFFSET_FOR_THIS_BLOCK;
+    const grid_t* restrict grid_for_this_block = grid + GLOBAL_GRID_OFFSET_FOR_THIS_BLOCK;
     const int GRID_ITEMS_FOR_THIS_BLOCK =
-        min(OUTPUT_SIZE_Y * OUTPUT_SIZE_X * 2 - GRID_OFFSET_FOR_THIS_BLOCK, GRID_ITEMS_PER_BLOCK * 2);
+        min(OUTPUT_SIZE_Y * OUTPUT_SIZE_X * 2 - LOCAL_GRID_OFFSET_FOR_THI_BLOCK, GRID_ITEMS_PER_BLOCK * 2);
 
     const int INPUT_OFFSET_THIS_THREAD = n * INPUT0_FEATURE_NUM * INPUT0_SIZE_Y * INPUT0_SIZE_X;
     const int INPUT_C_STRIDE = INPUT0_SIZE_Y * INPUT0_SIZE_X;
@@ -141,7 +143,7 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
     // optimal numer of loads(and stores).
     for (int thisThreadHW = get_local_linear_id() * GRID_VAL_PER_THREAD; thisThreadHW < GRID_ITEMS_FOR_THIS_BLOCK;
          thisThreadHW += 2 * BLOCK_SIZE) {
-        const int globalThisThreadHW = (thisThreadHW + GRID_OFFSET_FOR_THIS_BLOCK) / 2;
+        const int globalThisThreadHW = (thisThreadHW + LOCAL_GRID_OFFSET_FOR_THI_BLOCK) / 2;
         const int h = globalThisThreadHW / OUTPUT_SIZE_X;
         const int w = globalThisThreadHW % OUTPUT_SIZE_X;
 
