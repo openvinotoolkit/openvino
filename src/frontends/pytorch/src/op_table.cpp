@@ -508,6 +508,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
+        {"aten::hstack", op::translate_hstack},
         {"aten::im2col", op::translate_im2col},
         {"aten::imag", op::translate_imag},
         // aten::index - Supported in limited set of patterns
@@ -712,6 +713,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::view_as", op::translate_reshape_as},
         {"aten::view_as_complex", op::translate_view_as_complex},
         {"aten::view_as_real", op::translate_view_as_real},
+        {"aten::vstack", op::translate_vstack},
         {"aten::wait", op::skip_node},
         {"aten::where", op::translate_where},
         {"aten::zero", op::translate_zeros_like},
