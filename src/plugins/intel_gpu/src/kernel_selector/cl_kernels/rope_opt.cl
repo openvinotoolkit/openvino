@@ -223,6 +223,9 @@ KERNEL(rope_opt)(
     OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* cos,
     const __global INPUT2_TYPE* sin,
+#ifdef ENABLE_GATHER
+    const __global INPUT3_TYPE* gather,
+#endif
     __global OUTPUT_TYPE* output) {
     const uint b = get_global_id(0);
     const uint p = get_global_id(1);
@@ -235,9 +238,22 @@ KERNEL(rope_opt)(
 #endif
 
     uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+#ifdef ENABLE_GATHER
+    uint gather_b = b < INPUT3_BATCH_NUM ? b : 0;
+    #if GATHER_RANK == 4
+        uint gather_h = h < INPUT3_FEATURE_NUM ? h : 0;
+        uint gather_p = p < INPUT3_SIZE_Y ? p : 0;
+        uint gather_idx = INPUT3_GET_INDEX(gather_b, gather_h, gather_p, 0);
+    #else
+        uint gather_p = p < INPUT3_FEATURE_NUM ? p : 0;
+        uint gather_idx = INPUT3_GET_INDEX(gather_b, gather_p, 0, 0);
+    #endif
+    uint cos_sin_p = gather[gather_idx];
+#else
     uint cos_sin_p = p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM < INPUT1_FEATURE_NUM
                          ? p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM
                          : 0;
+#endif
     uint cos_sin_h = h < INPUT1_SIZE_Y ? h : 0;
 
 #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
