@@ -113,13 +113,8 @@ typename std::enable_if_t<
         decltype(std::declval<std::shared_ptr<From>>()->get_type_info().is_castable(To::get_type_info_static())),
         bool>,
     bool>
-is_type(std::shared_ptr<From> ptr) {
-    if constexpr (compile::use_ov_dynamic_cast<From>()) {
-        return ptr && ptr->get_type_info().is_castable(To::get_type_info_static());
-    } else {
-        static_assert(!std::is_volatile_v<To> && !std::is_volatile_v<From>, "is_type does not support volatile types");
-        return dynamic_cast<std::add_const_t<To>*>(ptr.get()) != nullptr;
-    }
+is_type(const std::shared_ptr<From>& ptr) {
+    return is_type<To>(ptr.get());
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
