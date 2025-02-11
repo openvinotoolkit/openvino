@@ -35,7 +35,8 @@ class TestShiftOperators(PytorchLayerTest):
         [
             ([2, 3], [2, 3]),  
             ([2, 3], []),      
-            ([], [2, 3]),      
+            ([], [2, 3]),  
+            ([], []), 
         ],
     )
     def test_shift_operators(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
@@ -87,6 +88,7 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
             ([2, 3], [2, 3]),  
             ([2, 3], []),      
             ([], [2, 3]),      
+            ([], []), 
         ],
     )
     def test_bitwise_shift_functions(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
