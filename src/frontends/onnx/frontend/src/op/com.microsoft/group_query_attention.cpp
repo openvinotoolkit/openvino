@@ -8,6 +8,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "utils/common.hpp"
 
 using namespace ov::op;
 using ov::Shape;
@@ -19,12 +20,15 @@ namespace com_microsoft {
 
 namespace opset_1 {
 ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
+    // At least given "query" and "seqlens_k"
+    common::default_op_checks(node, 2);
+
     const auto onnx_op_inputs = node.get_ov_inputs();
     const auto num_heads = node.get_attribute_value<int64_t>("num_heads");
     const auto kv_num_heads = node.get_attribute_value<int64_t>("kv_num_heads");
     const auto scale = node.get_attribute_value<float>("scale", 0.0f);
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
-    const auto rotary_interleaved = node.get_attribute_value<float>("rotary_interleaved", 0.0f);
+    const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
 
     OutputVector ov_op_inputs;
     ov_op_inputs.reserve(onnx_op_inputs.size());

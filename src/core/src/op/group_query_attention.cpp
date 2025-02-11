@@ -27,34 +27,23 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
     constructor_validate_and_infer_types();
 }
 
-int64_t get_head_size(const PartialShape& input_shape, int num_heads, int kv_num_heads) {
-    return input_shape[2].get_length() / (num_heads + kv_num_heads * 2);
-}
-
-std::vector<int64_t> get_qkv_sizes(const PartialShape& input_shape, int num_heads, int kv_num_heads) {
-    int64_t per_head_size = get_head_size(input_shape, num_heads, kv_num_heads);
-    const std::vector<int64_t> qkv_sizes = {num_heads * per_head_size,
-                                            kv_num_heads * per_head_size,
-                                            kv_num_heads * per_head_size};
-    return qkv_sizes;
-}
-
 void GroupQueryAttention::validate_and_infer_types() {
     OV_OP_SCOPE(v15_GroupQueryAttention_validate_and_infer_types);
     PartialShape input_shape = get_input_partial_shape(0);
+    NODE_VALIDATION_CHECK(this, input_shape[2].is_static(), "GroupQueryAttention: head size should not be dynamic");
+
     Dimension batch_size = input_shape[0];
     Dimension sequence_len = input_shape[1];
     Dimension head_size;
     if (Null::is_null(input_value(1)) && Null::is_null(input_value(2))) {
-        head_size = get_head_size(input_shape, m_num_heads, m_kv_num_heads);
+        head_size = input_shape[2] / (m_num_heads + m_kv_num_heads * 2);
     } else {
-        head_size = input_shape[2].get_length() / m_num_heads;
+        head_size = input_shape[2] / m_num_heads;
     }
     Dimension output_kv_len;
-    PartialShape kv_past_shape = get_input_partial_shape(3);
-    // FIXME: https://github.com/openvinotoolkit/openvino/pull/27648
-    if (kv_past_shape[2].is_static()) {
-        output_kv_len = kv_past_shape[2] + sequence_len;
+    Dimension past_sequence_len = get_input_partial_shape(3)[2];
+    if (past_sequence_len.is_static() && sequence_len.is_static()) {
+        output_kv_len = past_sequence_len + sequence_len;
     } else {
         output_kv_len = ov::Dimension();
     }
