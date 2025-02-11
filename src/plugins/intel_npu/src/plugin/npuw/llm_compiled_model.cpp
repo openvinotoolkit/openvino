@@ -19,7 +19,6 @@
 
 namespace opp = ov::pass::pattern;
 
-// llama2, phi3, etc
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
