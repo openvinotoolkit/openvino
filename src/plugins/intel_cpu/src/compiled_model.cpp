@@ -153,7 +153,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
-        socketId = streamsExecutor->get_socket_id();
+        socketId = std::max(0, streamsExecutor->get_socket_id());
     }
     auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
