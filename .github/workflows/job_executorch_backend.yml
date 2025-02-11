@@ -112,6 +112,11 @@ jobs:
         run: |
           echo "HOME_DIR:"
           echo $HOME
+          echo "USERS:"
+          cat /etc/passwd
+          echo "CUR_USER:"
+          echo $USER
+          echo "DONE"
           source ${INSTALL_DIR}/setupvars.sh
           cd executorch
           ./install_executorch.sh --clean
