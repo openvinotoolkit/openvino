@@ -196,6 +196,10 @@ struct PropertyName : public std::string {
         return _mutability != PropertyMutability::RO;
     }
 
+    PropertyMutability get_mutability() const {
+        return _mutability;
+    }
+
 private:
     PropertyMutability _mutability = PropertyMutability::RW;
 };
