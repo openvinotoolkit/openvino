@@ -36,7 +36,6 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       EXECUTORCH_REPO: ${{ github.workspace }}/executorch_repo
-      HOME: /usr/home
 
     steps:
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
@@ -45,7 +44,6 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
           echo "EXECUTORCH_REPO=$GITHUB_WORKSPACE/executorch" >> "$GITHUB_ENV"
-          echo "HOME=/usr/home" >> "$GITHUB_ENV"
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -112,6 +110,8 @@ jobs:
 
       - name: Build ET-OV
         run: |
+          echo "HOME_DIR:"
+          echo $HOME
           source ${INSTALL_DIR}/setupvars.sh
           cd executorch
           ./install_executorch.sh --clean
