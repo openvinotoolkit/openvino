@@ -6,8 +6,7 @@
 
 #include "shape_inference_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * Shape inference class for operations with internal dynamism. To reflect the fact that the output shapes may only be
@@ -34,5 +33,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

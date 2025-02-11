@@ -8,8 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Node;
 class Edge;
@@ -22,5 +21,4 @@ struct AllocationContext {
     std::vector<size_t> syncPoints;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

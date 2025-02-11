@@ -18,8 +18,7 @@
 
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
@@ -144,5 +143,4 @@ Shape MemoryDescUtils::makeDummyShape(const Shape& shape, const VectorDims& dumm
     }
     return Shape(dummyDims);
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -23,8 +23,7 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -275,5 +274,4 @@ bool PermuteParams::operator==(const PermuteParams& rhs) const {
            (order == rhs.order) && (data_size == rhs.data_size);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

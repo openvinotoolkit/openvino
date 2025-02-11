@@ -14,8 +14,7 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct BrgemmBaseKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
@@ -146,5 +145,4 @@ protected:
                                       bool with_comp);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

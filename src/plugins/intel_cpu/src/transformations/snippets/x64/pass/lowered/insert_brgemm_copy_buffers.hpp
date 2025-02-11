@@ -6,9 +6,7 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 
 /**
  * @interface InsertBrgemmCopyBuffers
@@ -27,6 +25,4 @@ public:
              snippets::lowered::LinearIR::constExprIt end) override;
 };
 
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

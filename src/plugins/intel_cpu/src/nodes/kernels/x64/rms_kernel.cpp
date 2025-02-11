@@ -7,9 +7,7 @@
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 #define GET_OFF(field) offsetof(jit_rms_call_args, field)
 
@@ -260,6 +258,4 @@ void jit_rms_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
 template struct jit_rms_kernel<cpu_isa_t::avx512_core>;
 template struct jit_rms_kernel<cpu_isa_t::avx2>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

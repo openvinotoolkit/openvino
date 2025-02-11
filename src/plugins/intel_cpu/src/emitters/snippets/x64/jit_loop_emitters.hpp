@@ -8,8 +8,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /* ================== jit_loop_begin_emitter ====================== */
 
@@ -102,5 +101,4 @@ protected:
 
 /* ============================================================== */
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

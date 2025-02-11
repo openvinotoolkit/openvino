@@ -24,9 +24,7 @@
 #include "utils/general_utils.h"
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct MatMulKey {
@@ -745,6 +743,4 @@ bool MatMul::isExecutable() const {
     return !hasEmptyOutputTensors();
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

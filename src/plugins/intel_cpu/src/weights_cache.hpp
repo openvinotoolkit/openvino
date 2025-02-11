@@ -20,8 +20,7 @@
 //       When Graph clone function will be ready you may removed this
 //       classes at all.
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * Caching store of Memory objects
  * Will return a cached object or create new one
@@ -85,5 +84,4 @@ private:
     std::map<int, WeightsSharing::Ptr> _cache_map;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

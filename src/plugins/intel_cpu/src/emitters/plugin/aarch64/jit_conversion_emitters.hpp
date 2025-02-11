@@ -6,9 +6,7 @@
 
 #include "jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 class jit_convert_emitter : public jit_emitter {
 public:
@@ -89,6 +87,4 @@ private:
     void emit_isa(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

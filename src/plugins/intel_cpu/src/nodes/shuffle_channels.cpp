@@ -20,9 +20,7 @@ using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
     using namespace dnnl::impl;
@@ -307,6 +305,4 @@ bool ShuffleChannels::created() const {
     return getType() == Type::ShuffleChannels;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

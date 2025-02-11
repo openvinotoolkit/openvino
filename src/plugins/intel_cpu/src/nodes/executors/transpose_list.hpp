@@ -17,8 +17,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "x64/jit_transpose.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct TransposeExecutorDesc {
     ExecutorType executorType;
@@ -55,5 +54,4 @@ private:
 using TransposeExecutorFactoryPtr = std::shared_ptr<TransposeExecutorFactory>;
 using TransposeExecutorFactoryCPtr = std::shared_ptr<const TransposeExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

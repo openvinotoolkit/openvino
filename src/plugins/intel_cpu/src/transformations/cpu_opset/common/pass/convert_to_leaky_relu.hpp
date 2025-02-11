@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ConvertToLeakyRelu : public ov::pass::MatcherPass {
 public:
@@ -15,5 +14,4 @@ public:
     ConvertToLeakyRelu();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

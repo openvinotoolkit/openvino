@@ -7,9 +7,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -97,6 +95,4 @@ bool ShapeOf::created() const {
     return getType() == Type::ShapeOf;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

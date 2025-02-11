@@ -9,9 +9,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 class CompiledSnippetCPU : public snippets::CompiledSnippet {
 public:
@@ -55,6 +53,4 @@ protected:
     ov::snippets::RegType get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const override;
 };
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

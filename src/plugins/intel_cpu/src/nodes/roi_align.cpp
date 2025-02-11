@@ -26,9 +26,7 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using ngPoolingMode = ov::opset9::ROIAlign::PoolingMode;
 using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
@@ -1206,6 +1204,4 @@ void ROIAlign::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

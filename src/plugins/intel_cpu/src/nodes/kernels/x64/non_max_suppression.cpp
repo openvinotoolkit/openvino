@@ -11,9 +11,7 @@ using namespace dnnl::impl::cpu;
 
 #define GET_OFF(field) offsetof(NmsCallArgs, field)
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::generate() {
@@ -472,6 +470,4 @@ template class NonMaxSuppression<x64::avx512_core>;
 template class NonMaxSuppression<x64::avx2>;
 template class NonMaxSuppression<x64::sse41>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

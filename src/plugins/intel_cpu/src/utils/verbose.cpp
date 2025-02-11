@@ -19,8 +19,7 @@
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "verbose.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool Verbose::shouldBePrinted() const {
     if (lvl < 1) {
@@ -187,7 +186,6 @@ void Verbose::flush() const {
     std::cout << stream.rdbuf() << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

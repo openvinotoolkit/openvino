@@ -6,8 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class FullyConnectedBiasFusion : public ov::pass::MatcherPass {
 public:
@@ -15,5 +14,4 @@ public:
     FullyConnectedBiasFusion();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

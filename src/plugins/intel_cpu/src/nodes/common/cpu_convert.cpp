@@ -18,8 +18,7 @@
 #    include "utils/general_utils.h"
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace {
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1120,5 +1119,4 @@ bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
 #undef INTEL_CPU_CVT
 #undef INTEL_CPU_CVT_LIST
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

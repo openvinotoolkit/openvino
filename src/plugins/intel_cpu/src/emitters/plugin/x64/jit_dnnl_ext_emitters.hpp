@@ -9,8 +9,7 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_relu_emitter : public jit_dnnl_emitter {
 public:
@@ -192,5 +191,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

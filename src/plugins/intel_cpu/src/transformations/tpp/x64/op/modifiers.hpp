@@ -5,10 +5,7 @@
 #pragma once
 #include "snippets/op/memory_access.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace tpp {
-namespace modifier {
+namespace ov::intel_cpu::tpp::modifier {
 
 /**
  * @interface TensorProcessingPrimitive
@@ -28,7 +25,4 @@ public:
     }
 };
 
-}  // namespace modifier
-}  // namespace tpp
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::tpp::modifier

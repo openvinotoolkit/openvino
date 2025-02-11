@@ -7,8 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 InputMemoryFormats::~InputMemoryFormats() = default;
 
@@ -34,5 +33,4 @@ std::string getOutputMemoryFormats(const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

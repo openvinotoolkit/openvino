@@ -6,8 +6,7 @@
 
 #include <numeric>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace {
 
 constexpr size_t channelsPos = 1lu;
@@ -132,5 +131,4 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
     return std::make_pair(first, last);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

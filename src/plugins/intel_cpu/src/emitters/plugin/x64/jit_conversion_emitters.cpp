@@ -11,8 +11,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 jit_convert_emitter::jit_convert_emitter(jit_generator* host,
                                          cpu_isa_t host_isa,
@@ -398,5 +397,4 @@ size_t jit_convert_saturation_emitter::aux_vecs_count() const {
     return output_type == ov::element::u8 && host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 1 : 0;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

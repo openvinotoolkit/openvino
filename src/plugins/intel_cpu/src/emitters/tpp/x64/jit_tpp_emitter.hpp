@@ -10,8 +10,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 // Note: The macro allows to automatically set appropriate environment variables for TPP/Libxsmm kernel compilation
 // All TPP kernels must be compiled using this macro.
 // * LIBXSMM_X86_HINT_USE_HIGH_PREC_ELTWISE_APPROX enables more accurate exp approximation and exact division in TPP
@@ -57,5 +56,4 @@ protected:
     int num_kernel_args = 0;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

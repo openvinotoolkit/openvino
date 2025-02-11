@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Move ReadValue's inputs inside the new CPU ngraph node:ReadValueWithSubgraph op.
@@ -27,5 +26,4 @@ public:
     MoveReadValueInputsToSubgraph();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

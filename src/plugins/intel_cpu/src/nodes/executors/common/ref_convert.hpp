@@ -6,8 +6,7 @@
 
 #include "nodes/executors/convert.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CommonConvertExecutor : public ConvertExecutor {
 public:
@@ -41,5 +40,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

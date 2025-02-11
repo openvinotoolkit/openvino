@@ -7,10 +7,7 @@
 #include <utility>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace executors {
-namespace aarch64 {
+namespace ov::intel_cpu::executors::aarch64 {
 
 bool JitEltwiseExecutor::isSupported(const Algorithm& algorithm,
                                      const std::vector<ov::element::Type>& input_precisions,
@@ -125,7 +122,4 @@ void JitEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
     exec_func();
 }
 
-}  // namespace aarch64
-}  // namespace executors
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::executors::aarch64

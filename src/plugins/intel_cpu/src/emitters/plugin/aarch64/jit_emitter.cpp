@@ -12,9 +12,7 @@
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 const std::vector<size_t> jit_emitter::store_gpr_regs = {
     // Parameter/result registers
@@ -338,6 +336,4 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
     }
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

@@ -14,8 +14,7 @@ using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
                                        const element::Type& in1_dtype,
@@ -129,5 +128,4 @@ void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*
 }
 #endif
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

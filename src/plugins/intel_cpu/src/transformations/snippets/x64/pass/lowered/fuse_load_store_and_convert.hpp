@@ -6,9 +6,7 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 
 /**
  * @interface FuseLoadStoreConvert
@@ -33,6 +31,4 @@ private:
                             snippets::lowered::LinearIR::constExprIt& convert_it);
 };
 
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

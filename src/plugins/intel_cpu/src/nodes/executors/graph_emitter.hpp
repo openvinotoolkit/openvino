@@ -13,8 +13,7 @@
 #include "nodes/executors/executor_config.hpp"
 #include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Attrs>
 class GraphEmitter {
@@ -124,5 +123,4 @@ private:
     GraphPtr graph;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

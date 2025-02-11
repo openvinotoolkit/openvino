@@ -6,8 +6,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DecomposeIntegerDivide : public ov::pass::MatcherPass {
 public:
@@ -15,5 +14,4 @@ public:
     DecomposeIntegerDivide();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

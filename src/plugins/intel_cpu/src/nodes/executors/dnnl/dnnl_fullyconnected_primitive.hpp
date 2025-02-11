@@ -13,8 +13,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlFCPrimitive {
     struct Key {
@@ -87,5 +86,4 @@ private:
 
 using DnnlFCPrimitivePtr = std::shared_ptr<DnnlFCPrimitive>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

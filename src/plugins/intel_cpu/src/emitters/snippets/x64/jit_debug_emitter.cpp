@@ -14,8 +14,7 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 size_t jit_debug_emitter::get_inputs_num() const {
     return m_target_emitter->get_inputs_num();
@@ -75,7 +74,6 @@ void jit_debug_emitter::emit_code(const std::vector<size_t>& in_idxs,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif
