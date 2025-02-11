@@ -275,10 +275,10 @@ void Pooling::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != 1) {
-        OPENVINO_THROW("Incorrect number of input edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
+        THROW_CPU_NODE_ERR("Incorrect number of output edges");
     }
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
@@ -362,7 +362,7 @@ void Pooling::getSupportedDescriptors() {
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outputPrecision);
 
     if ((inputRank < 3) || (inputRank > 5)) {
-        OPENVINO_THROW("Pooling layer. Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
+        THROW_CPU_NODE_ERR("Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
     }
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
@@ -414,7 +414,7 @@ void Pooling::getSupportedDescriptors() {
 void Pooling::prepareParams() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
-        OPENVINO_THROW("Pooling node with name '", getName(), "' did not set preferable primitive descriptor");
+        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
     }
 
     AttrPtr attr;
@@ -436,10 +436,10 @@ void Pooling::prepareParams() {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
         if (!dstMemPtr || !dstMemPtr->isDefined()) {
-            OPENVINO_THROW("Destination memory is undefined.");
+            THROW_CPU_NODE_ERR("Destination memory is undefined.");
         }
         if (!srcMemPtr || !srcMemPtr->isDefined()) {
-            OPENVINO_THROW("Input memory is undefined.");
+            THROW_CPU_NODE_ERR("Input memory is undefined.");
         }
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
@@ -507,7 +507,7 @@ void Pooling::prepareParams() {
         dnnlExecPtr = result.first;
 
         if (!dnnlExecPtr) {
-            OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+            THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
         }
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
@@ -539,7 +539,7 @@ void Pooling::execute(const dnnl::stream& strm) {
 
         execPtr->exec(srcMemory, dstMemory, postOpsArgs);
     } else {
-        OPENVINO_THROW("Pooling node with name '", getName(), "' doesn't have an initialized executor");
+        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
     }
 }
 
@@ -765,11 +765,11 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);

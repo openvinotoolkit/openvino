@@ -33,7 +33,7 @@ Composite::Composite(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& subModel = ov::as_type_ptr<SubModel>(op);
-    OPENVINO_ASSERT(subModel, "Attempt to create SubGraph node from an invalid op type: ", op);
+    CPU_NODE_ASSERT(subModel, "Attempt to create SubGraph node from an invalid op type: ", op);
 
     m_body = subModel->get_function();
 }
@@ -43,16 +43,15 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     std::vector<PortConfig> inConfs;
     std::vector<Input::InputConfig> graphInputConfig;
 
+    constexpr bool isInPlace = true;
+
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
         inConfs.emplace_back(desc);
-        graphInputConfig.emplace_back(node::Input::InputConfig{std::move(desc), true});
+        graphInputConfig.emplace_back(node::Input::InputConfig{std::move(desc), isInPlace});
     }
 
-    std::vector<Input::OutputConfig> graphOutputConfig;
-    for (size_t i = 0; i < outputShapes.size(); i++) {
-        graphOutputConfig.emplace_back(node::Input::OutputConfig{true, true});
-    }
+    std::vector<Input::OutputConfig> graphOutputConfig(outputShapes.size(), node::Input::OutputConfig{true, isInPlace});
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);
@@ -75,23 +74,37 @@ void Composite::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagramm for memory mapping / reuse
 void Composite::createPrimitive() {
-    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
+    m_graph.Activate();
+}
+
+int Composite::registerToAllocationContext(int offset, AllocationContext& context) {
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
-    std::vector<MemoryPtr> inputMemory;
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        inputMemory.emplace_back(getSrcMemoryAtPort(i));
+        auto parentEdge = getParentEdgeAt(i);
+        auto inputEdges = m_graph.getInputNodeByIndex(i)->getChildEdgesAtPort(0);
+        for (const auto& inputEdge : inputEdges) {
+            CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+                            "Expected Uninitialized state for edge: ",
+                            *this);
+            inputEdge->sharedMemFrom(parentEdge);
+        }
     }
 
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
-    std::vector<MemoryPtr> outputMemory;
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        outputMemory.emplace_back(getDstMemoryAtPort(i));
+        auto childEdge = getChildEdgeAt(i);
+        auto outputEdge = m_graph.getOutputNodeByIndex(i)->getParentEdgeAt(0);
+        CPU_NODE_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
+                        "Expected Uninitialized state for edge: ",
+                        *outputEdge);
+        outputEdge->sharedMemFrom(childEdge);
     }
 
-    m_graph.Activate(inputMemory, outputMemory);
+    return m_graph.RegisterToAllocationContext(offset, context);
 }
 
 void Composite::execute(const dnnl::stream&) {

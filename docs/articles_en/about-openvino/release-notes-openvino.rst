@@ -369,7 +369,7 @@ Known Issues
 | Description:
 |   Several models have accuracy degradation on Intel® Core™ Ultra 200V processors,
     Intel® Arc™ A-Series Graphics, and Intel® Arc™ B-Series Graphics. Please use OpenVINO 2024.6
-    to run the models. Model list: Denoise, Sharpen-Sharpen, fastseg-small, hbonet-0.5,
+    to run the models. Model list: fastseg-small, hbonet-0.5,
     modnet_photographic_portrait_matting, modnet_webcam_portrait_matting,
     mobilenet-v3-small-1.0-224, nasnet-a-mobile-224, yolo_v4, yolo_v5m, yolo_v5s, yolo_v8n,
     yolox-tiny, yolact-resnet50-fpn-pytorch.
