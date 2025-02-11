@@ -371,13 +371,13 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         data.algo,
         OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
         OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
-        OV_CASE(Algorithm::EltwiseDivide, jit_div_emitter),
+        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
-        OV_CASE(Algorithm::EltwiseMultiply, jit_mul_emitter),
+        OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
-        OV_CASE(Algorithm::EltwiseSubtract, jit_sub_emitter));
+        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
 
     if (!ctx.emitter) {
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
@@ -481,13 +481,13 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               algo,
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
-              OV_CASE(Algorithm::EltwiseDivide, jit_div_emitter),
+              OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
-              OV_CASE(Algorithm::EltwiseMultiply, jit_mul_emitter),
+              OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
-              OV_CASE(Algorithm::EltwiseSubtract, jit_sub_emitter));
+              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
 
     if (precisions.empty()) {
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");

@@ -53,12 +53,12 @@ private:
     float max {0.f};
 };
 
-class jit_div_emitter : public jit_emitter {
+class jit_divide_emitter : public jit_emitter {
 public:
-    jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
-    jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& node);
+    jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const ov::element::Type exec_prc = ov::element::f32);
+    jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
@@ -95,12 +95,12 @@ private:
     const table_entry_val_t* get_table() const override;
 };
 
-class jit_mul_emitter : public jit_emitter {
+class jit_multiply_emitter : public jit_emitter {
 public:
-    jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
-    jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& node);
+    jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         const ov::element::Type exec_prc = ov::element::f32);
+    jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
@@ -181,12 +181,12 @@ private:
 
     std::unique_ptr<jit_exp_emitter> jit_exp_emitter_ {nullptr};
 };
-class jit_sub_emitter : public jit_emitter {
+class jit_subtract_emitter : public jit_emitter {
 public:
-    jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
-    jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& node);
+    jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         const ov::element::Type exec_prc = ov::element::f32);
+    jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                         const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
