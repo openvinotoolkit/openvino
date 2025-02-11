@@ -23,9 +23,8 @@ OutputVector translate_logit(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
     if (!context.input_is_none(1)) {
-        auto eps = context.get_input(1);
-        auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-        auto one_minus_eps = context.mark_node(std::make_shared<v1::Subtract>(one, eps));
+        auto eps = context.const_input<double>(1);
+        const auto one_minus_eps = (double)1 - eps;
         x = context.mark_node(std::make_shared<v0::Clamp>(x, eps, one_minus_eps));
     }
 
