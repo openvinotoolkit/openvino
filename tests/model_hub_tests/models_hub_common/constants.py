@@ -26,11 +26,7 @@ hf_cache_dir = os.environ.get('HF_HUB_CACHE',
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
 os.environ['HF_HUB_CACHE'] = hf_cache_dir
 
-no_clean_cache_dir = False
-hf_hub_cache_dir = hf_cache_dir
-if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
-    no_clean_cache_dir = True
-    os.environ['HUGGINGFACE_HUB_CACHE'] = hf_hub_cache_dir
+clean_hf_cache_dir = bool(os.environ.get('USE_SYSTEM_CACHE'))
 
 # supported_devices : CPU, GPU
 test_device = os.environ.get('TEST_DEVICE', 'CPU;GPU').split(';')
