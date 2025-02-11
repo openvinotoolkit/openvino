@@ -9,9 +9,6 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 class aten_vstack(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
     def forward(self, x):
         return torch.vstack(self.prepare_input(x))
     
