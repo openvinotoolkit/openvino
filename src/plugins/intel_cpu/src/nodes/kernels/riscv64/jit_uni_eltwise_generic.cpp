@@ -15,12 +15,14 @@ using namespace Xbyak_riscv;
 
 #define GET_OFF(field) offsetof(jit_eltwise_call_args_ptrs, field)
 
-jit_uni_eltwise_generic::jit_uni_eltwise_generic(jit_eltwise_params jep, std::vector<EltwiseData> eltwise_data)
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep, std::vector<EltwiseData> eltwise_data)
     : jit_uni_eltwise_kernel(std::move(jep)),
       jit_generator(),
       eltwise_data_(std::move(eltwise_data)) {}
 
-void jit_uni_eltwise_generic::generate() {
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
     auto const exec_prc =
@@ -195,7 +197,8 @@ void jit_uni_eltwise_generic::generate() {
     postamble();
 }
 
-void jit_uni_eltwise_generic::update_vlen(const Xbyak_riscv::Reg& gpr_work_amount, Xbyak_riscv::SEW sew, Xbyak_riscv::LMUL lmul, bool force) {
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::update_vlen(const Xbyak_riscv::Reg& gpr_work_amount, Xbyak_riscv::SEW sew, Xbyak_riscv::LMUL lmul, bool force) {
     if (!force && current_lmul == lmul && current_sew == sew)
         return;
 
@@ -207,7 +210,8 @@ void jit_uni_eltwise_generic::update_vlen(const Xbyak_riscv::Reg& gpr_work_amoun
     slli(reg_bvlen, reg_vlen, byte_shift);
 }
 
-void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg& gpr_ptr, const Xbyak_riscv::Reg& gpr_work_amount,
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx, const Xbyak_riscv::Reg& gpr_ptr, const Xbyak_riscv::Reg& gpr_work_amount,
                                           const ov::element::Type& src_prc, const ov::element::Type& dst_prc, bool broadcast) {
     const auto needed_lmul = float2lmul(static_cast<float>(src_prc.size()) / static_cast<float>(dst_prc.size()) * lmul2float(exec_lmul));
     const auto needed_sew = bytes2sew(src_prc.size());
@@ -257,7 +261,8 @@ void jit_uni_eltwise_generic::load_vector(size_t vec_idx, const Xbyak_riscv::Reg
         vfcvt_x_f_v(src_vec(vec_idx), src_vec(vec_idx)); // fp32 -> int32
 }
 
-void jit_uni_eltwise_generic::store_vector(const Xbyak_riscv::Reg& gpr_work_amount, const ov::element::Type& src_prc, const ov::element::Type& dst_prc) {
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work_amount, const ov::element::Type& src_prc, const ov::element::Type& dst_prc) {
     OPENVINO_ASSERT(src_prc.size() == sew2bytes(exec_sew), "Incompatible execution SEW and src SEW");
     OPENVINO_ASSERT(one_of(src_prc, ov::element::f32, ov::element::i32), "Unsupported src prc");
 
@@ -298,7 +303,8 @@ void jit_uni_eltwise_generic::store_vector(const Xbyak_riscv::Reg& gpr_work_amou
     }
 }
 
-Xbyak_riscv::LMUL jit_uni_eltwise_generic::get_max_lmul(const ov::element::Type& exec_prc) const {
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::Type& exec_prc) const {
     OPENVINO_ASSERT(eltwise_emitter, "Eltwise emitter is missed");
 
     const auto input_count = jep_.inputs_number;
@@ -325,6 +331,7 @@ namespace {
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
     ov::intel_cpu::riscv64::jit_generator* host;
+    ov::intel_cpu::riscv64::cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;
 };
@@ -332,28 +339,29 @@ struct EltwiseEmitterContext {
 template <typename T>
 struct EltwiseEmitter {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<T>(ctx.host, ctx.exec_prc);
+        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.exec_prc);
     }
 };
 
 template <>
 struct EltwiseEmitter<jit_clamp_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host, ctx.opData.alpha, ctx.opData.beta, ctx.exec_prc);
+        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.opData.beta, ctx.exec_prc);
     }
 };
 
 template <>
 struct EltwiseEmitter<jit_relu_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.opData.alpha, ctx.exec_prc);
+        ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.exec_prc);
     }
 };
 } // namespace
 
-std::shared_ptr<jit_emitter> jit_uni_eltwise_generic::create_eltwise_emitter(const EltwiseData& data,
-                                                                             const ov::element::Type& exec_prec) {
-    EltwiseEmitterContext ctx = {nullptr, this, data, exec_prec};
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitter(const EltwiseData& data,
+                                                                                  const ov::element::Type& exec_prec) {
+    EltwiseEmitterContext ctx = {nullptr, this, isa, data, exec_prec};
 
     OV_SWITCH(
         intel_cpu,
@@ -377,7 +385,8 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic::create_eltwise_emitter(con
     return ctx.emitter;
 }
 
-void jit_uni_eltwise_generic::compute_eltwise_op() {
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::compute_eltwise_op() {
     std::vector<size_t> in_idxs;
     for (size_t i = 0; i < eltwise_emitter->get_inputs_num(); i++) {
         in_idxs.push_back(src_vec(i).getIdx());
@@ -408,7 +417,8 @@ void jit_uni_eltwise_generic::compute_eltwise_op() {
     eltwise_emitter->emit_code(in_idxs, out_idxs, aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
 }
 
-void jit_uni_eltwise_generic::apply_post_ops() {
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_uni_eltwise_generic<isa>::apply_post_ops() {
     int input_idx = eltwise_emitter->get_inputs_num();
     int eltwise_post_op_idx = 0;
     for (size_t i = 1; i < eltwise_data_.size(); i++) {
@@ -445,6 +455,9 @@ void jit_uni_eltwise_generic::apply_post_ops() {
         eltwise_post_op_idx++;
     }
 }
+
+template struct jit_uni_eltwise_generic<cpu_isa_t::imafdcv>;
+
 }  // namespace riscv64
 
 namespace {

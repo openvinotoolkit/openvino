@@ -674,7 +674,7 @@ public:
 
 #if defined(OPENVINO_ARCH_RISCV64)
         if (mayiuse(ov::intel_cpu::riscv64::imafdcv)) {
-            _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic(jep, eltwise_data));
+            _pKernel.reset(new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::imafdcv>(jep, eltwise_data));
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }

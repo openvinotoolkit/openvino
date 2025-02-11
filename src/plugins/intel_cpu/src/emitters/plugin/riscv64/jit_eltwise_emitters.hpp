@@ -12,8 +12,10 @@ namespace riscv64 {
 
 class jit_add_emitter : public jit_emitter {
 public:
-    jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const ov::element::Type exec_prc = ov::element::f32);
+    jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
@@ -22,13 +24,16 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_clamp_emitter : public jit_emitter {
 public:
-    jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, float min, float max, const ov::element::Type exec_prc = ov::element::f32);
-    jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node,
-                      const ov::element::Type exec_prc = ov::element::f32);
+    jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      float min, float max, const ov::element::Type exec_prc = ov::element::f32);
+    jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
@@ -38,6 +43,9 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
     void register_table_entries() override;
     const table_entry_val_t* get_table() const override;
 
@@ -47,8 +55,10 @@ private:
 
 class jit_div_emitter : public jit_emitter {
 public:
-    jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const ov::element::Type exec_prc = ov::element::f32);
+    jit_div_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
@@ -57,12 +67,16 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_exp_emitter : public jit_emitter {
 public:
-    jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
+    jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const ov::element::Type exec_prc = ov::element::f32);
+    jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_gprs_count() const override;
@@ -74,14 +88,19 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
     void register_table_entries() override;
     const table_entry_val_t* get_table() const override;
 };
 
 class jit_mul_emitter : public jit_emitter {
 public:
-    jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const ov::element::Type exec_prc = ov::element::f32);
+    jit_mul_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
@@ -90,13 +109,16 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_prelu_emitter : public jit_emitter {
 public:
-    jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node,
+    jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                       const ov::element::Type exec_prc = ov::element::f32);
+    jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
@@ -106,12 +128,16 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 class jit_relu_emitter : public jit_emitter {
 public:
-    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, float alpha, const ov::element::Type exec_prc = ov::element::f32);
-    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
+    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                     float alpha, const ov::element::Type exec_prc = ov::element::f32);
+    jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                     const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
@@ -121,6 +147,8 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
     void register_table_entries() override;
     const table_entry_val_t* get_table() const override;
@@ -130,9 +158,10 @@ private:
 
 class jit_sigmoid_emitter : public jit_emitter {
 public:
-    jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node,
+    jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                         const ov::element::Type exec_prc = ov::element::f32);
+    jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                        const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
     size_t aux_gprs_count() const override;
@@ -144,6 +173,9 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
     void register_table_entries() override;
     const table_entry_val_t* get_table() const override;
 
@@ -151,8 +183,10 @@ private:
 };
 class jit_sub_emitter : public jit_emitter {
 public:
-    jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, const ov::element::Type exec_prc = ov::element::f32);
-    jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, const std::shared_ptr<ov::Node>& node);
+    jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const ov::element::Type exec_prc = ov::element::f32);
+    jit_sub_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                    const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
 
@@ -161,6 +195,8 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
 }  // namespace riscv64
