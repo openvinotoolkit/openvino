@@ -18,10 +18,7 @@
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void attn_softmax(void* a,
                   void* a_dst,
@@ -68,7 +65,4 @@ void attn_softmax(void* a,
                                dst_precision);
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

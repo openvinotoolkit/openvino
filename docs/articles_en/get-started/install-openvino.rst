@@ -16,12 +16,13 @@ Install OpenVINO™ 2025.0
    OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
    OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
    Create an OpenVINO Yocto Image <install-openvino/install-openvino-yocto>
+   Additional Hardware Setup and Troubleshooting <install-openvino/configurations>
 
 .. raw:: html
 
    <script type="module" crossorigin src="../_static/selector-tool/assets/index-Codcw3jz.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="../_static/selector-tool/selector-15432eb.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="../_static/selector-tool/selector-dbd55b5.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 OpenVINO 2025.0, described here, is not a Long-Term-Support version!
 All currently supported versions are:
