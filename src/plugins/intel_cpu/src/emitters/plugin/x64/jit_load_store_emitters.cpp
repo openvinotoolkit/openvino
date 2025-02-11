@@ -374,13 +374,21 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         if (has_xmm_block) {
             // insert to upper bits of ymm
             // on avx512 target, ymm may have index [16,31], so need evex encoded instruction.
-            mayiuse(cpu::x64::avx512_core) ? h->vinsertf32x4(ymm, ymm, xmm, 1) : h->vinsertf128(ymm, ymm, xmm, 1);
+            if (mayiuse(cpu::x64::avx512_core)) {
+                h->vinsertf32x4(ymm, ymm, xmm, 1);
+            } else {
+                h->vinsertf128(ymm, ymm, xmm, 1);
+            }
             if (has_ymm_block) {
                 // insert to lower bits of ymm, could only executed on avx512
                 h->vinsertf32x4(ymm, ymm, addr(32), 0);
             } else {
                 // insert to lower bits of ymm
-                mayiuse(cpu::x64::avx512_core) ? h->vinsertf32x4(ymm, ymm, addr(0), 0) : h->vinsertf128(ymm, ymm, addr(0), 0);
+                if (mayiuse(cpu::x64::avx512_core)) {
+                    h->vinsertf32x4(ymm, ymm, addr(0), 0);  // evex encoded instruction needed.
+                } else {
+                    h->vinsertf128(ymm, ymm, addr(0), 0);
+                }
             }
         }
 
@@ -922,7 +930,11 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
             start_bytes += 16;
             bytes_to_store -= 16;
             // load upper bits from ymm into xmm
-            STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+            if (mayiuse(cpu::x64::avx512_core)) {
+                STORE_KEEP_SOURCE(vextractf32x4, xmm, Xmm(aux_src_idx), ymm, 1);  // evex used on avx512
+            } else {
+                STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+            }
         }
 
         if (bytes_to_store >= 8 && bytes_to_store < 16) {
