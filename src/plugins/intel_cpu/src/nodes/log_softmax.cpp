@@ -26,37 +26,40 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "LogSoftmax layer with name '" + op->get_friendly_name() + "'";
     const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
-    if (logSoftMax == nullptr)
-        OPENVINO_THROW("Operation with name '",
-                       op->get_friendly_name(),
-                       "' is not an instance of LogSoftmax from opset5.");
+    if (logSoftMax == nullptr) {
+        THROW_CPU_NODE_ERR("is not an instance of LogSoftmax from opset5.");
+    }
 
-    if (inputShapes.size() != 1 || outputShapes.size() != 1)
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input/output edges!");
+    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    }
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
-    if (dimsSize == 0)
+    if (dimsSize == 0) {
         dimsSize += 1;
+    }
     axis = logSoftMax->get_axis();
-    if (axis < 0)
+    if (axis < 0) {
         axis += dimsSize;
+    }
 
-    if (dimsSize < static_cast<size_t>((size_t)(1) + axis))
-        OPENVINO_THROW(errorPrefix, " has incorrect input parameters dimensions and axis number!");
+    if (dimsSize < static_cast<size_t>(static_cast<size_t>(1) + axis)) {
+        THROW_CPU_NODE_ERR("has incorrect input parameters dimensions and axis number!");
+    }
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}},
                          {{LayoutType::ncsp, ov::element::f32}},
@@ -71,24 +74,28 @@ void LogSoftmax::prepareParams() {
 
     int j = static_cast<int>(dims.size()) - 1;
     for (; j >= 0; j--) {
-        if (dims[j] != 1)
+        if (dims[j] != 1) {
             break;
+        }
     }
-    if (j == axis)
+    if (j == axis) {
         isLastDim = true;
+    }
 
-    for (int i = 0; i < axis; i++)
+    for (int i = 0; i < axis; i++) {
         axisStep *= dims[i];
+    }
     reducedAxisSize = dims[axis];
-    for (size_t i = (axis + 1); i < dims.size(); i++)
+    for (size_t i = (axis + 1); i < dims.size(); i++) {
         reducedAxisStride *= dims[i];
+    }
 }
 
-void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
+void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(dnnl::stream strm) {
+void LogSoftmax::execute(const dnnl::stream& strm) {
     const float* srcData = getSrcDataAtPortAs<const float>(0);
     float* dstData = getDstDataAtPortAs<float>(0);
 
@@ -99,12 +106,14 @@ void LogSoftmax::execute(dnnl::stream strm) {
 
             float reduceProd = 0.0f;
             const float max = *std::max_element(srcDataPtr, srcDataPtr + reducedAxisSize);
-            for (size_t j = 0; j < reducedAxisSize; ++j)
+            for (size_t j = 0; j < reducedAxisSize; ++j) {
                 reduceProd += expf(srcDataPtr[j] - max);
+            }
 
             reduceProd = logf(reduceProd);
-            for (size_t j = 0; j < reducedAxisSize; ++j)
+            for (size_t j = 0; j < reducedAxisSize; ++j) {
                 dstDataPtr[j] = srcDataPtr[j] - max - reduceProd;
+            }
         });
     } else {
         parallel_for2d(axisStep, reducedAxisStride, [&](size_t k, size_t i) {
@@ -114,16 +123,19 @@ void LogSoftmax::execute(dnnl::stream strm) {
             float reduceProd = 0.0f;
             float max = std::numeric_limits<float>::min();
             for (size_t j = 0; j < reducedAxisSize; ++j) {
-                if (srcDataPtr[j * reducedAxisStride] > max)
+                if (srcDataPtr[j * reducedAxisStride] > max) {
                     max = srcDataPtr[j * reducedAxisStride];
+                }
             }
 
-            for (size_t j = 0; j < reducedAxisSize; ++j)
+            for (size_t j = 0; j < reducedAxisSize; ++j) {
                 reduceProd += expf(srcDataPtr[j * reducedAxisStride] - max);
+            }
 
             reduceProd = logf(reduceProd);
-            for (size_t j = 0; j < reducedAxisSize; ++j)
+            for (size_t j = 0; j < reducedAxisSize; ++j) {
                 dstDataPtr[j * reducedAxisStride] = srcDataPtr[j * reducedAxisStride] - max - reduceProd;
+            }
         });
     }
 }

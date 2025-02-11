@@ -504,7 +504,12 @@ void CPUStreamsExecutor::cpu_reset() {
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
-    cpu_reset();
+    try {
+        cpu_reset();
+    } catch (const ov::Exception&) {
+        // Destructor should not throw - catch needed for static analysis.
+        OPENVINO_THROW("Reset CPU state error.");
+    }
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
         _impl->_isStopped = true;

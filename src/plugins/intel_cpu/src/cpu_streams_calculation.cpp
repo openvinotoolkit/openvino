@@ -49,8 +49,8 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_threads,
     const int input_infer_requests,
     const int model_prefer_threads,
-    const std::string input_perf_hint,
-    const std::set<ov::hint::ModelDistributionPolicy> hint_model_distribution_policy,
+    const std::string& input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
@@ -514,7 +514,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                                    ALL_PROC);
         } else if (stream_info[PROC_TYPE] == MAIN_CORE_PROC) {
             if (stream_info[THREADS_PER_STREAM] == proc_socket_table[0][MAIN_CORE_PROC]) {
-                streams_info_table.push_back(stream_info);
+                streams_info_table.push_back(std::move(stream_info));
             } else {
                 stream_info[PROC_TYPE] = ALL_PROC;
                 streams_info_table.push_back(stream_info);
@@ -524,10 +524,10 @@ std::vector<std::vector<int>> get_streams_info_table(
                 streams_info_table.push_back(stream_info);
                 stream_info[PROC_TYPE] = HYPER_THREADING_PROC;
                 stream_info[THREADS_PER_STREAM] = proc_socket_table[0][HYPER_THREADING_PROC];
-                streams_info_table.push_back(stream_info);
+                streams_info_table.push_back(std::move(stream_info));
             }
         } else {
-            streams_info_table.push_back(stream_info);
+            streams_info_table.push_back(std::move(stream_info));
         }
     }
 
@@ -562,7 +562,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
 }
 
 int get_model_prefer_threads(const int num_streams,
-                             const std::vector<std::vector<int>> proc_type_table,
+                             const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     const int sockets = get_num_sockets();

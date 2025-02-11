@@ -10,8 +10,7 @@
 
 #include "intel_gpu/primitives/gather_elements.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateGatherElementsOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::GatherElements>& op) {
     validate_inputs_count(op, {2});
@@ -43,5 +42,4 @@ static void CreateGatherElementsOp(ProgramBuilder& p, const std::shared_ptr<ov::
 
 REGISTER_FACTORY_IMPL(v6, GatherElements);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

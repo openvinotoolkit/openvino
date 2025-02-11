@@ -52,19 +52,20 @@ bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
     return retVal;
 }
 
-PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW("CPU: " + errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
@@ -82,7 +83,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    OPENVINO_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
+    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
                     "The input number of PagedAttention should be 13 or 16.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
@@ -175,12 +176,12 @@ void PagedAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("PagedAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
 
-void PagedAttention::execute(dnnl::stream strm) {
+void PagedAttention::execute(const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
@@ -208,8 +209,9 @@ void PagedAttention::execute(dnnl::stream strm) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
         auto pastLens = inputs[5]->getDataAs<const int32_t>();
-        for (size_t i = 0; i < pastLensDims[0]; i++)
+        for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
+        }
         len += outDims[0];
         VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
@@ -218,8 +220,9 @@ void PagedAttention::execute(dnnl::stream strm) {
     }
 
     outputs[0] = getDstMemoryAtPort(0);
-    if (m_hasScore)
+    if (m_hasScore) {
         outputs[1] = getDstMemoryAtPort(1);
+    }
 
     m_executor->execute(inputs, outputs);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ struct ConvertParams {
 
 class ConvertExecutor : public Executor {
 public:
-    explicit ConvertExecutor(const ExecutorContext::CPtr context);
+    explicit ConvertExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ConvertParams& convertParams,
                       const MemoryDescPtr& srcDesc,
                       const MemoryDescPtr& dstDesc,

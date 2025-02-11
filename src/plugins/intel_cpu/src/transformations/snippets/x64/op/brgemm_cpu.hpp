@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,9 +29,9 @@ public:
               const size_t offset_a = 0,
               const size_t offset_b = 0,
               const size_t offset_c = 0,
-              std::vector<size_t> layout_a = {},
-              std::vector<size_t> layout_b = {},
-              std::vector<size_t> layout_c = {});
+              const std::vector<size_t>& layout_a = {},
+              const std::vector<size_t>& layout_b = {},
+              const std::vector<size_t>& layout_c = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               const Output<Node>& scratch,
@@ -40,18 +40,18 @@ public:
               const size_t offset_b = 0,
               const size_t offset_scratch = 0,
               const size_t offset_c = 0,
-              std::vector<size_t> layout_a = {},
-              std::vector<size_t> layout_b = {},
-              std::vector<size_t> layout_c = {});
+              const std::vector<size_t>& layout_a = {},
+              const std::vector<size_t>& layout_b = {},
+              const std::vector<size_t>& layout_c = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               BRGEMM_TYPE type,
               const PortDescriptor& desc_a,
               const PortDescriptor& desc_b,
               const PortDescriptor& desc_c,
-              std::vector<size_t> layout_a = {},
-              std::vector<size_t> layout_b = {},
-              std::vector<size_t> layout_c = {});
+              const std::vector<size_t>& layout_a = {},
+              const std::vector<size_t>& layout_b = {},
+              const std::vector<size_t>& layout_c = {});
     BrgemmCPU(const Output<Node>& A,
               const Output<Node>& B,
               const Output<Node>& scratch,
@@ -60,9 +60,9 @@ public:
               const PortDescriptor& desc_b,
               const PortDescriptor& desc_scratch,
               const PortDescriptor& desc_c,
-              std::vector<size_t> layout_a = {},
-              std::vector<size_t> layout_b = {},
-              std::vector<size_t> layout_c = {});
+              const std::vector<size_t>& layout_a = {},
+              const std::vector<size_t>& layout_b = {},
+              const std::vector<size_t>& layout_c = {});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
@@ -79,9 +79,9 @@ public:
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
 private:
-    void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a,
-                                                     std::vector<size_t> layout_b,
-                                                     std::vector<size_t> layout_c);
+    void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
+                                                     const std::vector<size_t>& layout_b,
+                                                     const std::vector<size_t>& layout_c);
     void validate_with_scratchpad() const;
     void validate_inputs() const;
 

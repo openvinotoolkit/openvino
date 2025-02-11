@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ class TensorflowLiteFrontendWrapper : public ov::frontend::tensorflow_lite::Fron
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
         ov::frontend::tensorflow_lite::FrontEnd::add_extension(extension);
 
-        if (auto conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        if (auto conv_ext = ov::as_type_ptr<ConversionExtension>(extension)) {
             EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext),
                       m_conversion_extensions.end())
                 << "ConversionExtension is not registered.";
