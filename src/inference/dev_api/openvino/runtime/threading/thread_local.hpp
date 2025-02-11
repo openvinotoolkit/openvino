@@ -59,10 +59,15 @@ struct ThreadLocal {
         _create = std::move(other._create);
         return *this;
     }
-    ThreadLocal(const ThreadLocal& other) : _map(other._map), _create(other._create) {}
+    ThreadLocal(const ThreadLocal& other) : _create(other._create) {
+        std::lock_guard<std::mutex> lock{other._mutex};
+        _map = other._map;
+    }
     ThreadLocal& operator=(const ThreadLocal& other) {
+        std::lock_guard<std::mutex> lock{other._mutex};
         _map = other._map;
         _create = other._create;
+        return *this;
     }
     explicit ThreadLocal(const Create& create_) : _create{create_} {}
 
