@@ -230,7 +230,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 self.input_types.append(
                     BaseFXDecoder.get_type_for_value(arg))
 
-    def get_found_shape(self, value) -> str:
+    @staticmethod
+    def get_found_shape(value) -> str:
         # If input is a tensor, read the shape from meta data
         if hasattr(value, "meta"):
             if ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
