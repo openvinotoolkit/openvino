@@ -15,12 +15,81 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
-using namespace ov::snippets::pass;
+using namespace ov::snippets::lowered;
 
 ParallelWAOptimizer::ParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, const RuntimeConfigurator* configurator)
     : lowered::pass::RuntimeOptimizer(configurator) {
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
+
+    const auto& results = linear_ir->get_results();
+    // Note: the feature supports only Subgraphs with single Result,
+    // since it is not obvous how to get master shape for multiple Results from this entry point
+    if (results.size() != 1)
+        return;
+    const auto& result = results.back();
+
+    using ParamToOptimize = std::pair<size_t, size_t>;
+    const auto& params = linear_ir->get_parameters();
+    std::set<ParamToOptimize> params_to_optimize;
+
+    auto check_input_ports = [&params, &params_to_optimize](const std::vector<LoopPort>& ports) {
+        for (const auto& port : ports) {
+            if (!port.is_processed())
+                continue;
+
+            auto expr_to_check = port.get_expr_port()->get_port_connector_ptr()->get_source().get_expr();
+            const auto& shape_infer_parents = utils::get_first_parent_shape_infer_expr_seq(expr_to_check);
+            if (!shape_infer_parents.empty())
+                expr_to_check = shape_infer_parents.back()->get_input_expr_ptr(0);
+            if (!ov::is_type<ov::op::v0::Parameter>(expr_to_check->get_node()))
+                return false;
+
+            ParamToOptimize param_to_optimize;
+            auto found_param = std::find(params.begin(), params.end(), expr_to_check);
+            OPENVINO_ASSERT(found_param != params.end(), "find_param didn't found parameter for expr");
+            param_to_optimize.first = std::distance(params.begin(), found_param);
+            param_to_optimize.second = port.get_dim_idx();
+            params_to_optimize.insert(param_to_optimize);
+            std::cout << "[ INFO ] Param to optimize: idx = " << param_to_optimize.first
+                      << ", dim_to_optimize = " << param_to_optimize.second << "\n";
+            std::cout << "\t Loop port: expr_to_check = " << expr_to_check->get_node()->get_friendly_name()
+                      << ", dim_idx = " << port.get_dim_idx() << "\n";
+        }
+        return true;
+    };
+
+    auto check_output_ports = [&result](const std::vector<LoopPort>& ports) {
+        for (const auto& port : ports) {
+            if (!port.is_processed())
+                continue;
+            const auto consumers = port.get_expr_port()->get_port_connector_ptr()->get_consumers();
+            if (!std::all_of(consumers.begin(), consumers.end(), [&result](const auto& consumer) {
+                    const auto& node = consumer.get_expr()->get_node();
+                    return ov::is_type<ov::snippets::op::LoopEnd>(node) ||
+                           (ov::is_type<ov::op::v0::Result>(node) && consumer.get_expr().get() == result.get());
+                })) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    const auto last_expr = result->get_input_expr_ptr(0);
+    const auto last_loop_id = last_expr->get_loop_ids().front();
+    const auto& target_loop = linear_ir->get_loop_manager()->get_loop_info<ExpandedLoopInfo>(last_loop_id)->get_unified_loop_info();
+    const auto& input_ports = target_loop->get_input_ports();
+    const auto& output_ports = target_loop->get_output_ports();
+    std::cout << "[ INFO ] ParallelWAOptimizer: input ports check " << (check_input_ports(input_ports) ? "passed" : "failed") << "\n";
+    std::cout << "[ INFO ] ParallelWAOptimizer: output ports check " << (check_output_ports(output_ports) ? "passed" : "failed") << "\n";
+    // Only loop, whose processed ports are connected to Subgraph inputs/outputs,
+    // can be used for parallel work amount optimization
+    if (!check_input_ports(input_ports) || !check_output_ports(output_ports))
+        return;
+
+    std::cout << "[ INFO ] ParallelWAOptimizer: loop check passed\n";
+
+    // const auto& output_ports = target_loop->get_output_ports();
 
     // const auto brgemms = find_applicable_brgemms(linear_ir);
     // if (brgemms.empty())
