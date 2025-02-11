@@ -16,8 +16,7 @@
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace executor;
 using namespace dnnl;
@@ -153,5 +152,4 @@ void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

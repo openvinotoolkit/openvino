@@ -8,8 +8,7 @@
 #include "executor.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum MVNLayoutType { mvn_planar, mvn_block, mvn_by_channel };
 
@@ -64,5 +63,4 @@ public:
 using MVNExecutorBuilderPtr = std::shared_ptr<MVNExecutorBuilder>;
 using MVNExecutorBuilderCPtr = std::shared_ptr<const MVNExecutorBuilder>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -16,8 +16,7 @@
 std::mutex err_print_lock;
 #endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 inline void parallel4d_repacking(const BrgemmCopyBKernel* ker,
@@ -331,5 +330,4 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

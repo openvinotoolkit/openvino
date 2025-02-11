@@ -8,8 +8,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 const unsigned jitGatherKernelBase::shufMask8bitUni[16] = {0x0C080400,
                                                            0x80808080,
@@ -1111,5 +1110,4 @@ bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
 template struct jitUniGatherKernel<x64::avx2>;
 template struct jitUniGatherKernel<x64::avx512_core>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

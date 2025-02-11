@@ -7,9 +7,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace utils {
+namespace ov::intel_cpu::utils {
 
 inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
     std::vector<Xbyak::Reg64> regs(idxs.size());
@@ -71,6 +69,4 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h
                                           Xbyak::Reg64 ptr_reg,
                                           size_t ptr_offset);
 
-}  // namespace utils
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::utils
