@@ -113,7 +113,8 @@ ov::util::Path path_join(Container&& paths) {
     return joined_path;
 }
 
-std::string ov::util::path_join(std::initializer_list<std::string>&& paths) {
+std::string ov::util::path_join(std::initializer_list<ov::util::Path>&& paths) {
+    // TODO: Remove string() / wstring() casts on function call site
     return ::path_join<>(std::move(paths)).string();
 }
 
@@ -479,7 +480,7 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const st
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin}).string();
+        auto path_ = ov::util::path_join({ov::util::get_directory(xml_path_), plugin});
         return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
     }
 
