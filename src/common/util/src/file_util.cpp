@@ -92,7 +92,9 @@ std::string ov::util::get_file_ext(const std::string& s) {
 }
 
 ov::util::Path ov::util::get_directory(const ov::util::Path& path) {
-    if (const auto& parent_path = path.parent_path(); parent_path.empty() && !path.empty()) {
+    if (path.empty()) {
+        return {};
+    } else if (const auto& parent_path = path.parent_path(); parent_path.empty()) {
         return {"."};
     } else {
         return parent_path;
