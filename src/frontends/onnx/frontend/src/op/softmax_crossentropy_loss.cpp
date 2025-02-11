@@ -19,7 +19,7 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace {
-OutputVector impl_softmax_cross_entropy(const Node& node, int64_t axis_default) {
+OutputVector onnx_softmax_crossentropy_loss(const Node& node, int64_t axis_default) {
     const auto inputs = node.get_ov_inputs();
 
     const auto scores = inputs[0];
@@ -96,15 +96,16 @@ OutputVector impl_softmax_cross_entropy(const Node& node, int64_t axis_default) 
 namespace ai_onnx {
 namespace opset_12 {
 OutputVector softmax_cross_entropy_loss(const Node& node) {
-    return impl_softmax_cross_entropy(node, 1);
+    return onnx_softmax_crossentropy_loss(node, 1);
 }
 ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_IN(12), ai_onnx::opset_12::softmax_cross_entropy_loss);
 }  // namespace opset_12
 namespace opset_13 {
 OutputVector softmax_cross_entropy_loss(const Node& node) {
-    return impl_softmax_cross_entropy(node, 1);
+    // only difference is that opset_13 supports bfloat16 datatype
+    return onnx_softmax_crossentropy_loss(node, 1);
 }
-ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_IN(13), ai_onnx::opset_13::softmax_cross_entropy_loss);
+ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_SINCE(13), ai_onnx::opset_13::softmax_cross_entropy_loss);
 }  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx
