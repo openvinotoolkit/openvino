@@ -29,7 +29,7 @@ GraphContext::GraphContext(Config config,
       m_memoryControl(m_auxiliaryNetworkMemoryControl->createMemoryControlUnit()) {
     if (m_streamExecutor) {
         m_cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_streamExecutor);
-        m_numaNodeId = m_cpuStreamExecutor ? m_cpuStreamExecutor->get_numa_node_id() : 0;
+        m_numaNodeId = m_cpuStreamExecutor ? std::max(0, m_cpuStreamExecutor->get_numa_node_id()) : 0;
         auto nNumaNodes = get_num_numa_nodes();
         if (m_numNumaNodes < nNumaNodes) {
             m_numNumaNodes = nNumaNodes;

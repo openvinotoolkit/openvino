@@ -104,10 +104,11 @@ struct CPUStreamsExecutor::Impl {
                                    const int concurrency,
                                    const int core_type,
                                    const int numa_node_id,
+                                   const int socket_id,
                                    const int max_threads_per_core) {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
-            _numaNodeId = std::max(0, numa_node_id);
-            _socketId = get_socket_by_numa_node(_numaNodeId);
+            _numaNodeId = numa_node_id;
+            _socketId = socket_id;
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_max_concurrency(concurrency)
@@ -159,6 +160,7 @@ struct CPUStreamsExecutor::Impl {
             int concurrency;
             int cpu_core_type;
             int numa_node_id;
+            int socket_id;
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
@@ -173,6 +175,7 @@ struct CPUStreamsExecutor::Impl {
                                 concurrency,
                                 cpu_core_type,
                                 numa_node_id,
+                                socket_id,
                                 max_threads_per_core);
             if (concurrency <= 0) {
                 return;
@@ -182,6 +185,7 @@ struct CPUStreamsExecutor::Impl {
                                   concurrency,
                                   cpu_core_type,
                                   numa_node_id,
+                                  socket_id,
                                   max_threads_per_core);
         }
 #endif
