@@ -240,7 +240,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 return value.meta['val'].shape
         return None
 
-    def get_found_dtype(self, value) -> str:
+    @staticmethod
+    def get_found_dtype(value) -> str:
         # If input is a tensor, read the data type from meta data
         if hasattr(value, "meta") and ('tensor_meta' in value.meta.keys()) and value.meta['tensor_meta']:
             return OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)])
