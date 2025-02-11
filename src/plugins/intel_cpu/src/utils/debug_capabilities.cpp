@@ -22,15 +22,12 @@
 #    include "openvino/op/util/multi_subgraph_base.hpp"
 #    include "transformations/rt_info/disable_fp16_compression.hpp"
 
-namespace dnnl {
-namespace impl {
+namespace dnnl::impl {
 std::ostream& operator<<(std::ostream& ss, const primitive_attr_t* attr);
 std::ostream& operator<<(std::ostream& ss, alg_kind_t alg);
-}  // namespace impl
-}  // namespace dnnl
+}  // namespace dnnl::impl
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace {
 size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
@@ -706,8 +703,7 @@ void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int 
     std::cout << "\n";
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 bool getEnvBool(const char* name) {
     static const bool env = ov::util::getenv_bool(name);

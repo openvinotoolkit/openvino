@@ -11,8 +11,8 @@
 #    include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
 #    include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
 #endif
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 using namespace ov::snippets::lowered::pass;
 
 const size_t CPURuntimeConfigurator::rank6D = 6;
@@ -92,5 +92,4 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         }
     }
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

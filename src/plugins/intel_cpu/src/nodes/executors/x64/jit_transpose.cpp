@@ -9,8 +9,7 @@
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     if (!pKernel) {
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
@@ -42,5 +41,4 @@ bool JitTransposeExecutorBuilder::isSupported(const TransposeParams& transposePa
     return false;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
