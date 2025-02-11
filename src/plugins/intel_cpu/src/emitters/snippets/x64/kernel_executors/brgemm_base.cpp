@@ -257,11 +257,16 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
 
     if (is_type<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
-    } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
-        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
+        const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
         // In case of data repacking LDB is chosen in accordance with repacking buffer size
         if (with_repacking(brgemm_node->get_type())) {
             LDB = DIM_CAST(brgemm_utils::repacking::compute_repacked_n_dim(LDB, brgemm_node->get_input_element_type(1)));
+        }
+    } else if (is_type<ov::intel_cpu::GemmCPU>(expr->get_node())) {
+        const auto& gemm_node = as_type_ptr<ov::intel_cpu::GemmCPU>(expr->get_node());
+        // In case of data repacking LDB is chosen in accordance with repacking buffer size
+        if (with_repacking(gemm_node->get_type())) {
+            LDB = DIM_CAST(brgemm_utils::repacking::compute_repacked_n_dim(LDB, gemm_node->get_input_element_type(1)));
         }
     } else {
         OV_CPU_JIT_EMITTER_ASSERT(false, "Got invalid node type in update_config");
