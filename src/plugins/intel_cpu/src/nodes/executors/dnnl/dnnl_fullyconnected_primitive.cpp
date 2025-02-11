@@ -31,8 +31,7 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace dnnl;
 using namespace ov::element;
@@ -481,5 +480,4 @@ void DnnlFCPrimitive::execute(const dnnl_primitive_args& primArgs) const {
     m_prim.execute(m_stream, primArgs);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
